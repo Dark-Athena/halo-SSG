@@ -13,7 +13,7 @@
         {% if post.publish_time %}
         <span class="date">{{ post.publish_time.strftime('%m-%d') }}</span>
         {% endif %}
-        <a class="title" href="{{ post.permalink }}">{{ post.title }}</a>
+        <a class="title" href="{{ base }}{{ post.permalink }}">{{ post.title }}</a>
     </li>
     {% endfor %}
 </ul>

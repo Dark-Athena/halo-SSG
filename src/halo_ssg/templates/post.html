@@ -2,7 +2,7 @@
 {% block title %}{{ post.title }} - {{ title }}{% endblock %}
 {% block description %}{{ post.excerpt | default(description) }}{% endblock %}
 {% block content %}
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="{{ base }}/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>{{ post.title }}</h1>
     <div class="meta">
@@ -11,7 +11,7 @@
         {% endif %}
         <span>{{ post.visit_count }} 阅读</span>
         {% for cat in post.categories %}
-        <a href="{{ cat.permalink }}">{{ cat.display_name }}</a>{% if not loop.last %} / {% endif %}
+        <a href="{{ base }}{{ cat.permalink }}">{{ cat.display_name }}</a>{% if not loop.last %} / {% endif %}
         {% endfor %}
     </div>
     <div class="post-body">
@@ -20,19 +20,19 @@
     {% if post.tags %}
     <div style="margin-top: 2em;">
         {% for tag in post.tags %}
-        <a class="tag" href="{{ tag.permalink }}">{{ tag.display_name }}</a>
+        <a class="tag" href="{{ base }}{{ tag.permalink }}">{{ tag.display_name }}</a>
         {% endfor %}
     </div>
     {% endif %}
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     {% if prev_post %}
-    <a href="{{ prev_post.permalink }}">&larr; {{ prev_post.title }}</a>
+    <a href="{{ base }}{{ prev_post.permalink }}">&larr; {{ prev_post.title }}</a>
     {% else %}
     <span></span>
     {% endif %}
     {% if next_post %}
-    <a href="{{ next_post.permalink }}">{{ next_post.title }} &rarr;</a>
+    <a href="{{ base }}{{ next_post.permalink }}">{{ next_post.title }} &rarr;</a>
     {% else %}
     <span></span>
     {% endif %}

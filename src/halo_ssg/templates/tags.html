@@ -7,7 +7,7 @@
 </div>
 <div>
     {% for tag in tags %}
-    <a class="tag" href="{{ tag.permalink }}">{{ tag.display_name }} ({{ tag.post_count }})</a>
+    <a class="tag" href="{{ base }}{{ tag.permalink }}">{{ tag.display_name }} ({{ tag.post_count }})</a>
     {% endfor %}
 </div>
 {% endblock %}

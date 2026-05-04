@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ tag.display_name }} - {{ title }}{% endblock %}
 {% block content %}
-<a class="back-link" href="/tags/">&larr; 返回标签</a>
+<a class="back-link" href="{{ base }}/tags/">&larr; 返回标签</a>
 <div class="page-header">
     <h1>{{ tag.display_name }}</h1>
     <p>{{ posts | length }} 篇文章</p>
@@ -12,7 +12,7 @@
         {% if post.publish_time %}
         <span class="date">{{ post.publish_time.strftime('%Y-%m-%d') }}</span>
         {% endif %}
-        <a class="title" href="{{ post.permalink }}">{{ post.title }}</a>
+        <a class="title" href="{{ base }}{{ post.permalink }}">{{ post.title }}</a>
     </li>
     {% endfor %}
 </ul>

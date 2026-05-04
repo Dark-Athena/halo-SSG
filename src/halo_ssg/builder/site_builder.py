@@ -39,6 +39,7 @@ class SiteBuilder:
             "description": config.site.description,
             "author": config.site.author,
             "language": config.site.language,
+            "base": config.deploy.base_path.rstrip("/"),
         }
 
     def run(self, force: bool = False) -> None:
@@ -191,12 +192,16 @@ class SiteBuilder:
                     moment.content = self._rewrite_urls(moment.content, mapping, base)
 
     def _rewrite_urls(self, html: str, mapping: dict, base_url: str) -> str:
+        base_path = self.site_context.get("base", "")
         for original, local in mapping.items():
+            local_with_base = f"{base_path}{local}" if base_path else local
             if original.startswith(base_url):
-                html = html.replace(original, local)
+                html = html.replace(original, local_with_base)
             elif original.startswith("/"):
+                # Also replace the relative path itself (not just the full URL)
+                html = html.replace(original, local_with_base)
                 full = f"{base_url}{original}"
-                html = html.replace(full, local)
+                html = html.replace(full, local_with_base)
         return html
 
     # Pages to skip (user disabled)

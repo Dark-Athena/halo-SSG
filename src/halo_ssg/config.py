@@ -36,6 +36,7 @@ DEFAULTS = {
         "method": "gh-pages",
         "branch": "gh-pages",
         "cname": "",
+        "base_path": "",
     },
 }
 
@@ -89,6 +90,7 @@ class DeployConfig:
     method: str
     branch: str
     cname: str
+    base_path: str
 
 
 @dataclass
