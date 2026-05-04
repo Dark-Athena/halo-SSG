@@ -24,6 +24,7 @@ DEFAULTS = {
         "timeout": 30,
         "max_retries": 3,
         "user_agent": "Halo-SSG/1.0",
+        "concurrency": 5,
     },
     "assets": {
         "download_images": True,
@@ -72,6 +73,7 @@ class CrawlConfig:
     timeout: int
     max_retries: int
     user_agent: str
+    concurrency: int = 5
 
 
 @dataclass

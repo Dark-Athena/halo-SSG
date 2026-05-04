@@ -66,6 +66,7 @@ class SiteBuilder:
             timeout=self.cfg.crawl.timeout,
             max_retries=self.cfg.crawl.max_retries,
             user_agent=self.cfg.crawl.user_agent,
+            concurrency=self.cfg.crawl.concurrency,
         ) as fetcher:
             self._crawl_posts(posts, fetcher, force)
             self._crawl_single_pages(single_pages, fetcher, force)
@@ -85,30 +86,43 @@ class SiteBuilder:
         logger.info("Build complete!")
 
     def _crawl_posts(self, posts, fetcher: PageFetcher, force: bool) -> None:
+        # Determine which posts need crawling
+        to_crawl = []
+        for post in posts:
+            last_mod = post.last_modify_time.isoformat() if post.last_modify_time else ""
+            if not force and not self.state.needs_update(post.slug, last_mod, "post"):
+                cached_hash = self.state.get_post_hash(post.slug)
+                if cached_hash:
+                    post.content_hash = cached_hash
+                    continue
+            to_crawl.append(post)
+
+        if not to_crawl:
+            logger.info("All posts up to date.")
+            return
+
+        logger.info(f"Crawling {len(to_crawl)} posts with concurrency={fetcher.concurrency}...")
+        paths = [p.permalink for p in to_crawl]
+        path_to_post = {p.permalink: p for p in to_crawl}
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TaskProgressColumn(),
         ) as progress:
-            task = progress.add_task("Crawling posts...", total=len(posts))
-            for post in posts:
-                last_mod = post.last_modify_time.isoformat() if post.last_modify_time else ""
-                if not force and not self.state.needs_update(post.slug, last_mod, "post"):
-                    cached_hash = self.state.get_post_hash(post.slug)
-                    if cached_hash:
-                        post.content_hash = cached_hash
-                        progress.advance(task)
-                        continue
+            task = progress.add_task("Crawling posts...", total=len(to_crawl))
+            results = fetcher.fetch_many(paths, progress_callback=lambda: progress.advance(task))
 
-                html = fetcher.fetch(post.permalink)
-                if html:
-                    post.html_body = self.extractor.extract_post_body(html)
-                    post.content_hash = content_hash(post.html_body)
-                    self.state.set_post_hash(post.slug, post.content_hash, last_mod)
-                else:
-                    logger.warning(f"Empty response for post: {post.slug}")
-                progress.advance(task)
+        for path, html in results.items():
+            post = path_to_post[path]
+            last_mod = post.last_modify_time.isoformat() if post.last_modify_time else ""
+            if html:
+                post.html_body = self.extractor.extract_post_body(html)
+                post.content_hash = content_hash(post.html_body)
+                self.state.set_post_hash(post.slug, post.content_hash, last_mod)
+            else:
+                logger.warning(f"Empty response for post: {post.slug}")
 
     def _crawl_single_pages(self, pages, fetcher: PageFetcher, force: bool) -> None:
         for page in pages:
