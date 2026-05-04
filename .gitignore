@@ -1,0 +1,11 @@
+output/
+output_test/
+state/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+.env
+config.yaml

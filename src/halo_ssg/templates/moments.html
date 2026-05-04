@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}记事本 - {{ title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>记事本</h1>
+</div>
+{% for moment in moments %}
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    {% if moment.timestamp %}
+    <div class="meta">{{ moment.timestamp }}</div>
+    {% endif %}
+    <div class="post-body">{{ moment.content | safe }}</div>
+</div>
+{% endfor %}
+{% if not moments %}
+<p>暂无记事本数据。</p>
+{% endif %}
+{% endblock %}

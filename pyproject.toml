@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "halo-ssg"
+version = "0.1.0"
+description = "Static site generator for Halo CMS blog failover"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "jinja2>=3.1",
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.scripts]
+halo-ssg = "halo_ssg.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]

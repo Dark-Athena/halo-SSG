@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.darkathena.top)",
+      "Bash(git -C /c/work/github/halo-SSG status)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "Bash(halo-ssg sync *)",
+      "Bash(halo-ssg --config \"C:\\\\work\\\\github\\\\halo-SSG\\\\config.yaml\" sync --force)",
+      "Bash(python -m halo_ssg serve --port 8000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(curl -s http://localhost:8000/moments/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/upload/image-GFzG.png)",
+      "Bash(pkill -f \"python.*http.server\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/moments/)",
+      "Bash(python -m http.server 8000 -d \"C:/work/github/halo-SSG/output\")",
+      "Bash([ -d \"C:/work/github/halo-SSG/output/$p\" ])",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

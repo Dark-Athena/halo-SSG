@@ -1,0 +1,28 @@
+site:
+  base_url: "https://www.darkathena.top"
+  title: "DA-技术分享"
+  description: "Database & Tech Blog"
+  author: "DarkAthena"
+  language: "zh-CN"
+
+output:
+  dir: "./output"
+  clean_before_build: true
+
+crawl:
+  rate_limit: 2.0
+  timeout: 30
+  max_retries: 3
+  user_agent: "Halo-SSG/1.0"
+
+assets:
+  download_images: true
+  max_image_size_mb: 10
+
+sync:
+  state_file: "./state/sync_state.json"
+
+deploy:
+  method: "gh-pages"
+  branch: "gh-pages"
+  cname: ""

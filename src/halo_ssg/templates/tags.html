@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}标签 - {{ title }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>标签</h1>
+    <p>共 {{ tags | length }} 个标签</p>
+</div>
+<div>
+    {% for tag in tags %}
+    <a class="tag" href="{{ tag.permalink }}">{{ tag.display_name }} ({{ tag.post_count }})</a>
+    {% endfor %}
+</div>
+{% endblock %}
