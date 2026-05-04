@@ -26,3 +26,4 @@ deploy:
   method: "gh-pages"
   branch: "gh-pages"
   cname: ""
+  base_path: "/halo-SSG"
