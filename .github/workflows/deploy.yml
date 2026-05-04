@@ -19,6 +19,12 @@ jobs:
       - name: Copy config
         run: cp config.example.yaml config.yaml
 
+      - name: Restore sync state
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: halo-ssg-sync-state
+
       - name: Build static site
         run: halo-ssg --config config.yaml sync
 
