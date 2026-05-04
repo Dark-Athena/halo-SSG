@@ -20,7 +20,7 @@ jobs:
         run: cp config.example.yaml config.yaml
 
       - name: Build static site
-        run: halo-ssg sync --config config.yaml
+        run: halo-ssg --config config.yaml sync
 
       - name: Add .nojekyll
         run: touch output/.nojekyll
