@@ -32,8 +32,17 @@ class ContentExtractor:
                 return str(main)
             return ""
 
+        # Remove unwanted elements
         for tag in content.select(".joe_detail__overdue, .joe_comment, .joe_post__pagination, .joe_detail__count, script, style"):
             tag.decompose()
+
+        # Remove plugin link/style tags (vditor CSS, etc.)
+        for link in content.select("link[href*='plugins/'], link[href*='vditor']"):
+            link.decompose()
+
+        # Remove vditor-specific divs
+        for div in content.select("[data-type='sign'], [data-type='var']"):
+            div.decompose()
 
         return str(content)
 

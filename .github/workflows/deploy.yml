@@ -2,6 +2,12 @@ name: Build and Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      full_sync:
+        description: 'Force full sync (ignore cache)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,7 +28,19 @@ jobs:
       - name: Copy config
         run: cp config.example.yaml config.yaml
 
-      - name: Build static site
+      - name: Restore sync state
+        if: ${{ github.event.inputs.full_sync != 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: halo-ssg-sync-state
+
+      - name: Incremental sync
+        if: ${{ github.event.inputs.full_sync != 'true' }}
+        run: halo-ssg --config config.yaml sync
+
+      - name: Full sync
+        if: ${{ github.event.inputs.full_sync == 'true' }}
         run: halo-ssg --config config.yaml sync --force
 
       - name: Add .nojekyll
