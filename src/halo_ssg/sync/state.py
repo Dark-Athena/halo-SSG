@@ -67,6 +67,9 @@ class SyncState:
         if not entry:
             return True
         stored_modified = entry.get("last_modified", "")
-        if current_modified and stored_modified and current_modified != stored_modified:
+        # If we don't have stored_modified, need to re-fetch
+        if not stored_modified:
+            return True
+        if current_modified and current_modified != stored_modified:
             return True
         return False
