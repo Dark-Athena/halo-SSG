@@ -67,6 +67,7 @@ class SinglePage:
     excerpt: str = ""
     content_hash: str = ""
     html_body: str = ""
+    last_modify_time: datetime | None = None
 
 
 @dataclass

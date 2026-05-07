@@ -40,11 +40,12 @@ class SyncState:
     def get_page_hash(self, slug: str) -> str | None:
         return self.data.get("pages", {}).get(slug, {}).get("content_hash")
 
-    def set_page_hash(self, slug: str, content_hash: str) -> None:
+    def set_page_hash(self, slug: str, content_hash: str, last_modified: str = "") -> None:
         if "pages" not in self.data:
             self.data["pages"] = {}
         self.data["pages"][slug] = {
             "content_hash": content_hash,
+            "last_modified": last_modified,
             "last_fetched": datetime.now(timezone.utc).isoformat(),
         }
 

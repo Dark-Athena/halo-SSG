@@ -168,6 +168,7 @@ class HaloClient:
                 slug=spec.get("slug", ""),
                 permalink=status.get("permalink", ""),
                 excerpt=status.get("excerpt", ""),
+                last_modify_time=self._parse_datetime(status.get("lastModifyTime")),
             ))
         logger.info(f"Fetched {len(pages)} single pages.")
         return pages

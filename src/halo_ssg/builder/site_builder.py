@@ -126,14 +126,17 @@ class SiteBuilder:
 
     def _crawl_single_pages(self, pages, fetcher: PageFetcher, force: bool) -> None:
         for page in pages:
-            if not force and self.state.get_page_hash(page.slug):
-                page.content_hash = self.state.get_page_hash(page.slug)
-                continue
+            last_mod = page.last_modify_time.isoformat() if page.last_modify_time else ""
+            if not force and not self.state.needs_update(page.slug, last_mod, "page"):
+                cached_hash = self.state.get_page_hash(page.slug)
+                if cached_hash:
+                    page.content_hash = cached_hash
+                    continue
             html = fetcher.fetch(page.permalink)
             if html:
                 page.html_body = self.extractor.extract_post_body(html)
                 page.content_hash = content_hash(page.html_body)
-                self.state.set_page_hash(page.slug, page.content_hash)
+                self.state.set_page_hash(page.slug, page.content_hash, last_mod)
 
     def _crawl_links(self, fetcher: PageFetcher) -> list:
         from halo_ssg.models import FriendLink
