@@ -42,12 +42,24 @@ class SiteBuilder:
             "base": config.deploy.base_path.rstrip("/"),
         }
 
-    def run(self, force: bool = False) -> None:
-        logger.info("Starting sync...")
-        if force:
+    def run(self, force: bool = False, slugs: list[str] | None = None) -> None:
+        refresh_moments = True
+        if slugs:
+            logger.info(f"Selective sync: refreshing slugs {slugs}")
+            refresh_moments = "moments" in slugs
+            # Invalidate state for specified slugs to force re-crawl
+            for slug in slugs:
+                if slug == "moments":
+                    continue
+                self.state.remove_post(slug)
+                self.state.remove_page(slug)
+        elif force:
             logger.info("Force mode: will re-crawl everything.")
+        else:
+            logger.info("Starting sync...")
 
-        if self.output_dir.exists() and self.cfg.output.clean_before_build:
+        # Skip clean during selective sync to preserve existing output
+        if self.output_dir.exists() and self.cfg.output.clean_before_build and not slugs:
             shutil.rmtree(self.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -70,7 +82,10 @@ class SiteBuilder:
         ) as fetcher:
             self._crawl_posts(posts, fetcher, force)
             self._crawl_single_pages(single_pages, fetcher, force)
-            moments = self._crawl_moments(fetcher)
+            if refresh_moments:
+                moments = self._crawl_moments(fetcher)
+            else:
+                moments = []
 
         self._download_assets(posts, single_pages, moments)
         self._build(posts, categories, tags, single_pages, [], moments)

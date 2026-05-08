@@ -18,15 +18,17 @@ def cli(ctx: click.Context, config: str, verbose: bool) -> None:
 
 @cli.command()
 @click.option("--force", is_flag=True, help="Force full sync, ignore state.")
+@click.option("--slugs", default=None, help="Comma-separated slugs to refresh (use 'moments' for moments).")
 @click.pass_context
-def sync(ctx: click.Context, force: bool) -> None:
+def sync(ctx: click.Context, force: bool, slugs: str | None) -> None:
     """Sync content from Halo and build static site."""
     from halo_ssg.config import load_config
     from halo_ssg.builder.site_builder import SiteBuilder
 
     cfg = load_config(ctx.obj["config_path"])
     builder = SiteBuilder(cfg)
-    builder.run(force=force)
+    slug_list = [s.strip() for s in slugs.split(",")] if slugs else None
+    builder.run(force=force, slugs=slug_list)
 
 
 @cli.command()

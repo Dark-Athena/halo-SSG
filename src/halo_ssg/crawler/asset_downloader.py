@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 import httpx
 
@@ -50,14 +50,14 @@ class AssetDownloader:
 
     def _url_to_local_path(self, url: str) -> str:
         parsed = urlparse(url)
-        return parsed.path
+        return unquote(parsed.path)
 
     def _download_one(self, url: str) -> str | None:
         if not is_same_domain(url, self.base_url):
             return None
 
         parsed = urlparse(url)
-        local_path = parsed.path.lstrip("/")
+        local_path = unquote(parsed.path.lstrip("/"))
         output_path = self.output_dir / local_path
 
         if output_path.exists():

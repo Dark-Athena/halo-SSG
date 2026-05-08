@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      refresh_slugs:
+        description: 'Comma-separated slugs to refresh (e.g. my-post-slug,moments)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -35,12 +40,16 @@ jobs:
           path: state
           key: halo-ssg-sync-state
 
+      - name: Selective sync
+        if: ${{ github.event.inputs.refresh_slugs != '' }}
+        run: halo-ssg --config config.yaml sync --slugs "${{ github.event.inputs.refresh_slugs }}"
+
       - name: Incremental sync
-        if: ${{ github.event.inputs.full_sync != 'true' }}
+        if: ${{ github.event.inputs.refresh_slugs == '' && github.event.inputs.full_sync != 'true' }}
         run: halo-ssg --config config.yaml sync
 
       - name: Full sync
-        if: ${{ github.event.inputs.full_sync == 'true' }}
+        if: ${{ github.event.inputs.refresh_slugs == '' && github.event.inputs.full_sync == 'true' }}
         run: halo-ssg --config config.yaml sync --force
 
       - name: Add .nojekyll
