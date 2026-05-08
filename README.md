@@ -30,6 +30,11 @@ halo-ssg sync --force
 # 增量同步（后续运行，仅抓取变更内容）
 halo-ssg sync
 
+# 选择性同步（仅刷新指定页面）
+halo-ssg sync --slugs "my-post-slug"           # 刷新单个文章
+halo-ssg sync --slugs "moments"                 # 仅刷新记事本
+halo-ssg sync --slugs "my-post-slug,moments"    # 组合使用
+
 # 本地预览
 halo-ssg serve --port 8000
 
@@ -69,6 +74,14 @@ assets:
 2. 在仓库 Settings → Pages 中启用 GitHub Actions 部署
 3. 手动触发 Actions workflow `deploy.yml`
 
+Actions 支持三种模式：
+
+| 输入 | 说明 |
+|------|------|
+| 都留空 | 增量同步 |
+| `full_sync: true` | 全量同步 |
+| `refresh_slugs: xxx` | 选择性同步，逗号分隔 slug，支持 `moments` |
+
 可选：配置自定义域名（如 `backup.darkathena.top`），在 `deploy.yml` 中设置 `cname`。
 
 ## 项目结构
@@ -95,6 +108,7 @@ src/halo_ssg/
 
 - 首次运行：全量抓取所有页面和图片
 - 后续运行：对比 API 返回的 `lastModifyTime` 与本地状态文件，仅抓取变更内容
+- 选择性同步：通过 `--slugs` 指定页面 slug，仅重新抓取指定内容，跳过记事本抓取
 - 状态记录在 `state/sync_state.json`
 
 ## 依赖
