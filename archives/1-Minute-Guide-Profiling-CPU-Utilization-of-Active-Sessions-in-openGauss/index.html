@@ -153,7 +153,328 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="获取opengauss中活动会话的cpu占用率">获取openGauss中活动会话的CPU占用率</h1>
+<h2 id="引言">引言</h2>
+<p>偶尔会遇到有人问，在openGauss或者MogDB中，如何知道每个会话的CPU占用情况？从数据库官方文档中来看，的确没有提供相关视图或者函数来查询。</p>
+<h2 id="分析">分析</h2>
+<p>既然数据库没有提供直接的查询方式，那么按照常规思路，就是从数据库中找到每个会话对应的线程ID，再去操作系统里用top去查就行。但是这种方式如果靠手动敲命令去执行，既要敲SQL，也要敲操作系统命令，会比较割裂，而且中间时差较大。另外，虽然openGauss某些函数中提供了cpu_time的查询，但是光这个数字无法计算CPU占用。</p>
+<ul>
+<li>从数据库里写命令去获取操作系统相关值，得写个C语言函数，侵入性较大；</li>
+<li>CPU使用率还存在计算口径一说，比如ps命令和top命令的计算口径就不一样；</li>
+<li>如果自己写代码去算，还需要从<code>/proc/{线程号}/stat</code>文件中提取两次cpu使用时间，还有操作系统总时间，计算两次之间的差值，再求占比，但这样两次提取的间隔时间就会导致获取这个数据变慢了。</li>
+</ul>
+<p>所以最后我选择了用shell脚本连接数据库去查询线程ID和SQL，然后到操作系统里用直接top去获取对应线程ID的CPU占用百分比。</p>
+<p>在openGauss中至少有这么几个视图或者函数能查到会话对应的操作系统线程ID</p>
+<ul>
+<li>pg_catalog.pg_os_threads</li>
+<li>pg_catalog.pg_thread_wait_status</li>
+<li>pg_catalog.pg_stat_get_session_wlmstat(null)</li>
+</ul>
+<blockquote>
+<p>注：查询pg_stat_get_session_wlmstat需要开启use_workload_manager</p>
+</blockquote>
+<h2 id="实现">实现</h2>
+<p>这种粗活现如今已经不再需要人干了，我就提供一个思路，然后交给AI完成了。<br/>
+下面这个sh脚本是用AI生成的，不过也还是经历了5轮对话的修正才输出了正确的结果：</p>
+<pre><code class="language-shell">#!/bin/bash
+
+# openGauss活跃会话实际CPU使用率查询工具
+# 结合pg_stat_get_wlm_realtime_session_info和操作系统CPU统计
+
+# 配置数据库连接参数
+DB_HOST="${DB_HOST:-$PGHOST}"
+DB_PORT="${DB_PORT:-$PGPORT}"
+DB_NAME="${DB_NAME:-$PGDATABASE}"
+DB_USER="${DB_USER:-$PGUSER}"
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# 打印帮助信息
+print_help() {
+    echo -e "${GREEN}openGauss活跃会话实际CPU使用率查询工具${NC}"
+    echo ""
+    echo "用法: $0 [选项]"
+    echo ""
+    echo "选项:"
+    echo "  -h, --host HOST      数据库主机地址 (默认: $PGHOST)"
+    echo "  -p, --port PORT      数据库端口 (默认: $PGPORT)"
+    echo "  -d, --database DB    数据库名称 (默认: $PGDATABASE)"
+    echo "  -U, --username USER  数据库用户名 (默认: $PGUSER)"
+    echo "  -n, --number NUM     显示的会话数量 (默认: 10)"
+    echo "  --help              显示此帮助信息"
+    echo ""
+    echo "此工具通过pg_stat_get_session_wlmstat()获取线程PID和SQL，"
+    echo "再结合操作系统工具获取真实的CPU使用率。"
+}
+
+# 解析命令行参数
+LIMIT=10
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--host)
+            DB_HOST="$2"
+            shift 2
+            ;;
+        -p|--port)
+            DB_PORT="$2"
+            shift 2
+            ;;
+        -d|--database)
+            DB_NAME="$2"
+            shift 2
+            ;;
+        -U|--username)
+            DB_USER="$2"
+            shift 2
+            ;;
+        -n|--number)
+            LIMIT="$2"
+            shift 2
+            ;;
+        --help)
+            print_help
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}错误: 未知参数 $1${NC}" &gt;&amp;2
+            echo "使用 --help 查看帮助信息"
+            exit 1
+            ;;
+    esac
+done
+
+# 检查必要命令
+for cmd in gsql top grep awk sed; do
+    if ! command -v $cmd &amp;&gt; /dev/null; then
+        echo -e "${RED}错误: 找不到 $cmd 命令${NC}" &gt;&amp;2
+        exit 1
+    fi
+done
+
+# 检查数字参数
+if ! [[ "$LIMIT" =~ ^[0-9]+$ ]] || [ "$LIMIT" -lt 1 ]; then
+    echo -e "${RED}错误: 会话数量必须是正整数${NC}" &gt;&amp;2
+    exit 1
+fi
+
+echo -e "${GREEN}=== openGauss活跃会话实际CPU使用率排行榜(前$LIMIT) ===${NC}"
+echo -e "${BLUE}连接: $DB_USER@$DB_HOST:$DB_PORT/$DB_NAME${NC}"
+echo -e "${BLUE}查询时间: $(date '+%Y-%m-%d %H:%M:%S')${NC}"
+echo ""
+
+# 临时文件
+TEMP_SESSION_FILE="/tmp/og_sessions_$$.txt"
+TEMP_CPU_FILE="/tmp/og_cpu_$$.txt"
+TEMP_RESULT_FILE="/tmp/og_result_$$.txt"
+
+# 清理函数
+cleanup() {
+    rm -f "$TEMP_SESSION_FILE" "$TEMP_CPU_FILE" "$TEMP_RESULT_FILE"
+}
+trap cleanup EXIT
+
+echo -e "${YELLOW}正在获取活跃会话信息...${NC}"
+
+# 第一步：从openGauss获取活跃会话的线程ID和SQL
+gsql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" -t -A -F'|' -c "
+SELECT
+    d.datname,
+    threadid,
+    sessionid,
+    threadpid,
+    usename,
+    appname,
+    CASE
+        WHEN length(query) &gt; 80 THEN substring(query from 1 for 77) || '...'
+        ELSE query
+    END as query_text,
+    elapsed_time
+FROM pg_catalog.pg_stat_get_session_wlmstat(null) w
+LEFT JOIN pg_user u ON w.usesysid=u.usesysid
+LEFT JOIN pg_database d ON d.oid=datid
+WHERE current_status='running'
+AND query NOT LIKE '%pg_stat_get_session_wlmstat%'
+ORDER BY threadpid;
+" &gt; "$TEMP_SESSION_FILE" 2&gt;/dev/null
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}错误: 无法连接数据库或执行查询${NC}" &gt;&amp;2
+    exit 1
+fi
+
+if [ ! -s "$TEMP_SESSION_FILE" ]; then
+    echo -e "${YELLOW}没有找到活跃的会话${NC}"
+    exit 0
+fi
+
+session_count=$(wc -l &lt; "$TEMP_SESSION_FILE")
+echo -e "${GREEN}找到 $session_count 个活跃会话${NC}"
+
+echo -e "${YELLOW}正在获取操作系统级别的CPU使用率...${NC}"
+
+# 使用top命令获取所有线程的CPU使用率
+echo -e "${BLUE}使用top命令获取线程CPU使用率...${NC}"
+top -H -b -n 1 &gt; "$TEMP_CPU_FILE" 2&gt;/dev/null
+
+# 创建结果文件头
+echo "Database|ThreadID|SessionID|ThreadPID|Username|AppName|CPU%|ElapsedTime|SQL" &gt; "$TEMP_RESULT_FILE"
+
+# 第二步：为每个会话获取实际的CPU使用率
+processed=0
+while IFS='|' read -r datname threadid sessionid threadpid usename appname query_text elapsed_time; do
+    if [ -n "$threadpid" ] &amp;&amp; [ "$threadpid" != "threadpid" ]; then
+        processed=$((processed + 1))
+        echo -ne "\r处理进度: $processed/$session_count"
+
+        # 从top输出中获取CPU使用率
+        # 优先使用线程模式的top命令，因为ThreadPID是线程ID
+        cpu_percent=$(top -H -b -n 1 -p "$threadpid" 2&gt;/dev/null | awk -v pid="$threadpid" '
+            NR &gt; 7 &amp;&amp; $1 == pid {print $9; exit}
+        ')
+
+        # 如果线程模式失败，尝试普通进程模式
+        if [ -z "$cpu_percent" ]; then
+            cpu_percent=$(top -b -n 1 -p "$threadpid" 2&gt;/dev/null | awk -v pid="$threadpid" '
+                NR &gt; 7 &amp;&amp; $1 == pid {print $9; exit}
+            ')
+        fi
+
+        # 最后尝试从全局top输出中查找
+        if [ -z "$cpu_percent" ]; then
+            cpu_percent=$(awk -v pid="$threadpid" '
+                NR &gt; 7 &amp;&amp; $1 == pid {print $9; exit}
+            ' "$TEMP_CPU_FILE" 2&gt;/dev/null)
+        fi
+
+        # 验证并清理CPU百分比数据
+        if [ -z "$cpu_percent" ] || [ "$cpu_percent" = "" ]; then
+            cpu_percent="0.0"
+        else
+            # 移除可能的非数字字符，只保留数字和小数点
+            cpu_percent=$(echo "$cpu_percent" | sed 's/[^0-9.]//g')
+            # 如果清理后为空，设为0.0
+            if [ -z "$cpu_percent" ]; then
+                cpu_percent="0.0"
+            fi
+        fi
+
+        # 清理字段中的特殊字符
+        clean_datname=$(echo "$datname" | tr '|' '_')
+        clean_usename=$(echo "$usename" | tr '|' '_')
+        clean_appname=$(echo "$appname" | tr '|' '_')
+
+        echo "$clean_datname|$threadid|$sessionid|$threadpid|$clean_usename|$clean_appname|$cpu_percent|$elapsed_time|$query_text" &gt;&gt; "$TEMP_RESULT_FILE"
+    fi
+done &lt; "$TEMP_SESSION_FILE"
+
+echo -e "\n${YELLOW}正在排序并显示结果...${NC}"
+echo ""
+
+# 第三步：按CPU使用率排序并显示结果
+printf "%-10s %-8s %-10s %-8s %-12s %-15s %-8s %-12s %s\n" "Database" "ThreadID" "SessionID" "ThreadPID" "Username" "AppName" "CPU%" "ElapsedTime" "SQL"
+printf "%-10s %-8s %-10s %-8s %-12s %-15s %-8s %-12s %s\n" "--------" "--------" "--------" "--------" "----------" "-------------" "------" "----------" "--------
+--------"
+
+# 按CPU使用率数值排序（跳过标题行）
+tail -n +2 "$TEMP_RESULT_FILE" | sort -t'|' -k7 -nr | head -"$LIMIT" | \
+while IFS='|' read -r datname threadid sessionid threadpid usename appname cpu_percent elapsed_time query_text; do
+    # 格式化显示，使用awk进行数值比较
+    high_cpu=$(echo "$cpu_percent" | awk '{if($1 &gt; 5.0) print "1"; else print "0"}')
+    medium_cpu=$(echo "$cpu_percent" | awk '{if($1 &gt; 1.0) print "1"; else print "0"}')
+
+    if [ "$high_cpu" = "1" ]; then
+        printf "${RED}%-10s %-8s %-10s %-8s %-12s %-15s %-8s${NC} %-12s %s\n" "$datname" "$threadid" "$sessionid" "$threadpid" "$usename" "$appname" "$cpu_percent%
+" "$elapsed_time" "$query_text"
+    elif [ "$medium_cpu" = "1" ]; then
+        printf "${YELLOW}%-10s %-8s %-10s %-8s %-12s %-15s %-8s${NC} %-12s %s\n" "$datname" "$threadid" "$sessionid" "$threadpid" "$usename" "$appname" "$cpu_perce
+nt%" "$elapsed_time" "$query_text"
+    else
+        printf "%-10s %-8s %-10s %-8s %-12s %-15s %-8s %-12s %s\n" "$datname" "$threadid" "$sessionid" "$threadpid" "$usename" "$appname" "$cpu_percent%" "$elapsed
+_time" "$query_text"
+    fi
+done
+
+echo ""
+echo -e "${GREEN}查询完成！${NC}"
+echo ""
+echo -e "${BLUE}说明:${NC}"
+echo -e "  ${RED}红色${NC}: CPU使用率 &gt; 5%"
+echo -e "  ${YELLOW}黄色${NC}: CPU使用率 &gt; 1%"
+echo "  CPU%: 操作系统级别的实际CPU使用率"
+echo "  ThreadPID: 操作系统线程PID"
+echo "  ThreadID: openGauss内部线程ID"
+echo "  SessionID: 会话ID"
+echo "  ElapsedTime: SQL执行时间(毫秒)"
+echo ""
+echo -e "${YELLOW}注意:${NC}"
+echo "- CPU使用率为瞬时值，可能因测量时间点而变化"
+echo "- 建议多次运行以获得更准确的CPU使用情况"
+echo "- 如果某些线程的CPU显示为0，可能是测量间隔内该线程处于等待状态"
+echo "- ThreadPID是实际的操作系统线程ID，用于CPU统计"
+echo ""
+echo -e "${BLUE}调试信息:${NC}"
+echo "可以手动验证CPU使用率："
+echo "top -b -n 1 -p &lt;ThreadPID&gt;"
+echo "或者使用线程模式: top -H -b -n 1 -p &lt;ThreadPID&gt;"
+echo "或者查看所有进程: top -b -n 1 | grep &lt;ThreadPID&gt;"
+</code></pre>
+<h2 id="运行效果">运行效果</h2>
+<pre><code class="language-shell">[omm@kylinv10sp3-node1 ~]$ ./top_cpu_session.sh
+=== openGauss活跃会话实际CPU使用率排行榜(前10) ===
+连接: omm@/opt/mogdb/tmp:26000/postgres
+查询时间: 2025-08-20 14:02:08
+
+正在获取活跃会话信息...
+找到 2 个活跃会话
+正在获取操作系统级别的CPU使用率...
+使用top命令获取线程CPU使用率...
+处理进度: 2/2
+正在排序并显示结果...
+
+Database   ThreadID SessionID  ThreadPID Username     AppName         CPU%     ElapsedTime  SQL
+--------   -------- --------   -------- ----------   -------------   ------   ----------   ----------------
+postgres   23223150835456 23223150835456 250143   omm          gsql            99.9%    12568        select count(1) from pg_class a,pg_class b,pg_class c,pg_class
+ d;
+postgres   23225237485312 23225237485312 1162277  omm          WDRSnapshot     0.0%     12590
+
+查询完成！
+
+说明:
+  红色: CPU使用率 &gt; 5%
+  黄色: CPU使用率 &gt; 1%
+  CPU%: 操作系统级别的实际CPU使用率
+  ThreadPID: 操作系统线程PID
+  ThreadID: openGauss内部线程ID
+  SessionID: 会话ID
+  ElapsedTime: SQL执行时间(毫秒)
+
+注意:
+- CPU使用率为瞬时值，可能因测量时间点而变化
+- 建议多次运行以获得更准确的CPU使用情况
+- 如果某些线程的CPU显示为0，可能是测量间隔内该线程处于等待状态
+- ThreadPID是实际的操作系统线程ID，用于CPU统计
+
+调试信息:
+可以手动验证CPU使用率：
+top -b -n 1 -p &lt;ThreadPID&gt;
+或者使用线程模式: top -H -b -n 1 -p &lt;ThreadPID&gt;
+或者查看所有进程: top -b -n 1 | grep &lt;ThreadPID&gt;
+</code></pre>
+<p>如果有必要的话，可以精简一下脚本的输出，定时采样，持久化到文本文件或者数据库中，以便观测历史情况。</p>
+<h2 id="总结">总结</h2>
+<p>没有总结。<br/>
+还是提醒一下吧，由于获取数据库会话信息和获取操作系统线程占用中间存在一点点时差，因此该脚本仅适用于观察那些执行耗时较长且CPU占用比较稳定的SQL，对于CPU使用在极短时间内存在忽高忽低的会话，就会有误差了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

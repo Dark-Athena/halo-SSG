@@ -153,7 +153,229 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>MogDB于2024-03-30发布了其5.0版本的补丁版本—5.0.6，其在MogDB 5.0.5的基础上新增部分特性并修复了部分缺陷，具体内容可参考官方文档<br/>
+<a href="https://docs.mogdb.io/zh/mogdb/v5.0/5.0.6"># MogDB 5.0.6发布说明</a><br/>
+相信有一些伙伴和我一样对兼容性的部分感兴趣，因此本篇就针对本次更新的一些涉及到有关兼容性的东西，大概说说</p>
+<h2 id="涉及兼容性更新的列表">涉及兼容性更新的列表</h2>
+<ol>
+<li>Select自动提交</li>
+<li>支持order by/group by后使用字符串常量</li>
+<li>支持聚集函数进行嵌套使用</li>
+<li>支持用户自主决定所有数据类型中空串是否转变为null</li>
+<li>兼容PG的INSERT…ON CONFLICT语法</li>
+<li>支持浮点数字符串与整型可以直接运算</li>
+<li>对齐Oracle中“AUTHID CURRENT_USER”的行为</li>
+<li>提高部分场景下mod函数结果的精度</li>
+<li>增加alter sequence可以修改的序列属性</li>
+<li>支持update/delete语句中使用return</li>
+<li>支持scroll的游标</li>
+<li>支持MERGE INTO语句中字段不用加表名前缀</li>
+</ol>
+<h3 id="一、select自动提交">一、Select自动提交</h3>
+<p>了解PG的开发应该比较清楚，在PG中，非自动提交的情况下，连接数据库，仅执行一个select查询语句，在不执行任何DML操作的情况下，也会使该连接处于idle in transcation状态，即该会话存在一个未完成的事务。<br/>
+因此在开发中要么设置成自动提交，要么就要显式地执行commit或者rollback,才能让该连接变为idle状态。<br/>
+这种设计对于基于ORACLE进行开发的应用来说，非常不友好，因为在ORACLE数据库中，一般的sql查询是感觉不到有事务的，最明显的感受就是，执行完select语句后，plsql developer的绿色commit按钮没亮起来（执行带dblink的select会亮，但不在本篇讨论范围内 ），而执行完dml语句后会亮起来。<br/>
+持续占有事务其实是一种资源消耗，而且还会阻塞truncate语句的执行。为了解决这个问题，MogDB开发出了select自动提交的功能。当然这个select自动提交，并不是无论什么时候一执行select就自动commit，它其实是有很多前置条件的：<br/>
+首先就是需要使用新版本的连接驱动，而且要关闭连接属性中的autocommit；其次就是需要设置GUC参数，在behavior_compat_options中添加compat_oracle_txn_control，再然后就是各种细分场景了</p>
+<p><a href="https://docs.mogdb.io/zh/mogdb/v5.0/transaction-auto-commit#%E5%90%84%E5%9C%BA%E6%99%AF%E4%B8%8B%E8%87%AA%E5%8A%A8%E6%8F%90%E4%BA%A4%E4%BA%8B%E5%8A%A1%E8%A1%8C%E4%B8%BA">## 各场景下自动提交事务行为</a></p>
+<blockquote>
+<ol>
+<li>单独的读命令自动提交（不含select for update/share/key share/no key update）</li>
+<li>事务块内部的读命令不自动提交，需要显式提交</li>
+<li>函数/存储过程内部的读命令不自动提交，函数内部只有读命令的话，执行完函数自动提交</li>
+<li>单独的写命令需要显式提交（insert/update/delete/merge）</li>
+<li>事务块内部的写命令不自动提交，需要显式提交</li>
+<li>函数/存储过程内部的写命令不自动提交，需要显式提交</li>
+<li>单独的DDL自动提交</li>
+<li>事务块内部的DDL命令不自动提交，需要显式提交</li>
+<li>函数/存储过程内部的DDL不自动提交，如果DDL不存在写行为，执行完函数自动提交</li>
+<li>函数/存储过程内部的DDL不自动提交，如果DDL存在写行为，执行完函数需要显式提交</li>
+<li>函数/存储过程内部存在子事务，不考虑子事务提交或者回滚，只看主事务是否存在写行为，如果存在写行为，需要显式提交，不存在写行为，自动提交。</li>
+<li>对于特殊的DDL命令，比如explain、匿名块、execute，如果内部存在写行为，需要显式提交</li>
+<li>对于单条lock命令，函数/存储过程内部的lock命令，内核会显式地放到事务块执行，需要显式提交</li>
+<li>对于单条的declare cursor游标定义操作，内核会显式地放到事务块执行，需要显式提交。函数/存储过程内部的游标定义操作不会主动放到事务块执行，执行完函数自动提交。</li>
+</ol>
+</blockquote>
+<p>其实核心点就是在于，通过设置数据库参数，让驱动知道不需要再自动开启事务，从而让内核可以根据场景来控制自动提交的行为（<strong>这里要注意，该功能依赖特定的驱动版本</strong>）。<br/>
+当然对于各种语句是否自动提交，MogDB的5.0.6版本并未和Oracle保持完全一致，比如存储过程内的DDL如果有写操作，仍然是不自动提交的，而Oracle则是会在执行DDL的前后都自动提交一次。因为这只是"select 自动提交"这一个功能，至于DDL自动提交，可以期待后续的版本。</p>
+<h3 id="二、支持order-bygroup-by后使用字符串常量">二、支持order by/group by后使用字符串常量</h3>
+<p>经常自己写sql的人会想，这功能有啥用啊，谁会在order by 和group by 后写无意义的非数字常量啊。但是，经常使用ORM框架的就能理解，让sql语句都固定一个格式，能减少很多开发量。<br/>
+举个例子：<br/>
+前台可以手动对某个查询结果按照指定的字段排序，因此生成的语句大概是</p>
+<pre><code class="prism language-sql">select col1,col2 from tab where col1=1 order by col2;
+</code></pre>
+<p>这里我们把语句做成固定的模板</p>
+<pre><code>select #{查询字段列表} from #{一个查询语句} where #{条件列表} order by #{排序字段列表}
+</code></pre>
+<p>当不指定排序字段时，即"排序字段列表"为空，这个语句就变成了</p>
+<pre><code class="prism language-sql">select col1,col2 from tab where col1=1 order by null;
+</code></pre>
+<p>这种语句放在之前的MogDB版本中是会报错的，报错信息为</p>
+<blockquote>
+<p>ERROR:  non-integer constant in ORDER BY</p>
+</blockquote>
+<p>即order by后不能为非数字。<br/>
+在MogDB 5.0.6版本中，可以通过在behavior_compat_options中增加compat_sort_group_column选项，来让这个语句不报错，忽略掉排序行为。<br/>
+当然group by 常量的情况也是类似，就不展开说了。<br/>
+该功能是看似毫无意义，但这背后实则是一大群使用ORM框架的开发人员想要的功能。</p>
+<h3 id="三、支持聚集函数进行嵌套使用">三、支持聚集函数进行嵌套使用</h3>
+<p>不怎么写SQL的和写SQL非常熟练的，可能都一时半会想不到聚合函数为什么要嵌套使用，但是这种还真是有大量开发人员会写出来的SQL，举个例子,假设我们要从学生表里查男女分别的人数</p>
+<pre><code class="prism language-sql">select sex,count(1) from student group by sex;
+</code></pre>
+<p>然后要查总人数怎么办呢？<br/>
+我个人的直觉就是直接对这个表不分组count一次</p>
+<pre><code class="prism language-sql">select count(1) from student ;
+</code></pre>
+<p>但是，在实际项目中，我们见到了大量这样写的SQL</p>
+<pre><code class="prism language-sql">select sum(count(1)) from student group by sex;
+</code></pre>
+<p>好家伙，"两阶段聚合"是吧…<br/>
+后面的group by是针对里面的count，而外层的sum则没有对应的group by语句。<br/>
+在一些数据分析场景，支持这种嵌套聚合的写法具有一定的实际意义，比如,假设有某种比赛，每个人要参与三个项目，每个项目由5个评委打分，每个项目的得分为5个评委给出的平均分，最终该比赛每个人的得分为三个项目的平均分相加，如果我要查某个人的最终得分，sql就会是这个样子:</p>
+<pre><code class="prism language-sql">select  sum(avg(score)) from score_table where name='DarkAthena' group by event;
+</code></pre>
+<p>只不过这个写法，无法进行二次分组，最外层的聚合只能合并成一行。</p>
+<h3 id="四、支持用户自主决定所有数据类型中空串是否转变为null">四、支持用户自主决定所有数据类型中空串是否转变为null</h3>
+<p>这个是从openGauss回合的，是openGauss5.1版本新增的一个功能。由于有之前选择了其他类PG的数据库进行了应用改造的，后面又转而选择了MogDB的客户，而ORACLE和PG的一个比较大的兼容性差异就是空字符串和null的区别。客户在之前已经将所有与null相关的代码进行了改造，而MogDB的A模式天然就和ORACLE表现更为接近，sql中的’‘会转换成null来执行，导致了原本ORACLE中的代码能在MogDB里兼容，而基于PG改造后反而还无法兼容了。<br/>
+这种场景也是当时社区要加这个参数的原因之一。另一个原因是，A模式作为默认的模式，其支持的功能更多，比如支持PACKAGE，所以原本有些PG/MYSQL的应用系统迁移到openGauss/MogDB的A模式后，能使用到更多的数据库特性，但前提就是要解决’'转null这一差异。（behavior_compat_options中添加选项accept_empty_str）</p>
+<h3 id="五、兼容pg的insert...on-conflict语法">五、兼容PG的INSERT…ON CONFLICT语法</h3>
+<p>openGauss往前追溯，是基于PG9.2.4版本，当时的PG并不支持INSERT…ON CONFLICT语法，更加不支持MERGE INTO，于是为了支持upset语句（upset其实是指update+insert），早期的GaussDB引入了mysql的ON DUPLICATE KEY语法，所以出现了一个奇怪的现象，源于PG，却不支持PG的upset语法，反而支持mysql和oracle的upset语法，这让很多基于PG的客户迁移到openGauss犯了难。而MogDB为了解决客户的这个痛点，在5.0.6版本支持了PG的INSERT…ON CONFLICT语法。</p>
+<h3 id="六、支持浮点数字符串与整型可以直接运算">六、支持浮点数字符串与整型可以直接运算</h3>
+<p>其实这是个开发规范上的问题，建的表的字段类型是个字符类型，但是实际内容存的是浮点数字，在写sql的时候又使用了这个字段直接和数字进行运算，比如</p>
+<pre><code class="prism language-sql">create table test_floatstr(a varchar2(10));
+insert into test_floatstr values (1.1);
+select * from test_floatstr where a&gt;0;
+</code></pre>
+<p>这是种典型的不规范写法。<br/>
+在oracle中，最后的这个查询语句，会将字段a先隐式转换成number类型，然后再进行比较，这样当表中数据量大，就算a字段有普通索引，也走不到索引，从而引起性能问题。<br/>
+而在openGauss中，也同样会发生这个隐式转换，但是由于0在openGauss会优先识别成bigint类型，这样就导致了要把字段a隐式转换成bigint类型，而当前的bigint类型不接受非数字的字符，这里的a字段里就有个小数点，从而引起报错:</p>
+<blockquote>
+<p>ERROR:  invalid input syntax for type bigint: “1.1”</p>
+</blockquote>
+<p>正确的解决方式应该是把字段a建成数字类型，而非字符类型。<br/>
+但MogDB从大量的客户处了解到，目前很多古老的应用系统的确会有这样的历史遗留问题，无法那么快进行整改，所以为了让客户能更加平滑地迁移应用系统，在5.0.6版本中支持了这种用法(在behavior_compat_options中添加convert_string_digit_to_numeric选项）。<br/>
+不过更确切的说，该功能其实在MogDB 5.0.0/openGauss 5.0.0版本就已经有了，在MogDB 5.0.6版本其实是扩展了使用场景:</p>
+<pre><code class="prism language-sql">select * from test_floatstr order by a+0;
+select a+1 from test_floatstr ;
+</code></pre>
+<p>以上两个SQL在开启参数后运行，openGauss中仍然会报错，但MogDB5.0.6不会报错，并且能返回正确的结果。</p>
+<h3 id="七、对齐oracle中“authid-current_user”的行为">七、对齐Oracle中“AUTHID CURRENT_USER”的行为</h3>
+<p>在openGauss中，其实已经支持在创建存储过程时使用AUTHID CURRENT_USER语法，但是其行为和Oracle并不完全一致。<br/>
+几乎所有介绍Oracle的此特性的文档都会这么说：</p>
+<ol>
+<li>AUTHID CURRENT_USER 表示执行存储过程时使用执行者权限</li>
+<li>AUTHID DEFINER 表示执行存储过程时使用定义者权限</li>
+</ol>
+<p>但是，实际上，这里并没有那么简单，这里还涉及到存储过程里引用的对象应该是哪个用户schema下的问题。</p>
+<p>我先说明一下，openGauss为了做AUTHID CURRENT_USER的兼容，做了哪几件事：</p>
+<ol>
+<li>openGauss为了支持这个语法，对这个属性进行了映射处理<br/>
+<strong>AUTHID CURRENT_USER</strong> = <strong>SECURITY INVOKER</strong><br/>
+<strong>AUTHID DEFINER</strong> = <strong>SECURITY DEFINER</strong><br/>
+不指定该属性时创建的procedure，默认就是AUTHID CURRENT_USER，这个属性在数据字典中对应pg_proc.prosecdef，该字段仅有<strong>true</strong>和<strong>false</strong> 两种选择，SECURITY DEFINER 对应 true，SECURITY INVOKER 对应 false。</li>
+<li>在behavior_compat_options 里添加选项 plsql_security_definer，打开此选项后创建的procedure/function/package，自动带上AUTHID DEFINER属性，否则自动带上AUTHID CURRENT_USER属性。</li>
+<li>修改procedure/function/package中的查找对象时的search_path，原生PG默认是跟着调用者的search_path走，ORACLE则是默认（不指定AUTHID属性的情况下）按照该plsql对象本身所在的schema查找，因此openGauss也修改成了和ORACLE默认情况下一致的行为。</li>
+</ol>
+<p>这里有个特殊情况，在Oracle里，创建一个存储过程，标记AUTHID CURRENT_USER ，然后在存储过程里对某张表t执行insert,并且将这个存储过程的执行权限授权给多个用户，这些用户的schema下均有同名的表t。然后这些用户执行这个存储过程时，可以发现，数据都会插入到自己schema的表t里去，而非存储过程所在的用户schema里的表t。</p>
+<p>对比ORACLE，可以发现，目前openGauss可以支持ORACLE中对于 该属性中的 “不指定” 和 “指定为AUTHID DEFINER” 两种场景，而“指定成AUTHID CURRENT_USER”时的表现，和ORACLE并不一样。openGauss中的一个布尔开关无法实现对ORACLE中三种场景的区分。</p>
+<p>因此MogDB5.0.6在behavior_compat_options中增加了一个选项set_procedure_current_schema，以此来兼容ORACLE的行为。<br/>
+简单来说：</p>
+<ol>
+<li>plsql_security_definer影响procedure内的对象操作权限；</li>
+<li>set_procedure_current_schema影响procedure内的对象查找路径。</li>
+</ol>
+<h3 id="八、提高部分场景下mod函数结果的精度">八、提高部分场景下mod函数结果的精度</h3>
+<p>先看一个例子<br/>
+在原生postgresql中执行如下SQL，会报错</p>
+<pre><code class="prism language-sql">select mod(123.2143543::float,5);
+</code></pre>
+<blockquote>
+<p>ERROR: function mod(double precision, integer) does not exist Hint: No function matches the given name and argument types. You might need to add explicit type casts</p>
+</blockquote>
+<p>而把第一个参数改成numeric类型后，则不会报错</p>
+<pre><code class="prism language-sql">select mod(123.2143543::numeric,5);
+</code></pre>
+<blockquote>
+<p>3.2143543</p>
+</blockquote>
+<p>原因是原生PG中并没有mod(double precision, integer)这个函数，而且由于明确指定了类型，所以也没有使用mod(numeric,numeric)这个函数。这里不讨论对浮点数取余数的算法，我们先看看openGauss中是什么情况</p>
+<pre><code class="prism language-sql">gsql ((openGauss 6.0.0-RC1 build 93cd11e9) compiled at 2024-03-30 00:57:47 commit 0 last mr  )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+openGauss=# select mod(123.2143543::float,5);
+ mod
+-----
+   3
+(1 row)
+</code></pre>
+<p>在openGauss中执行，并没有报错，但是结果和期望并不一致，因为这里查找函数的逻辑变成了，mod函数没有float为入参的，但是有int为入参的，而int为入参的只有(int2,int2)/(int4,int4)/(int8,int8)这3个，然后openGauss又支持float隐式转int，所以这里就把小数丢掉了。虽然也支持float隐式转numeric，但是由于并没有mod(numeric,int)函数，秉着路径最短的原则，这里并不会进行多次隐式转换来选择使用mod(numeric,numeric)这个函数。</p>
+<p>该问题其实在社区有对应的ISSUE和PR，但是截止到2024年3月30号openGauss 6.0.0RC1发布，该问题仍未修复。</p>
+<p>在MogDB 5.0.6版本中，此问题则已不存在了:</p>
+<pre><code class="prism language-sql">gsql ((MogDB 5.0.6 build 8b0a6ca8) compiled at 2024-03-27 11:05:30 commit 0 last mr 1804 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+MogDB=# select mod(123.2143543::float,5);
+    mod
+-----------
+ 3.2143543
+(1 row)
+</code></pre>
+<h3 id="九、增加alter-sequence可以修改的序列属性">九、增加alter sequence可以修改的序列属性</h3>
+<p>该功能其实在openGauss有过反复的改动，之前如果有人参考openGauss的文档进行测试，可以发现明明文档说了支持修改某个属性，但是实际测试却并不支持；而后文档做了变更，减少了可以修改的属性，但是在某个版本中意外发现又能修改了。这里背后的故事就不在本文说了。<br/>
+在openGauss 5.1.0中，直接把语法那段的限制去掉了，让其可以修改之前不能修改的属性。在进行过反复测试验证后，MogDB5.0.6也引入了这个修改。</p>
+<pre><code class="prism language-sql">gsql ((MogDB 5.0.6 build 8b0a6ca8) compiled at 2024-03-27 11:05:30 commit 0 last mr 1804 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+MogDB=# create sequence seq;
+CREATE SEQUENCE
+MogDB=# alter sequence seq increment by 10;
+ALTER SEQUENCE
+MogDB=#
+</code></pre>
+<h3 id="十、支持updatedelete语句中使用return">十、支持update/delete语句中使用return</h3>
+<p>在oracle的update/delete语法中，支持使用returning子句来返回执行后的一些信息，openGauss/MogDB其实也是支持的，但是在ORACLE中，“returning"其实也可以写成"return”，含义是完全一致的，MogDB5.0.6中也支持了"return"。</p>
+<h3 id="十一、支持scroll的游标">十一、支持scroll的游标</h3>
+<p>在原生PG中，支持定义游标的scorll属性，有三个值：不指定/scroll/no scroll。当定义成scroll时，游标就可以进行反向滚动。但是在openGauss中，游标的scorll属性只有两个值：不指定/no scroll。<br/>
+在不指定时，会根据查询语句的执行计划是否满足scroll的要求来自动变成可反向滚动和不可反向滚动，但这样就比较随机了，用户无法在事前就明确知道自己写的游标到底是否支持反向滚动。如果用户想声明某个游标要能反向滚动，openGauss就支持不了了。<br/>
+于是MogDB5.0.6也增加了对scroll游标的支持。</p>
+<h3 id="十二、支持merge-into语句中字段不用加表名前缀">十二、支持MERGE INTO语句中字段不用加表名前缀</h3>
+<p>先看下面这个例子</p>
+<pre><code class="prism language-sql">gsql ((openGauss 6.0.0-RC1 build 93cd11e9) compiled at 2024-03-30 00:57:47 commit 0 last mr  )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+openGauss=# CREATE TABLE zytest1(aid number, name varchar(20));
+E zytest2(bid number,des varchar(20) ,tid number);
+CREATE TABLE
+openGauss=# CREATE TABLE zytest2(bid number,des varchar(20) ,tid number);
+CREATE TABLE
+openGauss=# merge INTO zytest2
+openGauss-# USING (SELECT aid,name FROM zytest1)
+openGauss-# ON(tid = aid)
+openGauss-# WHEN MATCHED THEN
+openGauss-# UPDATE SET des =name
+openGauss-# WHEN NOT MATCHED THEN
+openGauss-# insert (bid,des,tid) VALUES
+openGauss-# (aid,name ,aid);
+ERROR:  column "name" does not exist
+LINE 5: UPDATE SET des =name
+                        ^
+HINT:  There is a column named "name" in table "__unnamed_subquery__", but it cannot be referenced from this part of the query.
+CONTEXT:  referenced column: des
+openGauss=#
+</code></pre>
+<p>这段merge into语句在oracle中是不会报错的，观察openGauss中的报错信息可以发现，这里有个提示，有一个叫"name"的列在未命名的子查询中，也就是说，数据库其实已经找到了这个列，但是报错信息中还是报错该字段不存在。而且name这个字段在此处无任何歧义，理论上就应当要能识别出来。虽然客户仅仅只需要加上别名，明确引用字段，就能正常执行。但是MogDB考虑到易用性，还是在5.0.6版本中解决掉了openGauss的这个固有问题，和常规的select语句一样，只要字段没有同时出现在多个表或子查询中，也能在不加前缀的情况下找到对应的字段。</p>
+<h2 id="总结">总结</h2>
+<p>其实补丁版本中一般也不会增加多少内容，从本文列举的这些兼容性点上来看，很多都是很细小的变动。但从中可以感受到，MogDB会基于客户角度考虑，结合自身的研发力量和openGauss社区的力量，解决客户切实的痛点，让MogDB数据库的开发者友好度越来越好。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

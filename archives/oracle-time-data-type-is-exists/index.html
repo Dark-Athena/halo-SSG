@@ -155,7 +155,145 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>Oracle里有“time”数据类型吗？绝大多数熟悉oracle的人都会说没有，但事实就是如此么？<br/>
+下面这个图一定会让不少人大跌眼镜<br/>
+<img alt="image-1655555310249" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655555310249.png" srcset="/upload/2022/06/image-1655555310249.png?width=1200 1200w, /upload/2022/06/image-1655555310249.png?width=400 400w, /upload/2022/06/image-1655555310249.png?width=1600 1600w, /upload/2022/06/image-1655555310249.png?width=800 800w"/></p>
+<h2 id="%E5%88%86%E6%9E%90%E6%80%9D%E8%B7%AF" tabindex="-1">分析思路</h2>
+<h3 id="%E5%89%8D%E8%8F%9C" tabindex="-1">前菜</h3>
+<p>oracle有很多东西不会写在文档里，需要自己去发掘，但是好在oracle有很多代码是用可见的plsql语言，所以可以凭借这些能看到的代码以及逻辑分析来了解oracle的“习惯做法”。</p>
+<p>比如函数，如果只看官方文档，对比DBA_OBJECTS里的sys用户下的function,会发现官方文档里缺了很多函数。另外也有相当一部分官方文档里有的函数，在DBA_OBJECTS里也没有，而工具的自动补全代码功能却可以把函数进行补全，所以自然会去思考，这是个什么机制？</p>
+<pre><code class="language-sql">select * from dba_objects h where h.object_type='FUNCTION' AND OWNER='SYS';
+select * from dba_objects h where h.object_name='NVL';
+</code></pre>
+<p>dba_objects里没有对应的名称，则可能这些名称可能是在dba_source里有</p>
+<pre><code class="language-sql">select * from dba_source h where lower(h.text) like '%function%nvl(%' and owner='SYS';
+</code></pre>
+<p><img alt="image-1655555860031" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655555860031.png" srcset="/upload/2022/06/image-1655555860031.png?width=1200 1200w, /upload/2022/06/image-1655555860031.png?width=400 400w, /upload/2022/06/image-1655555860031.png?width=1600 1600w, /upload/2022/06/image-1655555860031.png?width=800 800w"/></p>
+<p>于是我在sys用户下找到了standard这个package，里面就有很多特熟悉的函数，而且也符合我之前的一个理解：</p>
+<blockquote>
+<p>在同一个schema下，只有包里的函数才能重名，而每一个函数都有确定的参数类型及参数个数</p>
+</blockquote>
+<p>如果nvl这种支持多种类型的函数在Oracle里只是一个函数的话，自然不符合这个逻辑，于是自然就分析出一个机制：</p>
+<blockquote>
+<p>使用时能够不加包名，且可以传入不同类型参数的同名函数，都定义在standard这个包里。</p>
+</blockquote>
+<h3 id="%E6%AD%A3%E9%A4%90" tabindex="-1">正餐</h3>
+<p>然后再回到type,先按照通常建表的方式，来输入一段sql，会发现工具自动提示了"time"这个关键词和"time with tz"这个type，当然这两种其实都会报错的。</p>
+<p><img alt="image-1655556395427" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655556395427.png" srcset="/upload/2022/06/image-1655556395427.png?width=1200 1200w, /upload/2022/06/image-1655556395427.png?width=400 400w, /upload/2022/06/image-1655556395427.png?width=1600 1600w, /upload/2022/06/image-1655556395427.png?width=800 800w"/><br/>
+<img alt="image-1655557668186" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655557668186.png" srcset="/upload/2022/06/image-1655557668186.png?width=1200 1200w, /upload/2022/06/image-1655557668186.png?width=400 400w, /upload/2022/06/image-1655557668186.png?width=1600 1600w, /upload/2022/06/image-1655557668186.png?width=800 800w"/><br/>
+但这就说明oracle不支持time类型了么？</p>
+<p>如果问oracle里支持哪些类型，先看官方文档没问题，但由于前面的经验，一定会怀疑文档写得不全，就会去查dba_types，太多了，大概扫一眼，加个owner为空的条件，就是oracle里的所有“基本”数据类型，除了发现的确有"time"这个类型外，还发现有些类型的名称和实际使用的不完全一致，比如常见的"PLS_INTEGER"在视图里的名称和CODE均为"PL/SQL PLS INTEGER"。</p>
+<pre><code class="language-sql">select * from dba_types where owner is null;
+</code></pre>
+<p><img alt="image-1655556310156" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655556310156.png" srcset="/upload/2022/06/image-1655556310156.png?width=1200 1200w, /upload/2022/06/image-1655556310156.png?width=400 400w, /upload/2022/06/image-1655556310156.png?width=1600 1600w, /upload/2022/06/image-1655556310156.png?width=800 800w"/></p>
+<p>我们已知，对于PLS_INTEGER类型，只能用于存储过程里，不能作为表字段使用，这是因为oracle对其进行了限制。可以大胆猜测"PLS"开头的内置类型，均不可用于建表<br/>
+<img alt="image-1655557905392" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655557905392.png" srcset="/upload/2022/06/image-1655557905392.png?width=1200 1200w, /upload/2022/06/image-1655557905392.png?width=400 400w, /upload/2022/06/image-1655557905392.png?width=1600 1600w, /upload/2022/06/image-1655557905392.png?width=800 800w"/><br/>
+但是，你会发现，这个报错，竟然和上面time类型的报错不一样。</p>
+<p>联想到之前的standard包的机制，就会想使用的名称是不是也定义到这个包里去了，打开一看果然。</p>
+<pre><code class="language-sql">  type TIME is new DATE_BASE;
+  type TIMESTAMP is new DATE_BASE;
+  type "TIME WITH TIME ZONE" is new DATE_BASE;
+  type "TIMESTAMP WITH TIME ZONE" is new DATE_BASE;
+  type "INTERVAL YEAR TO MONTH" is new DATE_BASE;
+  type "INTERVAL DAY TO SECOND" is new DATE_BASE;
+
+  SUBTYPE TIME_UNCONSTRAINED IS TIME(9);
+  SUBTYPE TIME_TZ_UNCONSTRAINED IS TIME(9) WITH TIME ZONE;
+  SUBTYPE TIMESTAMP_UNCONSTRAINED IS TIMESTAMP(9);
+  SUBTYPE TIMESTAMP_TZ_UNCONSTRAINED IS TIMESTAMP(9) WITH TIME ZONE;
+  SUBTYPE YMINTERVAL_UNCONSTRAINED IS INTERVAL YEAR(9) TO MONTH;
+  SUBTYPE DSINTERVAL_UNCONSTRAINED IS INTERVAL DAY(9) TO SECOND (9);
+</code></pre>
+<p><img alt="企业微信截图_16553061564524" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/企业微信截图_16553061564524.png" srcset="/upload/2022/06/企业微信截图_16553061564524.png?width=1200 1200w, /upload/2022/06/企业微信截图_16553061564524.png?width=400 400w, /upload/2022/06/企业微信截图_16553061564524.png?width=1600 1600w, /upload/2022/06/企业微信截图_16553061564524.png?width=800 800w"/></p>
+<p>本文标题里的time类型，在oracle里的确有，但使用存在限制，而且这个限制和pls类型的表现还不一样，建表时的报错不是无效数据类型，而是提示少了属性或关键词，但按照package里对time类型的用法，也是无法建表的。</p>
+<pre><code class="language-sql">create table test_time_table(a time(9));
+</code></pre>
+<p><img alt="image-1655563725261" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655563725261.png" srcset="/upload/2022/06/image-1655563725261.png?width=1200 1200w, /upload/2022/06/image-1655563725261.png?width=400 400w, /upload/2022/06/image-1655563725261.png?width=1600 1600w, /upload/2022/06/image-1655563725261.png?width=800 800w"/></p>
+<p>然后，换个方法继续尝试。<br/>
+建表不能用，先搞个函数return试试</p>
+<pre><code class="language-sql">create or replace function test_time_func return time is
+begin
+  return '21:19:00';
+end;
+/
+select test_time_func from dual;
+</code></pre>
+<p><img alt="image-1655558535789" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655558535789.png" srcset="/upload/2022/06/image-1655558535789.png?width=1200 1200w, /upload/2022/06/image-1655558535789.png?width=400 400w, /upload/2022/06/image-1655558535789.png?width=1600 1600w, /upload/2022/06/image-1655558535789.png?width=800 800w"/></p>
+<p>发现竟然可以被select  ！！<br/>
+要知道oracle里虽然有boolean类型，也是不能被select的，这更加说明了time类型和那些pls类型是不一样的。</p>
+<p>这个函数我是直接让它隐式转换了，也没有报错，那么接下来直接尝试cast</p>
+<pre><code class="language-sql">select cast('12:34:56' as time) from dual
+</code></pre>
+<p><img alt="image-1655558718592" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655558718592.png" srcset="/upload/2022/06/image-1655558718592.png?width=1200 1200w, /upload/2022/06/image-1655558718592.png?width=400 400w, /upload/2022/06/image-1655558718592.png?width=1600 1600w, /upload/2022/06/image-1655558718592.png?width=800 800w"/><br/>
+能查！，对它to_char</p>
+<pre><code class="language-sql">select to_char(cast('12:34:56' as time),'hh24:mi:ss') from dual
+</code></pre>
+<p><img alt="image-1655558799147" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655558799147.png" srcset="/upload/2022/06/image-1655558799147.png?width=1200 1200w, /upload/2022/06/image-1655558799147.png?width=400 400w, /upload/2022/06/image-1655558799147.png?width=1600 1600w, /upload/2022/06/image-1655558799147.png?width=800 800w"/></p>
+<p>没毛病了，这妥妥的time类型，连to_char格式化都能用！</p>
+<p>于是乎，尝试create table as,看看它这个类型到底怎么用的<br/>
+<img alt="image-1655558975913" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655558975913.png" srcset="/upload/2022/06/image-1655558975913.png?width=1200 1200w, /upload/2022/06/image-1655558975913.png?width=400 400w, /upload/2022/06/image-1655558975913.png?width=1600 1600w, /upload/2022/06/image-1655558975913.png?width=800 800w"/><br/>
+不行，那么尝试create view as ，因为view也可以查看字段类型<br/>
+<img alt="image-1655559116633" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655559116633.png" srcset="/upload/2022/06/image-1655559116633.png?width=1200 1200w, /upload/2022/06/image-1655559116633.png?width=400 400w, /upload/2022/06/image-1655559116633.png?width=1600 1600w, /upload/2022/06/image-1655559116633.png?width=800 800w"/></p>
+<p>看上去貌似是 time(0)(7) ？<br/>
+先再来一个create table as select * from 视图<br/>
+<img alt="image-1655559334559" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655559334559.png" srcset="/upload/2022/06/image-1655559334559.png?width=1200 1200w, /upload/2022/06/image-1655559334559.png?width=400 400w, /upload/2022/06/image-1655559334559.png?width=1600 1600w, /upload/2022/06/image-1655559334559.png?width=800 800w"/></p>
+<p>到目前阶段，基本可以判定，在dba_types里owner为空的类型，以能用的地方作为区分，至少可以分3类，</p>
+<ol>
+<li>所有地方能用的（代表：varchar2/number/date）</li>
+<li>仅在plsql中能用的（代表：boolean/pls_integer）</li>
+<li>只有create table里不能用的,但可以作为列被select、可以作为视图字段类型、可以在plsql中使用（代表：time）</li>
+</ol>
+<p>然后继续研究这个time后面的两个数字的含义。<br/>
+回到standard包，看到这两行</p>
+<pre><code class="language-sql">  SUBTYPE TIME_UNCONSTRAINED IS TIME(9);
+  SUBTYPE TIME_TZ_UNCONSTRAINED IS TIME(9) WITH TIME ZONE;
+</code></pre>
+<p>我们尝试用建view的方式来查看用这两个字段类型建的字段长什么样<br/>
+<img alt="image-1655559902113" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655559902113.png" srcset="/upload/2022/06/image-1655559902113.png?width=1200 1200w, /upload/2022/06/image-1655559902113.png?width=400 400w, /upload/2022/06/image-1655559902113.png?width=1600 1600w, /upload/2022/06/image-1655559902113.png?width=800 800w"/><br/>
+<img alt="image-1655560015331" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655560015331.png" srcset="/upload/2022/06/image-1655560015331.png?width=1200 1200w, /upload/2022/06/image-1655560015331.png?width=400 400w, /upload/2022/06/image-1655560015331.png?width=1600 1600w, /upload/2022/06/image-1655560015331.png?width=800 800w"/><br/>
+第一个数字的范围为 0-9.<br/>
+可是，0到9的秒数都是完整的，联想到之前曾见过同事讨论timestamp(6)和timestamp(9)，自然就联想到了类似的含义，即这个数字表示秒后小数点多少位，但秒后咋格式化来着我忘了，就查了下nls_database_parameters,这一查，又发现个之前没注意的参数<br/>
+<img alt="image-1655560400757" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655560400757.png" srcset="/upload/2022/06/image-1655560400757.png?width=1200 1200w, /upload/2022/06/image-1655560400757.png?width=400 400w, /upload/2022/06/image-1655560400757.png?width=1600 1600w, /upload/2022/06/image-1655560400757.png?width=800 800w"/></p>
+<p>这里time明明白白摆这了。。。<br/>
+下面这个sql验证了我的猜想</p>
+<pre><code class="language-sql">select to_char(cast('12:34:56.987654321' as time(5)),'hh24:mi:ss XFF') from dual;
+</code></pre>
+<p><img alt="image-1655561318108" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655561318108.png" srcset="/upload/2022/06/image-1655561318108.png?width=1200 1200w, /upload/2022/06/image-1655561318108.png?width=400 400w, /upload/2022/06/image-1655561318108.png?width=1600 1600w, /upload/2022/06/image-1655561318108.png?width=800 800w"/></p>
+<p>接下来就是第2个数字<br/>
+<img alt="image-1655561505539" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655561505539.png" srcset="/upload/2022/06/image-1655561505539.png?width=1200 1200w, /upload/2022/06/image-1655561505539.png?width=400 400w, /upload/2022/06/image-1655561505539.png?width=1600 1600w, /upload/2022/06/image-1655561505539.png?width=800 800w"/><br/>
+貌似不对，没有出现7，先dump看看<br/>
+<img alt="image-1655562150459" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655562150459.png" srcset="/upload/2022/06/image-1655562150459.png?width=1200 1200w, /upload/2022/06/image-1655562150459.png?width=400 400w, /upload/2022/06/image-1655562150459.png?width=1600 1600w, /upload/2022/06/image-1655562150459.png?width=800 800w"/><br/>
+找到7了，原来第2个数字7，表示的是time类型数据所占的字节数，而且这个长度不会由于time精度而变化，始终是固定的7位。至于带时区的time，则为固定的9位<br/>
+<img alt="image-1655562262671" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/06/image-1655562262671.png" srcset="/upload/2022/06/image-1655562262671.png?width=1200 1200w, /upload/2022/06/image-1655562262671.png?width=400 400w, /upload/2022/06/image-1655562262671.png?width=1600 1600w, /upload/2022/06/image-1655562262671.png?width=800 800w"/></p>
+<h3 id="%E9%A4%90%E5%90%8E%E7%94%9C%E7%82%B9" tabindex="-1">餐后甜点</h3>
+<p>time类型的内容基本就研究得差不多了，接下来回到standard包，看一下最前面的一些代码</p>
+<pre><code class="language-sql">type DATE is DATE_BASE;
+
+  type NUMBER is NUMBER_BASE;
+  subtype FLOAT is NUMBER; -- NUMBER(126)
+  subtype REAL is FLOAT; 
+</code></pre>
+<p>可以看到有 *_base 这样的，搜整个包，可以得到以下6种</p>
+<ul>
+<li>DATE_BASE</li>
+<li>NUMBER_BASE</li>
+<li>CHAR_BASE</li>
+<li>BLOB_BASE</li>
+<li>CLOB_BASE</li>
+<li>BFILE_BASE</li>
+</ul>
+<p>"base"意思为基本，也就是说，oracle将它所使用的所有基本类型，分成了这6大类。<br/>
+然后 "type NUMBER is NUMBER_BASE"即为NUMBER是属于 NUMBER_BASE之一；<br/>
+"subtype FLOAT is NUMBER;"即FLOAT为NUMBER的子类型（这里需要注意，子类型的二进制存储值，并不一定就和原类型一致，比如 “subtype BINARY_FLOAT is NUMBER;”）。</p>
+<p>继续看这个包，会对oracle有更深入的了解，当然本篇就不继续展开了，留一点空间让读者们来探索吧。</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>虽然本文标题为"time"类型，且文章主线也是围绕“time”类型展开，但更多的是作者本人敢于对“权威”的质疑，以及用逻辑思维结合实验对未知事物的深挖的记录。希望读者们学到的不仅仅是“oracle里有time类型”这一结论，还希望读者们在以后的工作实践中，能具备深挖问题的探索精神及逻辑思维能力。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,359 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="-GaussDB-使用gdb定位GaussDB编译package报错">【GaussDB】使用gdb定位GaussDB编译package报错</h1>
+<h2 id="背景">背景</h2>
+<p>在某次迁移Oracle到GaussDB时，应用开发人员将改好的package在GaussDB里进行创建，没有ERROR也没有WARNING，但是编译无效对象的时候报错了。虽然已经找到了是哪个包编译报错，但是这个包有上万行，而且里面也有好几十个procedure，而报错信息仅仅只有 <code>ERROR: Failed to query the 323 type in the cache.</code>，没有上下文信息，连行号都没有，根本无从判断是哪里出了问题。</p>
+<h2 id="基本排查">基本排查</h2>
+<ul>
+<li>尝试drop这个package，然后重建，再编译，现象一样</li>
+<li>尝试重启数据库以清空全局PLSQL缓存，再编译，现象一样</li>
+</ul>
+<p>这意味着这个问题与缓存无关，大概率也与其他依赖对象无关，所以暂时针对这个package进行排查。</p>
+<p>对于不会gdb调试的人来说，要排查这个问题只能对着这个package，使用二分法来删除里面的procedure，直到删到某个procedure前后报错发生变化，但要注意里面的procedure的依赖。当时就这么一路删，最后的确发现了原因，但是耗费的时间非常久，解决依赖关系时还要手动改代码。</p>
+<p>那么有没有一种方式能迅速定位是哪个procedure的问题么？<br/>
+当然有，那就是使用gdb直接进行内核级别调试，因为Gauss系数据库编译package时，都是会逐个对里面的每一个procedure和function进行编译。</p>
+<h2 id="gdb调试前置准备">gdb调试前置准备</h2>
+<p>由于已经找到了触发这个报错的package特征,因此下面就用最小化模拟用例来进行演示:</p>
+<p>测试用例</p>
+<pre><code class="language-sql">create package pkg_test_4 is
+procedure p1(i1 in varchar2,
+             i2 out varchar2,
+             i3 out varchar2);
+end;  
+/
+create package body pkg_test_4 is
+procedure p1(i1 in varchar2,
+             i2 in varchar2,
+             i3 out varchar2) is
+             begin
+                 null;
+             end;
+end;  
+/
+alter package pkg_test_4 compile;
+</code></pre>
+<p>执行效果</p>
+<pre><code class="language-sql">gaussdb=# alter package pkg_test_4 compile;
+gaussdb=# create or replace package pkg_test_4 is
+gaussdb$# procedure p1(i1 in varchar2,
+gaussdb$#              i2 out varchar2,
+gaussdb$#              i3 out varchar2);
+gaussdb$# end;
+gaussdb$# /
+CREATE PACKAGE
+gaussdb=# create or replace package body pkg_test_4 is
+gaussdb$# procedure p1(i1 in varchar2,
+gaussdb$#              i2 in varchar2,
+gaussdb$#              i3 out varchar2) is
+gaussdb$#              begin
+gaussdb$#                null;
+gaussdb$#              end;
+gaussdb$# end;
+gaussdb$# /
+CREATE PACKAGE BODY
+gaussdb=# alter package pkg_test_4 compile;
+ERROR:  Failed to query the 323 type in the cache.
+gaussdb=#
+</code></pre>
+<p>使用gdb调试找问题有个关键，就是这个问题最好是能稳定复现的，否则gdb抓不到报错现场也很难分析问题。</p>
+<p>另外，开始gdb调试前，一定要先把对应版本的符号表准备好，比较简单的方式就是直接把符号表里的bin和lib解压到GaussDB的bin和lib目录。</p>
+<p>在之前分析MogDB的问题时，我们内核研发有教过我可以使用 <code>b errstart if elevel&gt;19</code>设置断点来断住所有 <code>ERROR</code>以上级别的报错，但是这招在GaussDB似乎不行了</p>
+<pre><code>(gdb) b errstart if elevel&gt;19
+No symbol "elevel" in current context.
+(gdb)
+</code></pre>
+<p>如果直接 <code>b errstart</code>,是可以断，但是会老是断，根本没法跑起来，因为这里就算没报错也会调用进来，几乎所有线程都在频繁走到这里，参考openGauss源码中的错误级别代码，里面连INFO/NOTICE都有</p>
+<pre><code class="language-c">/* Error level codes */
+#define DEBUG5                                 \
+    10 /* Debugging messages, in categories of \
+        * decreasing detail. */
+#define DEBUG4 11
+#define DEBUG3 12
+#define DEBUG2 13
+#define DEBUG1 14 /* used by GUC debug_* variables */
+#define LOG                                         \
+    15 /* Server operational messages; sent only to \
+        * server log by default. */
+#define COMMERROR                                    \
+    16 /* Client communication problems; same as LOG \
+        * for server reporting, but never sent to    \
+        * client. */
+#define INFO                                          \
+    17 /* Messages specifically requested by user (eg \
+        * VACUUM VERBOSE output); always sent to      \
+        * client regardless of client_min_messages,   \
+        * but by default not sent to server log. */
+#define NOTICE                                        \
+    18 /* Helpful messages to users about query       \
+        * operation; sent to client and server log by \
+        * default. */
+#define WARNING                                      \
+    19 /* Warnings.  NOTICE is for expected messages \
+        * like implicit sequence creation by SERIAL. \
+        * WARNING is for unexpected messages. */
+#define ERROR                                       \
+    20 /* user error - abort transaction; return to \
+        * known state */
+#define VERBOSEMESSAGE                                  \
+    9 /* indicates to show verbose info for CN and DNs; \
+       * for DNs means to send info back to CN */
+/* Save ERROR value in PGERROR so it can be restored when Win32 includes
+ * modify it.  We have to use a constant rather than ERROR because macros
+ * are expanded only when referenced outside macros.
+ */
+#ifdef WIN32
+#define PGERROR 20
+#endif
+#define FATAL 21 /* fatal error - abort process */
+#define PANIC 22 /* take down the other backends with me */
+
+/* MAKE_SQLSTATE('P', '1', '0' , '0', '0')=96 */
+#define CUSTOM_ERRCODE_P1 96
+</code></pre>
+<p>看一下 <code>b errstart</code> 会断到哪里</p>
+<pre><code class="language-bash">(gdb) b errstart
+Breakpoint 1 at 0x564904871b20: errstart. (3 locations)
+(gdb) info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   &lt;MULTIPLE&gt;
+1.1                         y   0x0000564904871b20 in errstart(int, char const*, int, char const*, char const*)
+                                                   at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:4108
+1.2                         y   0x00007f6b9cd5e5b0 &lt;errstart(int, char const*, int, char const*, char const*)@plt&gt;
+1.3                         y   0x00007f6b9d03eb30 &lt;errstart(int, char const*, int, char const*, char const*)@plt&gt;
+(gdb)
+</code></pre>
+<p>从这个断点信息里来看，<code>errstart</code>在 <code>elog.cpp</code>的4108行，这很是可疑，因为无论是openGauss还是MogDB,这个errstart函数应该在更前面的位置，大概是第两百多行的地方。<br/>
+由于没有源码，就只能反汇编看下有没有能参考的信息了</p>
+<pre><code class="language-bash">(gdb) disassemble /m errstart
+Dump of assembler code for function errstart(int, char const*, int, char const*, char const*):
+238     /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp: No such file or directory.
+   0x0000564904871b25 &lt;+5&gt;:     push   %rbp
+   0x0000564904871b26 &lt;+6&gt;:     mov    %rsp,%rbp
+   0x0000564904871b29 &lt;+9&gt;:     push   %r15
+   0x0000564904871b2b &lt;+11&gt;:    push   %r14
+   0x0000564904871b2d &lt;+13&gt;:    push   %r13
+   0x0000564904871b2f &lt;+15&gt;:    push   %r12
+   0x0000564904871b31 &lt;+17&gt;:    mov    %rsi,%r14
+   0x0000564904871b34 &lt;+20&gt;:    push   %rbx
+   0x0000564904871b35 &lt;+21&gt;:    mov    %edi,%ebx
+   0x0000564904871b37 &lt;+23&gt;:    sub    $0x58,%rsp
+   0x0000564904871b3e &lt;+30&gt;:    mov    %edx,-0x64(%rbp)
+   0x0000564904871b41 &lt;+33&gt;:    mov    %rcx,-0x70(%rbp)
+   0x0000564904871b45 &lt;+37&gt;:    mov    %r8,-0x78(%rbp)
+
+239     in /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp
+240     in /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp
+</code></pre>
+<p>可以看到这个函数第一次出现其实是在第238行，从这几个寄存器的操作来看，应该就是函数的入口，也就是说，实际上这个函数的定义应该在第238行，而不是前面的4108行。我观察了下，4108行的elevel一直是被优化掉的，看不到里面的值，只有238行的elevel能观测到值。<br/>
+所以在GaussDB里要断ERROR及以上级别的错误，断点应该设置为</p>
+<pre><code class="language-bash">b elog.cpp:238 if (elevel &gt; 19)
+</code></pre>
+<p>可以提前先准备好下面的命令，gdb进去后直接复制粘贴，减少进程中断时间</p>
+<pre><code class="language-bash">b elog.cpp:238 if (elevel &gt; 19) 
+handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGPIPE nostop
+set pagi off
+set print elements 300
+continue
+</code></pre>
+<h2 id="正式开始gdb调试">正式开始gdb调试</h2>
+<p>先用 <code>ps -ef |grep gaussdb</code>找到进程号<br/>
+然后gdb -p 进程号</p>
+<pre><code class="language-bash">[gaussdb506@ky10-sp3 ~]$ ps -ef |grep gaussdb
+root      426694  426551  0 09:19 pts/0    00:00:00 su - gaussdb506
+gaussdb+  426699  426694  0 09:19 pts/0    00:00:00 -bash
+gaussdb+  427027  426699  0 09:19 pts/0    00:00:00 ps -ef
+gaussdb+  427028  426699  0 09:19 pts/0    00:00:00 grep gaussdb
+og_last+ 3231792       1  1 Jul22 ?        05:58:52 /opt/og_lastest/openGauss-server/dest/bin/gaussdb
+og700rc1 3508544       1  1 Aug04 ?        00:33:58 /opt/og700rc1/app/bin/gaussdb -D /opt/og700rc1/data -M primary
+gaussdb+ 3864702       1 29 Aug05 ?        06:33:50 /data/gaussdb506/app/bin/gaussdb
+[gaussdb506@ky10-sp3 ~]$ gdb -p 3864702
+GNU gdb (GDB) KylinOS 9.2-3.p01.ky10
+Copyright (C) 2020 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later &lt;http://gnu.org/licenses/gpl.html&gt;
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-kylin-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+&lt;http://www.gnu.org/software/gdb/bugs/&gt;.
+Find the GDB manual and other documentation resources online at:
+    &lt;http://www.gnu.org/software/gdb/documentation/&gt;.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+Attaching to process 3864702
+[New LWP 3864703]
+[New LWP 3864749]
+...#省略
+[New LWP 4081944]
+
+warning: File "/usr/lib64/libthread_db-1.0.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+--Type &lt;RET&gt; for more, q to quit, c to continue without paging--
+To enable execution of this file add
+        add-auto-load-safe-path /usr/lib64/libthread_db-1.0.so
+line to your configuration file "/home/gaussdb506/.gdbinit".
+To completely disable this security protection add
+        set auto-load safe-path /
+line to your configuration file "/home/gaussdb506/.gdbinit".
+For more information about this security protection see the
+"Auto-loading safe path" section in the GDB manual.  E.g., run from the shell:
+        info "(gdb)Auto-loading safe path"
+
+warning: Unable to find libthread_db matching inferior's thread library, thread debugging will not be available.
+
+warning: File "/usr/lib64/libthread_db-1.0.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+
+warning: Unable to find libthread_db matching inferior's thread library, thread debugging will not be available.
+0x00007f6bbc53c849 in poll () from /usr/lib64/libc.so.6
+(gdb) b elog.cpp:238 if (elevel &gt; 19)
+Breakpoint 1 at 0x564904871b25: file /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp, line 238.
+(gdb) handle SIGUSR1 nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGUSR1       No        No      Yes             User defined signal 1
+(gdb) handle SIGUSR2 nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGUSR2       No        No      Yes             User defined signal 2
+(gdb) handle SIGPIPE nostop
+Signal        Stop      Print   Pass to program Description
+SIGPIPE       No        Yes     Yes             Broken pipe
+(gdb) set pagi off
+(gdb) set print elements 300
+(gdb) continue
+Continuing.
+[New LWP 427599]
+[New LWP 427600]
+[LWP 427599 exited]
+[New LWP 427601]
+[LWP 427601 exited]
+[New LWP 427602]
+[LWP 427602 exited]
+[LWP 427600 exited]
+</code></pre>
+<p>当后面不断有输出 <code>[New LWP xxxxxx]</code>时，gaussdb就是正常运行中了。<br/>
+接下来可以开一个客户端连接，执行上面用于模拟测试的sql，会卡在 <code>alter package pkg_test_4 compile;</code> 这个语句上，同时gdb的窗口不再连续打印 <code>[New LWP xxxxxx]</code>，而是命中了断点</p>
+<pre><code class="language-bash">[Switching to LWP 3864766]
+
+Thread 16 "TPLworker" hit Breakpoint 1, errstart (elevel=20, filename=0x564908abfcc8 "format_type.cpp", lineno=216, funcname=0x564908abfdd0 &lt;format_type_internal(unsigned int, int, bool, bool, bool)::__func__&gt; "format_type_internal", domain=0x5649087e1004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+238     in /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp
+(gdb)
+</code></pre>
+<p>接着输入bt查看堆栈</p>
+<pre><code class="language-bash">(gdb) bt
+#0  errstart (elevel=20, filename=0x564908abfcc8 "format_type.cpp", lineno=216, funcname=0x564908abfdd0 &lt;format_type_internal(unsigned int, int, bool, bool, bool)::__func__&gt; "format_type_internal", domain=0x5649087e1004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+#1  0x00005649043cc8ae in format_type_internal (type_oid=323, typemod=-1, typemod_given=&lt;optimized out&gt;, allow_invalid=&lt;optimized out&gt;, include_nspname=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/format_type.cpp:212
+#2  0x00005649045b82e8 in format_procedure (procedure_oid=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/regproc.cpp:473
+#3  0x0000564904a2d53d in do_compile (fcinfo=0x7f6a520460c0, proc_tup=0x7f69b7c375a0, func=0x7f6a39c64050, compile_func_head_info=0x7f6a52046740, for_validator=true, hashkey=0x7f6a52045d50) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp:921
+#4  0x0000564904a35f3b in gsplsql_compile (fcinfo=0x7f6a520460c0, compile_func_head_info=0x7f6a52046740, for_validator=true, isRecompile=false, func_runtime_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp:3106
+#5  0x0000564906c64eeb in plpgsql_validator (fcinfo=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_handler.cpp:1481
+#6  0x00005649048a56cb in OidFunctionCall4Coll (function_id=10790, collation=0, arg1=97664, arg2=0, arg3=0, arg4=140094619281216, is_null=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/fmgr/fmgr.cpp:2512
+#7  0x0000564904a55363 in gsplsql_func_in_pkg_compile (pkg=0x7f6a455ec050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_pkg_main.cpp:1210
+#8  0x0000564904a571fc in gsplsql_pkg_init (pkg=0x7f6a455ec050, isCreate=false, isSpec=false, ret_pkg_runtime=0x7f6a52046a18, is_need_compile_func=true, pkg_debug_query_string=&lt;optimized out&gt;, old_pkg_runtime=0x7f6a39a48050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_pkg_main.cpp:1545
+#9  0x0000564904a584a3 in gsplsql_pkg_compile (pkg_oid=97663, for_validator=true, is_spec=false, is_create=false, is_recompile=true, pkg_runtime_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_pkg_main.cpp:956
+#10 0x0000564905100dc6 in recompile_single_package (package_oid=97663, is_spec=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/packagecmds.cpp:329
+#11 0x0000564905101212 in recompile_package_by_oid (pkg_oid=97663, recompile_invalid_pkg=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/packagecmds.cpp:416
+#12 0x0000564905101262 in recompile_package (stmt=0x7f6a3f4954c0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/packagecmds.cpp:437
+#13 0x0000564905431abe in sqlcmd_standard_process_utility (parse_tree=0x7f6a3f4954c0, query_string=0x7f6a3f496050 "alter package pkg_test_4 compile", params=0x0, is_top_level=&lt;optimized out&gt;, dest=0x56490a6e0720 &lt;donothingDR&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f6a5204a430 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:6813
+#14 0x00007f6b9cd9b759 in gsaudit_ProcessUtility_hook (parsetree=0x7f6a3f4954c0, queryString=0x7f6a3f496050 "alter package pkg_test_4 compile", params=0x0, isTopLevel=&lt;optimized out&gt;, dest=0x56490a6e0720 &lt;donothingDR&gt;, sentToRemote=&lt;optimized out&gt;, completionTag=0x7f6a5204a430 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/security_plugin/security_policy_plugin.cpp:856
+#15 0x00005649059a0f52 in audit_process_utility (parsetree=0x7f6a3f4954c0, query_string=0x7f6a3f496050 "alter package pkg_test_4 compile", params=&lt;optimized out&gt;, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f6a5204a430 "", is_ctas=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/audit/security_auditfuncs.cpp:1512
+#16 0x000056490543c71d in sqlcmd_process_utility (parse_tree=0x7f6a3f4954c0, query_string=0x7f6a3f496050 "alter package pkg_test_4 compile", params=0x0, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f6a5204a430 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:1974
+#17 0x000056490541d83f in PortalRunUtility (portal=0x7f6a48878050, utilityStmt=0x7f6a3f4954c0, isTopLevel=true, dest=0x56490a6e0720 &lt;donothingDR&gt;, completionTag=0x7f6a5204a430 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2140
+#18 0x000056490541f0be in PortalRunMulti (portal=0x7f6a48878050, isTopLevel=true, dest=0x56490a6e0720 &lt;donothingDR&gt;, altdest=0x56490a6e0720 &lt;donothingDR&gt;, completionTag=0x7f6a5204a430 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2326
+#19 0x00005649054232dc in PortalRun (portal=0x7f6a48878050, count=200, isTopLevel=true, dest=0x7f6a3f4a84d0, altdest=0x7f6a3f4a84d0, completionTag=0x7f6a5204a430 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1501
+#20 0x00005649054158af in exec_execute_message (max_rows=200, portal_name=0x7f6a3f4a8050 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:7071
+#21 gs_process_command (firstchar=&lt;optimized out&gt;, input_message=&lt;optimized out&gt;, send_ready_for_query=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:12314
+#22 0x000056490541b9c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7f6a49e45b20, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#23 0x000056490539f2df in backend_run (port=0x7f6a5204a890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#24 0x00005649053de1b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#25 0x000056490539f39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#26 0x00007f6bbc60ff1b in ?? () from /usr/lib64/libpthread.so.0
+#27 0x00007f6bbc547320 in clone () from /usr/lib64/libc.so.6
+</code></pre>
+<p>可以看到在报错的 <code>format_type_internal</code>里，出现了type_oid=323，的确是在报错中出现的数字，但是323这么小的数字明显不可能是用户自定义类型，因为小数字的oid都是被系统保留的。这里肯定是有bug的，但没有源码不方便找bug原因，本次调试的主要目的是找到出错的procedure。</p>
+<p>在 <code>format_type_internal</code>和 <code>format_procedure</code>里，有用的参数都显示成 <code>&lt;optimized out&gt;</code>了，这表示内核把这些变量优化掉了，不给看。于是继续看下一行 <code>do_compile</code>，打印几个参数看看</p>
+<pre><code class="language-bash">(gdb) f 3
+#3  0x0000564904a2d53d in do_compile (fcinfo=0x7f6a520460c0, proc_tup=0x7f69b7c375a0, func=0x7f6a39c64050, compile_func_head_info=0x7f6a52046740, for_validator=true, hashkey=0x7f6a52045d50) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp:921
+921     /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp: No such file or directory.
+(gdb) p *fcinfo
+$1 = {flinfo = 0x7f6a52046020, context = 0x0, resultinfo = 0x0, fncollation = 0, isnull = false, nargs = 0, arg = 0x7f6a39a4ca50, argnull = 0x0, argTypes = 0x0, prealloc_arg = {0 &lt;repeats 20 times&gt;}, prealloc_argnull = {false &lt;repeats 20 times&gt;}, prealloc_argTypes = {0 &lt;repeats 20 times&gt;}, argVector = 0x0, refcursor_data = {argCursor = 0x0, returnCursor = 0x0, return_number = 0}, out_tmtype = 0 '\000', out_decimals = 0 '\000', udfInfo = {UDFArgsHandlerPtr = 0x0, UDFResultHandlerPtr = 0x0, udfMsgBuf = 0x0, msgReadPtr = 0x0, argBatchRows = 0, allocRows = 0, arg = 0x0, null = 0x0, result = 0x0, resultIsNull = 0x0, valid_UDFArgsHandlerPtr = false}, swinfo = {sw_econtext = 0x0, sw_exprstate = 0x0, sw_is_flt_frame = false}, out_typmode = 0x0, fn_typmode = 0, plfunc_exec_mode = 0, plfunc_exec_state = 0x0, args_done = 0x0, prealloc_args_done = {0 &lt;repeats 20 times&gt;}, arginfo = {{in_tmtype = 0 '\000', in_decimals = 0 '\000', argTypModes = 0, set_enum_typeoid = 0}}}
+(gdb) p *proc_tup
+Attempt to dereference a generic pointer.
+(gdb) p *func
+$2 = {type = T_PLpgSQL_FUNCTION, fn_oid = 97664, pkg_oid = 97663, namespaceOid = 2200, fn_owner = 16728, fn_input_collation = 0, fn_signature = 0x0, fn_searchpath = 0x0, namespace_searchpath = 0x0, fn_hashkey = 0x0, fn_cxt = 0x7f6a6a9599d0, fn_rettype = 0, fn_rettyplen = 0, glc_func_life = 1, fn_rettypioparam = 0, fn_retbyval = false, fn_retistuple = false, fn_retset = false, fn_readonly = false, out_param_varno = -1, found_varno = 0, fn_nallargs = 0, argmods = 0x0, argtypes = 0x0, sql_cursor_found_varno = 0, sql_notfound_varno = 0, sql_isopen_varno = 0, sql_rowcount_varno = 0, sql_bulk_exceptions_varno = 0, sqlcode_varno = 0, sqlstate_varno = 0, sqlerrm_varno = 0, new_varno = 0, old_varno = 0, tg_name_varno = 0, tg_when_varno = 0, tg_level_varno = 0, tg_op_varno = 0, tg_relid_varno = 0, tg_relname_varno = 0, tg_table_name_varno = 0, tg_table_schema_varno = 0, tg_nargs_varno = 0, tg_argv_varno = 0, retvarno = 0, guc_stat = 5, use_count = 0, resolve_option = GSPLSQL_RESOLVE_COLUMN, ndatums = 0, datums = 0x0, datum_need_free = 0x0, action = 0x0, goto_labels = 0x0, invalItems = 0x0, saved_unique_id = 4294967295, nPlaceHolders = 0, placeholders = 0x0, cur_estate = 0x0, tg_relation = 0x0, debug = 0x0, ns_top = 0x0, is_private = false, fn_is_trigger = false, pre_parse_trig = false, is_autonomous = false, is_inline_handler = false, is_valid = true, is_plpgsql_func_with_outparam = false, need_skip_process_autonm_pkg = false, remembered_by_resowner = false, typeList = 0x0, namespace_name = 0x0, expr_list = 0x0, fn_retinput = {fn_addr = 0x0, fn_oid = 0, fn_nargs = 0, fn_strict = false, fn_retset = false, fn_extra = 0x0, fn_mcxt = 0x0, fn_expr = 0x0, fn_rettype = 0, fn_rettypemod = 0, fnName = '\000' &lt;repeats 63 times&gt;, fnLibPath = 0x0, vec_fn_addr = 0x0, vec_fn_cache = 0x0, genericRuntime = 0x0, max_length = 0, fn_languageId = 0, fn_stats = 0 '\000', fn_fenced = false, fn_volatile = 0 '\000', decimals = 0 '\000'}, glc_status = {m_type = GLC_FUNCTION_OBJ, m_location = GLC_OBJECT_IN_SESSION_WAIT_REMOVE, m_glc_object_state = GLC_OBJECT_IS_VALID, m_refcount = 1}, expired_cell = {dle_next = 0x0, dle_prev = 0x0, dle_val = 0x7f6a39c64050, dle_list = 0x7f6a48876ea0}, compiled_dlist_elem = {dle_next = 0x0, dle_prev = 0x0, dle_val = 0x7f6a39c64050, dle_list = 0x0}, parent_pro_ndatum = 0, subparam = 0x0, fn_nargs = 0, copiable_size = 0, deep_datums = 0x0, deep_ndatums = 0, cursor_datums = 0x0, cursor_ndatums = 0, placeholder_datums = 0x0, placeholder_ndatums = 0, fn_argvarnos = 0x0, depend_info_list = 0x0, plan_total_mem_size = 0, block_level = 0x0}
+(gdb)
+</code></pre>
+<p>可以在 <code>func</code>里看到，<code>fn_oid=97664</code> ，这意味着是在编译pg_proc里oid为97664的对象。于是我们输入q退出gdb，然后回到客户端查询</p>
+<pre><code class="language-sql">gaussdb=# select proname,g.pkgname from pg_proc p,gs_package g where p.oid=97664 and g.oid=p.propackageid;
+ proname |  pkgname
+---------+------------
+ p1      | pkg_test_4
+(1 row)
+</code></pre>
+<p>可以看到这个oid对应的就是pkg_test_4这个包里的p1，于是就知道了一定是编译p1的时候出了问题。<br/>
+到此，出问题的procedure就直接找出来了，肉眼一看包头和包体的定义，发现有个参数的in/out方向没匹配，但GaussDB在创建这个package时竟然没有报错...</p>
+<h2 id="其他Gauss系数据库的情况">其他Gauss系数据库的情况</h2>
+<p>同样的这个代码，在openGauss 7.0.0 RC1 是不会报错的，这个package还能正常调用，查了下数据字典，出入参方向是按包体生效的,这同样也是个BUG，没有做严格判断。</p>
+<pre><code class="language-sql">openGauss=# create package pkg_test_4 is
+openGauss$# procedure p1(i1 in varchar2,
+openGauss$#              i2 out varchar2,
+openGauss$#              i3 out varchar2);
+openGauss$# end pkg_test_4;
+openGauss$# /
+;
+             end;
+end pkg_test_4;
+/CREATE PACKAGE
+openGauss=# create package body pkg_test_4 is
+openGauss$# procedure p1(i1 in varchar2,
+openGauss$#              i2 in varchar2,
+openGauss$#              i3 out varchar2) is
+openGauss$#              begin
+openGauss$#                  null;
+openGauss$#              end;
+openGauss$# end pkg_test_4;
+openGauss$# /
+CREATE PACKAGE BODY
+openGauss=# alter package pkg_test_4 compile;
+ALTER PACKAGE
+openGauss=# call pkg_test_4.p1(null,null,null);
+ i3
+----
+
+(1 row)
+
+openGauss=#
+</code></pre>
+<p>在MogDB 5.2.0里则是在创建package body时就报错了，能正确检查到包头里的procedure在包体里没定义</p>
+<pre><code class="language-sql">MogDB=# create package pkg_test_4 is
+MogDB$# procedure p1(i1 in varchar2,
+MogDB$#              i2 out varchar2,
+MogDB$#              i3 out varchar2);
+MogDB$# end pkg_test_4;
+MogDB$# /
+CREATE PACKAGE
+MogDB=# create package body pkg_test_4 is
+MogDB$# procedure p1(i1 in varchar2,
+MogDB$#              i2 in varchar2,
+MogDB$#              i3 out varchar2) is
+MogDB$#              begin
+MogDB$#                  null;
+MogDB$#              end;
+MogDB$# end pkg_test_4;
+MogDB$# /
+ERROR:  Function definition not found: p1
+MogDB=#
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>本次触发 <code>ERROR: Failed to query the 323 type in the cache.</code>这个报错的直接原因是创建的package和package body中，有个procedure的参数in/out方向不匹配导致。虽然客户代码的确有问题，但根本原因还是数据库有BUG，未将这种异常场景检查出来。</p>
+<p>想要深入排查国产数据库使用中的问题，学会使用gdb是必不可少的。我曾参与过不少国产数据库PoC,亲眼看到各个数据库厂家的技术人员在客户现场都曾用过gdb调试来定位问题。虽然大部分排行靠前的国产数据库都基本已经稳定应用在各行各业了，但是仍要注意一些不起眼的小角落是否还有虫子。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

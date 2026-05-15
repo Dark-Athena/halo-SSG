@@ -153,7 +153,165 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="duckdbduckdb和postgresql对于unnest函数的区别">【DuckDB】duckdb和postgresql对于unnest函数的区别</h1>
+<h2 id="背景">背景</h2>
+<p>在postgresql中，unnest函数用于解开数组类型的嵌套，能把一个数组变成多行，但不解开一行中的多个字段；当unnest处于from后面时，如果解开的一行有多个字段，同时也会解开成多个字段。<br/>
+也就是说，在pg中可以通过控制unnest在sql语句中的位置，来决定展开的层级。</p>
+<p>duckdb的unnest函数和pg的就不一样了，下面用一些用例来进行说明</p>
+<h2 id="测试">测试</h2>
+<p>构造一些数据，创建一些自定义类型</p>
+<pre><code class="language-sql">D create table t_1(c1 numeric,c2 varchar);
+ ty_1[];
+D create type ty_1 as struct(c1 numeric,c2 varchar);
+D create type tyt_1 as ty_1[];
+D insert into t_1 values (1,'a');
+D insert into t_1 values (2,'b');
+</code></pre>
+<p>使用postgresql的方式，放在from后面，但和postgresql全展开不一样，duckdb的字段没有展开</p>
+<pre><code class="language-sql">D select * from  unnest( array(select (c1,c2)::ty_1 from t_1));
+┌──────────────────────────────────────┐
+│                unnest                │
+│ struct(c1 decimal(18,3), c2 varchar) │
+├──────────────────────────────────────┤
+│ {'c1': 1.000, 'c2': a}               │
+│ {'c1': 2.000, 'c2': b}               │
+└──────────────────────────────────────┘
+</code></pre>
+<p>直接放select后，字段同样也没有展开，但是明显表达式转换规则和在from后面不一样</p>
+<pre><code class="language-sql">D select  unnest( array(select (c1,c2)::ty_1 from t_1));
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ unnest((SELECT CASE  WHEN ((array_agg(#1) IS NULL)) THEN (list_value()) ELSE array_agg(#1) END FROM (SELECT CAST(main."row"(c1, c2) AS ty_1) F…  │
+│                                                       struct(c1 decimal(18,3), c2 varchar)                                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ {'c1': 1.000, 'c2': a}                                                                                                                           │
+│ {'c1': 2.000, 'c2': b}                                                                                                                           │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>指定<code>recursive := true</code>或者<code>max_depth := 2</code>，字段解开</p>
+<pre><code class="language-sql">D select  unnest( array(select (c1,c2)::ty_1 from t_1),recursive := true);
+┌───────────────┬─────────┐
+│      c1       │   c2    │
+│ decimal(18,3) │ varchar │
+├───────────────┼─────────┤
+│         1.000 │ a       │
+│         2.000 │ b       │
+└───────────────┴─────────┘
+D select  unnest( array(select (c1,c2)::ty_1 from t_1), max_depth := 2);
+┌───────────────┬─────────┐
+│      c1       │   c2    │
+│ decimal(18,3) │ varchar │
+├───────────────┼─────────┤
+│         1.000 │ a       │
+│         2.000 │ b       │
+└───────────────┴─────────┘
+</code></pre>
+<p>报错，必须指定recursive或max_depth之一</p>
+<pre><code class="language-sql">D select  unnest( array(select (c1,c2)::ty_1 from t_1), true);
+Binder Error:
+UNNEST - unsupported extra argument, unnest only supports recursive := [true/false] or max_depth := #
+
+LINE 1: select  unnest( array(select (c1,c2)::ty_1 from t_1), true);
+                ^
+</code></pre>
+<p>json可以直接解开</p>
+<pre><code class="language-sql">D SELECT unnest({'a': 42, 'b': 84});
+┌───────┬───────┐
+│   a   │   b   │
+│ int32 │ int32 │
+├───────┼───────┤
+│  42   │  84   │
+└───────┴───────┘
+</code></pre>
+<p>json数组也可以解开</p>
+<pre><code class="language-sql">D SELECT unnest([{'a': 42, 'b': 84},{'a': 22, 'b': 11}],recursive := true);
+┌───────┬───────┐
+│   a   │   b   │
+│ int32 │ int32 │
+├───────┼───────┤
+│    42 │    84 │
+│    22 │    11 │
+└───────┴───────┘
+</code></pre>
+<p>数据字典中存在unnest这个函数</p>
+<pre><code class="language-sql">D select * from pg_proc where proname='unnest';
+┌───────┬─────────┬──────────────┬──────────┬─────────┬─────────┬───┬─────────────┬────────┬────────┬────────────┬───────────┬────────┬──────────┐
+│  oid  │ proname │ pronamespace │ proowner │ prolang │ procost │ … │ protrftypes │ prosrc │ probin │ prosqlbody │ proconfig │ proacl │ proisagg │
+│ int64 │ varchar │    int64     │  int32   │  int32  │  int32  │   │    int32    │ int32  │ int32  │  varchar   │   int32   │ int32  │ boolean  │
+├───────┼─────────┼──────────────┼──────────┼─────────┼─────────┼───┼─────────────┼────────┼────────┼────────────┼───────────┼────────┼──────────┤
+│  108  │ unnest  │      0       │   NULL   │  NULL   │    0    │ … │    NULL     │  NULL  │  NULL  │ NULL       │   NULL    │  NULL  │ false    │
+├───────┴─────────┴──────────────┴──────────┴─────────┴─────────┴───┴─────────────┴────────┴────────┴────────────┴───────────┴────────┴──────────┤
+│ 1 rows                                                                                                                   31 columns (13 shown) │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>ORACLE的table函数，在PG里一般改成unnest，但在DUCKDB里改了还是不行，要解嵌套</p>
+<pre><code class="language-sql">select * from table( ...);
+</code></pre>
+<p>但from后面的unnest不支持传两个参数</p>
+<pre><code class="language-sql">D select * from unnest( array(select (c1,c2)::ty_1 from t_1),recursive := true);
+Binder Error:
+No function matches the given name and argument types 'unnest(STRUCT(c1 DECIMAL(18,3), c2 VARCHAR)[], BOOLEAN)'. You might need to add explicit type casts.
+        Candidate functions:
+        unnest(ANY)
+
+
+LINE 1: select * from unnest( array(select (c1,c2)::ty_1 from t_1),recursive ...
+                      ^
+</code></pre>
+<p>尝试创建宏，<code>table</code>由于是关键字，报错</p>
+<pre><code class="language-sql">D create macro table(i) as unnest(i);
+Parser Error:
+syntax error at or near "table"
+
+LINE 1: create macro table(i) as unnest(i);
+                     ^
+</code></pre>
+<p>创建宏，同样无法放在from后面，创建不报错，使用报错</p>
+<pre><code class="language-sql">D create macro unnest_table(i) as table select * from unnest(i, max_depth := 2);
+D select * from unnest_table(array[(1,'a'),(2,'b')] ::tyt_1);
+Binder Error:
+Invalid named parameter "max_depth" for function unnest
+Function does not accept any named parameters.
+
+LINE 1: select * from unnest_table(array[(1,'a'),(2,'b')] ::tyt_1);
+                      ^
+D drop macro unnest_table;
+</code></pre>
+<p>改成放在from后面，能得到类似oracle和postgresql的效果了</p>
+<pre><code class="language-sql">D create macro unnest_table(i) as table select unnest(i,recursive := true) column_value;
+D select * from unnest_table(array[(1,'a'),(2,'b')] ::tyt_1);
+┌───────────────┬─────────┐
+│      c1       │   c2    │
+│ decimal(18,3) │ varchar │
+├───────────────┼─────────┤
+│         1.000 │ a       │
+│         2.000 │ b       │
+└───────────────┴─────────┘
+D select * from unnest_table(array[1,2,3]);
+┌──────────────┐
+│ column_value │
+│    int32     │
+├──────────────┤
+│            1 │
+│            2 │
+│            3 │
+└──────────────┘
+</code></pre>
+<h2 id="总结和题外话">总结和题外话</h2>
+<p>虽然PG和DUCKDB的unnest有不少差异，以至于PG的SQL在DUCKDB上并不能完全兼容，但DUCKDB的unnest函数设计看上去似乎比PG的更合理，能用的场景也更多，能自由控制展开的层级。</p>
+<p>只是习惯了ORACLE明确区分select列表和from的行为后，对于duckdb和postgresql里这种在select里能直接返回多行的行为感觉很是诡异，这么说可能有人不理解，我举个例子：</p>
+<p>当你知道下面的SQL执行的结果是10</p>
+<pre><code class="language-sql">select count(1) from t1;
+</code></pre>
+<p>而且知道下面的select里没有使用任何聚合函数，那么不管select里使用了什么表达式还是函数，你一定会判断这个SQL能返回10行</p>
+<pre><code class="language-sql">select .... from t1;
+</code></pre>
+<p>但是这只是ORACLE的行为，在duckdb和postgresql就不一样了，如果里面有使用unnest这样的函数（这种函数甚至可以自定义创建）,那么你在不确定原始数据的内容时，根本不知道这个sql会返回多少行，而且由于一行变多行，很可能引入意料之外的join笛卡尔积。</p>
+<p>但是换个角度想想，既然能接受 <strong>聚合函数</strong>的存在，为什么就不能有<strong>展开</strong>/<strong>分散</strong> 函数呢？聚合是多行变一行，分散是一行变多行，想到这里便释然了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

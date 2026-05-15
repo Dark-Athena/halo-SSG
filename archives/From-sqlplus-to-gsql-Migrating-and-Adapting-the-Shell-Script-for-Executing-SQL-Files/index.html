@@ -155,7 +155,397 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造</p>
+<h2 id="背景">背景</h2>
+<p>在客户应用系统中，有一套shell脚本来操作ORACLE数据库执行业务存储过程，现数据库需要迁移到GaussDB,因此这套shell脚本也要进行移植改写</p>
+<h2 id="原始代码demo">原始代码demo</h2>
+<ol>
+<li>存储过程定义</li>
+</ol>
+<pre><code class="language-sql">create or replace procedure up_test_biz(i1 number,i2 varchar2,o1 out number,o2 out varchar2) is
+i number;
+begin
+o1:=0;
+i:=i1;
+i:=i2;
+exception when others then
+o1:=sqlcode;
+o2:=sqlerrm;
+end;
+/
+</code></pre>
+<ol start="2">
+<li>shell脚本</li>
+</ol>
+<pre><code class="language-bash">#!/bin/bash
+# 参数赋值
+v1=1
+v2=2a
+# 调用SQL文件
+sqlplus -S -L system/SysPassword1@192.168.163.227:1527/pdb1 @biz.sql ${v1} ${v2}  &gt;&gt;biz.log
+# 获取上一个命令成功失败结果
+sqlresult="$?"
+if [ ${sqlresult} -eq "0" ]
+then 
+    echo "biz 处理成功 ！ " &gt;&gt;biz.log
+else
+    echo "biz 处理失败 ！ " &gt;&gt;biz.log
+fi
+echo "sqlresult is:" ${sqlresult}
+</code></pre>
+<ol start="3">
+<li>sql文件</li>
+</ol>
+<pre><code class="language-sql">
+WHENEVER SQLERROR EXIT FAILURE
+WHENEVER OSERROR EXIT FAILURE
+VARIABLE O_CODE NUMBER;
+VARIABLE O_MSG VARCHAR2(4000);
+
+declare
+i1 number;
+i2 varchar2(20);
+begin
+i1:= '&amp;1';
+i2:= '&amp;2';
+up_test_biz(i1,i2,:O_CODE,:O_MSG);
+exception when others then 
+:O_CODE:=1;
+end;
+/
+PRINT O_MSG
+EXIT :O_CODE
+
+QUIT;
+</code></pre>
+<h2 id="一原始代码关键点">一、原始代码关键点</h2>
+<h3 id="存储过程定义">存储过程定义</h3>
+<p>ORACLE的sqlcode是数字</p>
+<h3 id="shell文件">shell文件</h3>
+<ol>
+<li>
+<p>sqlplus 执行sql文件<br/>
+使用<code>@</code>符号接SQL文件</p>
+</li>
+<li>
+<p>传参给sql文件<br/>
+在sqlplus <code>@</code>SQL文件之后 ，按顺序给参数值</p>
+</li>
+<li>
+<p>日志重定向<br/>
+使用<code>&gt;&gt;</code>符号重定向写入文件</p>
+</li>
+<li>
+<p>命令执行结果标准值<br/>
+使用<code>"$%"</code>能判断sqlplus命令执行结果是否成功</p>
+</li>
+</ol>
+<h3 id="sql文件">SQL文件</h3>
+<ol>
+<li>规定命令退出时标准值</li>
+</ol>
+<pre><code class="language-sql">WHENEVER SQLERROR EXIT FAILURE
+WHENEVER OSERROR EXIT FAILURE
+</code></pre>
+<ol start="2">
+<li>声明会话级变量</li>
+</ol>
+<pre><code class="language-sql">VARIABLE O_CODE NUMBER;
+VARIABLE O_MSG VARCHAR2(4000);
+</code></pre>
+<ol start="3">
+<li>sql接收命令行入参<br/>
+按顺序传递</li>
+</ol>
+<pre><code class="language-sql">i1:= '&amp;1';
+i2:= '&amp;2';
+</code></pre>
+<ol start="4">
+<li>存储过程出参赋给会话级变量以及会话级变量赋值</li>
+</ol>
+<pre><code class="language-sql">up_test_biz(i1,i2,:O_CODE,:O_MSG);
+</code></pre>
+<pre><code class="language-sql">:O_CODE:=1;
+</code></pre>
+<ol start="5">
+<li>打印变量</li>
+</ol>
+<pre><code class="language-sql">PRINT O_MSG
+</code></pre>
+<ol start="6">
+<li>指定命令退出时标准值</li>
+</ol>
+<pre><code class="language-sql">EXIT :O_CODE
+</code></pre>
+<h2 id="二分析gaussdb支持情况">二、分析GaussDB支持情况</h2>
+<h3 id="存储过程定义-1">存储过程定义</h3>
+<p>GaussDB的sqlcode是字符类型，和ORACLE不一致，需要手动创建函数来显式转换（可参考文章<a href="https://www.darkathena.top/archives/opengauss-mogdb-sqlcode-datatype">https://www.darkathena.top/archives/opengauss-mogdb-sqlcode-datatype</a>）。</p>
+<h3 id="shell文件-1">shell文件</h3>
+<ol>
+<li>
+<p>gsql 执行sql文件<br/>
+使用 <code>-f</code> 指定sql文件</p>
+</li>
+<li>
+<p>传参给sql文件<br/>
+使用 <code>-v</code> 指定参数</p>
+</li>
+<li>
+<p>日志重定向<br/>
+可以使用<code>&gt;&gt;</code>，但是后面要接 <code>2&gt;&amp;1</code> ，才能把标准错误也输出到日志文件中</p>
+</li>
+<li>
+<p>命令执行结果标准值<br/>
+gsql默认无论执行成功还是报错，<code>"$%"</code>返回都是<code>"0"</code>，需要加上参数 <code>-v ON_ERROR_STOP=1</code> (或者在sql文件里执行<code>\set ON_ERROR_STOP=1</code>)</p>
+</li>
+</ol>
+<h3 id="sql文件-1">SQL文件</h3>
+<ol>
+<li>
+<p>规定命令退出时标准值<br/>
+需要shell调用gsql时加上参数 <code>-v ON_ERROR_STOP=1</code> (或者在sql文件里执行<code>\set ON_ERROR_STOP=1</code>) ，同上</p>
+</li>
+<li>
+<p>声明会话级变量<br/>
+在gsql调用时指定<code>-v 参数名="'值'" </code>或者sql文件里执行<code>\set 参数名="'值'"</code>，但这种本质上只是SQL字符串替换，即不是绑定变量，也无法接收sql的执行结果，建议使用自定义变量<code>select set_config('cust.变量名称','变量值',false)</code></p>
+</li>
+<li>
+<p>sql接收命令行入参<br/>
+使用 <code>:参数名</code> 接收,但plsql中不支持使用这种形式的变量，只能使用自定义变量（可参考文章<a href="https://www.darkathena.top/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters">https://www.darkathena.top/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters</a>）</p>
+</li>
+</ol>
+<pre><code class="language-sql">select 
+set_config('cust.v1',:v1,false) v1;
+
+declare
+i1 number;
+begin
+i1:=current_setting('cust.v1');
+
+</code></pre>
+<ol start="4">
+<li>存储过程出参赋给会话级变量以及会话级变量赋值<br/>
+gaussdb由于 -v或者\set的变量无法接收sql的执行结果，因此只能使用自定义变量来处理，此时需要使用匿名块额外声明变量，先做出参接收，然后将这个变量的值赋给自定义变量</li>
+</ol>
+<pre><code class="language-sql">declare
+i1 number;
+i2 varchar2(20);
+--增加出参接收的变量
+o1 number; 
+o2 varchar2(4000);
+begin
+i1:=current_setting('cust.v1');
+i2:=current_setting('cust.v2');
+up_test_biz(i1,i2,o1,o2);
+--将出参赋值给自定义变量，以便脱离单条语句使用
+set_config('cust.o_code',o1,false); 
+set_config('cust.o_msg',o2,false); 
+
+</code></pre>
+<ol start="5">
+<li>打印变量<br/>
+可以直接select 或者在匿名块内使用raise输出</li>
+</ol>
+<pre><code class="language-sql">select current_setting('cust.o_msg');
+</code></pre>
+<pre><code class="language-sql">begin
+raise notice '%',current_setting('cust.o_msg');
+end;
+/
+</code></pre>
+<ol start="6">
+<li>当业务返回错误或者SQL执行错误时，shell侧需要能识别到命令成功或者失败<br/>
+gsql执行sql无论成功或者失败都是返回0，需要shell调用gsql时加上参数 <code>-v ON_ERROR_STOP=1</code> (或者在sql文件里执行<code>\set ON_ERROR_STOP=1</code>)，且由于匿名块最后捕获了错误，因此需要再根据匿名块记录的状态值来构造一个报错</li>
+</ol>
+<pre><code class="language-sql">begin
+if current_setting('cust.o_code') &lt;&gt;'0' then
+raise  '%',current_setting('cust.o_msg');
+else 
+raise notice '%',current_setting('cust.o_msg');
+end if;
+end;
+/
+</code></pre>
+<h2 id="三整合方案">三、整合方案</h2>
+<h3 id="存储过程定义-2">存储过程定义</h3>
+<pre><code class="language-sql">--新建sqlcode转换函数
+CREATE OR REPLACE FUNCTION pack_sql_state(sql_state text)
+RETURNS INTEGER AS $$
+DECLARE
+    result INTEGER := 0;
+    i INTEGER;
+BEGIN
+    FOR i IN 1..5 LOOP
+        result := result &lt;&lt; 6;
+        result := result | (ascii(substr(sql_state, -i, 1)) - ascii('0'));
+    END LOOP;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION unpack_sql_state(sql_state INTEGER)
+RETURNS text AS $$
+DECLARE
+    result text := '';
+    i INTEGER;
+BEGIN
+    FOR i IN 1..5 LOOP
+        result := result||(chr((sql_state &amp; 63) + ascii('0'))) ;
+        sql_state := sql_state &gt;&gt; 6;
+    END LOOP;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+--存储过程改写(仅需识别sqlcode表达式，套一个转换函数即可,如果不想新建函数，也可以让o1赋值为1，把sqlcode拼接到o2里去)
+create or replace procedure up_test_biz(i1 number,i2 varchar2,o1 out number,o2 out varchar2) is
+i number;
+begin
+o1:=0;
+i:=i1;
+i:=i2;
+o2:='biz success!';
+exception when others then
+o1:=pack_sql_state(sqlcode);
+o2:=sqlerrm;
+end;
+/
+</code></pre>
+<h3 id="shell脚本">shell脚本</h3>
+<pre><code class="language-bash">#!/bin/bash
+# 参数赋值
+v1=1
+v2=2a
+# 调用SQL文件
+gsql -h 192.168.163.131 -p 7456 -Uogadmin -WMogdb@123 -d postgres -f biz.sql -v ON_ERROR_STOP=on -v v1="'${v1}'" -v v2="'${v2}'" &gt;&gt;biz.log 2&gt;&amp;1
+# 获取上一个命令成功失败结果
+sqlresult="$?"
+if [ ${sqlresult} -eq "0" ]
+then 
+    echo "biz 处理成功 ！ " &gt;&gt;biz.log
+else
+    echo "biz 处理失败 ！ " &gt;&gt;biz.log
+fi
+echo "sqlresult is:" ${sqlresult}
+</code></pre>
+<h3 id="sql文件-2">sql文件</h3>
+<pre><code class="language-sql">\set ON_ERROR_STOP ON
+--  -v参数只能替换sql中的参数，不能替换plsql中的参数，因此使用自定义变量中转
+select 
+set_config('cust.v1',:v1,false) v1,
+set_config('cust.v2',:v2,false) v2;
+
+declare
+i1 number;
+i2 varchar2(20);
+o1 number;
+o2 varchar2(4000);
+begin
+i1:=current_setting('cust.v1');
+i2:=current_setting('cust.v2');
+up_test_biz(i1,i2,o1,o2);
+set_config('cust.o_code',o1,false);
+set_config('cust.o_msg',o2,false);
+exception when others then 
+set_config('cust.o_code',sqlcode,false);
+set_config('cust.o_msg',sqlerrm,false);
+end;
+/
+
+--打印结果
+select current_setting('cust.o_msg') as o_msg;
+
+--处理标准命令返回值
+begin
+if current_setting('cust.o_code') &lt;&gt;'0' then
+raise '%',concat('o_code:',unpack_sql_state(current_setting('cust.o_code')),', o_msg:',current_setting('cust.o_msg'));
+end if;
+end;
+/
+</code></pre>
+<h2 id="四检查日志">四、检查日志</h2>
+<h3 id="构造输出执行报错日志">构造输出执行报错日志</h3>
+<ol>
+<li>oracle:</li>
+</ol>
+<pre><code class="language-log">
+old   5: i1:= '&amp;1';
+new   5: i1:= '1';
+old   6: i2:= '&amp;2';
+new   6: i2:= '2a';
+
+PL/SQL procedure successfully completed.
+
+
+O_MSG
+--------------------------------------------------------------------------------
+ORA-06502: PL/SQL: numeric or value error: character to number conversion error
+
+biz 处理失败 ！ 
+
+</code></pre>
+<ol start="2">
+<li>gaussdb:</li>
+</ol>
+<pre><code class="language-log"> v1 | v2 
+----+----
+ 1  | 2a
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+                    o_msg                    
+---------------------------------------------
+ invalid input syntax for type numeric: "2a"
+(1 row)
+
+gsql:biz.sql:73: ERROR:  o_code:22P02, o_msg:invalid input syntax for type numeric: "2a"
+total time: 273  ms
+biz 处理失败 ！ 
+
+</code></pre>
+<h3 id="构造输出执行正常日志">构造输出执行正常日志</h3>
+<pre><code class="language-log">old   5: i1:= '&amp;1';
+new   5: i1:= '1';
+old   6: i2:= '&amp;2';
+new   6: i2:= '2';
+
+PL/SQL procedure successfully completed.
+
+
+O_MSG
+--------------------------------------------------------------------------------
+biz success!
+
+biz 处理成功 ！ 
+
+</code></pre>
+<pre><code class="language-log"> v1 | v2 
+----+----
+ 1  | 2
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+    o_msg     
+--------------
+ biz success!
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+total time: 276  ms
+biz 处理成功 ！ 
+</code></pre>
+<p>经核对，必要信息输出无遗漏，符合预期</p>
+<h2 id="五总结">五、总结</h2>
+<ol>
+<li>注意gsql执行sql的标准返回值，受参数 <code>ON_ERROR_STOP</code>影响，默认都是返回成功，即<code>0</code> ,需设置<code>ON_ERROR_STOP=on</code>才会在错误时返回非<code>0</code>值</li>
+<li>注意gsql的错误会输出到标准错误，在标准输出中不含错误信息，如需记录错误到文件，需要 <code>2&gt;&amp;1</code> ,将标准错误重定向到标出输出</li>
+<li>Gauss/PG系的plsql绑定变量出入参一直不太友好，好在能使用sql来进行会话级自定义变量的设置，跨越单条sql引用上下文，且不依赖客户端命令。</li>
+<li>GaussDB在Oracle兼容模式下的sqlcode是字符类型，和Oracle不兼容，且其中的确可能会包含非数字的字符，需要进行相关代码的改造。</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

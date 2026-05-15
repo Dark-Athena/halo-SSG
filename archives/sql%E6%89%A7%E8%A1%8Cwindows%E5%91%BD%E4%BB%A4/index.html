@@ -155,7 +155,77 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>从oracle 10g版本起，添加了schedule job功能，该功能支持调用操作系统命令<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png" srcset="/upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1200 1200w, /upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=400 400w, /upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1600 1600w, /upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=800 800w"/><br/>
+所以我们可以做个这样的尝试，<br/>
+将要执行的操作系统命令通过utl_file包生成一个.bat文件，然后通过schedule job来执行这个bat文件,<br/>
+举个例子，如果我们想要定时重启windows上的时间时间同步服务，在cmd下是执行</p>
+<pre><code class="language-bat">net stop w32time
+net start w32time
+</code></pre>
+<p>那么我们可以把这两条命令，写成一个time_r.bat文件，</p>
+<pre><code class="language-plsql"> V_File := Utl_File.Fopen(I_db_Path,I_file_name ,'W');
+ Utl_File.Put_Line(V_File, l_cmd_text);
+ Utl_File.Fclose(V_File);
+</code></pre>
+<p>保存在D:\TEMP\time_r.bat,然后创建一个不自动执行的临时schedule job，</p>
+<pre><code class="language-plsql">begin
+  sys.dbms_scheduler.create_job(job_name            =&gt; 'SYS.TIME_R',
+                                job_type            =&gt; 'EXECUTABLE',
+                                job_action          =&gt; 'c:\windows\system32\cmd.exe /c "time_r.bat"',
+                                start_date          =&gt; to_date('02-07-2017 00:00:00', 'dd-mm-yyyy hh24:mi:ss'),
+                                repeat_interval     =&gt; 'Freq=Hourly;Interval=4;ByMinute=50;BySecond=0',
+                                end_date            =&gt; to_date(null),
+                                job_class           =&gt; 'DEFAULT_JOB_CLASS',
+                                enabled             =&gt; false,
+                                auto_drop           =&gt; false');
+end;
+/
+
+</code></pre>
+<p>再执行这个scheduler JOB,</p>
+<pre><code class="language-plsql">begin
+dbms_scheduler.run_job('SYS.TIME_R');
+end;
+</code></pre>
+<p>执行完后删除这个job和bat文件（删job也可通过“auto_drop”参数控制，但不方便调试排查故障）。</p>
+<pre><code class="language-plsql"> UTL_FILE.FREMOVE(I_db_Path, I_file_name );
+ dbms_scheduler.drop_job(I_job_name);
+</code></pre>
+<p>为了方便灵活使用，我们可以把中间步骤全部进行抽象，封装成一个存储过程，实际使用时无需去管job和bat文件。比如下面这个样子</p>
+<pre><code class="language-plsql">declare
+l_cmd_text VARCHAR2(4000);
+begin
+l_cmd_text:='net stop w32time
+net start w32time';
+TEXT_TO_CMD_P(l_cmd_text);
+end;
+</code></pre>
+<p>但是实际使用中可能会遇到几个问题<br/>
+1.由于utl_file操作文件时，实际上操作的是在数据库内映射的文件夹，所以一般建议再人工指定一个文件夹参数；<br/>
+2.有时候比较危险的操作，想只生成bat文件但不执行；<br/>
+3.有时候会同时几个会话在执行不同操作系统命令，如果bat文件重复了，可能会导致异常，如果文件名完全随机，在排查故障的时候又方便找到自己需要的bat文件。<br/>
+所以，可以再加几个参数</p>
+<pre><code class="language-plsql">CREATE OR REPLACE PROCEDURE TEXT_TO_CMD_P(I_db_Path       IN VARCHAR2, --数据库映射目录
+                                          I_cmd_text      IN VARCHAR2,--要执行的操作系统命令
+                                          I_file_name     IN VARCHAR2,--bat文件名前缀
+                                          I_run           in varchar2 --是否执行bat文件
+)
+</code></pre>
+<p>完整源码请从我的github上下载<br/>
+<a href="https://github.com/Dark-Athena/text_to_cmd-oracle">https://github.com/Dark-Athena/text_to_cmd-oracle</a></p>
+<p>目前该过程暂只支持windows，理论上linux也是可以支持的，但我手上暂时无linux的环境，以后会考虑更新一版自适应操作系统的。</p>
+<p>注意：<br/>
+1.命令中不能存在用户交互式操作，且命令执行完后必须确保操作系统的进程会退出，或者强制在bat文件末尾再补个exit，否则会出现程序一直在执行的情况<br/>
+2.windows环境中，ORACLE数据库大多是用的system用户，该用户几乎是windows的最高权限用户，所以执行操作系统命令要慎重。<br/>
+3.由于是在oracle数据库执行的对应的操作系统用户下创建的操作系统进程，所以其他的操作系统用户是无法看到对应的操作命令执行窗口的<br/>
+4.建议在存储过程正式执行前，确保生成的bat文件内容的正确性</p>
+<p>另外，还可以通过调用java再调用操作系统命令，但是授权会比较麻烦，网上可以搜索到比较完整的资料，这里就不赘述了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

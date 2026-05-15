@@ -153,7 +153,224 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>GaussDB内核版本:506.0.0 SPC0100<br/>
+在开启了behavior_compat_options=plsql_security_definer时，理论上跨用户的存储过程调用，只要授权最外层的存储过程执行权限即可，存储过程内调用的其他对象是不需要再授权的，因为进入存储过程后，当前用户会自动切换成该存储过程的属主。<br/>
+最近客户测试遇到个奇怪的问题，在一个特定场景下，跨用户执行这样的存储过程，竟然出现了没有权限的报错，而且同一个场景，有时报错有时不报错，哪怕是同一个会话内也不稳定。于是本文来分析一下。</p>
+<h2 id="复现">复现</h2>
+<p>创建两个用户，user_a里创建两个包，嵌套调用，并且给user_b外层包的执行权限，然后让user_b执行user_a的外层包：</p>
+<ul>
+<li>复现脚本</li>
+</ul>
+<pre><code class="language-sql">gsql -r -d postgres 
+--检查参数，behavior_compat_options包含plsql_security_definer
+show behavior_compat_options;
+'bind_procedure_searchpath,truncate_numeric_tail_zero,plsql_security_definer,proc_outparam_override,aformat_null_test,rownum_type_compat,allow_procedure_compile_check,proc_implicit_for_loop_variable,plstmt_implicit_savepoint,end_month_calculate,plpgsql_dependency,display_leading_zero,correct_to_number,unbind_divide_bound,convert_string_digit_to_numeric,aformat_regexp_match,compat_cursor,tableof_elem_constraints,show_full_error_lineno,sys_function_without_brackets'
+--enable_opfusion开启
+show enable_opfusion;
+
+--创建两个用户
+create user user_a password 'Gaussdb@123';
+create user user_b password 'Gaussdb@123';
+
+--切换到user_a
+gsql -r -d postgres -Uuser_a -WGaussdb@123
+
+CREATE TABLE t_test_xx (
+    id integer NOT null primary key,
+    name text
+);
+
+insert into t_test_xx select i,i from generate_series(1,1000) i;
+
+CREATE OR REPLACE PACKAGE user_a.pkg_test_2 IS 
+function f(i int) return int;
+end pkg_test_2;
+/
+CREATE OR REPLACE PACKAGE BODY user_a.pkg_test_2 IS 
+function f(i int) return int is
+begin
+return i;
+end;
+end pkg_test_2;
+/
+CREATE OR REPLACE PACKAGE user_a.pkg_test_1 IS 
+procedure p(i int,o out sys_refcursor);
+end pkg_test_1;
+/
+CREATE OR REPLACE PACKAGE BODY user_a.pkg_test_1 IS 
+procedure p(i int,o out sys_refcursor) is
+begin
+raise notice 'current_user:%',current_user;
+open o for 
+select t1.id,pkg_test_2.f(t1.id) c,name from t_test_xx t1
+where t1.id= 2 and ( i is null 
+or t1.id in (select id from t_test_xx where name = '2') );
+end;
+end pkg_test_1;
+/
+grant usage on schema user_a to user_b;
+grant execute on package user_a.pkg_test_1  to user_b;
+
+\q
+
+--切换到user_b
+gsql -r -d postgres -Uuser_b -WGaussdb@123
+
+--第一个参数传空，取游标数据报错
+begin;
+call user_a.pkg_test_1.p('',null);
+fetch all "&lt;unnamed portal 1&gt;"; 
+end;
+--第一个参数传非空，取游标数据不报错
+begin;
+call user_a.pkg_test_1.p('2',null);
+fetch all "&lt;unnamed portal 2&gt;"; 
+end;
+--再次测第一个参数传空，取游标数据可能又不报错了（这里测试结果不稳定，可能与plancache有关）
+begin;
+call user_a.pkg_test_1.p('',null);
+fetch all "&lt;unnamed portal 3&gt;"; 
+end;
+</code></pre>
+<ul>
+<li>执行效果</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; begin;
+BEGIN
+gaussdb=&gt; call user_a.pkg_test_1.p(null,null);
+NOTICE:  current_user:user_a
+         o
+--------------------
+ &lt;unnamed portal 1&gt;
+(1 row)
+
+gaussdb=&gt; fetch all "&lt;unnamed portal 1&gt;";
+ERROR:  The operation permission on function f is denied.
+DETAIL:  N/A.
+CONTEXT:  referenced column: c
+gaussdb=&gt; end;
+ROLLBACK
+gaussdb=&gt; begin;
+BEGIN
+gaussdb=&gt; call user_a.pkg_test_1.p(2,null);
+         o
+--------------------
+ &lt;unnamed portal 2&gt;
+(1 row)
+
+gaussdb=&gt; fetch all "&lt;unnamed portal 2&gt;";
+ id | c | name
+----+---+------
+  2 | 2 | 2
+(1 row)
+
+gaussdb=&gt; end;
+COMMIT
+gaussdb=&gt; begin;
+BEGIN
+gaussdb=&gt; call user_a.pkg_test_1.p('',null);
+         o
+--------------------
+ &lt;unnamed portal 3&gt;
+(1 row)
+
+gaussdb=&gt; fetch all "&lt;unnamed portal 3&gt;";
+ id | c | name
+----+---+------
+  2 | 2 | 2
+(1 row)
+
+gaussdb=&gt; end;
+COMMIT
+</code></pre>
+<h2 id="个人分析">个人分析</h2>
+<p>区别在于第一个参数<code>i</code>传空时，执行计划<strong>可能</strong>会优化为简单的单表的索引扫描（bypass）:</p>
+<pre><code>select t1.id,pkg_test_2.f(t1.id) c,name from t_test_xx t1
+where t1.id= 2 and ( i is null 
+or t1.id in (select id from t_test_xx where name = '2') )
+</code></pre>
+<p><code>i</code> 为空，转换成下面的SQL</p>
+<pre><code>select t1.id,pkg_test_2.f(t1.id) c,name from t_test_xx t1
+where t1.id= 2
+</code></pre>
+<p>此场景下函数表达式的权限似乎并没有继承当前SQL的权限，可开启下面两个参数跟踪执行存储过程时执行计划的区别</p>
+<pre><code>set enable_auto_explain to on;
+set auto_explain_level to notice;
+</code></pre>
+<p>另外，测试中发现开关enable_opfusion对执行结果也会有影响，因此猜测与opfusion相关功能有关，但是跟踪报错堆栈，并未发现opfusion字样</p>
+<pre><code class="language-sh">(gdb) bt
+#0  errstart (elevel=20, filename=0x55f86edac010 "aclchk.cpp", lineno=1855, funcname=0x55f86edaea88 &lt;aclcheck_error(AclResult, AclObjectKind, char const*)::__func__&gt; "aclcheck_error", domain=0x55f86edac004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+#1  0x000055f86a42910e in aclcheck_error (aclerr=ACLCHECK_NO_PRIV, objectkind=ACL_KIND_PROC, objectname=0x7f55ea1b43a0 "f") at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/catalog/aclchk.cpp:1850
+#2  0x000055f86ad40a22 in exec_init_fcache&lt;false&gt; (foid=109371, input_collation=0, fcache=0x7f55ea1b0ad0, fcache_cxt=0x7f561281c5f0, allow_srf=false, need_desc_for_srf=true) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:1424
+#3  0x000055f86ad3bea9 in exec_eval_func (fcache=0x7f55ea1b0ad0, econtext=0x7f55ea1b0470, is_null=0x7f55ea3de809, is_done=0x7f55ea3deb84) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:3177
+#4  0x000055f86ad3633e in exec_targetlist (targetlist=&lt;optimized out&gt;, econtext=0x7f55ea1b0470, values=0x7f55ea3de7c8, isnull=0x7f55ea3de808, item_is_done=0x7f55ea3deb80, is_done=0x7f55ff3c671c) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:7900
+#5  0x000055f86ad36cfb in exec_project_byrec (proj_info=0x7f55ea3de870, is_done=0x7f55ff3c671c) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:8163
+#6  0x000055f86ad36f99 in exec_project (proj_info=0x7f55ea3de870, is_done=0x7f55ff3c671c) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:8190
+#7  0x000055f86bb60b4d in gs_exec_scan&lt;IndexScanOperator&gt; (in_node=0x7f55ea1b0050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_execscan.cpp:172
+#8  0x000055f86bb4fd1a in PlanState::get_next (this=0x7f55ea1b0050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_core.cpp:387
+#9  0x000055f86ad13e46 in exec_execute_plan (bii_state=&lt;optimized out&gt;, dest=0x7f55f4de0a98, direction=&lt;optimized out&gt;, numberTuples=0, sendTuples=true, operation=CMD_SELECT, planstate=0x7f55ea1b0050, estate=0x7f55ea1b2050) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:2388
+#10 exec_standard_executor_run (queryDesc=0x7f55ea0adc70, direction=&lt;optimized out&gt;, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:899
+#11 0x000055f86b4ea11d in sqlcmd_explain_executor_run (query_desc=0x7f55ea0adc70, direction=FORWARD_SCAN_DIRECTION, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/auto_explain.cpp:113
+#12 0x000055f86ad143f2 in exec_executor_run (queryDesc=0x7f55ea0adc70, direction=FORWARD_SCAN_DIRECTION, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:701
+#13 0x000055f86b9ed5de in PortalRunSelect (portal=0x7f55f4c782a0, forward=&lt;optimized out&gt;, count=0, dest=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1801
+#14 0x000055f86b9ed6f9 in DoPortalRunFetch (portal=0x7f55f4c782a0, fdirection=&lt;optimized out&gt;, count=&lt;optimized out&gt;, dest=0x7f55f4de0a98) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2659
+#15 0x000055f86b9ef2d2 in PortalRunFetch (portal=0x7f55f4c782a0, fdirection=FETCH_FORWARD, count=9223372036854775807, dest=0x7f55f4de0a98) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2463
+#16 0x000055f86b6cf2ab in sqlcmd_perform_portal_fetch (stmt=0x7f55f4e88b08, dest=0x7f55f4de0a98, completion_tag=0x7f55ff3c9f00 "") at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/portalcmds.cpp:319
+#17 0x000055f86b9fc4cc in sqlcmd_standard_process_utility (parse_tree=0x7f55f4e88b08, query_string=0x7f55f4e88050 "fetch all \"&lt;unnamed portal 1&gt;\";", params=0x0, is_top_level=true, dest=0x7f55f4de0a98, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f55ff3c9f00 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:3787
+#18 0x00007f5743f9b759 in gsaudit_ProcessUtility_hook (parsetree=0x7f55f4e88b08, queryString=0x7f55f4e88050 "fetch all \"&lt;unnamed portal 1&gt;\";", params=0x0, isTopLevel=&lt;optimized out&gt;, dest=0x7f55f4de0a98, sentToRemote=&lt;optimized out&gt;, completionTag=0x7f55ff3c9f00 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/security_plugin/security_policy_plugin.cpp:856
+#19 0x000055f86bf6bf52 in audit_process_utility (parsetree=0x7f55f4e88b08, query_string=0x7f55f4e88050 "fetch all \"&lt;unnamed portal 1&gt;\";", params=&lt;optimized out&gt;, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f55ff3c9f00 "", is_ctas=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/audit/security_auditfuncs.cpp:1512
+#20 0x000055f86ba0771d in sqlcmd_process_utility (parse_tree=0x7f55f4e88b08, query_string=0x7f55f4e88050 "fetch all \"&lt;unnamed portal 1&gt;\";", params=0x0, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f55ff3c9f00 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:1974
+#21 0x000055f86b9e883f in PortalRunUtility (portal=0x7f55f4c78050, utilityStmt=0x7f55f4e88b08, isTopLevel=true, dest=0x7f55f4de0a98, completionTag=0x7f55ff3c9f00 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2140
+#22 0x000055f86b9eb44a in FillPortalStore (portal=0x7f55f4c78050, isTopLevel=true) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1912
+#23 0x000055f86b9ee82f in PortalRun (portal=0x7f55f4c78050, count=9223372036854775807, isTopLevel=true, dest=0x7f55f4e88c28, altdest=0x7f55f4e88c28, completionTag=0x7f55ff3ca260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1463
+#24 0x000055f86b9d4276 in exec_simple_query (query_string=&lt;optimized out&gt;, msg=0x7f55ff3ca530, messageType=QUERY_MESSAGE) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:3513
+#25 0x000055f86b9e0e38 in gs_process_command (firstchar=&lt;optimized out&gt;, input_message=0x7f55ff3ca530, send_ready_for_query=0x7f55ff3ca526) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11743
+#26 0x000055f86b9e69c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7f55fbff5b20, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#27 0x000055f86b96a2df in backend_run (port=0x7f55ff3ca890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#28 0x000055f86b9a91b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#29 0x000055f86b96a39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#30 0x00007f5763801f1b in ?? () from /usr/lib64/libpthread.so.0
+#31 0x00007f5763739320 in clone () from /usr/lib64/libc.so.6
+</code></pre>
+<p>不过可以看到是在 exec_init_fcache 时报的错，从字面意义上来看，是执行器里初始化函数缓存，但没有源码(这里和openGauss的代码完全不一样)，无法知道这里的判断逻辑和用户权限变量，关键栈里info local里全被优化掉了，函数暴露出来的参数里看不到有用信息：</p>
+<pre><code class="language-sh">(gdb) f 2
+#2  0x000055f86ad40a22 in exec_init_fcache&lt;false&gt; (foid=109371, input_collation=0, fcache=0x7f55ea1b0ad0, fcache_cxt=0x7f561281c5f0, allow_srf=false, need_desc_for_srf=true) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp:1424
+1424    /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_qual.cpp: No such file or directory.
+(gdb) p *fcache_cxt
+$1 = {type = T_AllocSetContext, allowInCritSection = false, methods = 0x7f561281c738, parent = 0x7f561281b930, firstchild = 0x7f561281c1b0, prevchild = 0x7f5612817fd0, nextchild = 0x0, name = 0x7f561281c780 "IndexScan_140007331329792", lock = {__data = {__readers = 0, __writers = 0, __wrphase_futex = 0, __writers_futex = 0, __pad3 = 0, __pad4 = 0, __cur_writer = 0, __shared = 0, __rwelision = 0 '\000', __pad1 = "\000\000\000\000\000\000", __pad2 = 0, __flags = 0}, __size = '\000' &lt;repeats 55 times&gt;, __align = 0}, is_sealed = false, is_shared = false, isReset = false, level = 6, session_id = 5616, thread_id = 140007331329792, cell = {data = {ptr_value = 0x7f561281c5f0, int_value = 310494704, oid_value = 310494704, uint64_value = 140007654409712}, next = 0x0}, freeListIndex = 0, cached = false}
+(gdb) p *fcache
+$2 = {xprstate = {type = T_FuncExprState, resultType = 23, expr = 0x7f55f4d75b38, evalfunc = 0x55f86ad3bd40 &lt;exec_eval_func(FuncExprState*, ExprContext*, bool*, ExprDoneCond*)&gt;, flt_exprstate_pad = 0x0, vecExprFun = 0x0, resultTypeMode = 0, tmtype = 0 '\000', max_length = 0, decimals = 0, set_enum_typeoid = 0, jitFunction = 0x0, is_flt_frame = false, tmpVector = {&lt;BaseObject&gt; = {&lt;No data fields&gt;}, m_rows = 0, m_desc = {&lt;BaseObject&gt; = {&lt;No data fields&gt;}, typeId = 0, typeMod = 0, encoded = false}, m_const = false, m_flag = 0x0, m_buf = 0x0, m_vals = 0x0, m_nullity = SVNullity::NOT_KNOWN, m_purpose = ScalarVector::SVPurpose::NOT_KNOWN, m_numeric_meta_info = 0, m_pre_agg_cu_info = 0x0, m_addVar = NULL}}, args = 0x7f55ea1b0e40, prokind = 0 '\000', func = {fn_addr = 0x0, fn_oid = 0, fn_nargs = 0, fn_strict = false, fn_retset = false, fn_extra = 0x0, fn_mcxt = 0x0, fn_expr = 0x0, fn_rettype = 0, fn_rettypemod = 0, fnName = '\000' &lt;repeats 63 times&gt;, fnLibPath = 0x0, vec_fn_addr = 0x0, vec_fn_cache = 0x0, genericRuntime = 0x0, max_length = 0, fn_languageId = 0, fn_stats = 0 '\000', fn_fenced = false, fn_volatile = 0 '\000', decimals = 0 '\000'}, funcResultStore = 0x0, funcResultSlot = 0x0, funcResultDesc = 0x0, funcReturnsTuple = false, funcReturnsSet = false, setArgsValid = false, setArgByVal = false, setHasSetArg = false, shutdown_reg = false, is_plpgsql_func_with_outparam = false, has_refcursor = false, fcinfo_data = 0x7f55ea1b0e80, tmpVec = 0x0}
+(gdb) 
+</code></pre>
+<p>从调用栈来看，是走了个索引扫描-&gt;逐行处理-&gt;逐列处理-&gt;处理函数-&gt;初始化函数缓存-&gt;没有这个函数的权限就报错了。这里表的权限校验已经跳过了，但是函数重新去进行了校验。（实测发现修改rewrite_rule、costbased_rewrite_rule、enable_opfusion等参数可能会使执行不报错）。</p>
+<p>之前在分析MogDB里一个新特性的问题时，我和内核研发伙伴发现了一个PG原生的性能问题，就是对于一个sql语句，如果查询的每行都要执行一个相同的函数，且这个函数开启了security,那么每扫描一行数据都要去执行安全检查，导致性能很差。当时MogDB通过新增一个参数解决内联函数频繁校验权限的问题，但是GaussDB并没有相关参数来控制这个权限校验，暂不好验证该问题是否与这个行为相关。</p>
+<p>之前在其他基于openGauss的发行版中，出现过这种报错</p>
+<blockquote>
+<p>ERROR: buffer 351746 is not owned by resource owner Portal</p>
+</blockquote>
+<p>同样也是使用了plsql_security_definer的跨用户存储过程调用场景，猜测也是类似的问题。</p>
+<p>可惜的是，目前暂未找到能通过参数修改来稳定规避的方式，而且这种调用场景非常隐蔽，对于几百万行存储过程代码的系统而言非常难排查，就算有代码覆盖率检查，这里是同一段代码，仅仅只是查询条件不一样就导致了不同的结果，更何况它并不能100%稳定复现报错，所以通过改SQL来影响执行计划也是不现实的。</p>
+<h2 id="官方给出根本原因">官方给出根本原因</h2>
+<p>最后，华为官方在分析了GaussDB源代码后，诊断出了原因：<br/>
+当有报错时，游标内SQL的自定义函数未执行表达式展平，然后在fetch游标时，当前连接用户需要从头开始调用这个SQL，需要额外的函数权限校验，由于当前连接用户并无这个函数的执行权限，因此报错；<br/>
+当没有报错时，open游标时已经将自定义函数展平，展平就不需要从头开始调用函数了，已经校验完了，后续fetch游标就直接取数据了。<br/>
+表达式是否展平，官方文档中有一些规则：</p>
+<blockquote>
+<p>• 不支持向量化引擎。<br/>
+• 不支持和Codegen框架一起使用。<br/>
+• 不支持M-compatibility框架。<br/>
+• 原有SRF不支持展平执行，仅支持SRF增强功能（需设置enable_srf_enhanced = on）。<br/>
+• IndexScan，IndexOnlyScan扫描结果预估行数低于1000行时，不支持展平执行。</p>
+</blockquote>
+<p>此案例就是触发了最后一条，索引扫描预估行数低于1000，尝试加hint指定预估大于1000 (<code>/*+ rows(t1 #1100) */ </code>),可以强制展平，从而规避报错。但要从数百万行存储过程里，找到会有问题的游标，并找到要对哪段加hint，也不是容易的事。</p>
+<h2 id="规避手段">规避手段</h2>
+<p>这个问题华为暂未进行完整方案的修复，后续可能会排计划？不过目前华为有发布个热补丁可以针对性规避，该热补丁的机制是去掉 "indexscan结果预估行数低于1000行时不展平" 这个限制。也就是说，如果有SQL触发了其他不展平的场景，同样还会报错。</p>
+</div>
+</article>
     </div>
     
 </article>

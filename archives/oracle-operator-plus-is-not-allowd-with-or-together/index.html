@@ -155,7 +155,126 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【ORACLE】你以为的真的是你以为的么？--ERROR: Operator "(+)" is not allowed used with "OR" together</p>
+<h2 id="背景">背景</h2>
+<p>在ORACLE迁移到GaussDB/openGauss及openGauss的某些商业发行版时，可能会遇到这样一个报错</p>
+<blockquote>
+<p>ERROR: Operator "(+)" is not allowed used with "OR" together</p>
+</blockquote>
+<p>直译就是操作符(+)不允许和"OR"一起使用,这是openGauss特意加的限制么？</p>
+<h2 id="分析">分析</h2>
+<p>如下例：</p>
+<pre><code class="language-sql">create table test_left_join_a (a number,b number);
+create table test_left_join_b (a number,b number);
+insert into test_left_join_a values (1,2);
+commit;
+select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b(+) =1 or b.b(+) is null);
+</code></pre>
+<blockquote>
+<p>ERROR: Operator "(+)" is not allowed used with "OR" together</p>
+</blockquote>
+<p>而这条SQL在ORACLE中是不会报错的，<br/>
+于是乎，猜测当初GaussDB的产品经理或者研发是不是觉得这个功能用得比较少，而且可能有风险，就加了报错来限制？<br/>
+于是乎，可能后续其他国产数据库的产品经理就会向内核研发提出一个需求，要支持(+)和OR一起用。</p>
+<p>但是，如果我告诉你，其实ORACLE里也有个这样的报错，<code>ORA-01719: outer join operator (+) not allowed in operand of OR or IN</code> (<code>ORA-01719: OR 或 IN 操作数中不允许外部联接运算符 (+)</code>)，你会不会一阵眩晕？</p>
+<p>看看10053中的执行计划（explain plan看不准）</p>
+<pre><code class="language-sql">----- Current SQL Statement for this session (sql_id=gb6uskq2zskx3) -----
+select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b(+) =1 or b.b(+) is null)
+sql_text_length=104
+sql=select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b(+) =1 or b.b(+) is null)
+----- Explain Plan Dump -----
+----- Plan Table -----
+ 
+============
+Plan Table
+============
+----------------------------------------------+-----------------------------------+
+| Id  | Operation           | Name            | Rows  | Bytes | Cost  | Time      |
+----------------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT    |                 |       |       |     5 |           |
+| 1   |  HASH JOIN OUTER    |                 |     1 |    52 |     5 |  00:00:01 |
+| 2   |   TABLE ACCESS FULL | TEST_LEFT_JOIN_A|     1 |    26 |     3 |  00:00:01 |
+| 3   |   TABLE ACCESS FULL | TEST_LEFT_JOIN_B|     1 |    26 |     2 |  00:00:01 |
+----------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+ 1 - SEL$1                
+ 2 - SEL$1                / "A"@"SEL$1"
+ 3 - SEL$1                / "B"@"SEL$1"
+-------------------------------------------------------------
+Predicate Information:
+----------------------
+1 - access("A"."A"="B"."A")
+3 - filter(("B"."B" IS NULL OR "B"."B"=1))
+ 
+</code></pre>
+<p>这里可以发现filter是在对B表的访问中加的，而且对B表的(+)不见了，也就是说，原SQL可以等价于以下这条SQL</p>
+<pre><code class="language-sql">select * from test_left_join_a a, (select * from test_left_join_b b where (b.b =1 or b.b is null)) b where a.a=b.a(+);
+</code></pre>
+<p>而改写成这样的SQL，在openGauss中执行是不会报错的！</p>
+<p>为什么不是原SQL直接去掉(+)? 因为我跟踪了执行计划发现不一样</p>
+<pre><code class="language-sql">----- Current SQL Statement for this session (sql_id=d534s5m06f6f6) -----
+select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b =1 or b.b is null)
+sql_text_length=98
+sql=select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b =1 or b.b is null)
+----- Explain Plan Dump -----
+----- Plan Table -----
+ 
+============
+Plan Table
+============
+-----------------------------------------------+-----------------------------------+
+| Id  | Operation            | Name            | Rows  | Bytes | Cost  | Time      |
+-----------------------------------------------+-----------------------------------+
+| 0   | SELECT STATEMENT     |                 |       |       |     5 |           |
+| 1   |  FILTER              |                 |       |       |       |           |
+| 2   |   HASH JOIN OUTER    |                 |     1 |    52 |     5 |  00:00:01 |
+| 3   |    TABLE ACCESS FULL | TEST_LEFT_JOIN_A|     1 |    26 |     3 |  00:00:01 |
+| 4   |    TABLE ACCESS FULL | TEST_LEFT_JOIN_B|     1 |    26 |     2 |  00:00:01 |
+-----------------------------------------------+-----------------------------------+
+Query Block Name / Object Alias (identified by operation id):
+-------------------------------------------------------------
+ 1 - SEL$1                
+ 3 - SEL$1                / "A"@"SEL$1"
+ 4 - SEL$1                / "B"@"SEL$1"
+-------------------------------------------------------------
+Predicate Information:
+----------------------
+1 - filter(("B"."B"=1 OR "B"."B" IS NULL))
+2 - access("A"."A"="B"."A")
+</code></pre>
+<p>我们回头看下ORACLE官方文档对ORA-01719的描述<br/>
+<a href="https://docs.oracle.com/en/error-help/db/ora-01719/?r=19c">https://docs.oracle.com/en/error-help/db/ora-01719/?r=19c</a></p>
+<blockquote>
+<p><strong>ORA-01719</strong><br/>
+outer join operator (+) not allowed in operand of OR or IN<br/>
+<strong>Cause</strong><br/>
+An outer join appears in an or clause.<br/>
+<strong>Action</strong><br/>
+If A and B are predicates, to get the effect of (A(+) or B), try (select where (A(+) and not B)) union all (select where (B)).</p>
+</blockquote>
+<blockquote>
+<p>如果 A 和 B 是谓词，要得到(A(+) 或 B)的效果，尝试使用(select where (A(+) and not B)) union all (select where (B))。</p>
+</blockquote>
+<p>光从报错信息和原因来看，<code>(b.b(+) =1 or b.b(+) is null)</code>是应该要报错的，但是处理方式中描述则是<code>(A(+) or B)</code>的场景，即两个条件，一个带(+)一个不带(+)才会触发。<br/>
+于是在ORACLE中尝试执行以下SQL</p>
+<pre><code class="language-sql">SQL&gt; select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b(+) =1 or b.b is null);
+select * from test_left_join_a a, test_left_join_b b where a.a=b.a(+) and (b.b(+) =1 or b.b is null)
+                                                                                  *
+第 1 行出现错误:
+ORA-01719: OR 或 IN 操作数中不允许外部联接运算符 (+)
+
+</code></pre>
+<p>果然报错了。</p>
+<p>也就是说，ORACLE的报错信息不严谨，它并不是绝对不允许(+)和or一起用，而是只限制了部分场景。而且这个校验还得发生在SQL优化器处理之后。但是openGauss中是在SQL解析器阶段就进行了校验，导致了ORACLE中不报错的SQL在openGauss中会报错。</p>
+<p>目前openGauss系中，仅<strong>MogDB 5.2</strong>及<strong>VastBase v3.0 build8</strong>支持(+)和or一起使用。另外，非openGauss/PG系的<strong>yashan</strong>也不支持。</p>
+<h2 id="总结">总结</h2>
+<p>其实类似这样的情况，不止这一个场景，ORACLE有很多语法限制不能使用，但是很多情况下是对SQL优化器处理后的校验。但我们知道，ORACLE的同一个SQL是可能产生不同的执行计划的，而且不同的SQL也可能产生相同的执行计划，ORACLE在优化器处理后进行校验，那么就有可能出现对同一条SQL有时候报错有时候不报错。而openGauss在优化器处理前进行校验，虽然让某些能有正确执行路径的SQL也报错了，但不会出现一会儿报错一会儿不报错的情况。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

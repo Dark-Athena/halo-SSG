@@ -155,7 +155,283 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb-与-opengauss-的-htap-功能比较">GaussDB 与 openGauss 的 HTAP 功能比较</h1>
+<h2 id="前言">前言</h2>
+<p>GaussDB集中式版本从505.2版本开始引入了HTAP混合负载功能，openGauss也从7.0.0 RC1版本开始引入了HTAP行列融合功能，加强了行存转列存的使用友好度，但两者的实现似乎存在不小的差异。<br/>
+虽然文档都是公开的，但是阅读和整理需要花不少时间。为了更快的识别出两者的异同，于是我让扣子空间去看这两个官方文档，整理出了这篇文章</p>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/fg-cent/gaussdb-48-0416.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/fg-cent/gaussdb-48-0416.html</a><br/>
+<a href="https://docs.opengauss.org/zh/docs/latest/docs/AboutopenGauss/%E8%A1%8C%E5%88%97%E8%9E%8D%E5%90%88.html">https://docs.opengauss.org/zh/docs/latest/docs/AboutopenGauss/%E8%A1%8C%E5%88%97%E8%9E%8D%E5%90%88.html</a></p>
+<h2 id="ai生成报告">AI生成报告</h2>
+<blockquote>
+<p>📍<strong>注意：下面AI生成的存在不少错误，不代表本文作者观点。</strong></p>
+</blockquote>
+<blockquote>
+<h2 id="一相同点">一、相同点</h2>
+<h3 id="1-核心架构设计">1. 核心架构设计</h3>
+<ul>
+<li><strong>内存列存储引擎</strong>：两者均采用内存中列式存储结构（GaussDB 的 IMCV vs openGauss 的 IMCStore），实现行存数据的列格式快照维护</li>
+<li><strong>向量化执行引擎</strong>：均支持批量数据处理的向量化执行，提升连接、聚合等操作效率</li>
+<li><strong>事务一致性保障</strong>：通过事务元数据单元（GaussDB 的 TMU）或增量表同步（openGauss）机制，确保行列存储数据的强一致性</li>
+</ul>
+<h3 id="2-主备集群支持">2. 主备集群支持</h3>
+<ul>
+<li><strong>高可用架构</strong>：均支持主备部署模式，主备节点间通过日志同步（Xlog / 回放机制）维护数据一致性</li>
+<li><strong>故障切换能力</strong>：主备切换时内存列存储数据不丢失，保障服务连续性</li>
+</ul>
+<h3 id="3-混合负载处理">3. 混合负载处理</h3>
+<ul>
+<li><strong>透明路由机制</strong>：均能自动识别 TP/AP 查询类型，优化并路由至行存或列存引擎执行</li>
+<li><strong>资源隔离</strong>：实现 OLTP 与 OLAP 负载的资源管控，避免相互干扰</li>
+</ul>
+<h2 id="二差异点">二、差异点</h2>
+<h3 id="1-架构实现方式">1. 架构实现方式</h3>
+<table><thead><tr><th>特性</th><th>GaussDB</th><th>openGauss</th></tr></thead><tbody><tr><td><strong>列存部署位置</strong></td><td>主机与备机均维护 IMCV</td><td>仅备机维护 IMCStore 列缓存</td></tr><tr><td><strong>同步机制</strong></td><td>TMU 记录实时事务更新行，与 IMCV 快照强一致</td><td>备机通过日志回放至增量表，后台线程异步同步至列缓存</td></tr><tr><td><strong>核心组件</strong></td><td>IMCV+TMU + 向量化引擎 + 路由模块</td><td>IMCStore + 增量表 + Vector Partition Iterator</td></tr></tbody></table>
+<h3 id="2-功能特性对比">2. 功能特性对比</h3>
+<table><thead><tr><th>功能</th><th>GaussDB</th><th>openGauss</th></tr></thead><tbody><tr><td><strong>行列转换粒度</strong></td><td>未明确提及列级控制</td><td>支持表级、分区级、列级精细化转换</td></tr><tr><td><strong>查询路由</strong></td><td>自动透明路由</td><td>需要手动设置 <code>enable_imcsscan=on</code>启用列存扫描</td></tr><tr><td><strong>事务支持</strong></td><td>实时事务单元（TMU）保证强一致性</td><td>存在微小同步延迟（日志回放→增量表→列缓存）</td></tr><tr><td><strong>资源管控</strong></td><td>内置混合负载内存资源管控</td><td>未明确提及资源调度机制</td></tr></tbody></table>
+<h3 id="3-使用约束差异">3. 使用约束差异</h3>
+<table><thead><tr><th>约束类型</th><th>GaussDB</th><th>openGauss</th></tr></thead><tbody><tr><td><strong>支持表类型</strong></td><td>未明确限制</td><td>不支持临时表、系统表、Toast 表等 10 + 种表类型</td></tr><tr><td><strong>数据类型限制</strong></td><td>未明确提及</td><td>不支持 text/hll 等变长类型，单字段长度≤8KB</td></tr><tr><td><strong>操作限制</strong></td><td>无特殊说明</td><td>不支持 TRUNCATE、VACUUM FULL 等操作</td></tr><tr><td><strong>部署要求</strong></td><td>主备同构部署</td><td>需修改 pg_hba.conf 配置信任认证</td></tr></tbody></table>
+<h3 id="4-管理操作方式">4. 管理操作方式</h3>
+<table><thead><tr><th>操作</th><th>GaussDB</th><th>openGauss</th></tr></thead><tbody><tr><td><strong>列存启用</strong></td><td>自动维护（透明路由）</td><td>需执行 <code>ALTER TABLE ... IMCSTORED</code>显式转换</td></tr><tr><td><strong>分区支持</strong></td><td>主备切换不影响 IMCV</td><td>仅支持一级分区，自动新增分区需手动转换</td></tr><tr><td><strong>状态监控</strong></td><td>未提及</td><td>可通过执行计划查看 IMCStore Scan 算子</td></tr></tbody></table>
+<h2 id="三总结">三、总结</h2>
+<h3 id="gaussdb-优势场景">GaussDB 优势场景</h3>
+<ul>
+<li>对事务一致性要求极高的核心业务</li>
+<li>需要全自动负载路由的混合场景</li>
+<li>复杂资源调度需求的多租户环境</li>
+</ul>
+<h3 id="opengauss-优势场景">openGauss 优势场景</h3>
+<ul>
+<li>资源受限环境下的备机资源利用</li>
+<li>需要精细化行列转换控制的分析场景</li>
+<li>对存储成本敏感的非核心业务系统</li>
+</ul>
+<h3 id="选型建议">选型建议</h3>
+<ul>
+<li>金融级核心交易系统优先选择 GaussDB</li>
+<li>分析型查询为主的业务可考虑 openGauss</li>
+<li>主备架构下需评估同步延迟对业务的影响</li>
+</ul>
+<h2 id="四htap-架构图深度解析">四、HTAP 架构图深度解析</h2>
+<h3 id="gaussdb-htap-架构解析">GaussDB HTAP 架构解析</h3>
+<h4 id="集中式主机架构图-1">集中式主机架构（图 1）</h4>
+<p><img alt="" src="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/fg-cent/figure/zh-cn_image_0000001913590589.png"/></p>
+<p><strong>核心组件交互流程</strong>：</p>
+<ol>
+<li><strong>双引擎并行处理</strong>：行存引擎处理 TP 事务，IMCV 列存引擎处理 AP 查询</li>
+<li><strong>实时一致性保障</strong>：TMU 单元在 IMCV 快照基础上记录活跃事务更新，确保列存扫描与行存结果强一致</li>
+<li><strong>智能路由机制</strong>：查询解析器自动识别负载类型，TP 点查路由至行存引擎，AP 分析查询路由至向量化执行引擎</li>
+<li><strong>资源隔离设计</strong>：内置资源管控模块实现内存资源动态分配，避免 TP/AP 负载相互干扰</li>
+</ol>
+<h4 id="集中式主备架构图-2">集中式主备架构（图 2）</h4>
+<p><img alt="image" src="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/fg-cent/figure/zh-cn_image_0000002095591757.png"/></p>
+<p><strong>高可用设计特点</strong>：</p>
+<ul>
+<li><strong>主备同构部署</strong>：主机和备机均维护独立 IMCV 列存引擎</li>
+<li><strong>日志同步机制</strong>：主机 IMCV 操作记录 Xlog，备机通过回放日志保持数据一致</li>
+<li><strong>无感知切换</strong>：主备切换时 IMCV 内存数据不回收，服务中断时间最小化</li>
+<li><strong>双向数据加载</strong>：主备机均支持通过 BUCKLOAD 加载存量数据至 IMCV</li>
+</ul>
+<h3 id="opengauss-htap-架构解析">openGauss HTAP 架构解析</h3>
+<h4 id="主备场景行列转换架构图-1">主备场景行列转换架构（图 1）</h4>
+<p><img alt="image" src="https://docs.opengauss.org/assets/latest/HTAP.BZCWYKIC.jpg"/></p>
+<p><strong>关键数据流路径</strong>：</p>
+<ol>
+<li>
+<p><strong>主节点 OLTP 处理</strong>：行存数据变更通过 WAL 日志同步至备节点</p>
+</li>
+<li>
+<p><strong>备节点增量同步</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>日志回放写入增量表</p>
+</li>
+<li>
+<p>后台同步线程异步更新列缓存</p>
+</li>
+<li>
+<p>Column Unit 列存储单元批量组织数据</p>
+</li>
+</ul>
+<ol start="3">
+<li><strong>查询路由决策</strong>：备节点优化器根据代价估算选择 IMCStore Scan 或行存扫描</li>
+<li><strong>向量化执行路径</strong>：Vector Partition Iterator 实现分区表列存数据并行扫描</li>
+</ol>
+<h3 id="架构设计对比总结">架构设计对比总结</h3>
+<table><thead><tr><th>架构维度</th><th>GaussDB 设计特点</th><th>openGauss 设计特点</th></tr></thead><tbody><tr><td><strong>列存部署</strong></td><td>主备节点均部署 IMCV</td><td>仅备节点部署列缓存</td></tr><tr><td><strong>同步机制</strong></td><td>Xlog 实时同步 + TMU 强一致</td><td>日志回放→增量表→异步同步</td></tr><tr><td><strong>组件复杂度</strong></td><td>多模块协同（5 大核心组件）</td><td>轻量化设计（3 大核心流程）</td></tr><tr><td><strong>资源利用</strong></td><td>主备资源对称使用</td><td>备节点专用 OLAP 资源</td></tr><tr><td><strong>故障恢复</strong></td><td>IMCV 内存数据不丢失</td><td>需重建列缓存</td></tr></tbody></table>
+<p><strong>架构选择建议</strong>：</p>
+<ul>
+<li>金融级关键业务推荐 GaussDB 的强一致架构</li>
+<li>资源受限场景可选择 openGauss 的备机专用架构</li>
+<li>混合负载密集型应用优先考虑 GaussDB 的资源管控能力</li>
+</ul>
+<h2 id="五htap-使用语法差异详解">五、HTAP 使用语法差异详解</h2>
+<h3 id="gaussdb-特有语法体系">GaussDB 特有语法体系</h3>
+<h4 id="1-imcv-管理命令">1. IMCV 管理命令</h4>
+<table><thead><tr><th>操作</th><th>GaussDB 语法</th><th>openGauss 对应功能</th></tr></thead><tbody><tr><td>创建列存视图</td><td><code>CREATE IMCV imcv_name ON table_name [(columns)] WITH (refresh_strategy={AUTO|MANUAL}, refresh_interval=sec)</code></td><td><code>ALTER TABLE table_name IMCSTORED</code></td></tr><tr><td>删除列存视图</td><td><code>DROP IMCV [IF EXISTS] imcv_name [CASCADE]</code></td><td><code>ALTER TABLE table_name UNIMCSTORED</code></td></tr><tr><td>手动刷新</td><td><code>REFRESH IMCV imcv_name</code></td><td>无（自动异步刷新）</td></tr></tbody></table>
+<p><strong>示例对比</strong>：</p>
+<p>sql</p>
+<pre><code class="language-sql">-- GaussDB创建自动刷新IMCV
+CREATE IMCV imcv_emp ON employees (id,name,salary) 
+WITH (refresh_strategy=AUTO, refresh_interval=180);
+
+-- openGauss行列转换
+ALTER TABLE employees IMCSTORED(id,name,salary);
+</code></pre>
+<h4 id="2-查询路由控制">2. 查询路由控制</h4>
+<table><thead><tr><th>功能</th><th>GaussDB 实现方式</th><th>openGauss 实现方式</th></tr></thead><tbody><tr><td>强制列存查询</td><td><code>SELECT /*+ COLVIEW(imcv_name) */ ...</code></td><td><code>SET enable_imcsscan=on; SELECT ...</code></td></tr><tr><td>强制行存查询</td><td><code>SELECT /*+ NOCOLVIEW */ ...</code></td><td><code>SET enable_imcsscan=off; SELECT ...</code></td></tr><tr><td>自动路由</td><td><code>ALTER SYSTEM SET htap_transparent_route=on</code></td><td>无（需手动切换参数）</td></tr></tbody></table>
+<h4 id="3-核心参数配置">3. 核心参数配置</h4>
+<table><thead><tr><th>功能类别</th><th>GaussDB 关键参数</th><th>openGauss 对应参数</th></tr></thead><tbody><tr><td>功能开关</td><td><code>enable_htap=on</code></td><td>无（通过 ALTER TABLE 启用）</td></tr><tr><td>内存管控</td><td><code>imcv_mem_limit=2048</code>（MB）</td><td>无（依赖系统内存管理）</td></tr><tr><td>刷新控制</td><td><code>imcv_refresh_interval=300</code>（秒）</td><td>无（固定异步刷新）</td></tr><tr><td>路由控制</td><td><code>htap_transparent_route=on</code></td><td>无</td></tr></tbody></table>
+<h3 id="4-数据操作差异">4. 数据操作差异</h3>
+<table><thead><tr><th>操作类型</th><th>GaussDB 行为</th><th>openGauss 行为</th></tr></thead><tbody><tr><td>DML 同步</td><td>自动同步至 IMCV（MANUAL 模式需 REFRESH）</td><td>日志回放→增量表→异步同步</td></tr><tr><td>批量加载</td><td><code>COPY</code>/<code>INSERT SELECT</code>自动触发同步</td><td>需手动 REFRESH 或等待异步同步</td></tr><tr><td>主备切换</td><td>IMCV 元数据自动继承</td><td>需重建列缓存</td></tr></tbody></table>
+<h3 id="gaussdb-语法优势分析">GaussDB 语法优势分析</h3>
+<ol>
+<li>
+<p><strong>精细化控制能力</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>支持按列选择 IMCV 存储（减少内存占用）</p>
+</li>
+<li>
+<p>灵活的刷新策略（AUTO/MANUAL）适应不同业务场景</p>
+</li>
+<li>
+<p>细粒度内存管控避免资源竞争</p>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>运维友好性</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>提供 <code>pg_imcv_stats</code>等监控视图</p>
+</li>
+<li>
+<p>LRU 淘汰机制自动平衡内存使用</p>
+</li>
+<li>
+<p>主备切换无感知（IMCV 数据不丢失）</p>
+</li>
+</ul>
+<ol start="3">
+<li>
+<p><strong>性能优化特性</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>透明路由减少人工干预</li>
+<li>强制路由 hint 支持 SQL 调优</li>
+<li>内存使用超限自动保护机制</li>
+</ul>
+<h3 id="语法使用注意事项">语法使用注意事项</h3>
+<ol>
+<li>
+<p><strong>IMCV 命名规范</strong>：建议遵循 <code>imcv_&lt;table&gt;_&lt;columns&gt;</code>格式，如 <code>imcv_employees_id_name</code></p>
+</li>
+<li>
+<p><strong>内存规划</strong>：按 <code>活跃数据集*2</code>配置 <code>imcv_mem_limit</code></p>
+</li>
+<li>
+<p><strong>刷新策略选择</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>实时分析场景：AUTO 策略（间隔 1-5 分钟）</p>
+</li>
+<li>
+<p>批量处理场景：MANUAL 策略（加载后手动刷新）</p>
+</li>
+</ul>
+<ol start="4">
+<li><strong>主备配置</strong>：参数需在主备节点同时配置，确保切换后行为一致</li>
+</ol>
+<p><strong>典型配置示例</strong>：</p>
+<p>sql</p>
+<pre><code class="language-sql">-- GaussDB完整配置流程
+ALTER SYSTEM SET enable_htap = on;
+ALTER SYSTEM SET imcv_mem_limit = 4096;
+ALTER SYSTEM SET htap_transparent_route = on;
+SELECT pg_reload_conf();
+
+-- 创建IMCV
+CREATE IMCV imcv_emp ON employees 
+WITH (refresh_strategy=AUTO, refresh_interval=300);
+
+-- 验证配置
+SELECT imcv_name, status, refresh_strategy 
+FROM pg_imcv_status;
+</code></pre>
+<h3 id="补充opengauss-行列融合参数详解">补充：openGauss 行列融合参数详解</h3>
+<h4 id="参数配置对比更新版">参数配置对比（更新版）</h4>
+<table><thead><tr><th>参数类别</th><th>GaussDB 参数</th><th>openGauss 新增参数</th><th>差异分析</th></tr></thead><tbody><tr><td><strong>功能开关</strong></td><td><code>enable_htap=on</code>（动态）</td><td><code>enable_imcsscan=off</code>（会话级动态）</td><td>GaussDB 全局启用，openGauss 需按会话开启</td></tr><tr><td><strong>并行处理</strong></td><td>内置自动并行</td><td><code>enable_parallel_populate=on</code>（默认开启）</td><td>GaussDB 无需额外配置</td></tr><tr><td><strong>内存管控</strong></td><td><code>imcv_mem_limit=2048</code>（MB，动态）</td><td><code>max_imcs_cache=102400</code>（kB，静态，默认 100MB）</td><td>GaussDB 支持动态调整，openGauss 需重启且依赖 max_process_memory</td></tr><tr><td><strong>同步控制</strong></td><td>-</td><td><code>htap_wait_xlog_lsn_timeout=60</code>（秒，静态）</td><td>openGauss 备机同步超时控制，GaussDB 无对应参数</td></tr></tbody></table>
+<h4 id="opengauss-参数特性解析">openGauss 参数特性解析</h4>
+<ol>
+<li>
+<p><strong>内存管理机制</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p><code>max_imcs_cache</code>以 kB 为单位（102400kB=100MB），需通过 <code>postgresql.conf</code>配置并重启数据库</p>
+</li>
+<li>
+<p>必须同步调整 <code>max_process_memory</code>参数，否则可能触发内存校验失败</p>
+</li>
+<li>
+<p>无动态调整能力，灵活性低于 GaussDB</p>
+</li>
+</ul>
+<ol start="2">
+<li><strong>查询控制流程</strong>：</li>
+</ol>
+<p>sql</p>
+<pre><code class="language-sql">-- openGauss完整查询流程
+SET enable_imcsscan=on;  -- 会话级开启
+SELECT ...;  -- 执行列存查询
+SET enable_imcsscan=off; -- 关闭列存查询
+</code></pre>
+<p>对比 GaussDB：<code>SELECT /*+ COLVIEW(imcv_name) */ ...</code>（单语句控制）<br/>
+3. <strong>备机同步控制</strong>：</p>
+<ul>
+<li><code>htap_wait_xlog_lsn_timeout</code>控制备机等待主机日志的超时时间</li>
+<li>超时后行列转换可能使用旧数据，影响查询一致性</li>
+</ul>
+<h4 id="参数使用建议">参数使用建议</h4>
+<table><thead><tr><th>场景</th><th>openGauss 配置建议</th><th>GaussDB 配置建议</th></tr></thead><tbody><tr><td>内存受限环境</td><td><code>max_imcs_cache=51200</code>（50MB）</td><td><code>imcv_mem_limit=512</code>（动态调整）</td></tr><tr><td>实时性要求高</td><td><code>htap_wait_xlog_lsn_timeout=120</code></td><td>依赖 TMU 实时同步（无需参数）</td></tr><tr><td>批量数据加载</td><td><code>enable_parallel_populate=on</code></td><td>内置并行（无需参数）</td></tr><tr><td>多会话查询</td><td>每个会话单独 <code>SET enable_imcsscan=on</code></td><td>全局 <code>htap_transparent_route=on</code>自动路由</td></tr></tbody></table>
+<p>** 配置示例（openGauss）**：</p>
+<p>sql</p>
+<pre><code class="language-sql">-- 修改postgresql.conf
+max_imcs_cache = 204800  # 200MB
+max_process_memory = 4GB  # 需同步增大
+
+-- 重启数据库后生效
+-- 会话级开启列存查询
+SET enable_imcsscan=on;
+</code></pre>
+</blockquote>
+<h2 id="观后感">观后感</h2>
+<p>AI生成的这份内容，大概是3~4次对话后生成的。有些地方说得不够细致，而且还有一些自相矛盾的内容，但整体框架和内容整理，给了用户一个指引，需要从哪些方面去对这个功能进行了解，以及这两者主要的差异，大不了就自己再去看文档确认一下。<br/>
+比如并行处理，GaussDB和openGauss有相同的参数 <code>enable_parallel_populate</code>，但是GaussDB默认关闭，openGauss默认打开，AI说反了。<br/>
+还有scan的开关，GaussDB是enable_imcvscan，openGauss是enable_imcsscan，但AI没有识别到GaussDB的这个参数。<br/>
+从语法上来说，GaussDB是对表创建了一个 "V"-view(本质上其实还是"S"-store)，而openGauss是修改了表的属性，让相关线程能知道这个表开启了"S"。<br/>
+我暂时没有去看openGauss的源码来分析其实现机制，但是目前无论是从语法、使用场景、设计思路上来说，这两个库的HTAP功能可以说绝对不是同一个人写的代码。不过这两个库在对表的扫描上，都使用了旧版本GaussDB和openGauss原本就有的列存计划及向量化处理。</p>
+<h2 id="附">附</h2>
+<p>扣子空间会根据用户提的需求，自行开发工具去实现，如果发现工具不好实现，它甚至会模拟人类的行为去执行一些应用程序的操作，比如用浏览器打开网页，识别出网页元素，自行点击操作。遇到需要登录的网站，还会让你临时接管，登录后继续交回给它操作。<br/>
+下面这个截图是它发现它写的python脚本无法获取页面里子链接的内容，就打开了一个文档网站，甚至自己去进行了相关关键字的搜索，打开搜索结果页面，后续它还回到了搜索结果列表，继续点击下一个结果进行查看</p>
+<p><img alt="image-tgsa.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tgsa.png" srcset="/upload/image-tgsa.png?width=1200 1200w, /upload/image-tgsa.png?width=400 400w, /upload/image-tgsa.png?width=1600 1600w, /upload/image-tgsa.png?width=800 800w"/></p>
+<p>但是免费的东西终归还是...</p>
+<p><img alt="image-rjgr.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rjgr.png" srcset="/upload/image-rjgr.png?width=1200 1200w, /upload/image-rjgr.png?width=400 400w, /upload/image-rjgr.png?width=1600 1600w, /upload/image-rjgr.png?width=800 800w"/></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

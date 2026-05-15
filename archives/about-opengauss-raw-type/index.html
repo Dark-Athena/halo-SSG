@@ -155,7 +155,333 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在oracle数据库上进行开发的时候,经常会使用到raw类型,raw其实就是一段十六进制形式的二进制数据,最长长度和varchar2一致,都是32767个字节。在各种数据加解密或者数据传输时,使用二进制数据可以避免字符集异常或者特殊符号引起的程序运行错误。</p>
+<p>在postgresql(截止到当前最新的14版本)中,没有raw类型,只能使用text或者bytea转换来处理,所以这个点可能会让迁移项目变得很头疼。</p>
+<p>最近在写openGauss的兼容plsql包,正好写到了utl_raw,一开始我是完全按照postgresql中的bytea来写的,但后来突然发现在openGauss中有rawtohex和hextoraw两个函数,就去查了下,发现openGauss里竟然支持raw类型,而且还有一些raw类型的专用函数,就稍微研究了下(偶然发现目前openGauss官方文档内容比华为GaussDB官方文档内容要少,导致走了不少弯路)</p>
+<h2 id="官方文档">官方文档</h2>
+<p>https://support.huaweicloud.com/devg-opengauss/opengauss_devg_0390.html</p>
+<p>https://support.huaweicloud.com/devg-opengauss/opengauss_devg_0372.html</p>
+<p>https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%87%BD%E6%95%B0%E5%92%8C%E6%93%8D%E4%BD%9C%E7%AC%A6.html</p>
+<p>文档这东西,看编写者的心思,可详细可简单,如果是要做研究,那还是结合看源码及实际测试来的好。<br/>
+于是我先查了数据库里所有名称里带"raw"的函数,一共有18个,其中还有1个是重名的</p>
+<pre><code class="language-sql">select * from pg_proc h where h.proname like '%raw%'
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>proname</th>
+<th>prolang</th>
+<th>prosrc</th>
+<th>probin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bucketraw</td>
+<td>12</td>
+<td>bucketraw</td>
+<td></td>
+</tr>
+<tr>
+<td>hextoraw</td>
+<td>12</td>
+<td>texttoraw</td>
+<td></td>
+</tr>
+<tr>
+<td>rawcat</td>
+<td>12</td>
+<td>rawcat</td>
+<td></td>
+</tr>
+<tr>
+<td>rawcmp</td>
+<td>12</td>
+<td>rawcmp</td>
+<td></td>
+</tr>
+<tr>
+<td>raweq</td>
+<td>12</td>
+<td>raweq</td>
+<td></td>
+</tr>
+<tr>
+<td>rawge</td>
+<td>12</td>
+<td>rawge</td>
+<td></td>
+</tr>
+<tr>
+<td>rawgt</td>
+<td>12</td>
+<td>rawgt</td>
+<td></td>
+</tr>
+<tr>
+<td>rawin</td>
+<td>12</td>
+<td>rawin</td>
+<td></td>
+</tr>
+<tr>
+<td>rawle</td>
+<td>12</td>
+<td>rawle</td>
+<td></td>
+</tr>
+<tr>
+<td>rawlike</td>
+<td>12</td>
+<td>rawlike</td>
+<td></td>
+</tr>
+<tr>
+<td>rawlt</td>
+<td>12</td>
+<td>rawlt</td>
+<td></td>
+</tr>
+<tr>
+<td>rawne</td>
+<td>12</td>
+<td>rawne</td>
+<td></td>
+</tr>
+<tr>
+<td>rawnlike</td>
+<td>12</td>
+<td>rawnlike</td>
+<td></td>
+</tr>
+<tr>
+<td>rawout</td>
+<td>12</td>
+<td>rawout</td>
+<td></td>
+</tr>
+<tr>
+<td>rawrecv</td>
+<td>12</td>
+<td>bytearecv</td>
+<td></td>
+</tr>
+<tr>
+<td>rawsend</td>
+<td>12</td>
+<td>byteasend</td>
+<td></td>
+</tr>
+<tr>
+<td>rawtohex</td>
+<td>12</td>
+<td>rawtotext</td>
+<td></td>
+</tr>
+<tr>
+<td>rawtohex</td>
+<td>13</td>
+<td>rawtohex</td>
+<td>$libdir/plpgsql</td>
+</tr>
+</tbody>
+</table>
+<p>然后对照华为GaussDB的官方文档来看,可以发现文档里,这些函数绝大部分都没写清楚功能及测试案例,比如下面这四个函数,文档里的描述写的竟然都是一样的<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png" srcset="/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1200 1200w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=400 400w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1600 1600w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=800 800w"/></p>
+<p>但好在大部分函数的命令是参考的基本运算符,所以能看懂个大概。<br/>
+不过,绝对不能自以为是的以为这些函数的输出结果和你想的一样,稍不留神就会被坑了,所以我通过实际测试及结合看源代码,对这个函数列表整理了一份较为完整的说明,请重点留意下表中最后一列的注意事项</p>
+<h2 id="整理后的函数说明">整理后的函数说明</h2>
+<table>
+<thead>
+<tr>
+<th>proname</th>
+<th>prosrc</th>
+<th>功能说明</th>
+<th>输入参数</th>
+<th>输出参数</th>
+<th>例</th>
+<th>注意事项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hextoraw</td>
+<td>texttoraw</td>
+<td>将十六进制字符串转换成raw类型</td>
+<td>text</td>
+<td>raw</td>
+<td>select hextoraw('abcd')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawtohex</td>
+<td>rawtotext</td>
+<td>将raw转换成十六进制字符串</td>
+<td>raw</td>
+<td>cstring</td>
+<td>select rawtohex('FF1122335566778899'::raw)</td>
+<td>同名函数,注意参数类型的区别</td>
+</tr>
+<tr>
+<td>rawtohex</td>
+<td>rawtohex</td>
+<td>将字符串转换成十六进制RAW字符串</td>
+<td>text</td>
+<td>text</td>
+<td>select rawtohex('FF1122335566778899'::text)</td>
+<td>同名函数,注意参数类型的区别,输出结果不一样，这个是字符串的二进制数据再转成raw</td>
+</tr>
+<tr>
+<td>rawcat</td>
+<td>rawcat</td>
+<td>将两个raw按参数顺序从左至右拼成一个raw</td>
+<td>raw,raw</td>
+<td>raw</td>
+<td>select rawcat('ab','cd')</td>
+<td>如果有多个值需要拼接,建议比较一些和管道符拼接的效率,实测,当拼接值很多的时候,管道符拼接的效率可能更高</td>
+</tr>
+<tr>
+<td>rawcmp</td>
+<td>rawcmp</td>
+<td>先将两个raw按照较短的截至同样长度(字节长度),然后转换成十进制数字再相减得到的差</td>
+<td>raw,raw</td>
+<td>int</td>
+<td>select rawcmp('ffff','feff'),rawcmp('feff','1'),rawcmp('1','f'),rawcmp('FFF','FF'),rawcmp('FFFF','FF')</td>
+<td>这个内置函数是用的C语言的memcmp进行的处理,获得的是差,注意和python的cmp函数的区别</td>
+</tr>
+<tr>
+<td>raweq</td>
+<td>raweq</td>
+<td>判断两个raw是否相等</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select raweq('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawge</td>
+<td>rawge</td>
+<td>判断第一个raw是否大于或等于第二个raw</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawge('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawgt</td>
+<td>rawgt</td>
+<td>判断第一个raw是否大于第二个raw</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawgt('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawle</td>
+<td>rawle</td>
+<td>判断第一个raw是否小于或等于第二个raw</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawle('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawlt</td>
+<td>rawlt</td>
+<td>判断第一个raw是否小于第二个raw</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawlt('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawne</td>
+<td>rawne</td>
+<td>判断两个raw是否不相等</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawne('ab','aa')</td>
+<td></td>
+</tr>
+<tr>
+<td>rawlike</td>
+<td>rawlike</td>
+<td>先把两个raw转成字符串,再看是否like</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawlike('43616D65726F6E'::raw,'4325'::raw)</td>
+<td>第二个参数里,需要将通配符(%_)及转移符(\)的二进制数据转换成raw类型,此例实际上相当于'Cameron' like 'C%'</td>
+</tr>
+<tr>
+<td>rawnlike</td>
+<td>rawnlike</td>
+<td>先把两个raw转成字符串,再看是否 not like</td>
+<td>raw,raw</td>
+<td>bool</td>
+<td>select rawnlike('43616D65726F6E'::raw,'4325'::raw)</td>
+<td>注意要进行和上面rawlike类似的处理</td>
+</tr>
+<tr>
+<td>rawin</td>
+<td>rawin</td>
+<td>将raw字符串转换成bytea类型</td>
+<td>cstring</td>
+<td>bytea</td>
+<td>select rawin('43616D65726F6E')</td>
+<td>注意这里的输入类型不是raw也不是text</td>
+</tr>
+<tr>
+<td>rawout</td>
+<td>rawout</td>
+<td>将bytea转换成raw字符串</td>
+<td>bytea</td>
+<td>cstring</td>
+<td>select rawout('C%'::BYTEA)</td>
+<td>注意返回的类型不是raw,而是raw的十六进制字符串,而且也不是TEXT类型</td>
+</tr>
+<tr>
+<td>rawsend</td>
+<td>byteasend</td>
+<td>将RAW转换成bytea类型</td>
+<td>raw</td>
+<td>bytea</td>
+<td>select rawsend('43616D65726F6E')</td>
+<td>和rawin一样的功能但输入参数类型不一样</td>
+</tr>
+<tr>
+<td>rawrecv</td>
+<td>bytearecv</td>
+<td>将一个内部二进制数据转换成raw</td>
+<td>internal</td>
+<td>raw</td>
+<td></td>
+<td>这个bytearecv在官方文档里没有介绍,属于pg的函数,但pg官方文档里同样没有介绍,不过根据源码可以得知功能</td>
+</tr>
+<tr>
+<td>bucketraw</td>
+<td>bucketraw</td>
+<td>计算raw参数的hash值</td>
+<td>raw,int</td>
+<td>int</td>
+<td>select bucketraw('FF',1)</td>
+<td>第二个参数表示数据分布方式，0表示hash分布。单节点模式无法使用此函数</td>
+</tr>
+</tbody>
+</table>
+<h2 id="其他">其他</h2>
+<p>对于以上函数,还要注意的有以下几点</p>
+<ol>
+<li>在存储过程中,cstring类型需要显式的转换成text才能输出,比如 参数::text</li>
+<li>raw和text之间可以直接显式转换 ,比如 参数::raw,参数::text</li>
+<li>raw在内核中其实也是相当于bytea进行的处理,可以使用到c语言的内存指令操作,一般会比字符串要处理得快。<br/>
+但是如果不是用上述函数,而是用其他函数来处理raw,就会先隐式的转换成text再进行处理,这点尤其要注意,不仅执行效率会有变化,而且得到的结果可能会和预期不一致,比如使用length或substring函数时就和处理bytea类型时不一样</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

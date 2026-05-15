@@ -153,7 +153,577 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb手动编译不同python版本的psycopg2驱动以适配airflow">【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow</h1>
+<h2 id="背景">背景</h2>
+<p>现有很多python组件都有python运行版本的要求，linux操作系统里用<code>yum install python3</code>安装的python3，可能版本太低，不足以运行这些python组件，因此应用项目就只能选择再装一个高版本的python环境。但是如果项目中需要连接到GaussDB数据库，就需要使用GaussDB官方提供的psycopg2驱动，而GaussDB仅提供操作系统默认python3版本的psycopg2，并不提供其他版本的python3驱动，因此就出现了兼容性问题。</p>
+<p>客户端环境是多种多样的，不能要求客户端的python版本和数据库服务器的python版本一致。</p>
+<p>在Kylin v10 sp3 ARM64环境中（该操作系统默认python 3.7.9），如果使用python3.10去调用GaussDB官方的psycopg2驱动，执行到connect的时候程序就会coredump。</p>
+<pre><code class="language-python">(.env310) [root@kylin gaussdb-python]$ python
+Python 3.10.0 (default, Oct 18 2021, 00:53:10) [GCC 6.3.0 20170516] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+Cannot read termcap database;
+using dumb terminal settings.
+&gt;&gt;&gt; import psycopg2;
+&gt;&gt;&gt; psycopg2.connect();
+Illegal instruction（核心已转储）
+(.env310) [root@kylin gaussdb-python]$
+</code></pre>
+<p>上例正常应该报错连接超时，python进程不应该退出。</p>
+<h2 id="和华为的交涉">和华为的交涉</h2>
+<p>问题首次上报时间 2025-05， 当时是要适配airflow2.9.2+SQLAlchemy,GaussDB作为airflow的元库。由于airflow对python版本的要求为3.9以上，而GaussDB在麒麟v10上只给了python3.7.9的psycopg2驱动，在测试过程中出现了一系列问题，我和客户应用开发人员把遇到的问题全查完绕过去了，并且提交给了华为。</p>
+<p>华为把这个事安排给了华为生态部门，他们在github上开源了两个仓库</p>
+<ul>
+<li><a href="https://github.com/HuaweiCloudDeveloper/gaussdb-ecosystem">https://github.com/HuaweiCloudDeveloper/gaussdb-ecosystem</a></li>
+<li><a href="https://github.com/HuaweiCloudDeveloper/gaussdb-drivers">https://github.com/HuaweiCloudDeveloper/gaussdb-drivers</a></li>
+</ul>
+<p>前者是各种开发框架的适配说明，后者是各种连接驱动的源码，当时里面的内容还比较少。几个月后，华为生态适配了很多框架，并且开源了psycopg驱动（<code>pip install gaussdb</code>就是这个东西）。</p>
+<p>然而，其提供的airflow适配方案并不适用于当前客户的环境,虽然DAG操作的是GaussDB数据库，但airflow的元库还是用的mysql (<a href="https://github.com/HuaweiCloudDeveloper/gaussdb-ecosystem/tree/main/Airflow">https://github.com/HuaweiCloudDeveloper/gaussdb-ecosystem/tree/main/Airflow</a>)。<br/>
+而且华为开源的psycopg驱动是基于psycopg3改的，并非psycopg2。psycopg2和psycopg3是完全不同的，接口都存在不少差异。虽然psycopg3实现更先进、功能更完善，但psycopg2使用更广泛，目前绝大多数python连接pg系数据库都是用的psycopg2。</p>
+<p>当时为了不影响客户项目的开发进度，我尝试自行编译psycopg2驱动（2025-06）。</p>
+<h2 id="编译psycopg2">编译psycopg2</h2>
+<p>psycopg2编译需要使用libpq，我的想法是，libpq必须要用GaussDB的，不仅仅是密码加密方式的问题，GaussDB相较于原生PG，很可能改过一些功能性的点，比如空字符串和null，预编译SQL缓存的淘汰、元数据的查询等。</p>
+<p>目前GaussDB 的psycopg2并没有开源，因此我只能退而求其次，使用openGauss的psycopg2源码来进行编译。<br/>
+<a href="https://gitcode.com/opengauss/openGauss-connector-python-psycopg2">https://gitcode.com/opengauss/openGauss-connector-python-psycopg2</a><br/>
+但是它要求先要编译一个openGauss,然后在这个环境中再去编译psycopg2，这样很明显就变成了直接用了openGauss的libpq了，而不是期望的GaussDB的libpq。</p>
+<p>于是我查看了build.sh，看它是如何引用的libpq，发现它靠的是pg_config这个二进制程序，这个程序可以查询到编译的各种信息以及当前环境的各种参数，其中就包含了libpq的位置。</p>
+<p>然而，GaussDB的正式发布版本里，并没有pg_config这个程序。</p>
+<p>但是，我认为psycopg2这个驱动的编译，对于数据库，除了需要libpq，不太可能还需要其他东西，应该有办法脱离数据库环境去编译。</p>
+<p><strong>以下为主要修改过程：</strong></p>
+<ol>
+<li>改build.sh太麻烦，于是我直接搞了个shell版本的pg_config。</li>
+<li>然后发现编译过程中报错，GaussDB的libpq里没有"libpq-fs.h"这个文件(驱动包里有，数据库内核包里没有)，于是我从openGauss里复制了一个</li>
+<li>openGauss/GaussDB用psycopg2驱动总要把libpq路径配置到LD_LIBRARY_PATH里，但libpq里又自带了一些和操作系统有冲突的so文件，想着我都自己编译了，干脆把rpath也加上，这样就不需要配置LD_LIBRARY_PATH了</li>
+<li>顺便把代码和说明里的<code>openGauss</code>的字样都改成了<code>GaussDB</code></li>
+</ol>
+<p>相关提交： <a href="https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2/commit/695c05008d8b79f53c7035c587a4b600c795d1c1?ref=for_gaussdb">https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2/commit/695c05008d8b79f53c7035c587a4b600c795d1c1?ref=for_gaussdb</a></p>
+<p>然后就可以编译了，测试连接没有coredump了。</p>
+<p>但是放到airflow项目里用的时候，出现了很多数据类型的错误:</p>
+<pre><code>ValueError: invalid literal for int() with base 10: 'airflow_user'
+ValueError: invalid literal for int() with base 10: 't'
+</code></pre>
+<pre><code>sqlalchemy.exc.ArgumentError: Type annotation for "DagRun.dag" can't be correctly interpreted for Annotated Declarative Table form. ORM annotations should normally make use of the ``Mapped[]`` generic type, or other ORM-compatible generic type, as a container for the actual type, which indicates the intent that the attribute is mapped. Class variables that are not intended to be mapped by the ORM should use ClassVar[]. To allow Annotated Declarative to disregard legacy annotations which don't use Mapped[] to pass, set "__allow_unmapped__ = True" on the class or a superclass this class. (Background on this error at: https://sqlalche.me/e/20/zlpr)
+</code></pre>
+<p>由于都是框架里的代码，要找问题很麻烦，这里花了不少时间，最后定位到，可能是openGauss的驱动里加了一段mysql兼容模式里数据类型的处理，而GaussDB的mysql兼容模式实现方式和openGauss不一样，所以代码跑起来有问题。</p>
+<p>由于客户目前的环境只使用ORACLE兼容模式，我就直接把openGauss加的那段代码注释掉了</p>
+<pre><code>//pthread_mutex_lock(&amp;self-&gt;lock);
+//register_type_uint(self);
+//pthread_mutex_unlock(&amp;self-&gt;lock);
+</code></pre>
+<p>相关提交： <a href="https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2/commit/6b6b6509b73d0f270111dc07da78d4c79f064d9f?ref=for_gaussdb">https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2/commit/6b6b6509b73d0f270111dc07da78d4c79f064d9f?ref=for_gaussdb</a></p>
+<p>这么编译下来，airflow用起来就正常了。</p>
+<p>修改后的psycopg2源码：<a href="https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2">https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2</a></p>
+<p>另外，还需要有sqlalchemy的方言，这里我直接fork了openGauss的进行了修改，逻辑全部保留原样，只是把代码里的opengauss全部替换成了gaussdb（关键是要区分方言名称）<br/>
+<a href="https://gitcode.com/darkathena/GaussDB-sqlalchemy">https://gitcode.com/darkathena/GaussDB-sqlalchemy</a></p>
+<h2 id="完整部署过程">完整部署过程</h2>
+<ol>
+<li>安装uv，并初始化新的python环境</li>
+</ol>
+<pre><code class="language-bash">cd ~
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv .env310 --python 3.10.0
+source .env310/bin/activate
+</code></pre>
+<ol start="2">
+<li>编译psycopg2</li>
+</ol>
+<pre><code class="language-bash"># 安装setuptools
+uv pip install setuptools -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+
+# 克隆psycopg2源码
+git clone https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2
+cd GaussDB-connector-python-psycopg2/
+
+# 上传GaussDB 的libpq驱动包到depend目录并解压
+cp GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Libpq_Static.tar.gz depend/
+cd depend
+tar -xf GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Libpq_Static.tar.gz
+cd ..
+chmod +x depend/bin/pg_config
+chmod +x build.sh
+
+# 编译命令，-v指定打包文件名里的版本号
+sh build.sh -bd $PWD/depend -v 506.0.0.SPC0100
+</code></pre>
+<ol start="3">
+<li>安装psycopg2</li>
+</ol>
+<pre><code class="language-bash">cd output
+tar -xf GaussDB-Python-506.0.0.SPC0100*.tar.gz
+cp -r psycopg2 $(python3 -c 'import site; print(site.getsitepackages()[0])')/ &amp;&amp; chmod 755 $(python3 -c 'import site; print(site.getsitepackages()[0])')/psycopg2
+cp -r psycopg2.libs $(python3 -c 'import site; print(site.getsitepackages()[0])')/ &amp;&amp; chmod 755 $(python3 -c 'import site; print(site.getsitepackages()[0])')/psycopg2.libs
+</code></pre>
+<ol start="4">
+<li>安装GaussDB-sqlalchemy方言包</li>
+</ol>
+<pre><code class="language-bash">cd ~
+git clone https://gitcode.com/darkathena/GaussDB-sqlalchemy
+cd GaussDB-sqlalchemy
+python setup.py install
+</code></pre>
+<ol start="5">
+<li>安装airflow</li>
+</ol>
+<pre><code class="language-bash">uv pip install apache-airflow==2.9.2 -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+</code></pre>
+<ol start="6">
+<li>启动验证</li>
+</ol>
+<pre><code>export AIRFLOW_HOME=~/airflow
+airflow standalone
+</code></pre>
+<p>这里默认是使用的sqlite数据库，主要是确认环境没有问题，并生成初始配置文件，启动成功后ctrl+c退出即可</p>
+<ol start="7">
+<li>配置airflow连接信息</li>
+</ol>
+<pre><code class="language-bash">vi airflow/airflow.cfg
+</code></pre>
+<p>修改sql_alchemy_conn参数</p>
+<pre><code>sql_alchemy_conn = gaussdb://airflow_user:Enmo_123@192.168.1.101:8000/airflow_db
+</code></pre>
+<ol start="8">
+<li>在GaussDB里建库和用户</li>
+</ol>
+<pre><code class="language-sql">create database airflow_db;
+\c airflow_db
+create user airflow_user password 'Enmo_123';
+</code></pre>
+<ol start="9">
+<li>启动airflow</li>
+</ol>
+<pre><code class="language-bash">export AIRFLOW_HOME=~/airflow
+airflow standalone
+</code></pre>
+<ol start="10">
+<li>启动日志</li>
+</ol>
+<pre><code class="language-java">(.env310) [aop@kylinv10sp3-node1 airflow]$ airflow standalone
+[2026-01-27T11:01:13.885+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+[2026-01-27T11:01:13.886+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+[2026-01-27T11:01:13.886+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+[2026-01-27T11:01:13.886+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+[2026-01-27T11:01:13.887+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+[2026-01-27T11:01:13.887+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+standalone | Starting Airflow Standalone
+standalone | Checking database is initialized
+INFO  [alembic.runtime.migration] Context impl GaussDBImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running stamp_revision  -&gt; 686269002441
+WARNI [airflow.models.crypto] empty cryptography key - values will not be stored encrypted.
+standalone | Database ready
+/home/aop/.env310/lib/python3.10/site-packages/flask_limiter/extension.py:324 UserWarning: Using the in-memory storage for tracking rate limits as no storage was explicitly specified. This is not recommended for production use. See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend for documentation about configuring the storage backend.
+WARNI [airflow.providers.fab.auth_manager.security_manager.override] No user yet created, use flask fab command to do it.
+FlaskAppBuilder Authentication Manager: Creating admin user
+FlaskAppBuilder Authentication Manager: Created admin user
+scheduler  | [2026-01-27T11:01:19.215+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+scheduler  | [2026-01-27T11:01:19.216+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+scheduler  | [2026-01-27T11:01:19.216+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+scheduler  | [2026-01-27T11:01:19.216+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+scheduler  | [2026-01-27T11:01:19.216+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+scheduler  | [2026-01-27T11:01:19.216+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+triggerer  | [2026-01-27T11:01:19.220+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+triggerer  | [2026-01-27T11:01:19.221+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+triggerer  | [2026-01-27T11:01:19.221+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+triggerer  | [2026-01-27T11:01:19.221+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+triggerer  | [2026-01-27T11:01:19.222+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+triggerer  | [2026-01-27T11:01:19.222+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+webserver  | [2026-01-27T11:01:19.237+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+webserver  | [2026-01-27T11:01:19.238+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+webserver  | [2026-01-27T11:01:19.239+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+webserver  | [2026-01-27T11:01:19.239+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+webserver  | [2026-01-27T11:01:19.239+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+webserver  | [2026-01-27T11:01:19.239+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+triggerer  | ____________       _____________
+triggerer  | ____    |__( )_________  __/__  /________      __
+triggerer  | ____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
+triggerer  | ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
+triggerer  | _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
+triggerer  | [2026-01-27 11:01:19 +0800] [1840877] [INFO] Starting gunicorn 24.1.1
+triggerer  | [2026-01-27 11:01:20 +0800] [1840877] [INFO] Listening at: http://[::]:8794 (1840877)
+triggerer  | [2026-01-27 11:01:20 +0800] [1840877] [INFO] Using worker: sync
+triggerer  | [2026-01-27 11:01:20 +0800] [1840878] [INFO] Booting worker with pid: 1840878
+scheduler  | ____________       _____________
+scheduler  | ____    |__( )_________  __/__  /________      __
+scheduler  | ____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
+scheduler  | ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
+scheduler  | _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
+scheduler  | [2026-01-27T11:01:20.017+0800] {task_context_logger.py:63} INFO - Task context logging is enabled
+scheduler  | [2026-01-27T11:01:20.017+0800] {executor_loader.py:235} INFO - Loaded executor: SequentialExecutor
+scheduler  | [2026-01-27 11:01:20 +0800] [1840879] [INFO] Starting gunicorn 24.1.1
+scheduler  | [2026-01-27 11:01:20 +0800] [1840879] [INFO] Listening at: http://[::]:8793 (1840879)
+scheduler  | [2026-01-27 11:01:20 +0800] [1840879] [INFO] Using worker: sync
+triggerer  | [2026-01-27T11:01:20.047+0800] {triggerer_job_runner.py:174} INFO - Setting up TriggererHandlerWrapper with handler &lt;FileTaskHandler (NOTSET)&gt;
+triggerer  | [2026-01-27T11:01:20.048+0800] {triggerer_job_runner.py:230} INFO - Setting up logging queue listener with handlers [&lt;RedirectStdHandler &lt;stdout&gt; (NOTSET)&gt;, &lt;TriggererHandlerWrapper (NOTSET)&gt;]
+scheduler  | [2026-01-27 11:01:20 +0800] [1840881] [INFO] Booting worker with pid: 1840881
+scheduler  | [2026-01-27T11:01:20.055+0800] {scheduler_job_runner.py:796} INFO - Starting the scheduler
+scheduler  | [2026-01-27T11:01:20.056+0800] {scheduler_job_runner.py:803} INFO - Processing each file at most -1 times
+triggerer  | [2026-01-27 11:01:20 +0800] [1840882] [INFO] Booting worker with pid: 1840882
+scheduler  | [2026-01-27T11:01:20.059+0800] {manager.py:170} INFO - Launched DagFileProcessorManager with pid: 1840883
+triggerer  | [2026-01-27T11:01:20.059+0800] {triggerer_job_runner.py:331} INFO - Starting the triggerer
+scheduler  | [2026-01-27T11:01:20.060+0800] {scheduler_job_runner.py:1595} INFO - Adopting or resetting orphaned tasks for active dag runs
+scheduler  | [2026-01-27T11:01:20.066+0800] {settings.py:60} INFO - Configured default timezone UTC
+scheduler  | [2026-01-27 11:01:20 +0800] [1840885] [INFO] Booting worker with pid: 1840885
+webserver  | [2026-01-27T11:01:20.373+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.schemas
+webserver  | [2026-01-27T11:01:20.374+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.tables
+webserver  | [2026-01-27T11:01:20.374+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.types
+webserver  | [2026-01-27T11:01:20.374+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.constraints
+webserver  | [2026-01-27T11:01:20.374+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.defaults
+webserver  | [2026-01-27T11:01:20.374+0800] {plugins.py:37} INFO - setup plugin alembic.autogenerate.comments
+webserver  | /home/aop/.env310/lib/python3.10/site-packages/flask_limiter/extension.py:324 UserWarning: Using the in-memory storage for tracking rate limits as no storage was explicitly specified. This is not recommended for production use. See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend for documentation about configuring the storage backend.
+webserver  | [2026-01-27T11:01:21.464+0800] {override.py:1930} INFO - Created Permission View: can create on DAG Runs
+webserver  | [2026-01-27T11:01:21.477+0800] {override.py:1981} INFO - Added Permission can create on DAG Runs to role Admin
+webserver  | [2026-01-27T11:01:21.493+0800] {override.py:1930} INFO - Created Permission View: can read on DAG Runs
+webserver  | [2026-01-27T11:01:21.505+0800] {override.py:1981} INFO - Added Permission can read on DAG Runs to role Admin
+webserver  | [2026-01-27T11:01:21.521+0800] {override.py:1930} INFO - Created Permission View: can edit on DAG Runs
+webserver  | [2026-01-27T11:01:21.533+0800] {override.py:1981} INFO - Added Permission can edit on DAG Runs to role Admin
+webserver  | [2026-01-27T11:01:21.549+0800] {override.py:1930} INFO - Created Permission View: can delete on DAG Runs
+webserver  | [2026-01-27T11:01:21.561+0800] {override.py:1981} INFO - Added Permission can delete on DAG Runs to role Admin
+webserver  | [2026-01-27T11:01:21.577+0800] {override.py:1930} INFO - Created Permission View: menu access on DAG Runs
+webserver  | [2026-01-27T11:01:21.589+0800] {override.py:1981} INFO - Added Permission menu access on DAG Runs to role Admin
+webserver  | [2026-01-27T11:01:21.627+0800] {override.py:1930} INFO - Created Permission View: menu access on Browse
+webserver  | [2026-01-27T11:01:21.639+0800] {override.py:1981} INFO - Added Permission menu access on Browse to role Admin
+webserver  | [2026-01-27T11:01:21.679+0800] {override.py:1930} INFO - Created Permission View: can read on Jobs
+webserver  | [2026-01-27T11:01:21.693+0800] {override.py:1981} INFO - Added Permission can read on Jobs to role Admin
+webserver  | [2026-01-27T11:01:21.709+0800] {override.py:1930} INFO - Created Permission View: menu access on Jobs
+webserver  | [2026-01-27T11:01:21.721+0800] {override.py:1981} INFO - Added Permission menu access on Jobs to role Admin
+webserver  | [2026-01-27T11:01:21.777+0800] {override.py:1930} INFO - Created Permission View: can read on Audit Logs
+webserver  | [2026-01-27T11:01:21.789+0800] {override.py:1981} INFO - Added Permission can read on Audit Logs to role Admin
+webserver  | [2026-01-27T11:01:21.805+0800] {override.py:1930} INFO - Created Permission View: menu access on Audit Logs
+webserver  | [2026-01-27T11:01:21.817+0800] {override.py:1981} INFO - Added Permission menu access on Audit Logs to role Admin
+webserver  | [2026-01-27T11:01:21.875+0800] {override.py:1930} INFO - Created Permission View: can create on Variables
+webserver  | [2026-01-27T11:01:21.887+0800] {override.py:1981} INFO - Added Permission can create on Variables to role Admin
+webserver  | [2026-01-27T11:01:21.903+0800] {override.py:1930} INFO - Created Permission View: can read on Variables
+webserver  | [2026-01-27T11:01:21.917+0800] {override.py:1981} INFO - Added Permission can read on Variables to role Admin
+webserver  | [2026-01-27T11:01:21.935+0800] {override.py:1930} INFO - Created Permission View: can edit on Variables
+webserver  | [2026-01-27T11:01:21.947+0800] {override.py:1981} INFO - Added Permission can edit on Variables to role Admin
+webserver  | [2026-01-27T11:01:21.964+0800] {override.py:1930} INFO - Created Permission View: can delete on Variables
+webserver  | [2026-01-27T11:01:21.977+0800] {override.py:1981} INFO - Added Permission can delete on Variables to role Admin
+webserver  | [2026-01-27T11:01:21.993+0800] {override.py:1930} INFO - Created Permission View: menu access on Variables
+webserver  | [2026-01-27T11:01:22.007+0800] {override.py:1981} INFO - Added Permission menu access on Variables to role Admin
+webserver  | [2026-01-27T11:01:22.051+0800] {override.py:1930} INFO - Created Permission View: menu access on Admin
+webserver  | [2026-01-27T11:01:22.065+0800] {override.py:1981} INFO - Added Permission menu access on Admin to role Admin
+webserver  | [2026-01-27T11:01:22.105+0800] {override.py:1930} INFO - Created Permission View: can create on Task Instances
+webserver  | [2026-01-27T11:01:22.119+0800] {override.py:1981} INFO - Added Permission can create on Task Instances to role Admin
+webserver  | [2026-01-27T11:01:22.138+0800] {override.py:1930} INFO - Created Permission View: can read on Task Instances
+webserver  | [2026-01-27T11:01:22.151+0800] {override.py:1981} INFO - Added Permission can read on Task Instances to role Admin
+webserver  | [2026-01-27T11:01:22.167+0800] {override.py:1930} INFO - Created Permission View: can edit on Task Instances
+webserver  | [2026-01-27T11:01:22.179+0800] {override.py:1981} INFO - Added Permission can edit on Task Instances to role Admin
+webserver  | [2026-01-27T11:01:22.195+0800] {override.py:1930} INFO - Created Permission View: can delete on Task Instances
+webserver  | [2026-01-27T11:01:22.209+0800] {override.py:1981} INFO - Added Permission can delete on Task Instances to role Admin
+webserver  | [2026-01-27T11:01:22.227+0800] {override.py:1930} INFO - Created Permission View: menu access on Task Instances
+webserver  | [2026-01-27T11:01:22.239+0800] {override.py:1981} INFO - Added Permission menu access on Task Instances to role Admin
+webserver  | [2026-01-27T11:01:22.297+0800] {override.py:1930} INFO - Created Permission View: can read on Task Reschedules
+webserver  | [2026-01-27T11:01:22.309+0800] {override.py:1981} INFO - Added Permission can read on Task Reschedules to role Admin
+webserver  | [2026-01-27T11:01:22.325+0800] {override.py:1930} INFO - Created Permission View: menu access on Task Reschedules
+webserver  | [2026-01-27T11:01:22.337+0800] {override.py:1981} INFO - Added Permission menu access on Task Reschedules to role Admin
+webserver  | [2026-01-27T11:01:22.445+0800] {override.py:1930} INFO - Created Permission View: can read on Triggers
+webserver  | [2026-01-27T11:01:22.457+0800] {override.py:1981} INFO - Added Permission can read on Triggers to role Admin
+webserver  | [2026-01-27T11:01:22.473+0800] {override.py:1930} INFO - Created Permission View: menu access on Triggers
+webserver  | [2026-01-27T11:01:22.485+0800] {override.py:1981} INFO - Added Permission menu access on Triggers to role Admin
+webserver  | [2026-01-27T11:01:22.533+0800] {override.py:1930} INFO - Created Permission View: can read on Configurations
+webserver  | [2026-01-27T11:01:22.547+0800] {override.py:1981} INFO - Added Permission can read on Configurations to role Admin
+webserver  | [2026-01-27T11:01:22.563+0800] {override.py:1930} INFO - Created Permission View: menu access on Configurations
+webserver  | [2026-01-27T11:01:22.575+0800] {override.py:1981} INFO - Added Permission menu access on Configurations to role Admin
+webserver  | [2026-01-27T11:01:22.631+0800] {override.py:1930} INFO - Created Permission View: can create on Connections
+webserver  | [2026-01-27T11:01:22.643+0800] {override.py:1981} INFO - Added Permission can create on Connections to role Admin
+webserver  | [2026-01-27T11:01:22.657+0800] {override.py:1930} INFO - Created Permission View: can read on Connections
+webserver  | [2026-01-27T11:01:22.669+0800] {override.py:1981} INFO - Added Permission can read on Connections to role Admin
+webserver  | [2026-01-27T11:01:22.685+0800] {override.py:1930} INFO - Created Permission View: can edit on Connections
+webserver  | [2026-01-27T11:01:22.697+0800] {override.py:1981} INFO - Added Permission can edit on Connections to role Admin
+webserver  | [2026-01-27T11:01:22.711+0800] {override.py:1930} INFO - Created Permission View: can delete on Connections
+webserver  | [2026-01-27T11:01:22.727+0800] {override.py:1981} INFO - Added Permission can delete on Connections to role Admin
+webserver  | [2026-01-27T11:01:22.747+0800] {override.py:1930} INFO - Created Permission View: menu access on Connections
+webserver  | [2026-01-27T11:01:22.759+0800] {override.py:1981} INFO - Added Permission menu access on Connections to role Admin
+webserver  | [2026-01-27T11:01:22.821+0800] {override.py:1930} INFO - Created Permission View: can read on SLA Misses
+webserver  | [2026-01-27T11:01:22.833+0800] {override.py:1981} INFO - Added Permission can read on SLA Misses to role Admin
+webserver  | [2026-01-27T11:01:22.849+0800] {override.py:1930} INFO - Created Permission View: menu access on SLA Misses
+webserver  | [2026-01-27T11:01:22.861+0800] {override.py:1981} INFO - Added Permission menu access on SLA Misses to role Admin
+webserver  | [2026-01-27T11:01:22.875+0800] {override.py:1930} INFO - Created Permission View: can delete on SLA Misses
+webserver  | [2026-01-27T11:01:22.887+0800] {override.py:1981} INFO - Added Permission can delete on SLA Misses to role Admin
+webserver  | [2026-01-27T11:01:22.903+0800] {override.py:1930} INFO - Created Permission View: can edit on SLA Misses
+webserver  | [2026-01-27T11:01:22.915+0800] {override.py:1981} INFO - Added Permission can edit on SLA Misses to role Admin
+webserver  | [2026-01-27T11:01:22.963+0800] {override.py:1930} INFO - Created Permission View: can read on Plugins
+webserver  | [2026-01-27T11:01:22.976+0800] {override.py:1981} INFO - Added Permission can read on Plugins to role Admin
+webserver  | [2026-01-27T11:01:22.991+0800] {override.py:1930} INFO - Created Permission View: menu access on Plugins
+webserver  | [2026-01-27T11:01:23.007+0800] {override.py:1981} INFO - Added Permission menu access on Plugins to role Admin
+webserver  | [2026-01-27T11:01:23.063+0800] {override.py:1930} INFO - Created Permission View: can read on Providers
+webserver  | [2026-01-27T11:01:23.076+0800] {override.py:1981} INFO - Added Permission can read on Providers to role Admin
+webserver  | [2026-01-27T11:01:23.093+0800] {override.py:1930} INFO - Created Permission View: menu access on Providers
+webserver  | [2026-01-27T11:01:23.107+0800] {override.py:1981} INFO - Added Permission menu access on Providers to role Admin
+webserver  | [2026-01-27T11:01:23.167+0800] {override.py:1930} INFO - Created Permission View: can create on Pools
+webserver  | [2026-01-27T11:01:23.181+0800] {override.py:1981} INFO - Added Permission can create on Pools to role Admin
+webserver  | [2026-01-27T11:01:23.197+0800] {override.py:1930} INFO - Created Permission View: can read on Pools
+webserver  | [2026-01-27T11:01:23.209+0800] {override.py:1981} INFO - Added Permission can read on Pools to role Admin
+webserver  | [2026-01-27T11:01:23.225+0800] {override.py:1930} INFO - Created Permission View: can edit on Pools
+webserver  | [2026-01-27T11:01:23.237+0800] {override.py:1981} INFO - Added Permission can edit on Pools to role Admin
+webserver  | [2026-01-27T11:01:23.253+0800] {override.py:1930} INFO - Created Permission View: can delete on Pools
+webserver  | [2026-01-27T11:01:23.266+0800] {override.py:1981} INFO - Added Permission can delete on Pools to role Admin
+webserver  | [2026-01-27T11:01:23.281+0800] {override.py:1930} INFO - Created Permission View: menu access on Pools
+webserver  | [2026-01-27T11:01:23.293+0800] {override.py:1981} INFO - Added Permission menu access on Pools to role Admin
+webserver  | [2026-01-27T11:01:23.354+0800] {override.py:1930} INFO - Created Permission View: can read on XComs
+webserver  | [2026-01-27T11:01:23.368+0800] {override.py:1981} INFO - Added Permission can read on XComs to role Admin
+webserver  | [2026-01-27T11:01:23.383+0800] {override.py:1930} INFO - Created Permission View: can delete on XComs
+webserver  | [2026-01-27T11:01:23.398+0800] {override.py:1981} INFO - Added Permission can delete on XComs to role Admin
+webserver  | [2026-01-27T11:01:23.417+0800] {override.py:1930} INFO - Created Permission View: menu access on XComs
+webserver  | [2026-01-27T11:01:23.434+0800] {override.py:1981} INFO - Added Permission menu access on XComs to role Admin
+webserver  | [2026-01-27T11:01:23.501+0800] {override.py:1930} INFO - Created Permission View: menu access on DAG Dependencies
+webserver  | [2026-01-27T11:01:23.513+0800] {override.py:1981} INFO - Added Permission menu access on DAG Dependencies to role Admin
+webserver  | [2026-01-27T11:01:23.589+0800] {override.py:1930} INFO - Created Permission View: menu access on DAGs
+webserver  | [2026-01-27T11:01:23.603+0800] {override.py:1981} INFO - Added Permission menu access on DAGs to role Admin
+webserver  | [2026-01-27T11:01:23.631+0800] {override.py:1930} INFO - Created Permission View: menu access on Cluster Activity
+webserver  | [2026-01-27T11:01:23.648+0800] {override.py:1981} INFO - Added Permission menu access on Cluster Activity to role Admin
+webserver  | [2026-01-27T11:01:23.682+0800] {override.py:1930} INFO - Created Permission View: menu access on Datasets
+webserver  | [2026-01-27T11:01:23.697+0800] {override.py:1981} INFO - Added Permission menu access on Datasets to role Admin
+webserver  | [2026-01-27T11:01:23.730+0800] {override.py:1930} INFO - Created Permission View: menu access on Documentation
+webserver  | [2026-01-27T11:01:23.743+0800] {override.py:1981} INFO - Added Permission menu access on Documentation to role Admin
+webserver  | [2026-01-27T11:01:23.775+0800] {override.py:1930} INFO - Created Permission View: menu access on Docs
+webserver  | [2026-01-27T11:01:23.787+0800] {override.py:1981} INFO - Added Permission menu access on Docs to role Admin
+webserver  | /home/aop/.env310/lib/python3.10/site-packages/airflow/api_connexion/schemas/task_schema.py:52 ChangedInMarshmallow4Warning: `Number` field should not be instantiated. Use `Integer`, `Float`, or `Decimal` instead.
+webserver  | /home/aop/.env310/lib/python3.10/site-packages/airflow/api_connexion/schemas/task_schema.py:55 ChangedInMarshmallow4Warning: `Number` field should not be instantiated. Use `Integer`, `Float`, or `Decimal` instead.
+webserver  | /home/aop/.env310/lib/python3.10/site-packages/airflow/api_connexion/schemas/task_schema.py:59 ChangedInMarshmallow4Warning: `Number` field should not be instantiated. Use `Integer`, `Float`, or `Decimal` instead.
+webserver  | [2026-01-27T11:01:24.510+0800] {override.py:1930} INFO - Created Permission View: can read on DAGs
+webserver  | [2026-01-27T11:01:24.530+0800] {override.py:1930} INFO - Created Permission View: can edit on DAGs
+webserver  | [2026-01-27T11:01:24.550+0800] {override.py:1930} INFO - Created Permission View: can delete on DAGs
+webserver  | [2026-01-27T11:01:24.574+0800] {override.py:1526} INFO - Inserted Role: Public
+webserver  | [2026-01-27T11:01:24.583+0800] {override.py:1526} INFO - Inserted Role: Viewer
+webserver  | [2026-01-27T11:01:24.597+0800] {override.py:1981} INFO - Added Permission can read on DAGs to role Viewer
+webserver  | [2026-01-27T11:01:24.614+0800] {override.py:1930} INFO - Created Permission View: can read on DAG Dependencies
+webserver  | [2026-01-27T11:01:24.621+0800] {override.py:1981} INFO - Added Permission can read on DAG Dependencies to role Viewer
+webserver  | [2026-01-27T11:01:24.643+0800] {override.py:1930} INFO - Created Permission View: can read on DAG Code
+webserver  | [2026-01-27T11:01:24.651+0800] {override.py:1981} INFO - Added Permission can read on DAG Code to role Viewer
+webserver  | [2026-01-27T11:01:24.659+0800] {override.py:1981} INFO - Added Permission can read on DAG Runs to role Viewer
+webserver  | [2026-01-27T11:01:24.676+0800] {override.py:1930} INFO - Created Permission View: can read on Datasets
+webserver  | [2026-01-27T11:01:24.683+0800] {override.py:1981} INFO - Added Permission can read on Datasets to role Viewer
+webserver  | [2026-01-27T11:01:24.697+0800] {override.py:1930} INFO - Created Permission View: can read on Cluster Activity
+webserver  | [2026-01-27T11:01:24.706+0800] {override.py:1981} INFO - Added Permission can read on Cluster Activity to role Viewer
+webserver  | [2026-01-27T11:01:24.713+0800] {override.py:1981} INFO - Added Permission can read on Pools to role Viewer
+webserver  | [2026-01-27T11:01:24.733+0800] {override.py:1930} INFO - Created Permission View: can read on ImportError
+webserver  | [2026-01-27T11:01:24.741+0800] {override.py:1981} INFO - Added Permission can read on ImportError to role Viewer
+webserver  | [2026-01-27T11:01:24.762+0800] {override.py:1930} INFO - Created Permission View: can read on DAG Warnings
+webserver  | [2026-01-27T11:01:24.769+0800] {override.py:1981} INFO - Added Permission can read on DAG Warnings to role Viewer
+webserver  | [2026-01-27T11:01:24.777+0800] {override.py:1981} INFO - Added Permission can read on Jobs to role Viewer
+webserver  | [2026-01-27T11:01:24.785+0800] {override.py:1981} INFO - Added Permission can read on My Password to role Viewer
+webserver  | [2026-01-27T11:01:24.793+0800] {override.py:1981} INFO - Added Permission can edit on My Password to role Viewer
+webserver  | [2026-01-27T11:01:24.801+0800] {override.py:1981} INFO - Added Permission can read on My Profile to role Viewer
+webserver  | [2026-01-27T11:01:24.809+0800] {override.py:1981} INFO - Added Permission can edit on My Profile to role Viewer
+webserver  | [2026-01-27T11:01:24.818+0800] {override.py:1981} INFO - Added Permission can read on SLA Misses to role Viewer
+webserver  | [2026-01-27T11:01:24.825+0800] {override.py:1981} INFO - Added Permission can read on Task Instances to role Viewer
+webserver  | [2026-01-27T11:01:24.848+0800] {override.py:1930} INFO - Created Permission View: can read on Task Logs
+webserver  | [2026-01-27T11:01:24.856+0800] {override.py:1981} INFO - Added Permission can read on Task Logs to role Viewer
+webserver  | [2026-01-27T11:01:24.863+0800] {override.py:1981} INFO - Added Permission can read on XComs to role Viewer
+webserver  | [2026-01-27T11:01:24.886+0800] {override.py:1930} INFO - Created Permission View: can read on Website
+webserver  | [2026-01-27T11:01:24.894+0800] {override.py:1981} INFO - Added Permission can read on Website to role Viewer
+webserver  | [2026-01-27T11:01:24.902+0800] {override.py:1981} INFO - Added Permission menu access on Browse to role Viewer
+webserver  | [2026-01-27T11:01:24.910+0800] {override.py:1981} INFO - Added Permission menu access on DAGs to role Viewer
+webserver  | [2026-01-27T11:01:24.918+0800] {override.py:1981} INFO - Added Permission menu access on DAG Dependencies to role Viewer
+webserver  | [2026-01-27T11:01:24.926+0800] {override.py:1981} INFO - Added Permission menu access on DAG Runs to role Viewer
+webserver  | [2026-01-27T11:01:24.933+0800] {override.py:1981} INFO - Added Permission menu access on Datasets to role Viewer
+webserver  | [2026-01-27T11:01:24.942+0800] {override.py:1981} INFO - Added Permission menu access on Cluster Activity to role Viewer
+webserver  | [2026-01-27T11:01:24.950+0800] {override.py:1981} INFO - Added Permission menu access on Documentation to role Viewer
+webserver  | [2026-01-27T11:01:24.960+0800] {override.py:1981} INFO - Added Permission menu access on Docs to role Viewer
+webserver  | [2026-01-27T11:01:24.967+0800] {override.py:1981} INFO - Added Permission menu access on Jobs to role Viewer
+webserver  | [2026-01-27T11:01:24.976+0800] {override.py:1981} INFO - Added Permission menu access on SLA Misses to role Viewer
+webserver  | [2026-01-27T11:01:24.984+0800] {override.py:1981} INFO - Added Permission menu access on Task Instances to role Viewer
+webserver  | [2026-01-27T11:01:24.993+0800] {override.py:1526} INFO - Inserted Role: User
+webserver  | [2026-01-27T11:01:25.003+0800] {override.py:1981} INFO - Added Permission can read on DAGs to role User
+webserver  | [2026-01-27T11:01:25.016+0800] {override.py:1981} INFO - Added Permission can read on DAG Dependencies to role User
+webserver  | [2026-01-27T11:01:25.027+0800] {override.py:1981} INFO - Added Permission can read on DAG Code to role User
+webserver  | [2026-01-27T11:01:25.036+0800] {override.py:1981} INFO - Added Permission can read on DAG Runs to role User
+webserver  | [2026-01-27T11:01:25.050+0800] {override.py:1981} INFO - Added Permission can read on Datasets to role User
+webserver  | [2026-01-27T11:01:25.064+0800] {override.py:1981} INFO - Added Permission can read on Cluster Activity to role User
+webserver  | [2026-01-27T11:01:25.072+0800] {override.py:1981} INFO - Added Permission can read on Pools to role User
+webserver  | [2026-01-27T11:01:25.086+0800] {override.py:1981} INFO - Added Permission can read on ImportError to role User
+webserver  | [2026-01-27T11:01:25.100+0800] {override.py:1981} INFO - Added Permission can read on DAG Warnings to role User
+webserver  | [2026-01-27T11:01:25.108+0800] {override.py:1981} INFO - Added Permission can read on Jobs to role User
+webserver  | [2026-01-27T11:01:25.115+0800] {override.py:1981} INFO - Added Permission can read on My Password to role User
+webserver  | [2026-01-27T11:01:25.123+0800] {override.py:1981} INFO - Added Permission can edit on My Password to role User
+webserver  | [2026-01-27T11:01:25.132+0800] {override.py:1981} INFO - Added Permission can read on My Profile to role User
+webserver  | [2026-01-27T11:01:25.140+0800] {override.py:1981} INFO - Added Permission can edit on My Profile to role User
+webserver  | [2026-01-27T11:01:25.148+0800] {override.py:1981} INFO - Added Permission can read on SLA Misses to role User
+webserver  | [2026-01-27T11:01:25.156+0800] {override.py:1981} INFO - Added Permission can read on Task Instances to role User
+webserver  | [2026-01-27T11:01:25.169+0800] {override.py:1981} INFO - Added Permission can read on Task Logs to role User
+webserver  | [2026-01-27T11:01:25.178+0800] {override.py:1981} INFO - Added Permission can read on XComs to role User
+webserver  | [2026-01-27T11:01:25.190+0800] {override.py:1981} INFO - Added Permission can read on Website to role User
+webserver  | [2026-01-27T11:01:25.197+0800] {override.py:1981} INFO - Added Permission menu access on Browse to role User
+webserver  | [2026-01-27T11:01:25.206+0800] {override.py:1981} INFO - Added Permission menu access on DAGs to role User
+webserver  | [2026-01-27T11:01:25.213+0800] {override.py:1981} INFO - Added Permission menu access on DAG Dependencies to role User
+webserver  | [2026-01-27T11:01:25.222+0800] {override.py:1981} INFO - Added Permission menu access on DAG Runs to role User
+webserver  | [2026-01-27T11:01:25.230+0800] {override.py:1981} INFO - Added Permission menu access on Datasets to role User
+webserver  | [2026-01-27T11:01:25.240+0800] {override.py:1981} INFO - Added Permission menu access on Cluster Activity to role User
+webserver  | [2026-01-27T11:01:25.248+0800] {override.py:1981} INFO - Added Permission menu access on Documentation to role User
+webserver  | [2026-01-27T11:01:25.255+0800] {override.py:1981} INFO - Added Permission menu access on Docs to role User
+webserver  | [2026-01-27T11:01:25.264+0800] {override.py:1981} INFO - Added Permission menu access on Jobs to role User
+webserver  | [2026-01-27T11:01:25.274+0800] {override.py:1981} INFO - Added Permission menu access on SLA Misses to role User
+webserver  | [2026-01-27T11:01:25.281+0800] {override.py:1981} INFO - Added Permission menu access on Task Instances to role User
+webserver  | [2026-01-27T11:01:25.290+0800] {override.py:1981} INFO - Added Permission can edit on DAGs to role User
+webserver  | [2026-01-27T11:01:25.297+0800] {override.py:1981} INFO - Added Permission can delete on DAGs to role User
+webserver  | [2026-01-27T11:01:25.305+0800] {override.py:1981} INFO - Added Permission can create on Task Instances to role User
+webserver  | [2026-01-27T11:01:25.314+0800] {override.py:1981} INFO - Added Permission can edit on Task Instances to role User
+webserver  | [2026-01-27T11:01:25.321+0800] {override.py:1981} INFO - Added Permission can delete on Task Instances to role User
+webserver  | [2026-01-27T11:01:25.330+0800] {override.py:1981} INFO - Added Permission can create on DAG Runs to role User
+webserver  | [2026-01-27T11:01:25.338+0800] {override.py:1981} INFO - Added Permission can edit on DAG Runs to role User
+webserver  | [2026-01-27T11:01:25.346+0800] {override.py:1981} INFO - Added Permission can delete on DAG Runs to role User
+webserver  | [2026-01-27T11:01:25.362+0800] {override.py:1930} INFO - Created Permission View: can create on Datasets
+webserver  | [2026-01-27T11:01:25.369+0800] {override.py:1981} INFO - Added Permission can create on Datasets to role User
+webserver  | [2026-01-27T11:01:25.380+0800] {override.py:1526} INFO - Inserted Role: Op
+webserver  | [2026-01-27T11:01:25.392+0800] {override.py:1981} INFO - Added Permission can read on DAGs to role Op
+webserver  | [2026-01-27T11:01:25.406+0800] {override.py:1981} INFO - Added Permission can read on DAG Dependencies to role Op
+webserver  | [2026-01-27T11:01:25.420+0800] {override.py:1981} INFO - Added Permission can read on DAG Code to role Op
+webserver  | [2026-01-27T11:01:25.428+0800] {override.py:1981} INFO - Added Permission can read on DAG Runs to role Op
+webserver  | [2026-01-27T11:01:25.442+0800] {override.py:1981} INFO - Added Permission can read on Datasets to role Op
+webserver  | [2026-01-27T11:01:25.456+0800] {override.py:1981} INFO - Added Permission can read on Cluster Activity to role Op
+webserver  | [2026-01-27T11:01:25.464+0800] {override.py:1981} INFO - Added Permission can read on Pools to role Op
+webserver  | [2026-01-27T11:01:25.480+0800] {override.py:1981} INFO - Added Permission can read on ImportError to role Op
+webserver  | [2026-01-27T11:01:25.496+0800] {override.py:1981} INFO - Added Permission can read on DAG Warnings to role Op
+webserver  | [2026-01-27T11:01:25.504+0800] {override.py:1981} INFO - Added Permission can read on Jobs to role Op
+webserver  | [2026-01-27T11:01:25.512+0800] {override.py:1981} INFO - Added Permission can read on My Password to role Op
+webserver  | [2026-01-27T11:01:25.520+0800] {override.py:1981} INFO - Added Permission can edit on My Password to role Op
+webserver  | [2026-01-27T11:01:25.528+0800] {override.py:1981} INFO - Added Permission can read on My Profile to role Op
+webserver  | [2026-01-27T11:01:25.536+0800] {override.py:1981} INFO - Added Permission can edit on My Profile to role Op
+webserver  | [2026-01-27T11:01:25.544+0800] {override.py:1981} INFO - Added Permission can read on SLA Misses to role Op
+webserver  | [2026-01-27T11:01:25.557+0800] {override.py:1981} INFO - Added Permission can read on Task Instances to role Op
+webserver  | [2026-01-27T11:01:25.572+0800] {override.py:1981} INFO - Added Permission can read on Task Logs to role Op
+webserver  | [2026-01-27T11:01:25.580+0800] {override.py:1981} INFO - Added Permission can read on XComs to role Op
+webserver  | [2026-01-27T11:01:25.594+0800] {override.py:1981} INFO - Added Permission can read on Website to role Op
+webserver  | [2026-01-27T11:01:25.601+0800] {override.py:1981} INFO - Added Permission menu access on Browse to role Op
+webserver  | [2026-01-27T11:01:25.610+0800] {override.py:1981} INFO - Added Permission menu access on DAGs to role Op
+webserver  | [2026-01-27T11:01:25.618+0800] {override.py:1981} INFO - Added Permission menu access on DAG Dependencies to role Op
+webserver  | [2026-01-27T11:01:25.626+0800] {override.py:1981} INFO - Added Permission menu access on DAG Runs to role Op
+webserver  | [2026-01-27T11:01:25.634+0800] {override.py:1981} INFO - Added Permission menu access on Datasets to role Op
+webserver  | [2026-01-27T11:01:25.644+0800] {override.py:1981} INFO - Added Permission menu access on Cluster Activity to role Op
+webserver  | [2026-01-27T11:01:25.651+0800] {override.py:1981} INFO - Added Permission menu access on Documentation to role Op
+webserver  | [2026-01-27T11:01:25.660+0800] {override.py:1981} INFO - Added Permission menu access on Docs to role Op
+webserver  | [2026-01-27T11:01:25.667+0800] {override.py:1981} INFO - Added Permission menu access on Jobs to role Op
+webserver  | [2026-01-27T11:01:25.676+0800] {override.py:1981} INFO - Added Permission menu access on SLA Misses to role Op
+webserver  | [2026-01-27T11:01:25.684+0800] {override.py:1981} INFO - Added Permission menu access on Task Instances to role Op
+webserver  | [2026-01-27T11:01:25.692+0800] {override.py:1981} INFO - Added Permission can edit on DAGs to role Op
+webserver  | [2026-01-27T11:01:25.702+0800] {override.py:1981} INFO - Added Permission can delete on DAGs to role Op
+webserver  | [2026-01-27T11:01:25.716+0800] {override.py:1981} INFO - Added Permission can create on Task Instances to role Op
+webserver  | [2026-01-27T11:01:25.724+0800] {override.py:1981} INFO - Added Permission can edit on Task Instances to role Op
+webserver  | [2026-01-27T11:01:25.732+0800] {override.py:1981} INFO - Added Permission can delete on Task Instances to role Op
+webserver  | [2026-01-27T11:01:25.740+0800] {override.py:1981} INFO - Added Permission can create on DAG Runs to role Op
+webserver  | [2026-01-27T11:01:25.748+0800] {override.py:1981} INFO - Added Permission can edit on DAG Runs to role Op
+webserver  | [2026-01-27T11:01:25.756+0800] {override.py:1981} INFO - Added Permission can delete on DAG Runs to role Op
+webserver  | [2026-01-27T11:01:25.774+0800] {override.py:1981} INFO - Added Permission can create on Datasets to role Op
+webserver  | [2026-01-27T11:01:25.782+0800] {override.py:1981} INFO - Added Permission can read on Configurations to role Op
+webserver  | [2026-01-27T11:01:25.790+0800] {override.py:1981} INFO - Added Permission menu access on Admin to role Op
+webserver  | [2026-01-27T11:01:25.798+0800] {override.py:1981} INFO - Added Permission menu access on Configurations to role Op
+webserver  | [2026-01-27T11:01:25.806+0800] {override.py:1981} INFO - Added Permission menu access on Connections to role Op
+webserver  | [2026-01-27T11:01:25.814+0800] {override.py:1981} INFO - Added Permission menu access on Pools to role Op
+webserver  | [2026-01-27T11:01:25.822+0800] {override.py:1981} INFO - Added Permission menu access on Plugins to role Op
+webserver  | [2026-01-27T11:01:25.830+0800] {override.py:1981} INFO - Added Permission menu access on Variables to role Op
+webserver  | [2026-01-27T11:01:25.838+0800] {override.py:1981} INFO - Added Permission menu access on Providers to role Op
+webserver  | [2026-01-27T11:01:25.846+0800] {override.py:1981} INFO - Added Permission menu access on XComs to role Op
+webserver  | [2026-01-27T11:01:25.854+0800] {override.py:1981} INFO - Added Permission can create on Connections to role Op
+webserver  | [2026-01-27T11:01:25.862+0800] {override.py:1981} INFO - Added Permission can read on Connections to role Op
+webserver  | [2026-01-27T11:01:25.870+0800] {override.py:1981} INFO - Added Permission can edit on Connections to role Op
+webserver  | [2026-01-27T11:01:25.877+0800] {override.py:1981} INFO - Added Permission can delete on Connections to role Op
+webserver  | [2026-01-27T11:01:25.886+0800] {override.py:1981} INFO - Added Permission can create on Pools to role Op
+webserver  | [2026-01-27T11:01:25.893+0800] {override.py:1981} INFO - Added Permission can edit on Pools to role Op
+webserver  | [2026-01-27T11:01:25.902+0800] {override.py:1981} INFO - Added Permission can delete on Pools to role Op
+webserver  | [2026-01-27T11:01:25.910+0800] {override.py:1981} INFO - Added Permission can read on Plugins to role Op
+webserver  | [2026-01-27T11:01:25.918+0800] {override.py:1981} INFO - Added Permission can read on Providers to role Op
+webserver  | [2026-01-27T11:01:25.926+0800] {override.py:1981} INFO - Added Permission can create on Variables to role Op
+webserver  | [2026-01-27T11:01:25.933+0800] {override.py:1981} INFO - Added Permission can read on Variables to role Op
+webserver  | [2026-01-27T11:01:25.942+0800] {override.py:1981} INFO - Added Permission can edit on Variables to role Op
+webserver  | [2026-01-27T11:01:25.949+0800] {override.py:1981} INFO - Added Permission can delete on Variables to role Op
+webserver  | [2026-01-27T11:01:25.958+0800] {override.py:1981} INFO - Added Permission can delete on XComs to role Op
+webserver  | [2026-01-27T11:01:25.974+0800] {override.py:1930} INFO - Created Permission View: can delete on Datasets
+webserver  | [2026-01-27T11:01:25.981+0800] {override.py:1981} INFO - Added Permission can delete on Datasets to role Op
+webserver  | [2026-01-27T11:01:25.996+0800] {override.py:1981} INFO - Added Permission can read on DAGs to role Admin
+webserver  | [2026-01-27T11:01:26.008+0800] {override.py:1981} INFO - Added Permission can read on DAG Dependencies to role Admin
+webserver  | [2026-01-27T11:01:26.023+0800] {override.py:1981} INFO - Added Permission can read on DAG Code to role Admin
+webserver  | [2026-01-27T11:01:26.042+0800] {override.py:1981} INFO - Added Permission can read on Datasets to role Admin
+webserver  | [2026-01-27T11:01:26.056+0800] {override.py:1981} INFO - Added Permission can read on Cluster Activity to role Admin
+webserver  | [2026-01-27T11:01:26.070+0800] {override.py:1981} INFO - Added Permission can read on ImportError to role Admin
+webserver  | [2026-01-27T11:01:26.083+0800] {override.py:1981} INFO - Added Permission can read on DAG Warnings to role Admin
+webserver  | [2026-01-27T11:01:26.098+0800] {override.py:1981} INFO - Added Permission can read on Task Logs to role Admin
+webserver  | [2026-01-27T11:01:26.112+0800] {override.py:1981} INFO - Added Permission can read on Website to role Admin
+webserver  | [2026-01-27T11:01:26.120+0800] {override.py:1981} INFO - Added Permission can edit on DAGs to role Admin
+webserver  | [2026-01-27T11:01:26.128+0800] {override.py:1981} INFO - Added Permission can delete on DAGs to role Admin
+webserver  | [2026-01-27T11:01:26.142+0800] {override.py:1981} INFO - Added Permission can create on Datasets to role Admin
+webserver  | [2026-01-27T11:01:26.158+0800] {override.py:1981} INFO - Added Permission can delete on Datasets to role Admin
+webserver  | [2026-01-27 11:01:26 +0800] [1840876] [INFO] Starting gunicorn 24.1.1
+webserver  | [2026-01-27 11:01:26 +0800] [1840876] [INFO] Listening at: http://0.0.0.0:8080 (1840876)
+webserver  | [2026-01-27 11:01:26 +0800] [1840876] [INFO] Using worker: sync
+webserver  | [2026-01-27 11:01:26 +0800] [1840939] [INFO] Booting worker with pid: 1840939
+webserver  | [2026-01-27 11:01:26 +0800] [1840941] [INFO] Booting worker with pid: 1840941
+webserver  | [2026-01-27 11:01:26 +0800] [1840942] [INFO] Booting worker with pid: 1840942
+webserver  | [2026-01-27 11:01:26 +0800] [1840944] [INFO] Booting worker with pid: 1840944
+standalone | Airflow is ready
+standalone | Login with username: admin  password: tgP5eX8BK9GApxAG
+standalone | Airflow Standalone is for development purposes only. Do not use this in production!
+</code></pre>
+<p>启动成功后，日志最后几行会输出访问地址以及用户名密码，就可以去浏览器里登录了。</p>
+<h2 id="关于airflow的版本">关于airflow的版本</h2>
+<p>目前airflow有2和3两个大版本，airflow 3.0以上版本不再支持仅使用psycopg2，必须同时搭配asyncpg驱动，即配置两个连接串。但gaussdb在2025年5月份的时候，并没有提供这个驱动，所以当时只能选用2.9版本的airflow。<br/>
+asyncpg自身就实现了完整协议，不再需要libpq，而且支持的数据类型更完整，速度比psycopg2更快。目前GaussDB已经适配了这个驱动<code>pip install async-gaussdb</code>。然而，截止到2026年1月底，GaussDB仍未提供SQLAlchemy方言，因此纯官方介质使用airflow连接GaussDB仍旧不行。</p>
+<h2 id="关于django">关于django</h2>
+<p>这篇文章的内容本来并不涉及django，但既然说到python了就提一下。<br/>
+之前GaussDB没有官方的django方言，我就基于我们同事做的openGauss-django方言改了一版<br/>
+<a href="https://gitee.com/darkathena/django-gaussdb-backend">https://gitee.com/darkathena/django-gaussdb-backend</a> ，测了几个项目能正常运行。</p>
+<p>目前GaussDB已经提供了官方的django方言<code>pip install gaussdb-django</code>，但要注意的是，它连接数据库的驱动是<code>pip install gaussdb</code>，即基于psycopg3改的版本。虽然原本有些基于psycopg2构建的项目可能有问题，但如果是纯用django标准用法的，应该可以完美适配（但不排除某些方言没改到位，毕竟GaussDB的语法版本贼多）</p>
+<h2 id="关于pip-install-gaussdb">关于<code>pip install gaussdb</code></h2>
+<p>正如前文所说，这个驱动是基于psycopg3的，我用扣子空间比了下gaussdb驱动和psycopg3驱动的差异</p>
+<ol>
+<li>核心功能适配<br/>
+移除不支持的功能<br/>
+移除了GaussDB不支持的PQconninfo和PQsslInUse函数<br/>
+移除了不支持的MultiRange Types测试用例<br/>
+移除了不支持的SQL listen和notify测试用例<br/>
+移除了不支持的函数to_regtype<br/>
+移除了numeric类型不支持的+/- infinity<br/>
+修复兼容性问题<br/>
+修复了GaussDB中读取二进制格式数据的问题<br/>
+修复了版本检查的问题<br/>
+修复了创建schema语句的问题<br/>
+将变量'sample_binary_value'更改为GaussDB的预期值<br/>
+重构代码<br/>
+重构了server_version部分的代码<br/>
+将跳过条件从判断superuser改为判断sysadmin<br/>
+修正了SQL CREATE SCHEMA语句</li>
+<li>测试用例调整<br/>
+添加gaussdb_skip标记<br/>
+为多个测试用例添加了gaussdb_skip标记，主要是因为GaussDB不支持backend pid、pg_terminate_backend、connection pooling等功能<br/>
+调整了requests_wait_ms和usage_ms等的延迟<br/>
+调整了连接池测试用例中的预期等待时间和容差<br/>
+调整了超时时间</li>
+<li>文档和配置更新<br/>
+文档重命名和替换<br/>
+将所有文档中的psycopg替换为gaussdb<br/>
+将所有文档中的PostgreSQL替换为GaussDB<br/>
+重命名了文档中的图片和CSS文件<br/>
+配置文件更新<br/>
+更新了flake8配置文件，添加了gaussdb相关的忽略规则<br/>
+添加了certs目录，包含了GaussDB的证书文件和生成脚本</li>
+<li>命名空间调整<br/>
+将所有代码中的psycopg命名空间替换为gaussdb<br/>
+调整了所有导入语句和类引用</li>
+<li>功能支持差异<br/>
+GaussDB相对于PostgreSQL主要缺少以下功能支持：<br/>
+MultiRange Types<br/>
+listen和notify功能<br/>
+to_regtype函数<br/>
+numeric类型的+/- infinity<br/>
+backend pid相关功能<br/>
+pg_terminate_backend函数<br/>
+connection pooling功能</li>
+</ol>
+<p>如果对性能有要求，而且不强依赖psycopg2生态，那么新的应用建议还是用"<strong>gaussdb</strong>"这个连接驱动，不要用<strong>psycopg2</strong>这个驱动，因为原版的以及gaussdb自带的psycopg2均未实现绑定变量执行（即未实现预编译SQL），psycopg2本质上给SQL传参只是个字符串的format格式化，参数的值都替换到了sql里面；而gaussdb这个驱动基于psycopg3，是更符合标准的实现，会真实按照prepare+bind+execute执行。</p>
+<p>更多psycopg2和psycopg3的区别可以参考官方文档:<br/>
+<a href="https://www.psycopg.org/features/">https://www.psycopg.org/features/</a><br/>
+另外这个redrock文档里也说得比较细<br/>
+<a href="https://doc.rockdata.net/zh-cn/psycopg/basic/from_pg2/">https://doc.rockdata.net/zh-cn/psycopg/basic/from_pg2/</a></p>
+<h2 id="总结">总结</h2>
+<p>虽然截至本文发布（20260130），华为云仍未提供官方方案能使用GaussDB作为airflow的元数据库，但是华为云在开发者生态的建设上，的确比以往有加强很多，甚至他们都敢这么写了</p>
+<blockquote>
+<p>帮助提供信息：如果您在使用开源软件过程中发现不支持GaussDB的情况，欢迎提交ISSUE。 您需要提供开源软件名称、使用的版本、存在的问题等信息，我们将结合您提供的信息，完善相关开源软件的支持。</p>
+</blockquote>
+<p>希望其他国产数据库也都学起来，不要只为商业客户需求去做适配，应该更主动地去进行自发适配以及无直接收益的需求适配。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

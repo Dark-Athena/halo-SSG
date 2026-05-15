@@ -153,7 +153,530 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb诊断一起内存临时不可用的问题">【GaussDB】诊断一起内存临时不可用的问题</h1>
+<hr/>
+<h2 id="-背景">📋 背景</h2>
+<p>在客户测试环境中（<strong>GaussDB 506.0 SPC0100 集中式</strong>），一个重度使用存储过程的系统，频繁出现内存临时不可用的问题(<code>ERROR: memory is temporarily unavailable</code>)。令人困惑的是，这个环境配置的内存大小已经数十倍于迁移前的Oracle。</p>
+<h2 id="-gaussdb提供的观测方法">🔍 GaussDB提供的观测方法</h2>
+<p>GaussDB官方产品文档中有一个《内存过载》章节，详细描述了在出现内存过载情况下如何定位，但似乎这个章节并没有在官方网站上公开。不过GaussDB松鼠会倒是把这个章节的内容发成一篇文章了：<a href="https://www.modb.pro/db/637993">《GaussDB内存过载分析》</a>。</p>
+<p>下面按照本次分析过程进行描述。</p>
+<h3 id="-内存监控视图">📊 内存监控视图</h3>
+<p>GaussDB提供了几个重要的内存视图：</p>
+<h4 id="gs_total_memory_detail"><code>gs_total_memory_detail</code></h4>
+<p>显示当前数据库节点的内存使用情况，单位为MB。当GUC参数<code>enable_memory_limit</code>的值为off时，本视图不可用。</p>
+<h4 id="gs_session_memory_detail"><code>gs_session_memory_detail</code></h4>
+<p>显示会话的内存使用情况，以MemoryContext节点来统计。当开启线程池（<code>enable_thread_pool = on</code>）时，该视图包含所有线程和会话的内存使用情况。当GUC参数<code>enable_memory_limit</code>的值为off时，本视图不可用。</p>
+<h4 id="gs_shared_memory_detail"><code>gs_shared_memory_detail</code></h4>
+<p>查询当前节点所有已产生的共享内存上下文的使用信息。</p>
+<h3 id="-内存使用情况示例">📈 内存使用情况示例</h3>
+<pre><code class="language-sql">SELECT * FROM gs_total_memory_detail;
+</code></pre>
+<table><thead><tr><th>nodename</th><th>memorytype</th><th>memorymbytes</th></tr></thead><tbody><tr><td>primary</td><td>max_process_memory</td><td>24576</td></tr><tr><td>primary</td><td>process_used_memory</td><td>7847</td></tr><tr><td>primary</td><td>max_dynamic_memory</td><td>16651</td></tr><tr><td>primary</td><td>dynamic_used_memory</td><td>1843</td></tr><tr><td>primary</td><td>dynamic_peak_memory</td><td>2942</td></tr><tr><td>primary</td><td>dynamic_used_shrctx</td><td>1386</td></tr><tr><td>primary</td><td>dynamic_peak_shrctx</td><td>1387</td></tr><tr><td>primary</td><td>max_backend_memory</td><td>1360</td></tr><tr><td>primary</td><td>backend_used_memory</td><td>1</td></tr><tr><td>primary</td><td>high_backend_thread_memory</td><td>20</td></tr><tr><td>primary</td><td>high_backend_thread_max_memory</td><td>768</td></tr><tr><td>primary</td><td>medium_backend_thread_memory</td><td>113</td></tr><tr><td>primary</td><td>medium_backend_thread_max_memory</td><td>1536</td></tr><tr><td>primary</td><td>low_backend_thread_memory</td><td>0</td></tr><tr><td>primary</td><td>low_backend_thread_max_memory</td><td>768</td></tr><tr><td>primary</td><td>max_shared_memory</td><td>6548</td></tr><tr><td>primary</td><td>shared_used_memory</td><td>5402</td></tr><tr><td>primary</td><td>max_cstore_memory</td><td>16</td></tr><tr><td>primary</td><td>cstore_used_memory</td><td>0</td></tr><tr><td>primary</td><td>max_sctpcomm_memory</td><td>0</td></tr><tr><td>primary</td><td>sctpcomm_used_memory</td><td>0</td></tr><tr><td>primary</td><td>sctpcomm_peak_memory</td><td>0</td></tr><tr><td>primary</td><td>other_used_memory</td><td>527</td></tr><tr><td>primary</td><td>gpu_max_dynamic_memory</td><td>0</td></tr><tr><td>primary</td><td>gpu_dynamic_used_memory</td><td>0</td></tr><tr><td>primary</td><td>gpu_dynamic_peak_memory</td><td>0</td></tr><tr><td>primary</td><td>pooler_conn_memory</td><td>0</td></tr><tr><td>primary</td><td>pooler_freeconn_memory</td><td>0</td></tr><tr><td>primary</td><td>storage_compress_memory</td><td>0</td></tr><tr><td>primary</td><td>udf_reserved_memory</td><td>0</td></tr><tr><td>primary</td><td>llvm_used_memory</td><td>0</td></tr><tr><td>primary</td><td>max_htap_memory</td><td>0</td></tr><tr><td>primary</td><td>htap_used_memory</td><td>0</td></tr></tbody></table>
+<h3 id="-内存类型理解指南">🧭 内存类型理解指南</h3>
+<p>要真实理解<code>gs_total_memory_detail</code>里这些内存类型的关系，并且理解<code>gs_session_memory_detail</code>和<code>gs_shared_memory_detail</code>记录的内存对应到<code>gs_total_memory_detail</code>的映射关系，需要明确以下几点：</p>
+<h4 id="-内存指标含义">📏 内存指标含义</h4>
+<ul>
+<li><strong>max</strong> 表示最大可以为多少，超过就会报内存不足</li>
+<li><strong>used</strong> 表示当前已经申请了多少</li>
+<li><strong>peak</strong> 表示本次数据库启动以来的历史used峰值</li>
+</ul>
+<h4 id="-内存分配关系">🔗 内存分配关系</h4>
+<ul>
+<li><code>max_process_memory</code> 是通过参数设置的</li>
+<li><code>max_shared_memory</code> 主要为shared_buffers，但是这个值的大小可能会比shared_buffers要大</li>
+<li><code>max_dynamic_memory</code> 是 <code>max_process_memory - max_shared_memory - max_cstore_memory - max_backend_memory - ...</code> 得到的</li>
+</ul>
+<p><code>dynamic_used_memory</code> 包括了：</p>
+<ul>
+<li>动态会话内存（<code>gs_total_memory_detail</code>里没列出来）</li>
+<li><code>dynamic_used_shrctx</code></li>
+<li><code>high_backend_thread_memory</code></li>
+<li><code>medium_backend_thread_memory</code></li>
+<li><code>low_backend_thread_memory</code></li>
+</ul>
+<blockquote>
+<p>💡 <strong>注意</strong>：后三个high/medium/low暂时不用关心，这是新版本中引入的特性，为后台线程专门分出来的内存。</p>
+</blockquote>
+<h3 id="️-gaussdb内存区域划分">🗂️ GaussDB内存区域划分</h3>
+<p>在GaussDB中，主要的内存区域分为：</p>
+<pre><code>📁 共享内存（主要为shared_buffers）
+📁 动态内存（dynamic_memory）
+   ├── 📄 动态会话内存 (gs_session_memory_detail)
+   ├── 📄 动态共享内存 (dynamic_used_shrctx) (gs_shared_memory_detail)
+   └── 📄 动态后台内存
+</code></pre>
+<blockquote>
+<p>⚠️ <strong>重要提醒</strong>：这里出现两个"共享内存"，非常容易产生理解上的歧义。比如<code>gs_shared_memory_detail</code>这个视图，查的就不是"共享内存"，而是"动态共享内存"。</p>
+</blockquote>
+<p>可以这么理解：</p>
+<ul>
+<li><code>shared_buffers</code>主要是data buffer，即表和索引的数据</li>
+<li>GaussDB实现的global plan cache/global plsql cache/unique sql hash table等全局缓存，并不属于shared_buffers，而是在<code>dynamic_used_shrctx</code>里</li>
+</ul>
+<h3 id="-内存追踪配置">📝 内存追踪配置</h3>
+<p>内存不足的报错经常是一个瞬间冲高，回头再来看这些视图时，已经找不到对应的内存上下文，因此GaussDB在出现内存不足的报错时，会自动把当时的内存上下文情况生成到单独的日志文件中。</p>
+<h4 id="memory_trace_level-参数"><code>memory_trace_level</code> 参数</h4>
+<p><strong>参数说明</strong>：动态内存使用超过最大动态内存的90%后，记录内存申请信息的管控等级。该参数仅在GUC参数<code>use_workload_manager</code>和<code>enable_memory_limit</code>打开时生效。</p>
+<p><strong>参数类型</strong>：枚举类型<br/>
+<strong>参数单位</strong>：无</p>
+<p><strong>取值范围</strong>：</p>
+<table><thead><tr><th>级别</th><th>说明</th></tr></thead><tbody><tr><td><strong>none</strong></td><td>表示不记录内存申请信息</td></tr><tr><td><strong>level1</strong></td><td>动态内存使用超过最大动态内存的90%后，会记录以下信息，并将记录的内存信息保存在<code>$GAUSSLOG/mem_log</code>目录下：<br/>• 全局内存概况<br/>• instance，session，thread三种类型的所有内存上下文中内存占用前20的内存上下文的内存使用情况<br/>• 每个内存上下文的totalsize、freesize字段</td></tr><tr><td><strong>level2</strong></td><td>在level1的基础上，还会记录每个内存上下文上所有内存申请的详细信息，包含申请内存所在的文件，行号和大小</td></tr></tbody></table>
+<p><strong>默认值</strong>：level1</p>
+<blockquote>
+<p>⚠️ <strong>设置建议</strong>：该参数设置为level2后，会记录每个内存上下文的内存申请详情（file，line，size字段），会对性能影响较大，需慎重设置。</p>
+</blockquote>
+<p><strong>相关功能</strong>：</p>
+<ul>
+<li>记录的内存快照信息可以通过系统函数<code>gs_get_history_memory_detail(cstring)</code>查询</li>
+<li>记录的内存上下文是经过将同一类型所有重名的内存上下文进行汇总之后得到的</li>
+</ul>
+<hr/>
+<h2 id="-现场分析">🔬 现场分析</h2>
+<h3 id="️-初步发现">🕵️ 初步发现</h3>
+<p>由于默认是level1，没有记录申请内存的源码文件和行号，因此后面现场调成了level2。</p>
+<p>当时的mem_log中有记录两个比较可疑的内存上下文：</p>
+<table><thead><tr><th>位置</th><th>上下文名称</th><th>数量</th><th>大小</th></tr></thead><tbody><tr><td>shared_memory</td><td><code>unique sql hash table</code></td><td>1个</td><td>~8G</td></tr><tr><td>session_memory</td><td><code>SRF multi-call context</code></td><td>1个</td><td>~8G</td></tr></tbody></table>
+<p>然后回头查<code>gs_shared_memory_detail</code>、<code>gs_session_memory_detail</code>这两个视图，发现的确可以查到<code>unique sql hash table</code>占了8G，但是查不到<code>SRF multi-call context</code>。</p>
+<h3 id="-监控脚本">📊 监控脚本</h3>
+<p>客户DBA写了个监控脚本，每隔20秒采集一下各个内存视图的数据。</p>
+<p>但几天后，仍然没有采集到<code>SRF multi-call context</code>，而数据库日志中仍然会时不时报错内存临时不可用。</p>
+<h3 id="-关键发现">💡 关键发现</h3>
+<p>在一次偶然的连续查询<code>gs_total_memory_detail</code>时，发现已使用的动态内存上下波动幅度高达<strong>8GB</strong>。</p>
+<p>于是猜想可能是一个非常短的时间产生了<code>SRF multi-call context</code>这个上下文，执行完后就释放了，所以间隔20秒采一次能采到的概率非常低。</p>
+<h3 id="-深入分析">🔍 深入分析</h3>
+<p>数据库大厂的内核研发往往都只负责各自一小块领域，华为内核研发远程查看日志，并没有发现什么可疑的点，而且还拉了好几个不同领域的内核研发，都没有找到原因。</p>
+<p>但是在远程会议中，客户快速一页一页翻日志时，我发现一个现象：</p>
+<blockquote>
+<p>在出现内存临时不可用报错的前面一段，会频繁打印相同格式的日志，而且中间有个数字一直在涨，从1XXXXXXXXX一直涨到7XXXXXXXXX，然后就没有这个重复日志了。</p>
+</blockquote>
+<p>直觉告诉我，很可能与这个有关。于是让客户回到这段日志前面，然后发现了类似下面的这么一行：</p>
+<pre><code class="language-log">2025-07-25 10:00:01.523 primary RdsAdmin postgres xxx.xxx.xxx.xxx 140216907527936 12[0:0#0] 0 gsql 00000 31806672368306287 [BACKEND] LOG:  00000: unique_sql_id=3740540431, Current SQL is consuming about 1099 MB, allocating 102921000 bytes, memctx:SRF multi-call context, appname:, user_id: 16616, current query is: select usename,count(*) from dbe_perf.statement group by usename
+</code></pre>
+<h3 id="-问题串联">🎯 问题串联</h3>
+<p>很明显这里就出现了<code>SRF multi-call context</code>，然后这段日志下面就是不断地在申请内存，直到申请了8G，后面很快就有一个业务调用存储过程报错内存不足了。</p>
+<p>也就是说，在这个环境中，<strong>查询一次<code>dbe_perf.statement</code>这个视图，就会申请8G内存</strong>。这个查询，是TPOPS端定时采集的SQL。</p>
+<p><code>dbe_perf.statement</code>这个视图里实际上是一个查询特定内存数据的返回多行的函数，查询的就是<code>unique sql hash table</code>里的内容。</p>
+<h3 id="-问题链条分析">📝 问题链条分析</h3>
+<p>分析到这里，感觉大部分疑点都串起来了：</p>
+<ol>
+<li>⚡ 由于某种原因，归一化SQL的内存达到了8G</li>
+<li>🔄 然后由于TPOPS定时查询<code>dbe_perf.statement</code>，导致内存瞬间又消耗了8GB</li>
+<li>📈 光这两个动态内存上下文就占了16GB</li>
+<li>💾 由于这是个重度存储过程的系统，GLOBAL PLSQL CACHE又占了几个GB</li>
+<li>❌ 动态内存全用完了，导致业务会话报错</li>
+</ol>
+<h3 id="-进一步探究">❓ 进一步探究</h3>
+<p>归一化内存为什么会达到8GB？</p>
+<p>我在很早就问过华为内核研发：<code>track_activity_query_size=40960</code>这么设置，如果SQL没达到这个长度，占用的内存是SQL实际的长度还是40960？</p>
+<p>我一直记得在openGauss系数据库中，这个内存一定是按设置的这个大小申请，不会根据SQL实际长度变化，但是华为内核研发说在GaussDB中内存占用只会按实际SQL长度来，除非SQL长度达到或者超过这个数，才会申请这么多内存。</p>
+<p>由于GaussDB并没有开源，所以当时我只能相信华为说的，可能GaussDB做了优化。</p>
+<h3 id="-巧合的乘积">🧮 巧合的乘积</h3>
+<p>可是客户现场出现这个现象时，我直接计算了下：</p>
+<pre><code>40,960 × 200,000 = 8,192,000,000
+</code></pre>
+<p>刚好差不多8G，这么巧合？</p>
+<p>然后客户也查了，实际在<code>dbe_perf.statement</code>里query的汇总字节数，也就只有一百多MB。</p>
+<p>但是华为内核研发说他看了那段代码，说的确是按实际长度来的，但是他又无法解释这8GB到哪里去了，因为算上其他属性的长度，每行最多就再加几百KB。</p>
+<hr/>
+<h2 id="-问问万能的ai">🤖 问问万能的AI</h2>
+<p>GaussDB没开源，但是openGauss是开源的，本来想用Cursor来分析一下，奈何被断供了，只能先用vscode的Copilot了。</p>
+<p>打开openGauss源码目录，切换Copilot到agent模式，开问：</p>
+<h3 id="第一轮提问">第一轮提问</h3>
+<blockquote>
+<p><strong>Dark-Athena</strong>: 看下SRF multi-call context 这个上下文在什么时候会产生</p>
+</blockquote>
+<blockquote>
+<p><strong>GitHub Copilot</strong> ：我来帮你分析 "SRF multi-call context" 这个上下文在什么时候会产生。让我先搜索相关代码来了解这个上下文的创建和使用场景。 现在让我搜索更多关于 SRF（Set-Returning Functions）和多次调用上下文的信息： 让我查看一些使用这些函数的实际例子： 现在让我查看一个具体的SRF函数实现例子来理解上下文的产生时机： 现在让我查看头文件中的宏定义和更多的注释说明： 现在让我查看一下具体的内存上下文创建代码： 让我再查看一些具体的SRF函数使用例子： 让我查找更多的SRF函数实现例子： 让我查找一些实际的SRF函数实现： 现在让我查看一个具体的pg_stat函数来理解SRF上下文的产生： 根据对代码的分析，我现在可以详细回答你的问题：</p>
+<h2 id="srf-multi-call-context-产生的时机和原因">SRF multi-call context 产生的时机和原因</h2>
+<p><strong>"SRF multi-call context"</strong> 是 Set-Returning Functions（集合返回函数）的多次调用上下文，它在以下情况下产生：</p>
+<h3 id="1-什么是srf">1. <strong>什么是SRF？</strong></h3>
+<p>SRF（Set-Returning Functions）是能够返回多行数据的函数，比如：</p>
+<ul>
+<li><code>pg_stat_get_activity()</code> - 返回所有活动会话信息</li>
+<li><code>unnest()</code> - 展开数组为多行</li>
+<li><code>generate_series()</code> - 生成数字序列</li>
+<li>各种系统统计函数</li>
+</ul>
+<h3 id="2-上下文产生的具体时机">2. <strong>上下文产生的具体时机</strong></h3>
+<p><strong>SRF multi-call context</strong> 在以下时机被创建：</p>
+<ol>
+<li><strong>首次调用时</strong>：当SRF函数第一次被调用时，通过 <code>SRF_FIRSTCALL_INIT()</code> 宏（实际调用 <code>init_MultiFuncCall()</code>）创建：</li>
+</ol>
+<pre><code class="language-cpp">if (SRF_IS_FIRSTCALL()) {
+   funcctx = SRF_FIRSTCALL_INIT();  // 这里创建 "SRF multi-call context"
+   // 初始化操作...
+}
+</code></pre>
+<ol start="2">
+<li><strong>内存上下文创建位置</strong>：在 <code>init_MultiFuncCall()</code> 函数中：</li>
+</ol>
+<pre><code class="language-cpp">multi_call_ctx = AllocSetContextCreate(fcinfo-&gt;flinfo-&gt;fn_mcxt,
+   "SRF multi-call context",    // 这就是你看到的上下文名称
+   ALLOCSET_SMALL_MINSIZE,
+   ALLOCSET_SMALL_INITSIZE,
+   ALLOCSET_SMALL_MAXSIZE);
+</code></pre>
+<h3 id="3-为什么需要这个上下文">3. <strong>为什么需要这个上下文？</strong></h3>
+<ol>
+<li><strong>跨调用数据保存</strong>：SRF函数需要在多次调用之间保持状态信息</li>
+<li><strong>内存管理</strong>：为跨调用的数据分配长期有效的内存</li>
+<li><strong>性能优化</strong>：避免每次调用都重新计算所有结果</li>
+</ol>
+<h3 id="4-使用场景举例">4. <strong>使用场景举例</strong></h3>
+<p>以 <code>pg_stat_get_activity()</code> 为例：</p>
+<ul>
+<li><strong>第1次调用</strong>：创建上下文，获取所有会话信息，返回第1行</li>
+<li><strong>第2次调用</strong>：使用已有上下文，返回第2行</li>
+<li><strong>第N次调用</strong>：返回第N行</li>
+<li><strong>最后一次</strong>：清理上下文，结束返回</li>
+</ul>
+<h3 id="5-生命周期">5. <strong>生命周期</strong></h3>
+<pre><code class="language-cpp">// 第一次调用 - 创建上下文
+funcctx = SRF_FIRSTCALL_INIT();
+
+// 后续调用 - 使用现有上下文  
+funcctx = SRF_PERCALL_SETUP();
+
+// 最后 - 清理上下文
+SRF_RETURN_DONE(funcctx);  // 调用 end_MultiFuncCall()
+</code></pre>
+<h3 id="6-典型的srf函数模式">6. <strong>典型的SRF函数模式</strong></h3>
+<pre><code class="language-cpp">Datum my_srf_function(PG_FUNCTION_ARGS) {
+   FuncCallContext *funcctx;
+   
+   if (SRF_IS_FIRSTCALL()) {
+       // 创建 "SRF multi-call context"
+       funcctx = SRF_FIRSTCALL_INIT();
+       
+       // 在这个上下文中分配跨调用的数据
+       MemoryContext oldcontext = MemoryContextSwitchTo(funcctx-&gt;multi_call_memory_ctx);
+       // ... 初始化操作
+       MemoryContextSwitchTo(oldcontext);
+   }
+   
+   funcctx = SRF_PERCALL_SETUP();
+   
+   if (funcctx-&gt;call_cntr &lt; funcctx-&gt;max_calls) {
+       // 返回下一行数据
+       SRF_RETURN_NEXT(funcctx, result);
+   } else {
+       // 清理上下文并结束
+       SRF_RETURN_DONE(funcctx);
+   }
+}
+</code></pre>
+<p><strong>总结</strong>：SRF multi-call context 在任何集合返回函数第一次被调用时产生，用于在函数的多次调用之间保持状态和数据，直到函数返回完所有结果后被清理。</p>
+</blockquote>
+<h3 id="第二轮提问">第二轮提问</h3>
+<blockquote>
+<p><strong>Dark-Athena</strong>: 分析下执行get_instr_unique_sql这个函数时，申请的"SRF multi-call context"占用大小与什么有关</p>
+</blockquote>
+<blockquote>
+<p><strong>GitHub Copilot</strong>: 我来分析 <code>get_instr_unique_sql</code> 函数执行时 "SRF multi-call context" 内存占用的情况。首先让我搜索这个函数的实现。 让我搜索这个函数的具体实现： 现在让我找到这个函数的具体实现： 让我搜索这个函数的具体实现文件： 现在让我查看这个函数的具体实现： 现在让我查看 <code>GetUniqueSQLStat</code> 函数，这是关键的数据获取函数： 现在让我查看内存分配的关键部分和数据结构定义： 现在让我查找相关的宏定义和常量： 现在让我查看 UniqueSQL 数据结构定义： 让我查找 UniqueSQL 结构体的定义： 基于对代码的深入分析，我现在可以详细回答你关于 <code>get_instr_unique_sql</code> 函数执行时 "SRF multi-call context" 内存占用与什么相关的问题：</p>
+<h2 id="srf-multi-call-context-在-get_instr_unique_sql-中的内存占用分析">SRF multi-call context 在 get_instr_unique_sql 中的内存占用分析</h2>
+<h3 id="1-内存占用的核心影响因素"><strong>1. 内存占用的核心影响因素</strong></h3>
+<p><strong>SRF multi-call context</strong> 的内存占用主要与以下几个因素密切相关：</p>
+<h4 id="11-unique-sql-条目数量"><strong>1.1 Unique SQL 条目数量</strong></h4>
+<pre><code class="language-cpp">*num = hash_get_num_entries(g_instance.stat_cxt.UniqueSQLHashtbl);
+</code></pre>
+<ul>
+<li><strong>哈希表中存储的 unique SQL 条目总数</strong>是最主要的影响因素</li>
+<li>条目数量越多，需要分配的内存越大</li>
+</ul>
+<h4 id="12-每个条目的大小"><strong>1.2 每个条目的大小</strong></h4>
+<pre><code class="language-cpp">int malloc_size = (int)MAX_MEM_UNIQUE_SQL_ENTRY_COUNT * (sizeof(UniqueSQL) + unique_sql_str_len);
+</code></pre>
+<p><strong>单个条目大小包括：</strong></p>
+<ul>
+<li><strong>UniqueSQL 结构体</strong>：约 200+ 字节（包含统计信息、时间信息、网络信息等）</li>
+<li><strong>SQL 字符串长度</strong>：<code>UNIQUE_SQL_MAX_LEN = g_instance.attr.attr_common.pgstat_track_activity_query_size + 1</code></li>
+</ul>
+<h4 id="13-节点类型和配置"><strong>1.3 节点类型和配置</strong></h4>
+<pre><code class="language-cpp">int unique_sql_str_len = (IS_PGXC_COORDINATOR || IS_SINGLE_NODE) ? UNIQUE_SQL_MAX_LEN : 0;
+</code></pre>
+<ul>
+<li><strong>CN 节点或单机</strong>：需要存储完整的 SQL 字符串，内存占用更大</li>
+<li><strong>DN 节点</strong>：不存储 SQL 字符串，内存占用相对较小</li>
+</ul>
+<h3 id="2-内存分配策略"><strong>2. 内存分配策略</strong></h3>
+<h4 id="21-批次分配机制"><strong>2.1 批次分配机制</strong></h4>
+<pre><code class="language-cpp">#define MAX_MEM_UNIQUE_SQL_ENTRY_COUNT 1000.0
+
+for (int j = 0; j &lt; ceil(*num / MAX_MEM_UNIQUE_SQL_ENTRY_COUNT); j++) {
+   int malloc_size = (int)MAX_MEM_UNIQUE_SQL_ENTRY_COUNT * (sizeof(UniqueSQL) + unique_sql_str_len);
+   unique_sql_array = (UniqueSQL*)palloc0_noexcept(malloc_size);
+}
+</code></pre>
+<ul>
+<li><strong>分批处理</strong>：每批最多处理 1000 个条目</li>
+<li><strong>避免大块内存分配</strong>：防止因条目过多导致的内存分配失败</li>
+</ul>
+<h4 id="22-内存布局"><strong>2.2 内存布局</strong></h4>
+<pre><code class="language-cpp">/* memory format: [entry_1] [entry_2] [entry_3] ... | [sql_1] [sql_2] [sql_3] ... */
+</code></pre>
+<ul>
+<li><strong>结构体数组 + SQL 字符串数组</strong>的连续内存布局</li>
+<li>提高内存访问效率</li>
+</ul>
+<h3 id="3-具体内存计算公式"><strong>3. 具体内存计算公式</strong></h3>
+<h4 id="31-cn-节点或单机环境"><strong>3.1 CN 节点或单机环境</strong></h4>
+<pre><code>总内存 = 批次数 × 每批内存大小
+每批内存大小 = 1000 × (sizeof(UniqueSQL) + pgstat_track_activity_query_size + 1)
+</code></pre>
+<h4 id="32-dn-节点环境"><strong>3.2 DN 节点环境</strong></h4>
+<pre><code>总内存 = 批次数 × 每批内存大小
+每批内存大小 = 1000 × sizeof(UniqueSQL)
+</code></pre>
+<h3 id="4-主要配置参数影响"><strong>4. 主要配置参数影响</strong></h3>
+<h4 id="41-instr_unique_sql_count"><strong>4.1 instr_unique_sql_count</strong></h4>
+<ul>
+<li><strong>直接影响</strong>：控制系统中最多能存储多少个 unique SQL 条目</li>
+<li><strong>内存影响</strong>：条目数越多，SRF 上下文需要的内存越大</li>
+</ul>
+<h4 id="42-pgstat_track_activity_query_size"><strong>4.2 pgstat_track_activity_query_size</strong></h4>
+<ul>
+<li><strong>直接影响</strong>：控制每个 SQL 字符串的最大长度</li>
+<li><strong>在 CN 节点上影响巨大</strong>：该值越大，每个条目占用的内存越多</li>
+</ul>
+<h3 id="5-内存占用估算示例"><strong>5. 内存占用估算示例</strong></h3>
+<p>假设配置如下：</p>
+<ul>
+<li><code>instr_unique_sql_count = 5000</code> (5000个条目)</li>
+<li><code>pgstat_track_activity_query_size = 4096</code> (4KB SQL字符串)</li>
+<li><code>sizeof(UniqueSQL) ≈ 200</code> 字节</li>
+</ul>
+<p><strong>CN 节点内存占用：</strong></p>
+<pre><code>批次数 = ceil(5000 / 1000) = 5 批
+每批内存 = 1000 × (200 + 4096 + 1) = 4,297,000 字节 ≈ 4.3 MB
+总内存 ≈ 5 × 4.3 MB = 21.5 MB
+</code></pre>
+<p><strong>DN 节点内存占用：</strong></p>
+<pre><code>批次数 = 5 批
+每批内存 = 1000 × 200 = 200,000 字节 ≈ 200 KB
+总内存 ≈ 5 × 200 KB = 1 MB
+</code></pre>
+<h3 id="6-内存优化和保护机制"><strong>6. 内存优化和保护机制</strong></h3>
+<h4 id="61-错误处理"><strong>6.1 错误处理</strong></h4>
+<pre><code class="language-cpp">if (unique_sql_array == NULL) {
+   ereport(ERROR, (errmsg("[UniqueSQL] palloc0 error when querying unique sql stat!")));
+}
+</code></pre>
+<h4 id="62-内存清理"><strong>6.2 内存清理</strong></h4>
+<pre><code class="language-cpp">if (funcctx-&gt;user_fctx) {
+   list_free_deep(((UniqueSQLResults *)(funcctx-&gt;user_fctx))-&gt;batch_list);
+   pfree_ext(funcctx-&gt;user_fctx);
+}
+</code></pre>
+<h3 id="总结"><strong>总结</strong></h3>
+<p><strong>SRF multi-call context</strong> 在 <code>get_instr_unique_sql</code> 函数中的内存占用主要取决于：</p>
+<ol>
+<li><strong>系统中 unique SQL 条目的总数量</strong>（最关键因素）</li>
+<li><strong>节点类型</strong>（CN/单机 vs DN）</li>
+<li><strong>SQL 字符串的最大长度配置</strong></li>
+<li><strong>UniqueSQL 结构体的大小</strong></li>
+</ol>
+<p>在生产环境中，建议根据实际的 SQL 多样性和系统内存容量合理配置 <code>instr_unique_sql_count</code> 和 <code>pgstat_track_activity_query_size</code> 参数，以平衡监控精度和内存占用。</p>
+</blockquote>
+<h3 id="第三轮关键提问">第三轮关键提问</h3>
+<blockquote>
+<p><strong>Dark-Athena</strong>: 如果我一条SQL的长度没达到pgstat_track_activity_query_size，也会申请pgstat_track_activity_query_size这个值大小的内存么？</p>
+</blockquote>
+<blockquote>
+<p><strong>GitHub Copilot</strong>: Summarized conversation history我来帮你分析一下在openGauss中，当SQL长度没达到<code>pgstat_track_activity_query_size</code>时的内存申请情况。 让我再搜索更具体的信息，关于SQL字符串的内存分配机制。 让我重新搜索更直接相关的代码： 现在让我搜索关于<code>st_activity</code>缓冲区分配的代码： 基于对代码的分析，我可以回答你的问题了：</p>
+<p><strong>回答：是的，即使SQL的实际长度没有达到<code>pgstat_track_activity_query_size</code>，系统也会为每个后端进程预先分配<code>pgstat_track_activity_query_size</code>大小的内存空间。</strong></p>
+<h2 id="详细分析">详细分析：</h2>
+<h3 id="1-内存预分配机制">1. 内存预分配机制</h3>
+<p>在pgstat.cpp的<code>BackendStatusShmemInit</code>函数中，可以看到：</p>
+<pre><code class="language-cpp">/* Create or attach to the shared activity buffer */
+t_thrd.shemem_ptr_cxt.BackendActivityBufferSize =
+   mul_size(g_instance.attr.attr_common.pgstat_track_activity_query_size, BackendStatusArray_size);
+t_thrd.shemem_ptr_cxt.BackendActivityBuffer =
+   (char*)ShmemInitStruct("Backend Activity Buffer", t_thrd.shemem_ptr_cxt.BackendActivityBufferSize, &amp;found);
+
+if (!found) {
+   /* Initialize st_activity pointers. */
+   buffer = t_thrd.shemem_ptr_cxt.BackendActivityBuffer;
+   for (i = 0; i &lt; BackendStatusArray_size; i++) {
+       t_thrd.shemem_ptr_cxt.BackendStatusArray[i].st_activity = buffer;
+       buffer += g_instance.attr.attr_common.pgstat_track_activity_query_size;  // 每个后端进程分配固定大小
+   }
+}
+</code></pre>
+<h3 id="2-sql写入机制">2. SQL写入机制</h3>
+<p>在<code>pgstat_report_activity</code>函数中，当记录SQL活动时：</p>
+<pre><code class="language-cpp">if (cmd_str != NULL) {
+   len = pg_mbcliplen(cmd_str, strlen(cmd_str), g_instance.attr.attr_common.pgstat_track_activity_query_size - 1);
+}
+
+// ...
+rc = memcpy_s((char*)beentry-&gt;st_activity, g_instance.attr.attr_common.pgstat_track_activity_query_size,
+   cmd_str, len);
+beentry-&gt;st_activity[len] = '\0';
+</code></pre>
+<p>这里的关键点是：</p>
+<ul>
+<li><code>len</code>是实际要复制的SQL长度（经过截断处理）</li>
+<li>但是<code>memcpy_s</code>的目标缓冲区大小始终是<code>pgstat_track_activity_query_size</code></li>
+<li>只有实际使用的长度是变化的，但预分配的空间是固定的</li>
+</ul>
+<h3 id="3-内存占用情况">3. 内存占用情况</h3>
+<ul>
+<li><strong>预分配空间</strong>：每个后端进程都会分配<code>pgstat_track_activity_query_size</code>字节的空间</li>
+<li><strong>实际使用</strong>：只使用SQL实际长度 + 1（null终止符）的空间</li>
+<li><strong>浪费空间</strong>：<code>pgstat_track_activity_query_size - (实际SQL长度 + 1)</code>字节</li>
+</ul>
+<h3 id="4-设计原因">4. 设计原因</h3>
+<p>这种预分配设计的原因：</p>
+<ol>
+<li><strong>性能考虑</strong>：避免动态内存分配/释放的开销</li>
+<li><strong>并发安全</strong>：共享内存中的固定布局，避免竞争条件</li>
+<li><strong>简化管理</strong>：统一的内存布局便于管理和访问</li>
+</ol>
+<p>所以答案是肯定的：即使你的SQL很短（比如<code>SELECT 1;</code>），系统仍然会为每个后端进程的<code>st_activity</code>字段分配完整的<code>pgstat_track_activity_query_size</code>大小的内存空间。</p>
+<hr/>
+</blockquote>
+<h2 id="-结论分析">🎯 结论分析</h2>
+<p>结合AI的分析，可以得出以下结论：</p>
+<h3 id="-核心发现">📌 核心发现</h3>
+<ol>
+<li>
+<p><strong>📏 固定内存分配</strong></p>
+<ul>
+<li><code>track_activity_query_size</code>是固定会申请的内存大小</li>
+<li>占用的内存大小不会由于SQL比这个值小而减小</li>
+<li>实际单个unique sql所占用的空间，会比<code>track_activity_query_size</code>还要大一些</li>
+<li>当<code>instr_unique_sql_count</code>为GaussDB默认的200000，<code>track_activity_query_size</code>为40960时，unique sql hash table能达到8GB</li>
+</ul>
+</li>
+<li>
+<p><strong>🔄 SRF函数特性</strong></p>
+<ul>
+<li>SRF函数就是返回多行的函数</li>
+<li><code>dbe_perf.statement</code>里就是一个SRF函数</li>
+<li>为了在返回多行时保持数据稳定性，就会把查询结果全存到内存里，直到查询完才释放</li>
+</ul>
+</li>
+<li>
+<p><strong>💾 内存复制机制</strong></p>
+<ul>
+<li><code>dbe_perf.statement</code>查的就是unique sql hash table的内容</li>
+<li>SRF为了数据稳定性，几乎把这8GB的内存复制了一份，放到了SRF multi-call context里</li>
+</ul>
+</li>
+</ol>
+<h3 id="-深层问题探究">🔍 深层问题探究</h3>
+<p>看上去这就是个非常低级的问题？但是问题还没完：</p>
+<p><strong>为什么unique sql会那么快达到200000个？</strong></p>
+<p>这个环境才刚部署没几天，而且都是跑的存储过程，没有什么拼接SQL，理论上SQL数是稳定有限的。</p>
+<p>通过截取<code>statement.query</code>前200个字符进行group by计数排序，发现很大一部分SQL都是一个declare开头的自治事务匿名块。</p>
+<h3 id="-根本原因">🔧 根本原因</h3>
+<p>由于我之前和openGauss社区的研发一起分析过plsql编译依赖这个功能的问题，当时为了解决编译时数据字典表锁释放的问题，我提出了可以起个自治事务去编译，这样能避免长时间持有元数据锁的问题。而GaussDB也是用的这个方案（巧合？）。</p>
+<p>所以我一眼就看出来GaussDB里记录的这些SQL是在做存储过程编译，但是GaussDB把整个存储过程的内容都放到这个匿名块里了，而且还有一些oid信息，因此必然是不同的SQL。</p>
+<p>这个匿名块还会做一些数据字典的DML操作，这些DML的SQL是固定不变的，大概有6~7条。再来就是dbe_perf.statement里，对于parent_unique_sql_id不同的同一个unique_sql_id，会视为不同的记录。</p>
+<h3 id="-问题链条完整梳理">⚡ 问题链条完整梳理</h3>
+<ol>
+<li><strong>存储过程编译</strong>：每次改一个存储过程，就在<code>dbe_perf.statement</code>里生成了约10条的记录</li>
+<li><strong>重复生成</strong>：反复改就反复生成，有时候全量存储过程重建，数字唰唰唰就涨上去了</li>
+<li><strong>资源耗尽</strong>：200000也经不起这么耗，真正的业务SQL可能还会计不进去了</li>
+<li><strong>内存占用</strong>：全是存储过程编译时自动产生的这些SQL</li>
+</ol>
+<p>目前客户这边只能先调小<code>track_activity_query_size</code>到4K，让<code>dbe_perf.statement</code>的内存占得小些，至少让业务测试能继续进行下去。</p>
+<hr/>
+<h2 id="-复现方法">🧪 复现方法</h2>
+<p>诊断了这么多天的问题，弄清楚原理后，非常容易复现<code>unique sql hash table</code>和<code>SRF multi-call context</code>申请大量内存的现象：</p>
+<h3 id="-环境配置">🔧 环境配置</h3>
+<pre><code class="language-sql">-- 这个是单个会话的unique sql上限，由于模拟测试都在一个会话里，所以要调大
+gs_guc reload -c "track_stmt_session_slot=200000"
+
+-- 直接设置到最大值，内存涨得最快
+gs_guc reload -c "track_activity_query_size=102400"
+
+-- 重启，释放 unique sql 内存
+gs_ctl restart
+</code></pre>
+<h3 id="-测试脚本">📝 测试脚本</h3>
+<pre><code class="language-sql">-- 构造不同的SQL
+-- 注意GaussDB对于表别名或字段别名不同、常量不同的也会进行归一化
+-- 所以这里直接用不同的对象名
+DECLARE
+    x_sql1 text;
+    x_sql2 text;
+    i int;
+BEGIN
+    FOR i IN 1..5000 
+    LOOP
+        x_sql1 := 'CREATE TABLE t_abcd'||i||'(a int);';
+        x_sql2 := 'DROP TABLE t_abcd'||i;
+        EXECUTE IMMEDIATE x_sql1;
+        EXECUTE IMMEDIATE x_sql2;
+    END LOOP;
+    RAISE NOTICE '%', x_sql1;
+END;
+/
+</code></pre>
+<h3 id="-验证结果">📊 验证结果</h3>
+<pre><code class="language-sql">-- 查询动态共享内存里unique sql hash table的大小
+SELECT 
+    contextname,
+    count(1),
+    ROUND(sum(totalsize)/1024/1024,2) AS TOTALSIZE_MB,
+    ROUND(Sum(usedsize)/1024/1024) AS usedsize_MB 
+FROM GS_shared_MEMORY_DETAIL  
+GROUP BY contextname 
+ORDER BY 3 DESC 
+LIMIT 10;
+</code></pre>
+<table><thead><tr><th>contextname</th><th>count</th><th>totalsize_mb</th><th>usedsize_mb</th></tr></thead><tbody><tr><td>unique sql hash table</td><td>1</td><td>1468.75</td><td>1469</td></tr><tr><td>DefaultTopMemoryContext</td><td>1</td><td>172.57</td><td>60</td></tr><tr><td>ASP unique sql hash table</td><td>1</td><td>82.11</td><td>82</td></tr><tr><td>...</td><td>...</td><td>...</td><td>...</td></tr></tbody></table>
+<ul>
+<li>unique sql hash table占1个多GB</li>
+</ul>
+<pre><code class="language-sql">-- 查询SQL实际长度所占的空间，和按track_activity_query_size的长度计算的空间
+SELECT 
+    sum(lengthb(query))/1024/1024 AS actual_size_mb,
+    (count(1)*current_setting('track_activity_query_size')::int)/1024/1024 AS allocated_size_mb
+FROM dbe_perf.statement;
+</code></pre>
+<table><thead><tr><th>actual_size_mb</th><th>allocated_size_mb</th></tr></thead><tbody><tr><td>0.38</td><td>1401.07</td></tr></tbody></table>
+<ul>
+<li>按track_activity_query_size来算，也是1个多GB。</li>
+</ul>
+<h3 id="-日志验证">📋 日志验证</h3>
+<p>执行查询后，日志中出现<code>SRF multi-call context</code>：</p>
+<pre><code class="language-log">2025-07-25 10:00:01.523 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [BACKEND] LOG:  00000: unique_sql_id=3740540431, Current SQL is consuming about 1099 MB, allocating 102921000 bytes, memctx:SRF multi-call context, appname:, user_id: 16616, current query is: select sum( lengthb(query) )/?/?,(count(?)*current_setting(?)::int)/?/? from dbe_perf.statement
+2025-07-25 10:00:01.523 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [BACKEND] LOCATION:  mmgr_memory_check_reach_one_gb, framework_memory_memctrl_util.cpp:241
+2025-07-25 10:00:01.523 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [INSTR] LOG:  00000: [UniqueSQL] idx[10] - new memory allocated: 102921000
+2025-07-25 10:00:01.523 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [INSTR] LOCATION:  unique_sql_log_result_mem, instr_unique_sql.cpp:1407
+2025-07-25 10:00:01.524 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [INSTR] LOG:  00000: [UniqueSQL] total memory allocated: 1132131000
+2025-07-25 10:00:01.524 primary admin postgres 172.17.0.1 140216907527936 12[0:0#0] 0 Mogeaver 23.3.1 - SQLEditor &lt;Script-22.sql&gt; 00000 31806672368306287 [INSTR] LOCATION:  unique_sql_log_result_mem, instr_unique_sql.cpp:1408
+</code></pre>
+<hr/>
+<h2 id="-总结">💡 总结</h2>
+<h3 id="-经验教训">🎯 经验教训</h3>
+<ol>
+<li>
+<p><strong>📚 经验的积累非常重要</strong></p>
+<ul>
+<li>国产数据库使用过程中肯定会发现很多新问题，其中有一些综合性的问题，原厂的内核研发都不一定能找到原因，具备综合技能的DBA能从现场的蛛丝马迹结合长期的工作经验所产生的直觉，来发现问题症结所在</li>
+</ul>
+</li>
+<li>
+<p><strong>🧠 知识的积累非常重要</strong></p>
+<ul>
+<li>如果连内存区域都分不清，就算数据库已经提供了很多方法来进行诊断，面对本文这个问题，脑子里只能是一团浆糊</li>
+</ul>
+</li>
+<li>
+<p><strong>🤖 需要学会借助AI</strong></p>
+<ul>
+<li>现在的AI有了agent，能自动且快速完成很多事，本文中就让AI自动翻源码分析，对问题进行了快速定位</li>
+</ul>
+</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

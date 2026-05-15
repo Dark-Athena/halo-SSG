@@ -153,7 +153,105 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>GaussDB 从内核 506版本(20250430发布)起，支持通过DBLINK连接到ORACLE数据库<br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0811.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0811.html</a></p>
+<h2 id="安装">安装</h2>
+<p>使用这个功能，首先需要在实例机器上部署ORACLE客户端，</p>
+<ul>
+<li>一种方式是手动把instantclient传到每个数据节点、解压，并配置LD_LIBRARY_PATH，此方案在官方文档中并无完整的操作步骤描述，不推荐<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0813.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0813.html</a>；</li>
+<li>另一种方案是使用tpops平台上传插件包和安装插件，该方案纯白屏化操作，无需ssh到服务器</li>
+</ul>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/usermanual/qlh_02_0431.html">&lt;上传插件包&gt;</a></p>
+<p><img alt="image-bxke.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bxke.png" srcset="/upload/image-bxke.png?width=1200 1200w, /upload/image-bxke.png?width=400 400w, /upload/image-bxke.png?width=1600 1600w, /upload/image-bxke.png?width=800 800w"/></p>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/usermanual/qlh_02_0426.html">&lt;插件安装&gt;</a></p>
+<p><img alt="image-gdod.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-gdod.png" srcset="/upload/image-gdod.png?width=1200 1200w, /upload/image-gdod.png?width=400 400w, /upload/image-gdod.png?width=1600 1600w, /upload/image-gdod.png?width=800 800w"/></p>
+<p>需要注意的是，TPOPS这个版本仅支持以下表格中的instantclient版本上传，并且需要保证填写的cksum和ORACLE官方页面上保持一致,但由于ORACLE官方下载页面只会保留最新的版本，因此就算通过某种方式得到了原本的官方包，也没有官方页面可以获得cksum值了，只能通过GaussDB文档里来获取这些版本的cksum值。</p>
+<table>
+<thead>
+<tr>
+<th>系统架构</th>
+<th>OCI插件包名</th>
+<th>cksum</th>
+<th>SHA 256</th>
+<th>url</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>X86</td>
+<td>instantclient-basic-linux.x64-12.2.0.1.0.zip</td>
+<td>3923339140</td>
+<td>5015e3c9fba84e009f7519893f798a1622c37d1ae2c55104ff502c52a0fe5194</td>
+<td><a href="https://download.oracle.com/otn/linux/instantclient/122010/instantclient-basic-linux.x64-12.2.0.1.0.zip">https://download.oracle.com/otn/linux/instantclient/122010/instantclient-basic-linux.x64-12.2.0.1.0.zip</a>(这个版本下载需要登录ORACLE账号，或者使用迅雷下载)</td>
+</tr>
+<tr>
+<td></td>
+<td>instantclient-basic-linux.x64-19.26.0.0.0dbru.zip</td>
+<td>3459128350</td>
+<td>f5f5f7e8eb8e1f057a33a8b8f5aef096544535365dedd31324f5f411abab339e</td>
+<td><a href="https://download.oracle.com/otn_software/linux/instantclient/1926000/instantclient-basic-linux.x64-19.26.0.0.0dbru.zip">https://download.oracle.com/otn_software/linux/instantclient/1926000/instantclient-basic-linux.x64-19.26.0.0.0dbru.zip</a></td>
+</tr>
+<tr>
+<td></td>
+<td>instantclient-basic-linux.x64-21.17.0.0.0dbru.zip</td>
+<td>937263543</td>
+<td>70e3a0107a4847e2644a97df5102065c9ca133db36d81b3f3429f6e3426ff10f</td>
+<td><a href="https://download.oracle.com/otn_software/linux/instantclient/2117000/instantclient-basic-linux.x64-21.17.0.0.0dbru.zip">https://download.oracle.com/otn_software/linux/instantclient/2117000/instantclient-basic-linux.x64-21.17.0.0.0dbru.zip</a></td>
+</tr>
+<tr>
+<td>ARM</td>
+<td>instantclient-basic-linux.arm64-19.26.0.0.0dbru.zip</td>
+<td>2071078872</td>
+<td>f8bd362bde8834c458493c14a654c97f6a9f8d1dcbbb38e1b67f8d3102851964</td>
+<td><a href="https://download.oracle.com/otn_software/linux/instantclient/1926000/instantclient-basic-linux.arm64-19.26.0.0.0dbru.zip">https://download.oracle.com/otn_software/linux/instantclient/1926000/instantclient-basic-linux.arm64-19.26.0.0.0dbru.zip</a></td>
+</tr>
+</tbody>
+</table>
+<h4 id="安装原理解析">安装原理解析</h4>
+<p>执行上传插件包，会把instantclient压缩包上传到 tpops服务器的 <code>/opt/sftphome/sftpservice/package/plugin/OracleOCI/</code> 目录下，该目录是sftp服务器的目录。</p>
+<p>安装插件，会把instantclient压缩包分发（实际是各个节点从sftp服务器下载）到各个数据节点的 <code>/home/Ruby/oci_proxy</code>目录下并解压，然后将文件从 <code>instantclient_19_26</code>目录里mv到上一层，再删除instantclient压缩包(残留了一个 <code>instantclient_19_26</code>空目录？)，并且会重启实例。</p>
+<p>另外，在各个节点的 <code>/home/Ruby/.bashrc</code>文件里会有新增环境变量的配置：</p>
+<pre><code class="language-sh">export ORACLE_HOME=/home/Ruby/oci_proxy
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ORACLE_HOME/lib:$ORACLE_HOME
+export TNS_ADMIN=$ORACLE_HOME/network/admin
+</code></pre>
+<p>也就是说，实际上可以用手动的方式换成其他版本的ORACLE客户端。</p>
+<h2 id="使用">使用</h2>
+<p>安装完后，通过 <code>create database link</code>语法即可创建连接到ORACLE的dblink，如下,表示创建一个名为 <code>public_dblink_to_o</code>的dblink,使用用户名 <code>hr</code> 密码 <code>hr123</code>，连接到 <code>192.168.1.123:1521/pdb1</code>，并且对象标识符大小写不敏感（不配置则默认敏感，比如查ORACLE的表要手动双引号大写，不加双引号或者小写会报错表不存在）。其中的 <code>OCI</code>即表示使用OCI插件连接ORACLE数据库，去掉 <code>OCI</code>即表示连接GaussDB数据库。</p>
+<pre><code class="language-sql">CREATE PUBLIC DATABASE LINK public_dblink_to_o CONNECT TO 'hr' IDENTIFIED BY 'hr123' OCI USING (dbserver '192.168.1.123:1521/pdb1' ,case_insensitive 'on');
+</code></pre>
+<p>其他连接参数详见官方文档<br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0629.html"># CREATE DATABASE LINK- https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0629.html</a></p>
+<p><code>@</code>的用法和ORACLE一样，就不举例了。</p>
+<p>使用限制详见： <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0813.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0813.html</a><br/>
+这里只提3点重要的功能限制</p>
+<ol>
+<li>该版本的DBLINK只支持delete/insert/update/select，不支持调用远端的函数和存储过程</li>
+<li>支持通过本地同义词访问远端的表、视图，但不支持远端为嵌套同义词，也不支持远端为一个DBLink对象的同义词</li>
+<li>不支持操作远端的clob/blob/long/long raw类型</li>
+</ol>
+<h3 id="函数">函数</h3>
+<p>新增了一批dblink的函数，主要涉及关闭dblink连接、查看dblink信息、dblink占用内存大小等，详见官方文档</p>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0500.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0500.html</a></p>
+<h2 id="实现分析">实现分析</h2>
+<ol>
+<li>内核新建了gs_database_link表，用于存储创建的dblink信息，该表内记录了dblink名称、dblink所有者(为0表示public)，使用的fdw（外部数据封装器），创建者，连接及参数设置，用户名密码（密码是加密存储的），权限</li>
+<li>新建了视图 <code>sys."v$dblink"</code>,结构参考oracle同名视图</li>
+<li>连接到oracle的dblink的fdw用的是"12223	gs_ora_fdw"</li>
+<li>原本的pg_foreign_server和pg_user_mapping里不会新增记录，可以理解为是存到了gs_database_link里</li>
+<li>第一次访问远端表的时候，会自动插入pg_foreign_table，即创建了外部表，在pg_class和pg_attribute中可以查到该表，表名是大写的（暂没测是否与case_insensitive有关）。因此可以判断，该功能在备机上无法使用。</li>
+<li>在pg_namespace中会创建一条 <code>用户名@dblink名称</code>的记录，外部表的namespace对应这个记录，也就是说，实际上它创建了一个schema（周边生态工具和运维脚本要注意了）</li>
+<li>可以使用 <code>select * from "用户名@dblink名称"."大写外部表名"</code>的方式访问曾经通过dblink的 <code>@</code>方式访问的表（注意要加双引号，而且文档里没有描述这种方法，不能保证后续版本这种方法是否会被禁用）</li>
+<li>发送到远端的SQL，每个表的查询都会加上一串8个字节的hash值注释，同一表被多次查询时，hash值也不一样，并且所有表会自动加上别名 ，r1、r2..rn</li>
+<li>从gs_ora_fdw.control这个文件里看，里面的comment和oracle_fdw一样，都是 <code>foreign data wrapper for Oracle access</code>，但是没有找到对应的so（疑似打包到了主程序里）</li>
+<li>gs_ora_fdw极有可能是基于oracle_fdw改的，文档中的oracle_fdw还没有替换干净，不过gs_ora_fdw很多下推场景是oracle_fdw所不具备的，应该是做了不少优化</li>
+</ol>
+<p><img alt="image-hmfi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hmfi.png" srcset="/upload/image-hmfi.png?width=1200 1200w, /upload/image-hmfi.png?width=400 400w, /upload/image-hmfi.png?width=1600 1600w, /upload/image-hmfi.png?width=800 800w"/></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

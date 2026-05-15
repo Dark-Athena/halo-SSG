@@ -157,7 +157,67 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>在Oracle18c中添加了一个特性，叫内联外部表，意思就是可以不创建外部表对象，而是在sql中直接引用外部文件来进行查询，<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/admin/managing-tables.html#GUID-621E5DDE-36D9-4661-9D14-80DE35858C3F">https://docs.oracle.com/en/database/oracle/oracle-database/18/admin/managing-tables.html#GUID-621E5DDE-36D9-4661-9D14-80DE35858C3F</a><br/>
+官网的例子</p>
+<pre><code class="language-sql">SELECT * FROM   EXTERNAL (   
+    (time_id        DATE NOT NULL,     
+     prod_id        INTEGER NOT NULL,
+     quantity_sold  NUMBER(10,2),
+     amount_sold    NUMBER(10,2))     
+    TYPE ORACLE_LOADER     
+    DEFAULT DIRECTORY data_dir1
+    ACCESS PARAMETERS (
+      RECORDS DELIMITED BY NEWLINE
+      FIELDS TERMINATED BY '|')     
+   LOCATION ('sales_9.csv') REJECT LIMIT UNLIMITED) sales_external;
+</code></pre>
+<p>其实基本上就是把外部表所需要的信息嵌入进去了。</p>
+<p>正好前一阵子在折腾使用dbms_cloud来创建基于对象存储的外部表，突然联想到是不是可以把远程oss里的文件直接用这种方式查询出来？想到就干。</p>
+<p>之前外部表的ddl是这样的</p>
+<pre><code class="language-sql">create table EMP_EXT_JD
+(
+  empno NUMBER(4),
+  ename VARCHAR2(10),
+  job   VARCHAR2(9)
+)
+organization external
+(
+  type ORACLE_LOADER
+  default directory DATA_PUMP_DIR
+  access parameters 
+  (
+    RECORDS DELIMITED BY DETECTED NEWLINE NOLOGFILE NOBADFILE NODISCARDFILE READSIZE=10000000 CREDENTIAL 'OBJ_STORE_CRED_JD' 
+    FIELDS CSV WITHOUT EMBEDDED NOTRIM
+  )
+  location (DATA_PUMP_DIR:'https://darkathenafirst.s3.cn-east-2.jdcloud-oss.com/test_upload.csv')
+)
+reject limit 0;
+</code></pre>
+<p>如果改成直接查询文件，就变成了下面这样</p>
+<pre><code class="language-sql">SELECT * FROM   EXTERNAL (   
+    (
+  empno NUMBER(4),
+  ename VARCHAR2(10),
+  job   VARCHAR2(9)
+)     
+    TYPE ORACLE_LOADER     
+    DEFAULT DIRECTORY DATA_PUMP_DIR
+    ACCESS PARAMETERS (
+      RECORDS DELIMITED BY DETECTED NEWLINE NOLOGFILE NOBADFILE NODISCARDFILE READSIZE=10000000 CREDENTIAL 'OBJ_STORE_CRED_JD' 
+    FIELDS CSV WITHOUT EMBEDDED NOTRIM)     
+   location (DATA_PUMP_DIR:'https://darkathenafirst.s3.cn-east-2.jdcloud-oss.com/test_upload.csv') 
+reject limit 0) EMP_EXT_JD;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-69ce8caac5ed4cbb99b7248c3f4b4fba.png" srcset="/upload/2021/11/image-69ce8caac5ed4cbb99b7248c3f4b4fba.png?width=1200 1200w, /upload/2021/11/image-69ce8caac5ed4cbb99b7248c3f4b4fba.png?width=400 400w, /upload/2021/11/image-69ce8caac5ed4cbb99b7248c3f4b4fba.png?width=1600 1600w, /upload/2021/11/image-69ce8caac5ed4cbb99b7248c3f4b4fba.png?width=800 800w"/></p>
+<p>还真的可行！其实就只是把外部表ddl中间的“organization external”删掉，然后用 "external ()"把剩下的ddl字符都包起来。</p>
+<p>有时候无可避免要读很多个不同的文件，比如云计算那边每天生成一个带日期文件名的文件，然后oracle这边每天都要读今天或者昨天的文件，如果是基于创建外部表对象，那么数据库里会一堆外部表对象，而使用内联外部表即可不用创建对象，只需要进行字符串拼接使用动态sql即可灵活查询不同文件。</p>
+<p>fin.</p>
+</div>
+</article>
     </div>
     
 </article>

@@ -149,7 +149,7 @@
         
         <span>2022-05-14</span>
         
-        <span>1475 阅读</span>
+        <span>1476 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a> / 
         
@@ -157,7 +157,162 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="oracle%E4%B8%AD%E7%9A%84lob" tabindex="-1">Oracle中的lob</h2>
+<p>在Oracle数据库中，有blob和clob这两种较为特殊的数据类型，之所以特殊，是因为这两个类型中能存储大量的数据，最高可达4GB，因此比较适合用来存文件，其中blob用于存储二进制数据，而clob用于存储纯文本数据。<br/>
+另外，如果表里有字段是这两种类型，那么这些类型的数据也会有个单独的存储扩展段。而表内这两列实际存储的是“LOB locator”，即LOB定位器，相当于一个索引值，可以根据这个值在另外的存储扩展段里找到实际的lob数据。<br/>
+也是由于存储是分开的，所以对这两种字段的操作会比较麻烦，比如插入空值时不能插null，而要插入一个 empty_blob()或empty_clob()；对数据内容进行拼接更新，不能直接用管道符拼接数据update，而是需要使用dbms_lob包进行管理，等等。诸如此类的“常规操作”需要用“非常规”的方式进行。<br/>
+oracle的文本类型varchar2只能操作32767的字节长度，而管道符和concat函数都是针对varchar2类型进行的操作，就算clob和varchar2可以隐式互转，可一旦超过这个长度限制就会报错，所以不得不用dbms_lob包来处理。<br/>
+另外，有to_clob(varchar2)和to_blob(raw)这两个函数可以通过转换得到clob及blob类型的数据，这其实也说明了clob/blob与varchar2/raw之间的关系。</p>
+<h2 id="opengauss%E4%B8%AD%E7%9A%84lob" tabindex="-1">openGauss中的lob</h2>
+<p>openGauss是基于postgresql 9.2的内核进行的深度开发，而postgresql是没有clob、blob、raw类型的。为了方便从oracle中进行迁移(当然sql标准里其实也定义了blob和clob类型)，openGauss里添加了这些pg里没有的类型。<br/>
+但是，openGauss里添加的这些类型，并不完全等同于oracle中对应的类型<br/>
+官方文档<br/>
+<a href="https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/%E4%BA%8C%E8%BF%9B%E5%88%B6%E7%B1%BB%E5%9E%8B.html" target="_blank">https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/二进制类型.html</a><br/>
+<a href="https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/%E5%AD%97%E7%AC%A6%E7%B1%BB%E5%9E%8B.html" target="_blank">https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/字符类型.html</a></p>
+<table>
+<thead>
+<tr>
+<th>分组</th>
+<th>名称</th>
+<th>描述</th>
+<th>存储空间</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>二进制类型</td>
+<td>BLOB</td>
+<td>“二进制大对象。说明：列存不支持BLOB类型。”</td>
+<td>最大为1GB-8203字节（即1073733621字节）。</td>
+</tr>
+<tr>
+<td>二进制类型</td>
+<td>RAW</td>
+<td>“变长的十六进制类型。说明：列存不支持RAW类型。”</td>
+<td>4字节加上实际的十六进制字符串。最大为1GB-8203字节（即1073733621字节）。</td>
+</tr>
+<tr>
+<td>二进制类型</td>
+<td>BYTEA</td>
+<td>变长的二进制字符串。</td>
+<td>4字节加上实际的二进制字符串。最大为1GB-8203字节（即1073733621字节）。</td>
+</tr>
+<tr>
+<td>字符类型</td>
+<td>VARCHAR2(n)</td>
+<td>变长字符串。是VARCHAR(n)类型的别名。n是指字节长度。</td>
+<td>最大为10MB。</td>
+</tr>
+<tr>
+<td>字符类型</td>
+<td>TEXT</td>
+<td>变长字符串。</td>
+<td>最大为1GB-1，但还需要考虑到列描述头信息的大小， 以及列所在元组的大小限制（也小于1GB-1），因此TEXT类型最大大小可能小于1GB-1。</td>
+</tr>
+<tr>
+<td>字符类型</td>
+<td>CLOB</td>
+<td>文本大对象。是TEXT类型的别名。</td>
+<td>最大为1GB-1，但还需要考虑到列描述头信息的大小， 以及列所在元组的大小限制（也小于1GB-1），因此CLOB类型最大大小可能小于1GB-1。</td>
+</tr>
+</tbody>
+</table>
+<p>首先从大小上来说，BLOB/CLOB在ORACLE里为4GB，而openGauss里只有约1GB；ORACLE里RAW只有32767字节长度，而openGauss里却保持和BLOB一样的接近1GB。感觉可以这么理解，在openGauss里，BLOB可以完全和RAW互相转换，TEXT和CLOB也可以互相转换。<br/>
+并且我刚好在源码里翻到了这段<br/>
+<img alt="image-1652535811810" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652535811810.png" srcset="/upload/2022/05/image-1652535811810.png?width=1200 1200w, /upload/2022/05/image-1652535811810.png?width=400 400w, /upload/2022/05/image-1652535811810.png?width=1600 1600w, /upload/2022/05/image-1652535811810.png?width=800 800w"/></p>
+<pre><code class="language-sql">CREATE CAST (BLOB AS RAW) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST (RAW AS BLOB) WITHOUT FUNCTION AS IMPLICIT;
+
+CREATE CAST (TEXT AS CLOB) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST (CLOB AS TEXT) WITHOUT FUNCTION AS IMPLICIT;
+</code></pre>
+<p>这更加印证了我的猜想，BLOB到RAW的隐式转换不需要经过任何函数，同理TEXT到CLOB也是如此。所以，如果要把一个RAW转成BLOB，只需要"::blob" ；TEXT转CLOB也是同理。</p>
+<h2 id="%E5%85%BC%E5%AE%B9%E6%80%A7%E5%88%86%E6%9E%90" tabindex="-1">兼容性分析</h2>
+<p>其实文本类型还好说，比较各种数据库里对文本类型处理的函数大多是一致的，因此很少存在sql语法兼容问题，麻烦的还是二进制类型，比如这个BLOB和RAW。前面有说到，oracle里有专门的包来处理这些二进制类型，比如dbms_lob/utl_raw等，但openGauss里仅仅只对raw有一些基础处理的函数(<a href="https://www.darkathena.top/archives/about-opengauss-raw-type" target="_blank">【openGauss】谈谈openGauss中的raw类型</a>)。不过在<a href="https://www.darkathena.top/archives/think-about-opengauss-datatype" target="_blank">【openGauss】记录一次关于openGauss(postgresql)数据类型的摸索经过及感想</a>这篇文章里，我知道了对于每种类型来说，都有四个很重要的函数：</p>
+<pre><code class="language-sql">select typname,typinput,typoutput,typreceive,typsend 
+from pg_type where typname in ('raw','blob','bytea')
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>typname</th>
+<th>typinput</th>
+<th>typoutput</th>
+<th>typreceive</th>
+<th>typsend</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bytea</td>
+<td>byteain</td>
+<td>byteaout</td>
+<td>bytearecv</td>
+<td>byteasend</td>
+</tr>
+<tr>
+<td>blob</td>
+<td>rawin</td>
+<td>rawout</td>
+<td>bytearecv</td>
+<td>byteasend</td>
+</tr>
+<tr>
+<td>raw</td>
+<td>rawin</td>
+<td>rawout</td>
+<td>rawrecv</td>
+<td>rawsend</td>
+</tr>
+</tbody>
+</table>
+<p>bytea这个pg内置的类型自不必说，pg原生就提供了很多处理bytea的函数，像length、substr这种用于字符类型的，一样可以用于处理bytea类型，而且处理逻辑和按字符串不一样，是按十六进制字节处理，因此不需要考虑十六进制文本的转换导致的长度翻倍。而openGauss自己增加的类型，则没有这种函数可以处理，所以得利用这些*send函数,将raw/blob转换成bytea再进行处理。<br/>
+从上面这个表里可以得知，raw类型可以用rawsend来转换成bytea，见下面这个sql</p>
+<pre><code class="language-sql">select '1234ff'::raw,length('1234ff'::raw),length(rawsend('1234ff'::raw))
+</code></pre>
+<p><img alt="image-1652537676026" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652537676026.png" srcset="/upload/2022/05/image-1652537676026.png?width=1200 1200w, /upload/2022/05/image-1652537676026.png?width=400 400w, /upload/2022/05/image-1652537676026.png?width=1600 1600w, /upload/2022/05/image-1652537676026.png?width=800 800w"/></p>
+<p>可以看到，如果我们直接对RAW类型使用length，得出来的长度其实是其十六进制字符串的长度，是个错误的值，而转换成bytea后，再用length，长度才正确。其他诸如substr函数均是如此，这里就不演示了。<br/>
+然后就是BLOB类型，我不确定这里是开发人员有意为之或是其他什么原因，竟然把blob的send函数写成了byteasend，用这个函数去查blob类型是会报错的,因为不存在一个"byteasend(blob)"这样的函数</p>
+<blockquote>
+<p>数据库操作时出错。 确认要继续执行吗？<br/>
+单击“详细信息”了解详情。<br/>
+SQL错误码: = 42883<br/>
+[127.0.0.1:52633/ocalhost/127.0.0.1:5434] ERROR: function byteasend(blob) does not exist<br/>
+建议:No function matches the given name and argument types. You might need to add explicit type casts.<br/>
+位置:55<br/>
+在位置:referenced column: byteasend<br/>
+行号： 9</p>
+</blockquote>
+<p>另外，我在openGauss源码里也没找到blobsend这个函数，因此，只能借助于比较完备的raw类型来处理，即对blob类型先用"::raw"转换成raw类型，再rawsend转换成bytea类型，才能正确的使用相关函数来对这个二进制数据进行处理。</p>
+<p>而且如果是像dbms_lob.copy这样，输入BLOB,输出还是BLOB，则需要将blob转raw转bytea,经过bytea的一系列专用函数处理后，再通过rawout转换成cstring再转成text再转成raw再转成blob。（cstring不能直接转raw，而且理论上此处使用rawrecv函数效率更高，但它的输入类型是internal，传bytea类型会报错，因此只能输出文本再转raw了）</p>
+<pre><code class="language-sql">DECLARE
+  a blob:='1234ff'::blob;
+  b bytea;
+  c blob;
+BEGIN
+  b:=rawsend(a::raw);
+  ----
+  --中间过程略
+  ----
+  c:=rawout(b)::text::raw::blob;
+end;
+/
+</code></pre>
+<h2 id="%E5%A4%A7%E5%AF%B9%E8%B1%A1%EF%BC%9F" tabindex="-1">大对象？</h2>
+<p>其实oracle中的clob和blob，统称为大对象；而在pg体系中，大对象其实并非是blob/clob这样的类型，而是专门有一套处理机制。<br/>
+<a href="http://postgres.cn/docs/13/lo-interfaces.html" target="_blank">大对象客户端接口</a><br/>
+<a href="http://postgres.cn/docs/13/lo-funcs.html" target="_blank">大对象服务端函数</a></p>
+<p>每个大对象都有一个对应的oid作为标识符，像截取、合并等操作都是以oid来进行处理，参考前文，其实这个才更像oracle对lob对象的处理方式，表里只存一个标识符（定位器），实际数据在另外的地方存。而openGauss文档里说自己的clob是大对象，其实不太符合其实现机制，因为它只是text的同义词，而且text并非大对象。</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>如果有从oracle迁移到openGauss的，而且有使用二进制数据类型及处理的，一定要谨慎处理这些兼容问题，否则可能会出现代码不报错但数据处理出错的情况。</p>
+<p>当然，也可以使用compat-tools组件。目前compat-tools已经加入了utl_raw及dbms_lob这两个包，欢迎大家测试使用<br/>
+<a href="https://gitee.com/enmotech/compat-tools" target="_blank">https://gitee.com/enmotech/compat-tools</a></p>
+<p>注：本篇文章纯属个人研究的一些记录，其中如有疏漏，请联系本人改正，感谢。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

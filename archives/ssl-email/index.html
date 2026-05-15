@@ -155,7 +155,95 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>之前说过了ORACLE可以使用存储过程来发送未加密的smtp协议邮件，但是现在越来越多邮箱服务商要求强制使用ssl加密，按照前一篇文章的方式，是无法发送的，因此这一篇教大家如何使用ORACLE存储过程来发送带ssl加密的email。</p>
+<p>文章分以下几个部分</p>
+<p>一、获取邮件SSL证书文件<br/>
+二、把证书添加到oracle 钱夹（wallet）<br/>
+三、发送邮件的方法</p>
+<h2 id="一获取邮件ssl证书文件">一、获取邮件ssl证书文件</h2>
+<h4 id="方法一使用浏览器获取证书以360极速浏览器为例">方法一：使用浏览器获取证书（以360极速浏览器为例）</h4>
+<p>打开对应邮箱的网页客户端，例如QQ邮箱，浏览器会显示一把锁，如图<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png" srcset="/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1200 1200w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=400 400w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1600 1600w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=800 800w"/><br/>
+点击这个锁，弹出<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png" srcset="/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1200 1200w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=400 400w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1600 1600w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=800 800w"/><br/>
+，<br/>
+然后点击证书信息，显示<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png" srcset="/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1200 1200w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=400 400w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1600 1600w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=800 800w"/><br/>
+，<br/>
+点击详细信息，复制到文件<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png" srcset="/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1200 1200w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=400 400w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1600 1600w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=800 800w"/></p>
+<p>，<br/>
+弹出证书导出向导<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png" srcset="/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1200 1200w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=400 400w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1600 1600w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=800 800w"/><br/>
+，<br/>
+下一页<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png" srcset="/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1200 1200w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=400 400w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1600 1600w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=800 800w"/></p>
+<p>下一页<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png" srcset="/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1200 1200w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=400 400w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1600 1600w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=800 800w"/><br/>
+，<br/>
+任意选择一个路径保存此文件，文件名没有特殊要求。<br/>
+然后回到证书页面，点击证书路径<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png" srcset="/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1200 1200w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=400 400w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1600 1600w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=800 800w"/><br/>
+，<br/>
+可以看到有三层，这三层实际上是三个证书，点到第二层，查看证书，按前面的操作保存证书文件，同理第一层也要保存文件。<br/>
+至此，我们已经获取了3个证书文件</p>
+<h4 id="方法二使用邮箱smtp客户端网络抓包以foxmailwiresharkwinhex为例">方法二：使用邮箱smtp客户端网络抓包（以foxmail+wireshark+winhex为例）</h4>
+<p>在foxmail中配置要发送邮件的账号，启动WIRESHARK选择对外网的网络适配器，开始进行抓包，操作FOXMAIL收取一次该账号的邮件，停止wireshark的抓包，接下来在抓包记录中添加过滤器tcp.port == 993 || udp.port == 993（这个是imap收件的SSL端口），并按info排序 <img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png" srcset="/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1200 1200w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=400 400w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1600 1600w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=800 800w"/><br/>
+找到certificate，如上图，可以看到certificates(3958 bytes)下有三段十六进制数据，这个就是三个证书文件，需要分别保存，<br/>
+在”certificate：308207833......”上面点击鼠标右键，复制-值，然后打开winhex，点编辑，剪贴板数据，粘贴至新文件，格式选择 ASCILL HEX，保存成cer后缀的文件即可，同理，对另外两个证书文件也要进行保存。</p>
+<p>上述两种方法均可获得证书文件，但实测发现，第一层（root）和第二层，保存的证书文件MD5一致，第三层证书MD5不一致，仔细对比发现是证书的有效期不一样，因此无问题。<br/>
+抓包法适用于邮箱服务商的web页面和实际邮箱收发服务器不一致的情况，所以抓包法获取smtp证书更为通用及准确，嫌抓包法麻烦的可以用方法一浏览器获取证书的方式碰碰运气。</p>
+<h2 id="二把证书添加到oracle钱夹wallet">二、把证书添加到ORACLE钱夹（wallet）</h2>
+<p>关于wallet的介绍，请参考另一篇文章，这里只做简单描述<br/>
+<a href="/archives/oracle-wallet">【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</a><br/>
+可以使用命令行工具orapki，或者gui工具Wallet Manager,生成一个钱夹目录，比如d:\smtp_wallet，设置好密码，假设是123，然后添加上面获得的3个证书文件，保存（ORACLE 12c以上的版本，不能添加最末级节点证书，添加2个就好了，加3个会导致使用时报错ORA-29024: Certificate validation failure<br/>
+参考 <a href="https://stackoverflow.com/questions/19380116/using-utl-http-wallets-on-12c-certificate-validation-failure）。">https://stackoverflow.com/questions/19380116/using-utl-http-wallets-on-12c-certificate-validation-failure）。</a></p>
+<h2 id="三发送邮件的方法">三、发送邮件的方法</h2>
+<p>其实和不带ssl的邮件发送方式几乎一样，只在UTL_SMTP.OPEN_CONNECTION时有区别，我们看下这个ORACLE自带函数的说明</p>
+<pre><code class="language-plsql">FUNCTION open_connection(host            INVARCHAR2,
+port            INPLS_INTEGERDEFAULT25,
+                         tx_timeout      INPLS_INTEGERDEFAULTNULL,
+                         wallet_path     INVARCHAR2DEFAULTNULL,
+                         wallet_password INVARCHAR2DEFAULTNULL,
+                         secure_connection_before_smtp INBOOLEANDEFAULTFALSE,
+                         secure_host     INVARCHAR2DEFAULTNULL)
+RETURN connection;
+</code></pre>
+<p>其中 “secure_connection_before_smtp”、“wallet_path” 和 “wallet_password”三个参数是能否成功发送ssl邮件的关键<br/>
+首先，我们要知道带SSL的smtp端口一般默认为“465”，不加密的端口默认为“25”<br/>
+然后这一段写成：</p>
+<pre><code class="language-plsql">L_CONN := UTL_SMTP.OPEN_CONNECTION(host =&gt;‘smtp.qq.com’, --发件人的SMTP服务器
+                                   port =&gt;‘465’ --端口
+                                   wallet_path =&gt;'file:d:\smtp_wallet', --钱夹路径
+                                   wallet_password =&gt;'123', --钱夹密码，如果钱夹设置了保存密码，这里可以不传
+                                   secure_connection_before_smtp =&gt;true  --是否开启安全连接
+);
+</code></pre>
+<p>完整代码请从我的github获取。<br/>
+<a href="https://github.com/Dark-Athena/PROCSENDEMAIL_SSL-oracle">https://github.com/Dark-Athena/PROCSENDEMAIL_SSL-oracle</a></p>
+<h2 id="提示">提示</h2>
+<p>这个证书是存在有效期的，而且这种方式无法自动更新，实测某些服务器在证书过期后仍然能使用，如果发邮件时提示证书错误之类的，就再按这个方式获取最新的证书生成钱夹就行了。<br/>
+之后会考虑更加通用及自动的获取证书方式。<br/>
+另外UTL_SMTP这个包其实还支持starttls，但目前我测试过国内的十多家邮箱，没有一家是用这个的，所以不细说了。</p>
+<h2 id="写在最后">写在最后</h2>
+<p>2014年的时候，当时要做自动监控告警和报表推送，我开始研究怎么用ORACLE数据库发送邮件，网上有很多现成的代码，所以没什么难度。最开始是用的公司自建exchange邮箱发送，但是后来该域名被qq邮箱列为黑名单了，甚至国际反垃圾邮件联盟都把这个域名加了进去，导致很多用户都收不到邮件。<br/>
+2016年的时候，我想着既然用户大多都用QQ邮箱，所以尝试使用QQ邮箱发送，但是正好QQ邮箱开始加强安全认证，必须使用ssl，所以就在网上找ORACLE能不能发带ssl的smtp邮件，结果当时国内所有文章都说不行，但是我翻阅了ORACLE官方文档，<br/>
+<a href="https://docs.oracle.com/cd/E18283_01/appdev.112/e16760/u_smtp.htm">https://docs.oracle.com/cd/E18283_01/appdev.112/e16760/u_smtp.htm</a><br/>
+发现是有通过加密端口发送的功能的，了解到需要wallet，但是没说wallet怎么来，我问DBA，DBA直接帮我把数据库用wallet加密了，结果所有用到这个数据库的功能全部崩了，于是赶紧把wallet关了，还好不是跑业务的库。但是我不死心，接着找，终于找到一篇<br/>
+<a href="http://www.idevelopment.info/data/Oracle/DBA_tips/PL_SQL/PLSQL_19.shtml">http://www.idevelopment.info/data/Oracle/DBA_tips/PL_SQL/PLSQL_19.shtml</a><br/>
+这个是ORACLE大佬Jeffrey M.Hunter的个人博客，其中的文章被很多人引用，可惜的是目前该博客已经关闭了，不过可以通过网站历史快照网站查看<br/>
+<a href="https://web.archive.org/web/20190103103618/http://www.idevelopment.info/data/Oracle/DBA_tips/PL_SQL/PLSQL_19.shtml">https://web.archive.org/web/20190103103618/http://www.idevelopment.info/data/Oracle/DBA_tips/PL_SQL/PLSQL_19.shtml</a> （需要梯子），<br/>
+但是，这篇文章只说了HTTPS的证书怎么弄到手和怎么添加到wallet，没有说smtp的。<br/>
+最后不得以再研究了一下ssl的机制，知道这个证书是客户端找服务端要的，既然找不到证书放哪了，那我可以直接网络抓包把smtp证书弄出来。<br/>
+所以在2016年的时候我这边就已经可以用oracle发送ssl的邮件了，当时网上的确没有一份完整的教程。<br/>
+在这次研究过程中，我稍微认识到了wallet是啥，tcp/ip是啥，还有smtp发邮件时究竟和服务器间是如何通讯的，甚至成功手动在cmd里通过telnet发送了一封邮件。<br/>
+真是获益良多。<br/>
+只是email这玩意太容易被邮件服务商拉黑，而且还有一个国际反垃圾邮件联盟的存在，公司外网出口就是一个IP，极度容易被封。所以这个功能需求的用户应该没以前那么多了，对内部用户大多通过企业微信或者钉钉来发送，对外部基于数据安全的要求，建议手工发email。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

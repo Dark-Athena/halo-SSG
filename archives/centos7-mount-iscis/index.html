@@ -155,7 +155,237 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h3 id="前言">前言</h3>
+<p>自己搞测试，虚拟机磁盘空间不够，弄了个nas，本来是用windows连了个iscis存储，然后虚拟机整个目录直接放到iscis存储上，发现io效率极低，因为虚拟机文件变更一点都要整个文件通过网络传输到nas上。<br/>
+所以换了个方案，虚拟机还是建在本地盘上，然后在虚拟机内部挂载iscis存储，减少了很多网络开销</p>
+<h3 id="发现设备">发现设备</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# iscsiadm -m discovery -t st -p 192.168.1.172
+192.168.1.172:3260,1 iqn.tnas.terramaster.23115210311
+169.254.253.117:3260,1 iqn.tnas.terramaster.23115210311
+172.17.0.1:3260,1 iqn.tnas.terramaster.23115210311
+192.168.1.172:3260,1 iqn.tnas.terramaster.23118144203
+169.254.253.117:3260,1 iqn.tnas.terramaster.23118144203
+172.17.0.1:3260,1 iqn.tnas.terramaster.23118144203
+192.168.1.172:3260,1 iqn.tnas.terramaster.23325185247
+169.254.253.117:3260,1 iqn.tnas.terramaster.23325185247
+172.17.0.1:3260,1 iqn.tnas.terramaster.23325185247
+192.168.1.172:3260,1 iqn.tnas.terramaster.23325185428
+169.254.253.117:3260,1 iqn.tnas.terramaster.23325185428
+172.17.0.1:3260,1 iqn.tnas.terramaster.23325185428
+</code></pre>
+<p>这里有4个设备，因为我有4个Target，这里我用第3个</p>
+<h3 id="创建登录信息">创建登录信息</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# iscsiadm -m node -T iqn.tnas.terramaster.23325185247 -p 192.168.1.172:3260 -o update --name node.session.auth.authmethod --value=CHAP
+[root@localhost ~]# iscsiadm -m node -T iqn.tnas.terramaster.23325185247 -p 192.168.1.172:3260 -o update --name node.session.auth.username --value=xxxxxxxxxx
+[root@localhost ~]# iscsiadm -m node -T iqn.tnas.terramaster.23325185247 -p 192.168.1.172:3260 -o update --name node.session.auth.password --value='xxxxxxxxxx'
+</code></pre>
+<p>三条命令分别是验证方法、用户名、密码（如果服务端没开启认证，可以不用配置这个）</p>
+<h3 id="登录">登录</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# iscsiadm -d2 -m node -T iqn.tnas.terramaster.23325185247 -p 192.168.1.172:3260 --login
+iscsiadm: Max file limits 1024 4096
+iscsiadm: default: Creating session 1/1
+Logging in to [iface: default, target: iqn.tnas.terramaster.23325185247, portal: 192.168.1.172,3260] (multiple)
+Login to [iface: default, target: iqn.tnas.terramaster.23325185247, portal: 192.168.1.172,3260] successful.
+</code></pre>
+<h3 id="将登录命令写入开机自启">将登录命令写入开机自启</h3>
+<pre><code class="prism language-sh">echo  “iscsiadm -d2 -m node -T iqn.tnas.terramaster.23325185247 -p 192.168.1.172:3260 --login” &gt;&gt; /etc/rc.local
+</code></pre>
+<h3 id="查看iscis连接">查看iscis连接</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# iscsiadm -m session
+tcp: [1] 192.168.1.172:3260,1 iqn.tnas.terramaster.23325185247 (non-flash)
+</code></pre>
+<h3 id="查看磁盘信息">查看磁盘信息</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# fdisk -l
+
+Disk /dev/sda: 21.5 GB, 21474836480 bytes, 41943040 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x00099007
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda1   *        2048     2099199     1048576   83  Linux
+/dev/sda2         2099200    41943039    19921920   8e  Linux LVM
+
+Disk /dev/mapper/centos-root: 18.2 GB, 18249416704 bytes, 35643392 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/mapper/centos-swap: 2147 MB, 2147483648 bytes, 4194304 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/sdb: 214.7 GB, 214748364800 bytes, 419430400 sectors  
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 4096 bytes
+I/O size (minimum/optimal): 4096 bytes / 524288 bytes
+</code></pre>
+<p>最后这个214.7GB的就是刚刚连接上的</p>
+<h3 id="磁盘分区">磁盘分区</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# parted /dev/sdb
+GNU Parted 3.1
+Using /dev/sdb
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) mklabel gpt
+(parted) mkpart primary 0% 100%
+(parted) print
+Model: SCST_FIO l_1679741660 (scsi)
+Disk /dev/sdb: 215GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: gpt
+Disk Flags:
+
+Number  Start   End    Size   File system  Name     Flags
+ 1      1049kB  215GB  215GB               primary
+
+(parted) quit
+Information: You may need to update /etc/fstab.
+</code></pre>
+<p>(parted) 开头的4行是手动输入的，分别表示：</p>
+<p>(parted) mklabel gpt ## 设置卷标为 gpt<br/>
+(parted) mkpart primary 0% 100%  ## 设置主分区 从0% 到 100%，即全部分完<br/>
+(parted) print ## 打印信息<br/>
+(parted) quit ## 退出</p>
+<h3 id="格式化">格式化</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# mkfs.ext4 -T largefile /dev/sdb1
+mke2fs 1.42.9 (28-Dec-2013)
+Discarding device blocks: done
+Filesystem label=
+OS type: Linux
+Block size=4096 (log=2)
+Fragment size=4096 (log=2)
+Stride=0 blocks, Stripe width=128 blocks
+204800 inodes, 52428288 blocks
+2621414 blocks (5.00%) reserved for the super user
+First data block=0
+Maximum filesystem blocks=2199912448
+1600 block groups
+32768 blocks per group, 32768 fragments per group
+128 inodes per group
+Superblock backups stored on blocks:
+        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208,
+        4096000, 7962624, 11239424, 20480000, 23887872
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (32768 blocks): done
+Writing superblocks and filesystem accounting information: done
+</code></pre>
+<h3 id="挂载">挂载</h3>
+<pre><code class="prism language-sh">mount /dev/sdb1 /opt/
+</code></pre>
+<p>我一般喜欢在opt下操作，当前opt目录为空，把这个目录就挂载上去了</p>
+<h3 id="查看挂载信息">查看挂载信息</h3>
+<pre><code class="prism language-sh">[root@localhost /]# df -h
+Filesystem               Size  Used Avail Use% Mounted on
+devtmpfs                 1.9G     0  1.9G   0% /dev
+tmpfs                    1.9G     0  1.9G   0% /dev/shm
+tmpfs                    1.9G   12M  1.9G   1% /run
+tmpfs                    1.9G     0  1.9G   0% /sys/fs/cgroup
+/dev/mapper/centos-root   17G  1.5G   16G   9% /
+/dev/sda1               1014M  151M  864M  15% /boot
+tmpfs                    378M     0  378M   0% /run/user/0
+/dev/sdb1                200G   61M  190G   1% /opt
+</code></pre>
+<p>可以看到opt有200G了</p>
+<h3 id="设置自动挂载">设置自动挂载</h3>
+<pre><code class="prism language-sh">[root@localhost /]# blkid /dev/sdb1
+/dev/sdb1: UUID="e3a15bc0-1416-4e20-ad2f-fe19ef20a1a8" TYPE="ext4" PARTLABEL="primary" PARTUUID="c6fb183c-6b6b-4ff8-bb33-fd2e37da3f1a"
+</code></pre>
+<p>找到UUID，然后写入/etc/fstab 中</p>
+<pre><code class="prism language-sh">echo "UUID=e3a15bc0-1416-4e20-ad2f-fe19ef20a1a8 /opt ext4 defaults,_netdev 0 0" &gt;&gt; /etc/fstab
+</code></pre>
+<h3 id="重启服务器为了验证是否正常">重启服务器(为了验证是否正常)</h3>
+<pre><code class="prism language-sh">reboot
+</code></pre>
+<h3 id="启动后再次检查">启动后再次检查</h3>
+<pre><code class="prism language-sh">[root@localhost ~]# df -h
+Filesystem               Size  Used Avail Use% Mounted on
+devtmpfs                 1.9G     0  1.9G   0% /dev
+tmpfs                    1.9G     0  1.9G   0% /dev/shm
+tmpfs                    1.9G   12M  1.9G   1% /run
+tmpfs                    1.9G     0  1.9G   0% /sys/fs/cgroup
+/dev/mapper/centos-root   17G  1.5G   16G   9% /
+/dev/sda1               1014M  151M  864M  15% /boot
+tmpfs                    378M     0  378M   0% /run/user/0
+/dev/sdb1                200G   61M  190G   1% /opt
+</code></pre>
+<h3 id="踩坑与填坑">踩坑与填坑</h3>
+<h4 id="启动花的时间变长了很多">1.启动花的时间变长了很多</h4>
+<p>检查系统启动日志</p>
+<pre><code class="prism language-sh">journalctl -b
+</code></pre>
+<p>发现大量的iscis连接失败</p>
+<pre><code class="prism language-sh">Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: conn 0 login rejected: target error (03/02)
+Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: Kernel reported iSCSI connection 1:0 error (1020 - ISCSI_ERR
+Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: conn 0 login rejected: target error (03/02)
+Mar 25 08:55:43 localhost.localdomain kernel:  connection1:0: detected conn error (1020)
+Mar 25 08:55:43 localhost.localdomain kernel:  connection2:0: detected conn error (1020)
+Mar 25 08:55:43 localhost.localdomain kernel:  connection3:0: detected conn error (1020)
+Mar 25 08:55:43 localhost.localdomain kernel:  connection4:0: detected conn error (1020)
+Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: conn 0 login rejected: target error (03/02)
+Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: conn 0 login rejected: target error (03/02)
+Mar 25 08:55:43 localhost.localdomain iscsid[1041]: iscsid: Kernel reported iSCSI connection 4:0 error (1020 - ISCSI_ERR
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 169.254.253.117:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 172.17.0.1:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 169.254.253.117:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 172.17.0.1:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 169.254.253.117:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 172.17.0.1:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 169.254.253.117:3260 failed (No route to host)
+Mar 25 08:55:44 localhost.localdomain iscsid[1041]: iscsid: connect to 172.17.0.1:3260 failed (No route to host)
+</code></pre>
+<p>原因是我的iscis设备是多ip，启动的时候它尝试每个都去连接，但实际上有几个ip不在这个网段内，所以连不上，然后反复重试，直到超限。</p>
+<p>解决方案为</p>
+<pre><code class="prism language-sh">[root@localhost ~]# cd /var/lib/iscsi/nodes
+[root@localhost nodes]# ll
+total 0
+drw------- 5 root root 91 Mar 25 08:49 iqn.tnas.terramaster.23115210311
+drw------- 5 root root 91 Mar 25 08:49 iqn.tnas.terramaster.23118144203
+drw------- 5 root root 91 Mar 25 08:49 iqn.tnas.terramaster.23325185247
+drw------- 5 root root 91 Mar 25 08:49 iqn.tnas.terramaster.23325185428
+[root@localhost nodes]#
+</code></pre>
+<p>把这台机器没有连的删掉</p>
+<pre><code class="prism language-sh">rm -rf iqn.tnas.terramaster.23115210311
+rm -rf iqn.tnas.terramaster.23118144203
+rm -rf iqn.tnas.terramaster.23325185428
+</code></pre>
+<p>然后进入连接的这个目录</p>
+<pre><code class="prism language-sh">[root@localhost nodes]# cd iqn.tnas.terramaster.23325185247
+[root@localhost iqn.tnas.terramaster.23325185428]# ll
+total 0
+drw------- 2 root root 21 Mar 25 08:49 169.254.253.117,3260,1
+drw------- 2 root root 21 Mar 25 08:49 172.17.0.1,3260,1
+drw------- 2 root root 21 Mar 25 08:49 192.168.1.172,3260,1
+[root@localhost iqn.tnas.terramaster.23325185428]#
+</code></pre>
+<p>删掉自己没连的ip目录</p>
+<pre><code class="prism language-sh">rm -rf 172.17.0.1,3260,1
+rm -rf 169.254.253.117,3260,1
+</code></pre>
+<p>重启验证,速度恢复正常</p>
+<h4 id="磁盘空间占用才20，就提示已满">2.磁盘空间占用才20%，就提示已满</h4>
+<p>原因是前面格式化的时候用了-T largefile, 这个磁盘大小默认出来只有 204800个inodes,但编译openGauss,有很多小文件,弄两个openGauss就满了，所以只能umount,重新格式化,再umount。如果有重要文件，还得备份之后再格式化</p>
+<pre><code class="prism language-sh">umount /dev/sdb1
+mkfs.ext4 -i 409600 /dev/sdb1
+mount /dev/sdb1 /opt/
+</code></pre>
+<p>最后记得改 /etc/fstab 文件，因为重新格式化后，UUID变了</p>
+<h3 id="参考文章">参考文章</h3>
+<p><a href="https://www.cnblogs.com/dockers/p/11590518.html">https://www.cnblogs.com/dockers/p/11590518.html</a><br/>
+<a href="https://blog.csdn.net/qq_22787559/article/details/122022517">https://blog.csdn.net/qq_22787559/article/details/122022517</a><br/>
+<a href="https://cloud.tencent.com/developer/article/1874542">https://cloud.tencent.com/developer/article/1874542</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

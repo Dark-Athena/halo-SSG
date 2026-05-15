@@ -157,7 +157,244 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>最近开始啃openGauss的兼容package了,先拿简单点的练练手。</p>
+<p>UTL_URL这个包只有两个函数,"ESCAPE"和"UNESCAPE",其实就是在其他开发语言中使用的URLENCODE和URLDECODE两个函数,主要用于对url字符串的一些特定字符进行处理,以便将url字符串作为数据传输时不引起歧义,还算是经常会用到的功能,目前已经有三方扩展支持这两个函数(<a href="https://github.com/okbob/url_encode">https://github.com/okbob/url_encode</a>),但是在openGauss里编译扩展有点不方便,我直接用plsql写一个,更容易安装及使用。</p>
+<p>先尝试在oracle里还原这个包里两个函数的逻辑</p>
+<h2 id="escape">ESCAPE</h2>
+<pre><code class="language-sql">UTL_URL.ESCAPE (
+   url                   IN VARCHAR2 CHARACTER SET ANY_CS,
+   escape_reserved_chars IN BOOLEAN  DEFAULT  FALSE,
+   url_charset           IN VARCHAR2 DEFAULT  utl_http.body_charset)
+RETURN VARCHAR2;
+</code></pre>
+<p>ESCAPE有3个参数,分别是url字符串、是否替换保留字符(默认不替换)、url字符集<br/>
+用法举例</p>
+<pre><code class="language-sql">--只传URL,另外两个参数默认
+select utl_url.escape('https://www.darkathena.top/archives/我开博了') from dual;
+--https://www.darkathena.top/archives/%BF%BF%BF%BF
+--很明显,这里由于字符集未指定,导致转换出来的结果有误
+
+--对于非ASCII字符以UTF8编码
+select utl_url.escape('https://www.darkathena.top/archives/我开博了',url_charset=&gt;'AL32UTF8') from dual;
+--https://www.darkathena.top/archives/%E6%88%91%E5%BC%80%E5%8D%9A%E4%BA%86
+
+--对于非ASCII字符以GBK进行编码
+select utl_url.escape('https://www.darkathena.top/archives/我开博了',url_charset=&gt;'ZHS16GBK') from dual;
+--https://www.darkathena.top/archives/%CE%D2%BF%AA%B2%A9%C1%CB
+
+--对于非ASCII字符以GBK进行编码,并替换所有保留字符
+BEGIN
+DBMS_OUTPUT.put_line( 
+utl_url.escape('https://www.darkathena.top/archives/我开博了',TRUE,'ZHS16GBK') );
+END;
+/
+--https%3A%2F%2Fwww.darkathena.top%2Farchives%2F%CE%D2%BF%AA%B2%A9%C1%CB
+
+</code></pre>
+<p>看上去不是很麻烦,只需要逐个字符进行判断,识别到需要进行转换的字符时,获取它的二进制数据,以十六进制字符串表示,并对这个十六进制字符串格式化成"%FF*n"的形式。<br/>
+代码如下</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION URLENCODE(url                   IN VARCHAR2 CHARACTER SET ANY_CS,
+                                     escape_reserved_chars IN BOOLEAN DEFAULT FALSE,
+                                     url_charset           IN VARCHAR2 DEFAULT 'al32utf8')
+  RETURN VARCHAR2 AS
+  L_TMP            VARCHAR2(6000);
+  L_BAD            VARCHAR2(100) DEFAULT ' &gt;%}\~];?@&amp;&lt;#{|^[`/:=$+''"';
+  l_reserved_chars VARCHAR2(100) DEFAULT ';/?:@&amp;=+$[]';
+  L_CHAR           CHAR(1 CHAR);
+
+BEGIN
+  IF (url IS NULL) THEN
+    RETURN NULL;
+  END IF;
+  if not escape_reserved_chars then
+    L_BAD := translate(L_BAD, l_reserved_chars, '');
+  end if;
+  FOR I IN 1 .. LENGTH(url) LOOP
+    L_CHAR := SUBSTR(url, I, 1);
+    IF (INSTR(L_BAD, L_CHAR) &gt; 0 or ascii(L_CHAR) &gt; 255) THEN
+      L_TMP := L_TMP || regexp_replace(rawtohex(utl_raw.cast_to_raw(convert(L_CHAR,
+                                                                            url_charset))),
+                                       '(.{2})',
+                                       '%\1');
+    ELSE
+      L_TMP := L_TMP || L_CHAR;
+    END IF;
+  END LOOP;
+  RETURN L_TMP;
+END URLENCODE;
+/
+</code></pre>
+<p>对于上面的用法举例,使用刚刚创建的URLENCODE这个函数对utl_url.escape进行替换,均可执行,且输出结果正确</p>
+<h2 id="unescape">UNESCAPE</h2>
+<pre><code class="language-sql">UTL_URL.UNESCAPE (
+   url            IN VARCHAR2 CHARACTER SET ANY_CS,
+   url_charset    IN VARCHAR2 DEFAULT utl_http.body_charset)
+RETURN VARCHAR2;
+</code></pre>
+<p>UNESCAPE有两个参数,分别是已经被urldecode的url字符串,和url字符集<br/>
+用法举例</p>
+<pre><code class="language-sql">--以GBK字符集对URL进行还原
+select utl_url.unescape('https://www.darkathena.top/archives/%CE%D2%BF%AA%B2%A9%C1%CB','ZHS16GBK') from dual;
+--https://www.darkathena.top/archives/我开博了
+
+--以UTF8字符集对URL进行还原
+select utl_url.unescape('https://www.darkathena.top/archives/%E6%88%91%E5%BC%80%E5%8D%9A%E4%BA%86','AL32UTF8') from dual;
+--https://www.darkathena.top/archives/我开博了
+</code></pre>
+<p>这个看上去比上面那个要难处理一点,因为我考虑到不同字符集的字节个数是不一样的,但是后来一想,可以先不用考虑字符集,普通字符转成二进制数据,十六进制字符去掉百分号直接作为十六进制形式的二进制数据,把所有的二进制数据拼起来,最后再根据指定的字符集转换成可显示字符串即可<br/>
+代码如下</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION URLDECODE(url         IN VARCHAR2 CHARACTER SET ANY_CS,
+                                     url_charset IN VARCHAR2 DEFAULT 'AL32UTF8')
+  RETURN VARCHAR2 IS
+  L_RETURN VARCHAR2(2000);
+BEGIN
+  select CONVERT(UTL_RAW.cast_to_varchar2(LISTAGG(CASE
+                                                    WHEN LENGTH(A) = 3 THEN
+                                                     HEXTORAW(REPLACE(A, '%'))
+                                                    ELSE
+                                                     UTL_RAW.cast_to_raw(A)
+                                                  END) --within group (order by 1) --18c以下取消本行注释
+                                                  ),
+                 url_charset)
+    INTO L_RETURN
+    from (select REGEXP_SUBSTR(url, '(%.{2}|.)', 1, LEVEL) A
+            from DUAL
+          CONNECT BY LENGTH(REGEXP_SUBSTR(url, '(%.{2}|.)', 1, LEVEL)) &gt; 0) A;
+  RETURN L_RETURN;
+END;
+/
+</code></pre>
+<p>同样,新建的这个函数URLDECODE可以完全替代utl_url.unescape使用</p>
+<p>到此,逻辑已经梳理完毕,接下来就是移植到openGauss了</p>
+<h2 id="opengausspostgresql兼容代码">openGauss(postgresql)兼容代码</h2>
+<p>openGauss的语法及函数和oracle还是有不少差异的,但是既然逻辑已经写出来了,改改也不是什么麻烦事,只是要注意,编码时尽量使用内置函数以提升效率</p>
+<p><a href="https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_url.sql">https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_url.sql</a></p>
+<pre><code class="language-sql">create schema UTL_URL;
+
+CREATE OR REPLACE FUNCTION UTL_URL.escape(url IN TEXT, escape_reserved_chars IN BOOL DEFAULT FALSE, url_charset IN TEXT DEFAULT 'UTF8')
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE NOT FENCED NOT SHIPPABLE
+AS $$
+declare
+  L_TMP            TEXT DEFAULT '';
+  L_BAD            TEXT DEFAULT ' &gt;%}\~];?@&amp;&lt;#{|^[`/:=$+''"';
+  l_reserved_chars TEXT DEFAULT ';/?:@&amp;=+$[]';
+  L_CHAR           TEXT;
+BEGIN
+  IF (url IS NULL) THEN
+    RETURN NULL;
+  END IF;
+
+  if not escape_reserved_chars then
+    L_BAD := translate(L_BAD, l_reserved_chars, '');
+  end if;
+
+  FOR I IN 1..LENGTH(url) LOOP
+    L_CHAR := SUBSTR(url, I, 1);
+    IF (INSTR(L_BAD, L_CHAR) &gt; 0 or ascii(L_CHAR) &gt; 255) THEN
+      L_TMP := L_TMP || regexp_replace(upper(REPLACE(convert_TO(L_CHAR, url_charset)::TEXT,'\x','')),'(.{2})',
+                                       '%\1','g');
+    ELSE
+      L_TMP := L_TMP || L_CHAR;
+    END IF;
+  END LOOP;
+  RETURN L_TMP;
+END; $$;
+/
+ 
+CREATE OR REPLACE FUNCTION UTL_URL.unescape(url IN TEXT, url_charset IN TEXT DEFAULT 'UTF8')
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE NOT FENCED NOT SHIPPABLE
+AS $$
+  select CONVERT_FROM(string_agg(CASE
+                                   WHEN LENGTH(A) = 3 THEN
+                                     decode(REPLACE(A, '%'), 'HEX')
+                                   ELSE
+                                     A :: bytea
+                                 END, '' :: bytea), url_charset) 
+    from (select a
+            from (select (regexp_matches(url, '(%..|.)', 'g')) [ 1 ] a ) ) A;
+$$;
+/
+
+</code></pre>
+<p>测试</p>
+<pre><code class="language-sql">select utl_url.escape('https://www.darkathena.top/archives/我开博了',TRUE,url_charset=&gt;'GBK') union all
+select utl_url.escape('https://www.darkathena.top/archives/我开博了',url_charset=&gt;'GBK')  union all
+select utl_url.escape('https://www.darkathena.top/archives/我开博了',url_charset=&gt;'UTF8')  union all
+select utl_url.unescape('https://www.darkathena.top/archives/%CE%D2%BF%AA%B2%A9%C1%CB','GBK')  union all
+select utl_url.unescape('https://www.darkathena.top/archives/%E6%88%91%E5%BC%80%E5%8D%9A%E4%BA%86','UTF8') ;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-9f7c6652d6c848d589276e72721e8452.png" srcset="/upload/2022/02/image-9f7c6652d6c848d589276e72721e8452.png?width=1200 1200w, /upload/2022/02/image-9f7c6652d6c848d589276e72721e8452.png?width=400 400w, /upload/2022/02/image-9f7c6652d6c848d589276e72721e8452.png?width=1600 1600w, /upload/2022/02/image-9f7c6652d6c848d589276e72721e8452.png?width=800 800w"/></p>
+<p>另外,如果是openGauss2.1.0以上版本,且安装数据库时选择了A兼容模式,那么也可以使用package的方式,不需要新建schema</p>
+<pre><code class="language-sql">CREATE OR REPLACE package pg_catalog.UTL_URL
+as
+  function escape(url IN TEXT, escape_reserved_chars IN BOOL DEFAULT FALSE, url_charset IN TEXT DEFAULT 'UTF8')
+  RETURN TEXT;
+
+  FUNCTION unescape(url IN TEXT, url_charset IN TEXT DEFAULT 'UTF8')
+  RETURN TEXT;
+end UTL_URL;
+/
+
+CREATE OR REPLACE package body pg_catalog.UTL_URL
+as
+  function escape(url IN TEXT, escape_reserved_chars IN BOOL DEFAULT FALSE, url_charset IN TEXT DEFAULT 'UTF8')
+  RETURN TEXT
+  IMMUTABLE NOT FENCED NOT SHIPPABLE
+  AS
+    L_TMP            TEXT DEFAULT '';
+    L_BAD            TEXT DEFAULT ' &gt;%}\~];?@&amp;&lt;#{|^[`/:=$+''"';
+    l_reserved_chars TEXT DEFAULT ';/?:@&amp;=+$[]';
+    L_CHAR           TEXT;
+  BEGIN
+    IF (url IS NULL) THEN
+      RETURN NULL;
+    END IF;
+
+    if not escape_reserved_chars then
+      L_BAD := translate(L_BAD, l_reserved_chars, '');
+    end if;
+
+    FOR I IN 1.. LENGTH(url) LOOP
+      L_CHAR := SUBSTR(url, I, 1);
+      IF (INSTR(L_BAD, L_CHAR) &gt; 0 or ascii(L_CHAR) &gt; 255) THEN
+        L_TMP := L_TMP || regexp_replace(upper(REPLACE(convert_TO(L_CHAR, url_charset)::TEXT,'\x','')),'(.{2})',
+                                       '%\1','g');
+      ELSE
+        L_TMP := L_TMP || L_CHAR;
+      END IF;
+    END LOOP;
+    RETURN L_TMP;
+  END;
+
+  FUNCTION unescape(url IN TEXT, url_charset IN TEXT DEFAULT 'UTF8')
+  RETURN TEXT
+  IMMUTABLE NOT FENCED NOT SHIPPABLE
+  AS
+    l_return text;
+  begin
+    select CONVERT_FROM(string_agg(CASE
+                                     WHEN LENGTH(A) = 3 THEN
+                                       decode(REPLACE(A, '%'), 'HEX')
+                                     ELSE
+                                       A :: bytea
+                                   END, '' :: bytea), url_charset) into l_return
+      from (select a
+              from (select (regexp_matches(url, '(%..|.)', 'g')) [ 1 ] a ) ) A;
+    return l_return;
+  end;
+end UTL_URL;
+/
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

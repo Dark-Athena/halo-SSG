@@ -157,7 +157,75 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h1>
+<p>oracle23c开发者免费版已经于2023年4月4日(北京时间)推出，并且官方也公布了安装介质的下载地址，有RPM安装包、VM虚拟机、docker镜像（下载链接见文末）。<br/>
+由于最近工作比较忙，暂时无法写一篇内容丰富的测试，所以先提供一个最快速体验的方法，省去对于开发者而言，繁琐的安装步骤。</p>
+<p>（docker环境部署略，实测windows docker也能启动）</p>
+<h1 id="%E6%8B%89%E5%8F%96docker%E5%AE%B9%E5%99%A8" tabindex="-1">拉取docker容器</h1>
+<ul>
+<li>国内网络访问oracle官方容器仓库极不稳定，如果拉取失败，可以使用下面的阿里云镜像，镜像ID和Oracle原版一致 7c64410c08d5</li>
+</ul>
+<pre><code class="language-"># docker run -d --name oracle23c -p  1528:1521 container-registry.oracle.com/database/free:23.2.0.0
+</code></pre>
+<ul>
+<li>拉取国内镜像生成容器并运行(该镜像仓库为个人免费版，最多10个并发，非商业用途)</li>
+</ul>
+<pre><code class="language-">docker run -d --name oracle23c -p  1528:1521 registry.cn-shanghai.aliyuncs.com/darkathena/oracle_23c_free:23.2.0.0
+</code></pre>
+<h1 id="%E8%B7%9F%E8%B8%AA%E5%AE%B9%E5%99%A8%E5%86%85%E5%90%AF%E5%8A%A8%E6%97%A5%E5%BF%97" tabindex="-1">跟踪容器内启动日志</h1>
+<pre><code class="language-">docker logs -f oracle23c
+</code></pre>
+<p>出现 DATABASE IS READY TO USE! 时，表示数据库已经准备好了</p>
+<h1 id="%E8%BF%9B%E5%85%A5%E5%AE%B9%E5%99%A8" tabindex="-1">进入容器</h1>
+<pre><code class="language-">docker exec -it oracle23c /bin/bash
+</code></pre>
+<h1 id="%E7%99%BB%E5%BD%95%E6%95%B0%E6%8D%AE%E5%BA%93" tabindex="-1">登录数据库</h1>
+<pre><code class="language-">sqlplus / as sysdba
+</code></pre>
+<h1 id="%E4%BF%AE%E6%94%B9%E5%AF%86%E7%A0%81" tabindex="-1">修改密码</h1>
+<p>创建容器时若未指定密码，则密码随机生成(详细请参考文末docker链接内的官方说明)</p>
+<pre><code class="language-">alter user sys identified by oracle;
+</code></pre>
+<h1 id="%E6%B5%8B%E8%AF%95%E5%AE%B9%E5%99%A8%E5%A4%96%EF%BC%88%E5%AE%B9%E5%99%A8%E5%AE%BF%E4%B8%BB%E6%9C%BA%EF%BC%89%E8%AE%BF%E9%97%AE" tabindex="-1">测试容器外（容器宿主机）访问</h1>
+<pre><code class="language-">sqlplus sys/oracle@localhost:1528 as sysdba 
+</code></pre>
+<h1 id="linux%E6%B5%8B%E8%AF%95%E6%88%AA%E5%9B%BE" tabindex="-1">Linux测试截图</h1>
+<p><img alt="image-1680676003606" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680676003606.png" srcset="/upload/2023/04/image-1680676003606.png?width=1200 1200w, /upload/2023/04/image-1680676003606.png?width=400 400w, /upload/2023/04/image-1680676003606.png?width=1600 1600w, /upload/2023/04/image-1680676003606.png?width=800 800w"/></p>
+<h1 id="windows%E6%B5%8B%E8%AF%95%E6%88%AA%E5%9B%BE" tabindex="-1">Windows测试截图</h1>
+<p><img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image.png" srcset="/upload/2023/04/image.png?width=1200 1200w, /upload/2023/04/image.png?width=400 400w, /upload/2023/04/image.png?width=1600 1600w, /upload/2023/04/image.png?width=800 800w"/><br/>
+<img alt="image-1680674100815" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680674100815.png" srcset="/upload/2023/04/image-1680674100815.png?width=1200 1200w, /upload/2023/04/image-1680674100815.png?width=400 400w, /upload/2023/04/image-1680674100815.png?width=1600 1600w, /upload/2023/04/image-1680674100815.png?width=800 800w"/><br/>
+（请忽略上图的乱码，chcp 65001可显示正常）</p>
+<p>Docker-Desktop最新版（4.17.1）功能挺齐备，日志查看、终端操作、文件管理、资源状态，都集成了<br/>
+<img alt="image-1680708910820" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680708910820.png" srcset="/upload/2023/04/image-1680708910820.png?width=1200 1200w, /upload/2023/04/image-1680708910820.png?width=400 400w, /upload/2023/04/image-1680708910820.png?width=1600 1600w, /upload/2023/04/image-1680708910820.png?width=800 800w"/><br/>
+<img alt="image-1680709002317" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680709002317.png" srcset="/upload/2023/04/image-1680709002317.png?width=1200 1200w, /upload/2023/04/image-1680709002317.png?width=400 400w, /upload/2023/04/image-1680709002317.png?width=1600 1600w, /upload/2023/04/image-1680709002317.png?width=800 800w"/><br/>
+<img alt="image-1680709590787" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680709590787.png" srcset="/upload/2023/04/image-1680709590787.png?width=1200 1200w, /upload/2023/04/image-1680709590787.png?width=400 400w, /upload/2023/04/image-1680709590787.png?width=1600 1600w, /upload/2023/04/image-1680709590787.png?width=800 800w"/><br/>
+<img alt="image-1680711003710" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1680711003710.png" srcset="/upload/2023/04/image-1680711003710.png?width=1200 1200w, /upload/2023/04/image-1680711003710.png?width=400 400w, /upload/2023/04/image-1680711003710.png?width=1600 1600w, /upload/2023/04/image-1680711003710.png?width=800 800w"/></p>
+<h1 id="%E7%9B%B8%E5%85%B3%E8%B5%84%E6%96%99" tabindex="-1">相关资料</h1>
+<ul>
+<li>
+<p>免费！免费！Oracle Database 23c Free – 开发者版<br/>
+<a href="https://mp.weixin.qq.com/s/NfFfJe4iWQluq1YnKWW5og" target="_blank">https://mp.weixin.qq.com/s/NfFfJe4iWQluq1YnKWW5og</a></p>
+</li>
+<li>
+<p>产品页面：<br/>
+<a href="https://www.oracle.com/database/free" target="_blank">https://www.oracle.com/database/free</a></p>
+</li>
+<li>
+<p>下载地址：<br/>
+Docker：<a href="https://container-registry.oracle.com/" target="_blank">https://container-registry.oracle.com/</a><br/>
+VM：<a href="https://www.oracle.com/database/technologies/databaseappdev-vm.html" target="_blank">https://www.oracle.com/database/technologies/databaseappdev-vm.html</a><br/>
+Linux RPM：<a href="https://www.oracle.com/database/technologies/free-downloads.html" target="_blank">https://www.oracle.com/database/technologies/free-downloads.html</a></p>
+</li>
+<li>
+<p>在线文档：<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/index.html" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/23/index.html</a></p>
+</li>
+</ul>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

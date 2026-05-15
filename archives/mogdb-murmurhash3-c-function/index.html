@@ -155,7 +155,92 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h3 id="背景">背景</h3>
+<p>前一篇写了在ORACLE中引入murmurhash3算法的函数，<a href="https://www.darkathena.top/archives/oracle-cityhash-murmurhash3-function-c-language">【ORACLE】在ORACLE中使用自定义C语言函数引入cityhash和murmurhash3算法</a><br/>
+本篇把相同算法的函数也放到MogDB中，这样就可以在数据同步后，使用相同算法计算hash值，来比较两个数据库中的数据是否一致</p>
+<h3 id="c源码">C源码</h3>
+<pre><code class="language-c">#include "postgres.h"
+#include "fmgr.h"
+#include &lt;stdint.h&gt;
+#include &lt;string.h&gt;
+
+PG_MODULE_MAGIC;
+
+// MurmurHash3 32-bit implementation
+uint32_t MurmurHash3_x86_32(const void *key, int len, uint32_t seed) {
+    const uint8_t *data = (const uint8_t *)key;
+    const int nblocks = len / 4;
+    uint32_t h1 = seed;
+    const uint32_t c1 = 0xcc9e2d51;
+    const uint32_t c2 = 0x1b873593;
+
+    // Body
+    const uint32_t *blocks = (const uint32_t *)(data + nblocks * 4);
+    for (int i = -nblocks; i; i++) {
+        uint32_t k1 = blocks[i];
+        k1 *= c1;
+        k1 = (k1 &lt;&lt; 15) | (k1 &gt;&gt; (32 - 15));
+        k1 *= c2;
+        h1 ^= k1;
+        h1 = (h1 &lt;&lt; 13) | (h1 &gt;&gt; (32 - 13));
+        h1 = h1 * 5 + 0xe6546b64;
+    }
+
+    // Tail
+    const uint8_t *tail = (const uint8_t *)(data + nblocks * 4);
+    uint32_t k1 = 0;
+    switch (len &amp; 3) {
+        case 3:
+            k1 ^= tail[2] &lt;&lt; 16;
+        case 2:
+            k1 ^= tail[1] &lt;&lt; 8;
+        case 1:
+            k1 ^= tail[0];
+            k1 *= c1;
+            k1 = (k1 &lt;&lt; 15) | (k1 &gt;&gt; (32 - 15));
+            k1 *= c2;
+            h1 ^= k1;
+    }
+
+    // Finalization
+    h1 ^= len;
+    h1 ^= h1 &gt;&gt; 16;
+    h1 *= 0x85ebca6b;
+    h1 ^= h1 &gt;&gt; 13;
+    h1 *= 0xc2b2ae35;
+    h1 ^= h1 &gt;&gt; 16;
+
+    return h1;
+}
+
+extern "C" Datum murmurhash3(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(murmurhash3);
+
+Datum murmurhash3(PG_FUNCTION_ARGS) {
+    text *input = PG_GETARG_TEXT_PP(0);
+    size_t len = VARSIZE_ANY_EXHDR(input);
+    const char *str = VARDATA_ANY(input);
+    uint32_t seed = 42; // You can use any seed value
+    uint32_t hash = MurmurHash3_x86_32(str, len, seed);
+    PG_RETURN_INT32((int32_t)hash);
+}
+</code></pre>
+<h3 id="编译">编译</h3>
+<p>建议在数据库安装用户下编译</p>
+<pre><code class="language-shell">g++ -shared -o murmurhash3_function.so -fPIC murmurhash3_function.c -I`pg_config --includedir-server` -I`pg_config --includedir`
+
+cp murmurhash3_function.so `pg_config --pkglibdir`/proc_srclib/
+</code></pre>
+<h3 id="数据库函数">数据库函数</h3>
+<pre><code class="language-sql">CREATE or replace FUNCTION murmurhash3(text) RETURNS integer immutable authid current_user
+AS 'murmurhash3_function.so', 'murmurhash3'
+LANGUAGE C STRICT;
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

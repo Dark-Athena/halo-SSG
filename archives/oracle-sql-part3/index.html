@@ -155,7 +155,95 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>接上篇<br/>
+<a href="/archives/oracle-sql-part2">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part2</a></p>
+<hr/>
+<h1 id="18dbms-tf-polymorphic-table-functions-ptf">18.DBMS_TF (Polymorphic Table Functions PTF)</h1>
+<p>多态表，把查询或者表作为参数，返回表，返回表的字段和值都可以进行自定义，比如指定列不显示、对所有VARCHAR2字段进行trim、对所有number字段保留4位小数、增加自定义值的字段等<br/>
+由于篇幅过长，详见我的另一篇文章 <a href="/archives/oracle-ptf-%E5%A4%9A%E6%80%81%E8%A1%A8">【ORACLE】关于多态表函数PTF（Polymorphic Table Functions）的使用</a></p>
+<hr/>
+<h1 id="19approx-count-distinct">19.approx_count_distinct</h1>
+<p>此函数源自于一些大数据工具，是oracle 12c新添加的函数，主要作用类似于 count(distinct()) ，但是返回的是近似值。在对某些数据进行去重统计时（比如统计消费了某个品类商品的单量或者自然人数），如果这个数据是个海量数据，使用常规的 count(distinct())，效率极低。有时候只是想看个大概的数字以便做一些决策，就算统计的数字上下浮动一点也没关系，这个时候就可以用到approx_count_distinct这个函数了。我曾用过十几组样本数据测试，准确率大概在85%左右。</p>
+<pre><code class="language-sql">select col1,approx_count_distinct(col2) from tab1 group by col1;
+</code></pre>
+<hr/>
+<h1 id="20unistr">20.unistr</h1>
+<p>将unicode编码转换为中文显示<br/>
+详见我的另一篇文章<a href="/archives/unicode-unistr-oracle-plus">【ORACLE】关于ORACLE数据库中UNISTR函数转换UNICODE编码字符串为中文的思考</a></p>
+<hr/>
+<h1 id="21dbms-crypto">21.dbms_crypto</h1>
+<p>作用：各种加密解密<br/>
+例:计算字符串的MD5值</p>
+<pre><code class="language-sql">select sys.dbms_crypto.Hash(UTL_RAW.CAST_TO_RAW('123') ,2 ) from dual;
+--或
+select sys.dbms_crypto.Hash(UTL_I18N.STRING_TO_RAW ('123', 'AL32UTF8') ,2 ) from dual;
+</code></pre>
+<p>hash函数的第一个参数可以传入raw、blob、clob类型，也就是说varchar2和number不能直接传入，传入的话可能会被解析成十六进制数据。既然支持blob，那么就当然能变向的支持二进制文件了。<br/>
+第二个参数是指的hash方式，这个可以在dbms_crypto的包说明中找到对应的值</p>
+<blockquote>
+<p>-- Hash Functions<br/>
+HASH_MD4           CONSTANT PLS_INTEGER            :=     1;<br/>
+HASH_MD5           CONSTANT PLS_INTEGER            :=     2;<br/>
+HASH_SH1           CONSTANT PLS_INTEGER            :=     3;<br/>
+HASH_SH256         CONSTANT PLS_INTEGER            :=     4;<br/>
+HASH_SH384         CONSTANT PLS_INTEGER            :=     5;<br/>
+HASH_SH512         CONSTANT PLS_INTEGER            :=     6;</p>
+</blockquote>
+<p>当然这个包不仅仅有hash，其他常用的类型基本都能支持</p>
+<blockquote>
+<p>-- MAC Functions<br/>
+HMAC_MD5           CONSTANT PLS_INTEGER            :=     1;<br/>
+HMAC_SH1           CONSTANT PLS_INTEGER            :=     2;<br/>
+HMAC_SH256         CONSTANT PLS_INTEGER            :=     3;<br/>
+HMAC_SH384         CONSTANT PLS_INTEGER            :=     4;<br/>
+HMAC_SH512         CONSTANT PLS_INTEGER            :=     5;<br/>
+-- Block Cipher Algorithms<br/>
+ENCRYPT_DES        CONSTANT PLS_INTEGER            :=     1;  -- 0x0001<br/>
+ENCRYPT_3DES_2KEY  CONSTANT PLS_INTEGER            :=     2;  -- 0x0002<br/>
+ENCRYPT_3DES       CONSTANT PLS_INTEGER            :=     3;  -- 0x0003<br/>
+ENCRYPT_AES        CONSTANT PLS_INTEGER            :=     4;  -- 0x0004<br/>
+ENCRYPT_PBE_MD5DES CONSTANT PLS_INTEGER            :=     5;  -- 0x0005<br/>
+ENCRYPT_AES128     CONSTANT PLS_INTEGER            :=     6;  -- 0x0006<br/>
+ENCRYPT_AES192     CONSTANT PLS_INTEGER            :=     7;  -- 0x0007<br/>
+ENCRYPT_AES256     CONSTANT PLS_INTEGER            :=     8;  -- 0x0008<br/>
+-- Block Cipher Chaining Modifiers<br/>
+CHAIN_CBC          CONSTANT PLS_INTEGER            :=   256;  -- 0x0100<br/>
+CHAIN_CFB          CONSTANT PLS_INTEGER            :=   512;  -- 0x0200<br/>
+CHAIN_ECB          CONSTANT PLS_INTEGER            :=   768;  -- 0x0300<br/>
+CHAIN_OFB          CONSTANT PLS_INTEGER            :=  1024;  -- 0x0400<br/>
+-- Block Cipher Padding Modifiers<br/>
+PAD_PKCS5          CONSTANT PLS_INTEGER            :=  4096;  -- 0x1000<br/>
+PAD_NONE           CONSTANT PLS_INTEGER            :=  8192;  -- 0x2000<br/>
+PAD_ZERO           CONSTANT PLS_INTEGER            := 12288;  -- 0x3000<br/>
+PAD_ORCL           CONSTANT PLS_INTEGER            := 16384;  -- 0x4000<br/>
+-- Stream Cipher Algorithms<br/>
+ENCRYPT_RC4        CONSTANT PLS_INTEGER            :=   129;  -- 0x0081<br/>
+-- Convenience Constants for Block Ciphers<br/>
+DES_CBC_PKCS5      CONSTANT PLS_INTEGER            := ENCRYPT_DES<br/>
++ CHAIN_CBC<br/>
++ PAD_PKCS5;<br/>
+DES3_CBC_PKCS5     CONSTANT PLS_INTEGER            := ENCRYPT_3DES<br/>
++ CHAIN_CBC<br/>
++ PAD_PKCS5;<br/>
+AES_CBC_PKCS5      CONSTANT PLS_INTEGER            := ENCRYPT_AES<br/>
++ CHAIN_CBC<br/>
++ PAD_PKCS5;</p>
+</blockquote>
+<hr/>
+<h1 id="22bfilename">22.BFILENAME</h1>
+<p>作用：读取数据库本地操作系统上的文件<br/>
+例：读取操作系统上的tnsnames配置文件</p>
+<pre><code class="language-sql">select bfilename('NETWORK_ADMIN','tnsnames.ora') from dual;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-22382aedb61e45c79b214ed172755ac1.png" srcset="/upload/2021/09/image-22382aedb61e45c79b214ed172755ac1.png?width=1200 1200w, /upload/2021/09/image-22382aedb61e45c79b214ed172755ac1.png?width=400 400w, /upload/2021/09/image-22382aedb61e45c79b214ed172755ac1.png?width=1600 1600w, /upload/2021/09/image-22382aedb61e45c79b214ed172755ac1.png?width=800 800w"/></p>
+<p>第一个参数是数据库中创建的映射到操作系统的目录名称，第二个参数是文件名。<br/>
+这个函数返回的是bfile类型，可以根据实际内容来转换成BLOB类型或者CLOB类型来进行后续其他处理。<br/>
+有时候只有数据库权限但没操作系统权限，又要从操作系统中取出一些文件来检查问题的时候，就可以通过这种方式来实现</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

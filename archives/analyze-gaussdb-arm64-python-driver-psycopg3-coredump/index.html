@@ -153,7 +153,366 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb排查arm64环境上gaussdb的python驱动psycopg3coredump的问题">【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题</h1>
+<p>没想到这个系列还会有第五篇。</p>
+<h2 id="背景">背景</h2>
+<p>通过前几篇的操作，我已经完全打通了<code>airflow-&gt;sqlalchemy-&gt;GaussDB-sqlalchemy-&gt;gaussdb(psycopg3)-&gt;libpq(gaussdb)-&gt;GaussDB数据库</code>。可是当相同的操作流程放到客户的服务器上执行时，python进程却发生了coredump。</p>
+<h2 id="基础分析">基础分析</h2>
+<p>首先我确认了该环境中，LD_LIBRARY_PATH里已经把GaussDB的libpq配置到了最前面，而且也删除了操作系统里自带的libpq，并且确认了使用的libpq是arm64版本的，和这个服务器是匹配的，但依旧coredump。</p>
+<p>由于我本地没有arm环境可以用于复现测试，于是我用了华为云开发者空间的云开发空间里启动了个免费的开发容器，并且在本地的vscode里通过Huawei Developer Space插件连上了这个容器，方便使用AI来排查问题。</p>
+<p>接下来先按上一篇文章把airflow搭好，配上连接串，由于这个环境暂时没有GaussDB数据库可以连，我就先随便写了个连接串，如果正常就应该报错连接失败，异常就应该coredump。</p>
+<p>结果在这个环境中的确复现了coredump</p>
+<p>接下来就是编写小型化用例</p>
+<p>编写通过sqlalchemy连接gaussdb的例子</p>
+<pre><code class="language-bash">(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# cat test2.py
+import sqlalchemy as sa
+
+engine = sa.create_engine(
+    "gaussdb+gaussdb://username:password@127.0.0.1:3333/database_name"
+)
+
+with engine.connect() as conn:
+    result = conn.execute(sa.text("SELECT 1"))
+    print(result.scalar()) (.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# python test2.py
+Segmentation fault (core dumped)
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+</code></pre>
+<p>coredump了</p>
+<p>再编写直接使用python驱动连接gaussdb的例子</p>
+<pre><code class="language-bash">(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# cat test1.py
+#!/usr/bin/env python3
+import argparse
+import os
+import sys
+
+def main() -&gt; int:
+
+    try:
+        import gaussdb
+    except Exception as exc:
+        print(f"[ERROR] Failed to import gaussdb: {exc}")
+        return 3
+
+    print("[INFO] gaussdb module:", getattr(gaussdb, "__file__", "&lt;unknown&gt;"))
+    print("[INFO] gaussdb version:", getattr(gaussdb, "__version__", "&lt;unknown&gt;"))
+
+    conn = None
+    try:
+        conn = gaussdb.connect('host=127.0.0.1 port=3333 dbname=database_name user=username password=password', connect_timeout=10)
+        with conn.cursor() as cur:
+            cur.execute("select 1")
+            row = cur.fetchone()
+        print("[OK] Connection succeeded, query result:", row)
+        return 0
+    except Exception as exc:
+        print(f"[ERROR] Connection/query failed: {exc}")
+        return 1
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# python test1.py
+[INFO] gaussdb module: /workspace/test_gaussdb/gaussdb-python/gaussdb/gaussdb/__init__.py
+[INFO] gaussdb version: 1.0.4
+Segmentation fault (core dumped)
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+</code></pre>
+<p>也coredump了</p>
+<p>直接写个c程序调用libpq</p>
+<pre><code class="language-bash">(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# cat test_pq.c
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;libpq-fe.h&gt;
+
+int main() {
+    // 连接字符串，请根据实际情况修改数据库名、用户名、密码和主机
+    PGconn *conn = PQconnectdb("dbname=postgres user=postgres password=secret host=localhost");
+
+    if (PQstatus(conn) != CONNECTION_OK) {
+        fprintf(stderr, "连接失败: %s", PQerrorMessage(conn));
+        PQfinish(conn);
+        exit(1);
+    }
+
+    printf("成功连接到 PostgreSQL\n");
+    PQfinish(conn);
+    return 0;
+}(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# gcc -o test_pq test_pq.c -I/workspace/test_gaussdb/gaussdb-libpq/include -L/workspace/test_gaussdb/gaussdb-libpq/lib -lpq
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# ./test_pq 
+连接失败: could not connect to server: Operation now in progress
+        Is the server running on host "localhost" (::1) and accepting
+        TCP/IP connections on port 5432?
+could not connect to server: Operation now in progress
+        Is the server running on host "localhost" (127.0.0.1) and accepting
+        TCP/IP connections on port 5432?
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+</code></pre>
+<p>正常执行，没有coredump。</p>
+<p>但这些代码在我自己的x86_64机器上执行都是没有问题，而且我自己还试了两台服务器，而客户的服务器和这个华为云的云开发环境一样，都是ARM64的，均出现了coredump的问题。目前暂且认为CPU架构是一个差异点。</p>
+<h2 id="ai分析">AI分析</h2>
+<p>接着就让AI开始分析了，我在vscode里选了gpt-5.3-codex</p>
+<blockquote>
+<p>User: 检查一下，为什么我编写C调用libpq不会coredump，但是使用python调用gaussdb驱动会coredump,驱动源码在gaussdb-python目录</p>
+<pre><code>(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# ./test_pq 
+连接失败: could not connect to server: Operation now in progress
+       Is the server running on host "localhost" (::1) and accepting
+       TCP/IP connections on port 5432?
+could not connect to server: Operation now in progress
+       Is the server running on host "localhost" (127.0.0.1) and accepting
+       TCP/IP connections on port 5432?
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# python test1.py 
+[INFO] gaussdb module: /workspace/test_gaussdb/gaussdb-python/gaussdb/gaussdb/__init__.py
+[INFO] gaussdb version: 1.0.4
+Segmentation fault (core dumped)
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# ll
+total 40
+drwxr-x---  4 root root  4096 Mar  4 09:09 gaussdb-libpq
+drwxr-x--- 11 root root  4096 Mar  4 09:20 gaussdb-python
+drwxr-x---  7 root root  4096 Mar  4 09:11 GaussDB-sqlalchemy
+-rw-r-----  1 root root  1014 Mar  4 09:17 test1.py
+-rw-r-----  1 root root   231 Mar  4 09:10 test2.py
+-rwxr-x---  1 root root 71192 Mar  4 09:32 test_pq
+-rw-r-----  1 root root   504 Mar  4 09:28 test_pq.c
+(.env311) [root@ae910d8786f844c4b317045140860809 test_gaussdb]# 
+</code></pre>
+<p>GitHub Copilot: 我先快速定位崩溃点：会先看 <code>test1.py</code> 和 <code>gaussdb-python</code> 里导入路径、底层 <code>.so</code> 加载逻辑，再直接复现一次并抓 Python 的 faulthandler/gdb 回溯，确认是驱动初始化崩溃还是连接阶段崩溃。然后给你一个可执行的修复方案。</p>
+<p>Created 4 todos</p>
+<p>我先并行读取关键文件（<code>test1.py</code>、<code>test2.py</code>、<code>test_pq.c</code> 以及驱动初始化入口），目的是判断崩溃发生在 <code>import</code> 还是 <code>connect</code>。</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Searched for files matching <code>**/test_gaussdb/gaussdb-python/gaussdb/gaussdb/**</code>, 20 matches</p>
+<p>Searched for regex <code>import gaussdb|from gaussdb|ctypes|CDLL|PyInit|_psycopg|libpq</code> (<code>**/test_gaussdb/gaussdb-python/**</code>), 200 results</p>
+<p>已经确认驱动会优先加载 C 扩展实现；下一步我读取 <strong>init</strong>.py、<strong>init</strong>.py 和 _cmodule.py 来确认加载顺序，并判断为何 <code>import</code> 阶段就段错误。</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>现在我直接做三组复现：默认导入、强制 <code>GAUSSDB_IMPL=python</code>、再打印 <code>ldd</code> 依赖，目标是确认是否 <code>gaussdb_c</code> 二进制扩展与系统 <code>libpq/OpenSSL</code> ABI 冲突导致段错误。</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; python -X faulthandler -c "import gaussdb; print('ok', gaussdb.<strong>version</strong>)"</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; GAUSSDB_IMPL=python python -X faulthandler -c "import gaussdb; import gaussdb.pq as pq; print('ok', gaussdb.<strong>version</strong>, pq.<strong>impl</strong>, pq.version())"</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; find gaussdb-python -name "<em>_gaussdb</em>.so" -o -name "<em>gaussdb_c</em>.so" | head -n 20</p>
+<p>当前环境里我没复现到段错误，反而看到是 <code>libpq library not found</code>。我继续检查虚拟环境中已安装的 <code>gaussdb/gaussdb-c</code> 包和其 <code>.so</code> 依赖，确认你之前 coredump 是不是来自另一个环境变量（例如 <code>LD_LIBRARY_PATH</code> 指向了不兼容库）。</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; python - &lt;&lt;'PY'<br/>
+import sys, site, pkgutil<br/>
+print('python=', sys.executable)<br/>
+print('sys.path[0:5]=', sys.path[:5])<br/>
+mods = [m.name for m in pkgutil.iter_modules() if m.name.startswith('gaussdb')]<br/>
+print('gaussdb modules=', sorted(mods)[:20])<br/>
+PY</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; python -m pip show gaussdb gaussdb-c gaussdb-binary 2&gt;/dev/null || true</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; python - &lt;&lt;'PY'<br/>
+import importlib.util<br/>
+for name in ['gaussdb_c','gaussdb_binary','gaussdb']:<br/>
+spec = importlib.util.find_spec(name)<br/>
+print(name, '-&gt;', spec.origin if spec else None)<br/>
+PY</p>
+<p>Searched for files matching <code>**/gaussdb_c/**</code>, no matches</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; find .env311/lib/python3.11/site-packages -maxdepth 4 ( -name '<em>gaussdb</em>.so' -o -name '_gaussdb*.so' -o -name 'libpq*.so*' ) | sed 's#^#- #'</p>
+<p>我已经确认当前这个虚拟环境里没有任何 <code>gaussdb_c</code>/<code>gaussdb_binary</code> 二进制模块；你之前的 core 更像是“曾经加载到了某个原生 <code>.so</code> 后崩溃”。我再看一眼连接路径的底层调用定义，确认是否存在 ctypes 签名错误会导致连接失败时直接段错误。</p>
+<p>Read <a></a>, lines 1 to 260</p>
+<p>Read <a></a>, lines 1230 to 1288</p>
+<p>Searched for regex <code>PQinitOpenSSL|PQisthreadsafe|PQtrace|argtypes|restype</code> (<code>**/test_gaussdb/gaussdb-python/gaussdb/gaussdb/pq/_pq_ctypes.py</code>), 40 results</p>
+<p>Searched for text <code>PQinitOpenSSL</code> (<code>**/test_gaussdb/gaussdb-python/gaussdb/gaussdb/pq/_pq_ctypes.py</code>), 4 results</p>
+<p>Searched for files matching <code>**/test_gaussdb/gaussdb-python/**/gaussdb_c/**</code>, no matches</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; env | grep -E '^(PYTHONPATH|LD_LIBRARY_PATH|GAUSSDB|PG|PATH)=' | sort</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; python test1.py</p>
+<p>我这边运行 test1.py 现在是 <code>libpq not found</code>，和你刚才“能 import 但 segfault”的现场不同。为了把问题收敛，我继续检查你 C 程序和 Python 进程各自实际链接到了哪个 <code>libpq</code>/<code>openssl</code>，这通常就是“C 不崩、驱动崩”的关键差异。</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; ldd ./test_pq || true</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; find gaussdb-libpq -maxdepth 3 -type f | sed 's#^#- #' | head -n 80</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; ls -l gaussdb-libpq/lib 2&gt;/dev/null || true</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python -X faulthandler - &lt;&lt;'PY'<br/>
+import gaussdb<br/>
+import gaussdb.pq as pq<br/>
+print('import ok', gaussdb.<strong>version</strong>, pq.<strong>impl</strong>, pq.version())<br/>
+try:<br/>
+conn = gaussdb.connect('host=127.0.0.1 port=3333 dbname=database_name user=username password=password', connect_timeout=3)<br/>
+print('connected')<br/>
+except Exception as e:<br/>
+print('connect err:', type(e).<strong>name</strong>, e)<br/>
+PY</p>
+<p>已经复现到同样的段错误了，而且栈明确落在 pq_ctypes.py 的 <code>password -&gt; _call_bytes</code>。我马上定位这段代码的指针生命周期，判断是不是在连接失败清理阶段访问了已释放/无效 <code>PGconn</code>。</p>
+<p>Read <a></a>, lines 150 to 240</p>
+<p>Read <a></a>, lines 780 to 860</p>
+<p>Read <a></a>, lines 200 to 280</p>
+<p>Read <a></a>, lines 60 to 130</p>
+<p>Searched for regex <code>class FinishedPGconn|FinishedPGconn\(|password:|db:|user:</code> (<code>**/test_gaussdb/gaussdb-python/gaussdb/gaussdb/errors.py</code>), 7 results</p>
+<p>Read <a></a>, lines 1 to 110</p>
+<p>定位结果：崩溃不是出在连接主流程，而是失败清理逻辑 <code>finish_pgconn()</code> 里读取 <code>pgconn.password</code>（即调用 <code>PQpass</code>）时触发了 native segfault。接下来我会做一个最小修复：在构造 <code>FinishedPGconn</code> 时跳过 <code>password</code> 字段，避免触发这个不安全调用。</p>
+<p>Generating patch (14 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python -X faulthandler - &lt;&lt;'PY'<br/>
+import gaussdb<br/>
+import gaussdb.pq as pq<br/>
+print('import ok', gaussdb.<strong>version</strong>, pq.<strong>impl</strong>, pq.version())<br/>
+try:<br/>
+conn = gaussdb.connect('host=127.0.0.1 port=3333 dbname=database_name user=username password=password', connect_timeout=3)<br/>
+print('connected')<br/>
+except Exception as e:<br/>
+print('connect err:', type(e).<strong>name</strong>, e)<br/>
+PY</p>
+<p>发现这个 <code>libpq</code> 上不仅 <code>PQpass</code>，连 <code>PQhost</code> 在失败连接对象上也会触发段错误，所以“跳过单个字段”不够。我要把 <code>finish_pgconn()</code> 改成不再读取任何连接属性，只做 <code>PQfinish</code> 并返回默认快照，这样可以彻底规避失败态 <code>PGconn</code> 的危险访问。</p>
+<p>Generating patch (16 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python -X faulthandler - &lt;&lt;'PY'<br/>
+import gaussdb<br/>
+import gaussdb.pq as pq<br/>
+print('import ok', gaussdb.<strong>version</strong>, pq.<strong>impl</strong>, pq.version())<br/>
+try:<br/>
+conn = gaussdb.connect('host=127.0.0.1 port=3333 dbname=database_name user=username password=password', connect_timeout=3)<br/>
+print('connected')<br/>
+except Exception as e:<br/>
+print('connect err:', type(e).<strong>name</strong>, e)<br/>
+PY</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python test1.py</p>
+<p>Checked <a></a>, no problems found</p>
+<p>Completed: <em>Inspect test scripts and imports</em> (1/4)</p>
+<p><strong>结论</strong></p>
+<ul>
+<li>根因已定位：不是连接本身崩，而是在连接失败后的异常收尾阶段，驱动会访问失败态 PGconn 的属性（如 host/password），底层会调用 PQhost/PQpass；你这套 libpq 组合在该状态下返回了非法指针，触发段错误。</li>
+<li>你的 C 示例不会崩，是因为它只做 PQstatus/PQerrorMessage/PQfinish，没有去读这些额外属性，所以不会踩到这个崩溃点。</li>
+</ul>
+<p><strong>我已做的修复</strong></p>
+<ul>
+<li>已修改 errors.py 的 finish_pgconn()：不再读取任何 PGconn 属性，只执行 finish 并返回默认快照对象。</li>
+<li>复测结果：同样失败连接场景下，不再 coredump，改为正常抛出 OperationalError。</li>
+</ul>
+<p><strong>复现与验证</strong></p>
+<ul>
+<li>复现崩溃（修复前）栈在 pq_ctypes.py 的 _call_bytes -&gt; host/password。</li>
+<li>修复后执行 test1.py（配合你的 libpq）输出为连接失败错误，不再段错误。</li>
+</ul>
+<p><strong>建议你本地运行方式</strong></p>
+<ul>
+<li>先固定后端为 python，并显式指定库路径：</li>
+<li>GAUSSDB_IMPL=python LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH python test1.py</li>
+</ul>
+<p>要不要我再帮你加一个最小回归测试（模拟连接失败时不崩溃），这样后续升级驱动时可以自动防回归？</p>
+<p>Made changes.</p>
+<p>User: "底层会调用 PQhost/PQpass","libpq 组合在该状态下返回了非法指针"这个能再细分析一下么？</p>
+<p>GitHub Copilot: 这个可以再往下拆到“代码路径 + C 层语义”两层。我先抓一份原生栈（gdb backtrace）确认是 <code>ctypes</code> 解引用坏指针，还是 <code>libpq</code> 内部先崩，再给你一个更可信的结论边界。</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; command -v gdb || true</p>
+<p>我现在跑一次最小复现脚本到 gdb，目标是拿到崩溃点对应的 C 符号（比如在 <code>PQhost</code> 内还是 <code>ctypes</code> 转换层）。</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; cat &gt; /tmp/repro_gauss_seg.py &lt;&lt;'PY'<br/>
+import gaussdb<br/>
+conn = None<br/>
+try:<br/>
+conn = gaussdb.connect('host=127.0.0.1 port=3333 dbname=database_name user=username password=password', connect_timeout=3)<br/>
+except Exception as e:<br/>
+print(type(e).<strong>name</strong>, e)<br/>
+finally:<br/>
+if conn:<br/>
+conn.close()<br/>
+PY<br/>
+LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python gdb -q -batch -ex run -ex bt --args /workspace/test_gaussdb/.env311/bin/python /tmp/repro_gauss_seg.py</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; timeout 25s env LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:<span class="math math-inline">LD_LIBRARY_PATH GAUSSDB_IMPL=python gdb -q -batch -ex run -ex bt --args /workspace/test_gaussdb/.env311/bin/python /tmp/repro_gauss_seg.py ; echo EXIT:</span>?</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python -X faulthandler - &lt;&lt;'PY'<br/>
+from gaussdb import pq<br/>
+from gaussdb.pq._enums import ConnStatus, PollingStatus<br/>
+conn = pq.PGconn.connect_start(b'host=127.0.0.1 port=3333 dbname=database_name user=username password=password connect_timeout=3')<br/>
+for i in range(50):<br/>
+st = conn.connect_poll()<br/>
+if st not in (PollingStatus.READING, PollingStatus.WRITING):<br/>
+break<br/>
+print('poll=', st, 'status=', conn.status)</p>
+<h1 id="dangerous-access-on-failed-connection-path">Dangerous access on failed connection path</h1>
+<p>print('about to read host bytes...')<br/>
+print(conn.host)<br/>
+PY<br/>
+Completed with input:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python -X faulthandler - &lt;&lt;'PY'<br/>
+from gaussdb import pq<br/>
+from gaussdb.pq._enums import ConnStatus, PollingStatus<br/>
+conn = pq.PGconn.connect_start(b'host=127.0.0.1 port=3333 dbname=database_name user=username password=password connect_timeout=3')<br/>
+for i in range(50):<br/>
+st = conn.connect_poll()<br/>
+if st not in (PollingStatus.READING, PollingStatus.WRITING):<br/>
+break<br/>
+print('poll=', st, 'status=', conn.status)</p>
+<h1 id="dangerous-access-on-failed-connection-path-1">Dangerous access on failed connection path</h1>
+<p>print('about to read host bytes...')<br/>
+print(conn.host)<br/>
+PY</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; . .env311/bin/activate &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib:$LD_LIBRARY_PATH GAUSSDB_IMPL=python python - &lt;&lt;'PY'<br/>
+from gaussdb.pq import _pq_ctypes as impl<br/>
+from gaussdb.pq.misc import version_pretty<br/>
+print('loaded libname =', impl.libname)<br/>
+print('PQlibVersion =', impl.libpq_version, version_pretty(impl.libpq_version))<br/>
+PY</p>
+<p>Read <a></a>, lines 45 to 110</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; ldd gaussdb-libpq/lib/libpq.so.5.5</p>
+<p>Ran terminal command:  cd /workspace/test_gaussdb &amp;&amp; LD_LIBRARY_PATH=/workspace/test_gaussdb/gaussdb-libpq/lib ldd gaussdb-libpq/lib/libpq.so.5.5</p>
+<p><strong>细化分析</strong></p>
+<ul>
+<li>崩溃链路是：连接失败后在 generators.py 调用 <code>finish_pgconn()</code>，随后在 errors.py 读取 <code>pgconn</code> 属性快照。</li>
+<li>这些属性（如 <code>host</code>、<code>password</code>）会走到 pq_ctypes.py，内部通过 <code>_call_bytes()</code> 调 C API（<code>PQhost/PQpass</code>），见 pq_ctypes.py。</li>
+<li><code>_call_bytes()</code> 对 <code>c_char_p</code> 返回值会触发 ctypes 解引用；如果 C 层返回的是“非空但无效地址”，Python 来不及抛异常就会直接 SIGSEGV。你看到的 core 正是这一类崩溃。</li>
+<li>我做了独立最小复现：在 <code>connect_poll</code> 失败后直接 <code>print(conn.host)</code>，无需上层框架也会立刻段错误，所以问题不在异常对象构造本身，而在“失败态 PGconn + PQhost/PQpass 访问”这个组合。</li>
+<li>你 C 程序不崩是因为只调用了 <code>PQstatus/PQerrorMessage/PQfinish</code>，没有触发 <code>PQhost/PQpass</code> 路径。</li>
+</ul>
+<p><strong>为什么说是 libpq 组合问题</strong></p>
+<ul>
+<li>该驱动在 misc.py 用 <code>find_library("pq")</code> 动态找库，实际加载结果受 <code>LD_LIBRARY_PATH</code>、系统库优先级影响。</li>
+<li>你当前这套库报告 <code>PQlibVersion = 90204 (9.2.4)</code>，但又来自 gaussdb-libpq 打包目录，说明是“Gauss 发行库 + 当前系统运行时”的特定组合；在这个组合里，失败态访问某些字符串 getter 不安全。</li>
+</ul>
+<p><strong>结论边界</strong></p>
+<ul>
+<li>我能 100% 确认“崩溃触发点”是 <code>PQhost/PQpass</code> 在失败态 <code>PGconn</code> 上被调用。</li>
+<li>我不能在无 libpq 源码/符号的前提下 100% 断言是 libpq 内部 bug 还是 ABI 兼容性问题，但工程上两者都应按“不安全调用路径”处理（你现在的修复就是正确方向）。</li>
+</ul>
+<p>如果你愿意，我可以再给你一版更稳妥的补丁：在 <code>pq_ctypes.PGconn.host/password/...</code> 上加“仅 <code>status == OK</code> 才读”的防护，这样即便别处再调用也不会 core。</p>
+</blockquote>
+<p>我测试了AI中间给的一个临时方案<br/>
+修改gaussdb的python驱动里的errors.py<br/>
+把</p>
+<pre><code class="language-python">def finish_pgconn(pgconn: PGconn) -&gt; PGconn:
+    args = {}
+    for f in fields(FinishedPGconn):
+        try:
+            args[f.name] = getattr(pgconn, f.name)
+        except Exception:
+            pass
+    pgconn.finish()
+    return FinishedPGconn(**args)
+</code></pre>
+<p>改成</p>
+<pre><code class="language-python">def finish_pgconn(pgconn: PGconn) -&gt; PGconn:
+    args = {}
+    pgconn.finish()
+    return FinishedPGconn(**args)
+</code></pre>
+<p>即不读PGconn里的信息，果然不会coredump了。</p>
+<h2 id="基于ai的分析再思考">基于AI的分析再思考</h2>
+<p>但是我没有直接把这个方案给客户，因为从AI分析的结果来看，是libpq在连接失败的时候，返回了无效地址被python的ctypes读取才导致的问题，而这个python驱动此处的代码和开源的psycopg3里是完全一样的。</p>
+<p>这个时候，客户突然反馈，说之前他密码搞错了，把密码改正确后，airflow能正常启动了。。。</p>
+<p>我庆幸自己做复现测试的时候也是用了无效的连接地址，才可以马上复现，如果用了个有效连接，我恐怕很难排查到这个问题了。</p>
+<p>但是，华为的这个python驱动，其实在github上是有工作流去自动测试的，测试用例里也有连接失败的用例，但这个工作流是跑通了的，而且也跑了arm平台。对比了下，差别在于它工作流用的ibpq是505.2版本的，而我用的是506.0版本的。</p>
+<p>然后我马上配好505.2的libpq环境再来跑前面这几个测试程序，都没core了！</p>
+<p>到这里，所有的现象综合起来，问题直指ARM64环境中，GaussDB在506.0版本中修改了libpq，导致python驱动在连接失败时会coredump！至于改了哪里，由于没有源码，只能让华为来解释了。我怀着侥幸心理用opengauss的libpq驱动测了下，期望能coredump，这样就有源码来分析，结果并没有coredump。</p>
+<p>顺手给华为提了个issue,后续再看吧<br/>
+<a href="https://github.com/HuaweiCloudDeveloper/gaussdb-python/issues/30">https://github.com/HuaweiCloudDeveloper/gaussdb-python/issues/30</a></p>
+<p>我感觉十有八九会先让python驱动这边修改，因为如果libpq修改，内核都得动。</p>
+<h2 id="总结">总结</h2>
+<h3 id="1-arm64-云开发">1. ARM64 云开发</h3>
+<p><a href="https://developer.huaweicloud.com/space/">https://developer.huaweicloud.com/space/</a><br/>
+华为云的云开发环境里可以免费创建4台机器，容器、虚拟机、开发桌面、云主机各一台，容器最高配置为16C32G，虚拟机最高2C4G,开发桌面和云主机最高为4C8G （后续云主机会和开发桌面合并），其中容器和虚拟机均可在vscode里通过Huawei Developer Space插件直连，体验和ssh远程开发完全一致，copilot可以正常使用，当然也可以直接使用华为云的CodeArts这款IDE工具。如果需要免费的ARM机器进行测试，个人感觉华为云的这个云开发环境还算可以。只是这些环境都是虚拟化出来的，如果想里面再虚拟化就有些麻烦了。</p>
+<h3 id="2-ai-agent">2. AI AGENT</h3>
+<p>现在应该还有很多人是在网页上用对话的方式来使用AI，在网页和环境中反复复制粘贴，效率极低。而有了agent后，AI能直接操作环境，它想查什么自己都能查，不会出现AI不信你的情况了。像这次我用vscode copilot一句话下去让AI自己去定位问题，都不用人看着，反正这华为云上的开发机器随便操作，权限全给，也不担心把服务器弄坏，大不了重新初始化服务器就行了。</p>
+<h3 id="3-gaussdb-libpq-版本">3. GaussDB libpq 版本</h3>
+<p>用GaussDB的驱动涉及coredump的问题时，以后除了考虑CPU平台、python版本，还得再额外考虑下驱动本身的版本了，这已经不是第一次发现506.0这个版本的libpq和505.2版本的表现行为不一致了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

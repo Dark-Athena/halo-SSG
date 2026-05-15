@@ -153,7 +153,202 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb安装测试gaussdb基于psycopg3修改的python驱动">【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</h1>
+<h2 id="前言">前言</h2>
+<p>前面几篇提过了这个驱动，这个psycopg3是比psycopg2更符合规范的驱动，但是上一篇最后提到了直接pip install gaussdb用起来可能会coredump，所以这篇来尝试基于源码来进行安装，并简单分析一下这个驱动的实现方式。</p>
+<h2 id="先按照官方文档来安装">先按照官方文档来安装</h2>
+<h3 id="1-安装libpq">1. 安装libpq</h3>
+<blockquote>
+<p>In order to work on the GaussDB source code, you must have the<br/>
+<code>libpq</code> GaussDB client library installed on the system. For instance, on<br/>
+EulerOS x86_64 systems, you can obtain it by running::</p>
+<p>useradd -m gaussdbUser<br/>
+usermod -aG wheel gaussdbUser<br/>
+echo "gaussdbUser ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/gaussdbUser<br/>
+passwd gaussdbUser</p>
+<p>su - gaussdbUser<br/>
+source tools/install_gaussdb_driver.sh</p>
+</blockquote>
+<p>这里其实就是新建了个操作系统用户，添加了免密sudo权限，然后进入这个用户执行了<code>source tools/install_gaussdb_driver.sh</code>，这个脚本里面是在线下载GaussDB 505.2的驱动包，解压，然后再解当前操作系统版本的python驱动，即psycopg2，再把里面的lib目录添加到<code> /etc/ld.so.conf.d/[操作系统用户].conf</code> 文件里，执行了sudo ldconfig刷新了LD_LIBRARY_PATH,最后source了一把.bashrc，也就是说在执行完这个脚本后，LD_LIBRARY_PATH里就有了这个lib目录了。</p>
+<p>其实这里就有点反直觉了，我原本以为这个脚本会解压libpq那个包，没想到实际上解压的是psycopg2的包。不过我后面对比了一下，psycopg2的lib目录会比完整的libpq包解压出来的少了很多文件，只要不基于libpq开发，而是直接使用libpq.so动态库，那么直接用psycopg2里的lib的确能节省一些空间。但是psycopg2这个无用的目录没有被删掉，所以暂且只能认为这个脚本只是为了方便开发，真正部署安装还是得自己手动配置libpq添加LD_LIBRARY_PATH环境变量。</p>
+<h3 id="2-关于uv环境">2. 关于uv环境</h3>
+<p>文档里建议用uv环境，但是下面的pip命令前面没加uv,那么执行pip install就不会安装到uv环境里，我对比了这段和原版psycopg3，写得是一样的，可能是新版uv有变化但文档没更新？暂且不管了，我先手动在pip命令前都加上uv</p>
+<h3 id="3-使用源码安装">3. 使用源码安装</h3>
+<blockquote>
+<pre><code class="language-bash"># Upgrade pip to the latest version to ensure compatibility with modern packages
+   pip install --upgrade pip
+
+   # Install all required dependencies listed in the requirements.txt file
+   pip install -r requirements.txt
+
+   # Install the custom isort plugin located in the tools/isort-gaussdb directory
+   pip install ./tools/isort-gaussdb/
+
+   # Install the main gaussdb package in editable (development) mode, 
+   # along with optional 'dev' and 'test' dependencies
+   pip install -e "./gaussdb[dev,test]"
+
+   # Install the gaussdb_pool package in editable mode (for development and testing)
+   pip install -e ./gaussdb_pool
+</code></pre>
+</blockquote>
+<p>这里有个坑，执行 <code>uv pip install ./tools/isort-gaussdb/</code> 会报错</p>
+<pre><code>Using Python 3.11.12 environment at: /home/aop/.env311
+  × Failed to build `isort-gaussdb @ file:///home/aop/gaussdb-python/tools/isort-gaussdb`
+  ├─▶ Failed to parse: `/home/aop/gaussdb-python/pyproject.toml`
+  ╰─▶ TOML parse error at line 5, column 1
+        |
+      5 | [project]
+        | ^^^^^^^^^
+      `pyproject.toml` is using the `[project]` table, but the required `project.version` field is neither set nor present in the `project.dynamic` list
+</code></pre>
+<p>但是使用非UV环境下相同的python版本就不会报这个错。<br/>
+让GPT-5.3-Codex排查了下，是因为UV的校验更严格，对子目录安装时，会向上读取仓库根目录的pyproject.toml，去找里面的version，如果没有就会报错，但实际上这个项目的三个包都是在子目录里，根目录的pyproject.toml是用来跑测试的。<br/>
+AI建议我把子包目录复制到其他目录后再去执行<code>uv pip install</code>，或者在根目录的pyproject.toml里加上版本号。实测两种方式都可以，我暂时先把版本号加上去了(打包whl不需要在这里加版本号)。</p>
+<p>后来翻了下issue，发现这个问题有记录，安装前要先设置PATHONPATH环境变量,这个更新不在最新发布版本里<br/>
+<a href="https://github.com/HuaweiCloudDeveloper/gaussdb-python/issues/27">https://github.com/HuaweiCloudDeveloper/gaussdb-python/issues/27</a><br/>
+<code>export PYTHONPATH="/your_path/gaussdb-python/gaussdb:/your_path/gaussdb-python/gaussdb_pool"</code></p>
+<h3 id="4-测试">4. 测试</h3>
+<p>源码里的测试是把连接串配置到环境变量里，然后直接执行example里的demo.py文件，我直接改了个，把连接串写到py文件里去了，</p>
+<pre><code>from gaussdb import connect
+
+# Connect to an existing database
+with connect("dbname=postgres user=ogadmin password=Enmo@123 host=192.168.1.131 port=8000",connect_timeout=3) as conn:
+
+    # Open a cursor to perform database operations
+    with conn.cursor() as cur:
+
+        # Execute a command: this creates a new table
+        cur.execute("""
+            CREATE TABLE test (
+                id serial PRIMARY KEY,
+                num integer,
+                data text)
+            """)
+
+        # Pass data to fill a query placeholders and let Psycopg perform
+        # the correct conversion (no SQL injections!)
+        cur.execute(
+            "INSERT INTO test (num, data) VALUES (%s, %s)",
+            (100, "abc'def"))
+
+        # Query the database and obtain data as Python objects.
+        cur.execute("SELECT * FROM test")
+        print(cur.fetchone())
+        # will print (1, 100, "abc'def")
+
+        # You can use `cur.executemany()` to perform an operation in batch
+        cur.executemany(
+            "INSERT INTO test (num) values (%s)",
+            [(33,), (66,), (99,)])
+
+        # You can use `cur.fetchmany()`, `cur.fetchall()` to return a list
+        # of several records, or even iterate on the cursor
+        cur.execute("SELECT id, num FROM test order by num")
+        for record in cur:
+            print(record)
+
+        # Make the changes to the database persistent
+        conn.commit()
+</code></pre>
+<p>测试正常,但是要注意，test.py不能放到这个项目的根目录执行，因为这里有个<code>gaussdb</code>目录，import会识别错误</p>
+<pre><code>[aop@kylinv10sp3-node1 example]$ python test.py
+(1, 100, "abc'def")
+(2, 33)
+(3, 66)
+(4, 99)
+(1, 100) 
+</code></pre>
+<p>另外，如果卸载gaussdb-pool和isort-gaussdb，这个测试用例也是可以跑通的。gaussdb-pool是连接池组件，isort-gaussdb是用来优化improt顺序的。</p>
+<h2 id="打包whl">打包whl</h2>
+<p>先安装打包需要的几个库</p>
+<pre><code class="language-bash">uv pip install -U pip
+uv pip install -U setuptools wheel build
+</code></pre>
+<p>这个项目里没有一键打包的脚本，我就随手写了个（基于AI生成改的）<br/>
+build_all_whl.sh</p>
+<pre><code class="language-bash">#!/bin/bash
+ROOT=$PWD
+OUT_DIR="${1:-$ROOT/all_dist}"
+rm -rf "$OUT_DIR"
+mkdir -p "$OUT_DIR"
+
+cd $ROOT/gaussdb &amp;&amp; python -m build --wheel --outdir "$OUT_DIR"
+cd $ROOT/gaussdb_pool &amp;&amp; python -m build --wheel --outdir "$OUT_DIR"
+cd $ROOT/tools/isort-gaussdb &amp;&amp; python -m build --wheel --outdir "$OUT_DIR"
+
+echo "==&gt; built wheels:"
+ls -1 "$OUT_DIR"/*.whl
+</code></pre>
+<h2 id="之前为什么会coredump">之前为什么会coredump？</h2>
+<p>libpq是动态库，gaussdb(psycopg3)也还是需要libpq，也就是从python访问到c，但是和psycopg2不一样，psycopg2是 <code>psycopg2-&gt;_psycopg.so-&gt;libpq.so</code> ,而gaussdb(psycopg3)是 <code>psycopg-&gt;ctypes-&gt;libpq.so</code> ,这么写，对于不了解的人来说可能不太明白。简单来说，psycopg2里是有C代码的，会编译出动态库so文件，这样就必须编译出N个版本，在现在的国产化平台上不得不手动编译了；而gaussdb(psycopg3)里没有C代码，是纯python的，这样就不用和CPU、操作系统强绑定，发布一个包就够了。所以华为在pypi上只传了一个版本的whl文件。</p>
+<p>至于我上一篇文章最后出现coredump，其实也还是因为当时LD_LIBRARY_PATH里的libpq版本不对，不是GaussDB的，而是操作系统自带的</p>
+<pre><code class="language-bash">(.env311) [aop@kylinv10sp3-node1 example]$ ldconfig -p |grep libpq
+        libpq.so.5 (libc6,x86-64) =&gt; /usr/lib64/libpq.so.5
+(.env311) [aop@kylinv10sp3-node1 example]$ python test.py
+段错误 (核心已转储)
+(.env311) [aop@kylinv10sp3-node1 example]$ export LD_LIBRARY_PATH=/home/aop/GaussDB-connector-python-psycopg2/depend/lib/
+(.env311) [aop@kylinv10sp3-node1 example]$ python test.py
+Traceback (most recent call last):
+  File "/home/aop/gaussdb-python/example/test.py", line 10, in &lt;module&gt;
+    cur.execute("""
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/cursor.py", line 98, in execute
+    raise ex.with_traceback(None)
+gaussdb.errors.DuplicateTable: Relation "test" already exists in schema "ogadmin".
+DETAIL:  Creating new table with existing name in the same schema.
+(.env311) [aop@kylinv10sp3-node1 example]$
+</code></pre>
+<p>如上，手动设置了LD_LIBRARY_PATH后就不会coredump了。由此也可以判断，原生PG的libpq和GaussDB的libpq接口是存在不兼容的。</p>
+<p>如果环境中完全不存在任何libpq，则不会coredump，如下：</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 example]$ sudo  mv /usr/lib64/libpq.so.5 /tmp/
+(.env311) [aop@kylinv10sp3-node1 example]$ python test.py
+Traceback (most recent call last):
+  File "/home/aop/gaussdb-python/example/test.py", line 1, in &lt;module&gt;
+    from gaussdb import connect
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/__init__.py", line 27, in &lt;module&gt;
+    from . import pq  # noqa: F401 import early to stabilize side effects
+    ^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/pq/__init__.py", line 116, in &lt;module&gt;
+    import_from_libpq()
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/pq/__init__.py", line 108, in import_from_libpq
+    raise ImportError(
+ImportError: no pq wrapper available.
+Attempts made:
+- couldn't import gaussdb 'c' implementation: No module named 'gaussdb_c'
+- couldn't import gaussdb 'binary' implementation: No module named 'gaussdb_binary'
+- couldn't import gaussdb 'python' implementation: libpq.so.5: cannot open shared object file: No such file or directory
+(.env311) [aop@kylinv10sp3-node1 example]$
+</code></pre>
+<p>其实这里也可以看到，这个驱动是有三种实现 ，对应源码：</p>
+<pre><code>    # The best implementation: fast but requires the system libpq installed
+    if not impl or impl == "c":
+        try:
+            from gaussdb_c import pq as module  # type: ignore
+        except Exception as e:
+            handle_error("c", e)
+
+    # Second best implementation: fast and stand-alone
+    if not module and (not impl or impl == "binary"):
+        try:
+            from gaussdb_binary import pq as module  # type: ignore
+        except Exception as e:
+            handle_error("binary", e)
+
+    # Pure Python implementation, slow and requires the system libpq installed.
+    if not module and (not impl or impl == "python"):
+        try:
+            from . import pq_ctypes as module  # type: ignore[assignment]
+        except Exception as e:
+            handle_error("python", e)
+</code></pre>
+<p>华为改出来的这个gaussdb驱动，里面是没有gaussdb_c和gaussdb_binary的，所以只能走到最后这个纯python实现的分支。<br/>
+暂不确定这三种实现的性能差异有多大，但是只用纯python的这个方式，的确更方便维护和发布。</p>
+<p>下一篇开始整基于gaussdb(psycopg3)的sqlalchemy方言。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

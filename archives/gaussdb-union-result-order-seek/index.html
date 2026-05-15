@@ -155,7 +155,244 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdbunion结果顺序探索">【GaussDB】UNION结果顺序探索</h1>
+<h2 id="背景">背景</h2>
+<p>在报表类SQL中，经常会用UNION来合并明细行和汇总行，一般来说应该要使用UNION ALL，但是由于部分开发人员未理解数据库中的UNION和UNION ALL的区别，很可能就用了UNION 而没有使用UNION ALL，然后恰巧数据中并没有重复，也恰巧本来的数据量就不大，没有性能问题，查询结果也复合预期，就未关注到这个用法存在问题。但是当这样的SQL迁移到GaussDB执行时，可能查询结果就和ORACLE里不一样了，主要在于输出的顺序并不一定是明细行在前、汇总行在后。</p>
+<h2 id="模拟案例">模拟案例</h2>
+<h3 id="数据构造">数据构造</h3>
+<pre><code class="language-sql">create table t_sales(transdate date,item varchar2(20),qty number,amount number);
+insert into t_sales
+select to_date('2020-01-01','yyyy-mm-dd')+mod(level,3),level,10,20 from dual connect by level&lt;=10;
+commit;
+</code></pre>
+<h3 id="查询sql">查询SQL</h3>
+<pre><code class="language-sql">select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+union 
+select '合计' ,sum(amount) from t_sales;
+</code></pre>
+<h3 id="oracle-1913-输出结果">ORACLE 19.13 输出结果</h3>
+<pre><code class="language-sql">TRANSDATE  TOTALAMOUNT
+---------- -----------
+2020-01-01          60
+2020-01-02          80
+2020-01-03          60
+合计               200
+</code></pre>
+<h3 id="gaussdb-5060-输出结果">GaussDB 506.0 输出结果</h3>
+<pre><code class="language-sql"> transdate  | totalamount
+------------+-------------
+ 合计       |         200
+ 2020-01-01 |          60
+ 2020-01-02 |          80
+ 2020-01-03 |          60
+(4 rows)
+</code></pre>
+<p>可以看到两个数据库的输出结果的顺序不一样。</p>
+<h2 id="分析">分析</h2>
+<p>解决这个输出不一致其实很简单，把union 改成union all就好了，但是要如何去解释两种数据库行为不一致呢？</p>
+<p>union会对结果集进行去重，去重就有可能需要排序，从原理上来说，输出结果是可能无法完全按照union的先后顺序来的，比如下面这个例子:</p>
+<pre><code class="language-sql">SQL&gt; select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+  2  union
+  3  select to_char(TRANSDATE+1,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+  4  ;
+
+TRANSDATE  TOTALAMOUNT
+---------- -----------
+2020-01-01          60
+2020-01-02          60
+2020-01-02          80
+2020-01-03          60
+2020-01-03          80
+2020-01-04          60
+
+6 rows selected
+</code></pre>
+<p>该用例中，union上面的是1~3号，下面的是2~4号，中间存在交叉部分，在ORACLE 19C中就重新对结果集进行了排序，所以当我们把汇总行的查询放到union上面时，其实汇总行也还是会输出在后面，并不是按照union上下的顺序来的：</p>
+<pre><code class="language-sql">SQL&gt; select '合计' ,sum(amount) from t_sales
+  2  union
+  3  select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+  4  ;
+
+'合计'     SUM(AMOUNT)
+---------- -----------
+2020-01-01          60
+2020-01-02          80
+2020-01-03          60
+合计               200
+
+</code></pre>
+<p>这个结果其实相当于加了<code>order by 1,2</code>了,在执行计划中也有明确的<strong>SORT</strong>字样</p>
+<pre><code class="language-sql">--------------------------------------------------------------------------
+| Id | Operation              | Name    | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------
+|  0 | SELECT STATEMENT       |         |   11 |   233 |    7 | 00:00:01 |
+|  1 |   SORT UNIQUE          |         |   11 |   233 |    7 | 00:00:01 |
+|  2 |    UNION-ALL           |         |      |       |      |          |
+|  3 |     HASH GROUP BY      |         |   10 |   220 |    4 | 00:00:01 |
+|  4 |      TABLE ACCESS FULL | T_SALES |   10 |   220 |    2 | 00:00:01 |
+|  5 |     SORT AGGREGATE     |         |    1 |    13 |    3 | 00:00:01 |
+|  6 |      TABLE ACCESS FULL | T_SALES |   10 |   130 |    2 | 00:00:01 |
+--------------------------------------------------------------------------
+</code></pre>
+<p>再来看看GaussDB</p>
+<pre><code class="language-sql">gaussdb=&gt; select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+gaussdb-&gt; union
+gaussdb-&gt; select to_char(TRANSDATE+1,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate;
+ transdate  | totalamount
+------------+-------------
+ 2020-01-02 |          80
+ 2020-01-03 |          60
+ 2020-01-01 |          60
+ 2020-01-02 |          60
+ 2020-01-03 |          80
+ 2020-01-04 |          60
+(6 rows)
+</code></pre>
+<p>这个结果很怪异哈，似乎没有进行排序，但为什么合计会跑到上面去呢？<br/>
+union 会去重，其实也是一种聚合，也就是agg，在GaussDB中有两种聚合方式：</p>
+<ul>
+<li><code>use_hash_agg[(@queryblock)]</code> 哈希聚合</li>
+<li><code>use_sort_agg[(@queryblock)]</code> 排序聚合</li>
+</ul>
+<p>在该场景中，默认使用的是hash聚合，即不排序，执行计划如下，加了块号显示，最外层查询块为<code>sel$1</code></p>
+<pre><code class="language-sql">gaussdb=&gt; explain (blockname)
+gaussdb-&gt; select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+gaussdb-&gt; union
+gaussdb-&gt; select '合计' ,sum(amount) from t_sales ;
+ id |                  operation                  | E-rows | E-width |    E-costs     | Query Block
+----+---------------------------------------------+--------+---------+----------------+-------------
+  1 | -&gt;  HashAggregate                           |    201 |      40 | 39.550..41.560 | sel$1
+  2 |    -&gt;  Append(3, 6)                         |    201 |      40 | 17.650..38.545 | sel$1
+  3 |       -&gt;  Subquery Scan on "*SELECT* 1"     |    200 |      40 | 17.650..22.150 |
+  4 |          -&gt;  HashAggregate                  |    200 |      40 | 17.650..20.150 | sel$2
+  5 |             -&gt;  Seq Scan on t_sales@"sel$2" |    510 |      40 | 0.000..15.100  | sel$2
+  6 |       -&gt;  Aggregate                         |      1 |      64 | 16.375..16.385 | sel$3
+  7 |          -&gt;  Seq Scan on t_sales@"sel$3"    |    510 |      32 | 0.000..15.100  | sel$3
+(7 rows)
+
+                                                           ====== Query Others =====
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Parameterize: Yes, parameterized sql: select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+ union
+ select '合计' ,sum(amount) from t_sales ;
+(3 rows)
+</code></pre>
+<p>尝试加hint指定聚合方式（同事<a href="https://www.modb.pro/u/2729">赵勇</a>提醒这里hint必须要指定查询块，因为这里union产生的查询块没有select，当前块的hint没地方写）</p>
+<pre><code class="language-sql">gaussdb=&gt; select /*+ use_sort_agg(@sel$1) */to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+gaussdb-&gt; union
+gaussdb-&gt; select '合计' ,sum(amount) from t_sales;
+ transdate  | totalamount
+------------+-------------
+ 2020-01-01 |          60
+ 2020-01-02 |          80
+ 2020-01-03 |          60
+ 合计       |         200
+(4 rows)
+</code></pre>
+<pre><code class="language-sql">gaussdb=&gt; explain (blockname) select /*+ use_sort_agg(@sel$1) */to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+gaussdb-&gt; union
+gaussdb-&gt; select '合计' ,sum(amount) from t_sales;
+ id |                   operation                    | E-rows | E-width |    E-costs     | Query Block
+----+------------------------------------------------+--------+---------+----------------+-------------
+  1 | -&gt;  Unique                                     |    201 |      40 | 46.234..47.742 | sel$1
+  2 |    -&gt;  Sort                                    |    201 |      40 | 46.234..46.737 | sel$1
+  3 |       -&gt;  Append(4, 7)                         |    201 |      40 | 17.650..38.545 | sel$1
+  4 |          -&gt;  Subquery Scan on "*SELECT* 1"     |    200 |      40 | 17.650..22.150 |
+  5 |             -&gt;  HashAggregate                  |    200 |      40 | 17.650..20.150 | sel$2
+  6 |                -&gt;  Seq Scan on t_sales@"sel$2" |    510 |      40 | 0.000..15.100  | sel$2
+  7 |          -&gt;  Aggregate                         |      1 |      64 | 16.375..16.385 | sel$3
+  8 |             -&gt;  Seq Scan on t_sales@"sel$3"    |    510 |      32 | 0.000..15.100  | sel$3
+(8 rows)
+
+                                                                         ====== Query Others =====
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-----
+ Parameterize: Yes, parameterized sql: select /*+ use_sort_agg(@sel$1) */to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by trans
+date
+ union
+ select '合计' ,sum(amount) from t_sales;
+(3 rows)
+</code></pre>
+<p>果然输出变成有序了，执行计划也和ORACLE 19C很像了。</p>
+<p>但是，这种排序存在性能损耗，实测在GaussDB里加上use_sort_agg会比不加要慢一点。<br/>
+本来原SQL从语义上就没有说要排序，ORACLE 19C在这个场景下使用了需要排序的去重算法，而GaussDB则是默认使用无须排序的去重算法。</p>
+<p>ORACLE中的确也有两种去重算法</p>
+<ul>
+<li>SORT UNIQUE</li>
+<li>HASH UNIQUE</li>
+</ul>
+<p>但需要注意的是，ORACLE 19C里把聚合和去重拆开了，即存在<code>SORT GROUP BY</code>/<code>HASH GROUP BY</code>/<code>SORT UNIQUE</code>/<code>HASH UNIQUE</code>至少四种计划，去重算法会根据情况（如数据量、内存）自适应（实践中发现<code>DISTINCT</code>更容易走<code>HASH UNIQUE</code>,而<code>UNION</code>更容易走<code>SORT UNIQUE</code>），聚合算法可以使用hint<code>NO_USE_HASH_AGGREGATION</code>或隐藏参数<code>_gby_hash_aggregation_enabled</code>进行控制。但GaussDB的hint<code>use_sort_agg</code>/<code>use_hash_agg</code>是同时控制聚合和去重的。</p>
+<p>可能有人注意到了，我上面描述ORACLE的时候都接了版本，这是因为这个行为在21C之后发生了变化,UNION的默认行为变成了<code>HASH UNIQUE</code>,即不排序了</p>
+<pre><code>SQL&gt; select to_char(TRANSDATE,'yyyy-mm-dd') TRANSDATE,sum(amount) totalamount from t_sales group by transdate
+  2  union
+  3  select '合计' ,sum(amount) from t_sales
+  4  ;
+
+TRANSDATE  TOTALAMOUNT
+---------- -----------
+2020-01-02          80
+2020-01-03          60
+2020-01-01          60
+合计               200
+</code></pre>
+<pre><code> Plan Hash Value  : 322763121 
+
+--------------------------------------------------------------------------
+| Id | Operation              | Name    | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------
+|  0 | SELECT STATEMENT       |         |   11 |   233 |    9 | 00:00:01 |
+|  1 |   HASH UNIQUE          |         |   11 |   233 |    9 | 00:00:01 |
+|  2 |    UNION-ALL           |         |      |       |      |          |
+|  3 |     HASH GROUP BY      |         |   10 |   220 |    5 | 00:00:01 |
+|  4 |      TABLE ACCESS FULL | T_SALES |   10 |   220 |    3 | 00:00:01 |
+|  5 |     SORT AGGREGATE     |         |    1 |    13 |    4 | 00:00:01 |
+|  6 |      TABLE ACCESS FULL | T_SALES |   10 |   130 |    3 | 00:00:01 |
+--------------------------------------------------------------------------
+</code></pre>
+<p>此事在asktom上也有记载<a href="https://asktom.oracle.com/ords/f?p=100:11:705697654314928:::::">【Set operators like UNION, MINUS do not sort data anymore in Oracle 21c and 23ai】</a></p>
+<p>而且在不排序后，ORACLE跑这个SQL的性能也有提升。<br/>
+所以GaussDB此处默认就是符合最新ORACLE版本的行为，不需要再说没和ORACLE对齐了。</p>
+<h2 id="gaussdb官方文档">GaussDB官方文档</h2>
+<ol>
+<li><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0369.html">【指定agg算法的Hint】</a></li>
+</ol>
+<p>里面只是展示了<code>use_sort_agg</code>和<code>use_hash_agg</code>的两种聚合方式的执行计划，没有提到UNION的顺序</p>
+<ol start="2">
+<li><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/compatibility-description/gaussdb-83-0061.html">【MySql兼容性说明】</a></li>
+</ol>
+<blockquote>
+<p>不携带ORDER BY子句的UNION、GROUP BY等语句在数据合并或聚合的时候，由于使用执行器算子存在差异，不保证输出数据顺序和MySQL顺序一致。</p>
+</blockquote>
+<p>这里虽然提到了UNION的顺序，但是是在MySql兼容性说明的章节里。</p>
+<h2 id="其他方式实现原始的汇总行需求">其他方式实现原始的汇总行需求</h2>
+<pre><code class="language-sql">select nvl(to_char(TRANSDATE,'yyyy-mm-dd'),'合计') TRANSDATE,sum(amount) totalamount
+from t_sales group by rollup(transdate);
+</code></pre>
+<p>其实在oracle和GaussDB中，都支持rollup/cube/grouping聚合，不需要用union去合并多个结果集，能自动在结果集后产生汇总行。不过至少存在两个问题：</p>
+<ol>
+<li>在复杂分组时，rollup并不可控，比如聚合的是一个抽象的业务范围，并非按某几个字段聚合，就只能硬编码了；</li>
+<li>另外，rollup在ORACLE不同版本中，查询结果可能会不一样(可能是BUG)，这样也导致了其他数据库无论去兼容ORACLE哪个版本的行为，总是会不兼容另外版本ORACLE的行为。</li>
+</ol>
+<blockquote>
+<ul>
+<li>Bug 31377701 - Wrong results or ORA-600[15851] with ROLLUP queries involving distinct aggregate functions</li>
+<li>BUG 31158151 - GROUP BY GROUPING SETS WITH MORE THAN ONE COMBINATION OF GROUPING COLUMN PRODUCES INCORRECT RESULTS</li>
+<li>Bug 12689808 - wrong results (duplicate rows) with GROUPING SETS / ROLLUP / CUBE</li>
+<li>Bug 10261072 - Wrong Results with GROUPING sets</li>
+</ul>
+</blockquote>
+<h2 id="总结">总结</h2>
+<ol>
+<li>UNION 和 UNION ALL不要混淆，UNION会自动去重，顺序是不可控的，不去重的场景要用UNION ALL</li>
+<li>不同数据库对UNION是否排序、如何排序的行为是不一样的，如果使用了UNION，且对顺序有要求，一定要使用order by，order by可以接列名、列序号、decode/nvl等函数表达式,还可以指定null在前还是在后，无论想要什么顺序都是可以排的。e.g.<code>order by decode(colname,'合计','2','1')</code></li>
+<li>如果rollup/cube/grouping能满足当前汇总行的需求，则推荐用rollup/cube/grouping，避免表的多次扫描，性能会更好，但要注意其查询结果在不同数据库不同版本上可能存在差异。</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

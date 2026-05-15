@@ -153,7 +153,109 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="duckdb探索函数调用新范式点操作符链式调用">【DuckDB】探索函数调用新范式：点操作符链式调用</h1>
+<p>在数据库操作的日常实践中，函数调用的简洁性与直观性直接影响着开发效率与代码可读性。DuckDB 提供的点操作符函数链式调用功能，为我们打开了全新的函数调用视角，让数据处理逻辑更加流畅自然。</p>
+<h2 id="基础使用方法从传统到创新">基础使用方法：从传统到创新</h2>
+<h3 id="基本语法解析">基本语法解析</h3>
+<p>在 DuckDB 中，我们可以通过点操作符 <code>.</code> 来实现函数的链式调用。例如：</p>
+<pre><code class="language-sql">select cast('A' as varchar).lower();
+</code></pre>
+<p>这条语句的本质与传统的 <code>lower(cast('A' as varchar))</code> 完全一致，点操作符将前面表达式的结果作为后面函数的入参。这一特性要求点操作符后的函数必须仅支持一个入参。</p>
+<h3 id="常见误区与解决方案">常见误区与解决方案</h3>
+<p>在使用点操作符时，有两种常见的错误用法需要避免：</p>
+<ol>
+<li><strong>标量直接调用</strong>：</li>
+</ol>
+<pre><code class="language-sql">select 'A'.lower(); -- 错误用法
+</code></pre>
+<p>由于标量 <code>'A'</code> 未被正确识别为表达式，无法直接使用点操作符调用函数。<br/>
+2. <strong>双冒号强转后调用</strong>：</p>
+<pre><code class="language-sql">select 'A'::VARCHAR.lower(); -- 错误用法
+</code></pre>
+<p>双冒号进行类型强转后，同样无法直接使用点操作符调用函数。</p>
+<p>解决方法非常简单，只需为标量或强转后的表达式添加括号：</p>
+<pre><code class="language-sql">select ('A').lower(); -- 正确用法
+select ('A'::VARCHAR).lower(); -- 正确用法
+</code></pre>
+<h2 id="高级用法链式调用的无限可能">高级用法：链式调用的无限可能</h2>
+<h3 id="连续链式调用">连续链式调用</h3>
+<p>我们可以通过连续使用点操作符，实现多个函数的链式调用：</p>
+<pre><code class="language-sql">select cast('A' as varchar).lower().ascii();
+</code></pre>
+<p>这条语句会先将 <code>'A'</code> 转换为 <code>varchar</code> 类型，然后将其转换为小写 <code>'a'</code>，最后获取其 ASCII 码值 97。</p>
+<h3 id="字段别名的作用域扩展">字段别名的作用域扩展</h3>
+<p>在 DuckDB 中，字段别名的作用域可以扩展到当前 <code>select</code> 列表中：</p>
+<pre><code class="language-sql">select 97 a,chr(a) b,b.ascii();
+select 97 a,a.chr() b, b.ascii() c ;
+</code></pre>
+<p>这意味着我们可以在同一个 <code>select</code> 语句中，直接使用前面定义的字段别名进行后续的函数调用。</p>
+<h2 id="自定义类型的点操作符应用">自定义类型的点操作符应用</h2>
+<h3 id="自定义类型的创建与使用">自定义类型的创建与使用</h3>
+<p>我们可以通过创建自定义类型，进一步扩展点操作符的应用场景：</p>
+<pre><code class="language-sql">create table t_1(c1 numeric,c2 varchar);
+create type ty_1 as struct(c1 numeric,c2 varchar);
+create type tyt_1 as ty_1[];
+insert into t_1 values (1,'a');
+insert into t_1 values (2,'b');
+</code></pre>
+<h3 id="自定义类型的点操作符调用">自定义类型的点操作符调用</h3>
+<p>通过点操作符，我们可以方便地访问自定义类型的成员：</p>
+<pre><code class="language-sql">select array[(1,'a')::ty_1,(2,'b')::ty_1][1].c2;
+select typeof( array[(1,'a'),(2,'b')] ::tyt_1 )
+</code></pre>
+<h2 id="自定义变量的点操作符使用">自定义变量的点操作符使用</h2>
+<h3 id="自定义变量的创建与访问">自定义变量的创建与访问</h3>
+<p>我们可以创建自定义变量，并通过点操作符访问其成员：</p>
+<pre><code class="language-sql">-- 创建自定义结构体变量
+SET VARIABLE l_ty =(1,'a')::ty_1;
+-- 访问结构体变量的成员
+select getvariable('l_ty').c1;
+
+-- 创建带点的变量
+SET VARIABLE l_ty.c1 =1;
+select getvariable('l_ty.c1') ;
+
+-- 创建数组变量
+set VARIABLE l_tyt=array[(1,'a')::ty_1,(2,'b')::ty_1];
+-- 访问数组变量的成员
+select getvariable('l_tyt')[1].c2 ;
+</code></pre>
+<h3 id="自定义类型的函数调用">自定义类型的函数调用</h3>
+<p>我们还可以为自定义类型创建函数，并通过点操作符进行调用：</p>
+<pre><code class="language-sql">create function struct2json(i) as to_json(i);
+select ((1,'a')::ty_1).struct2json();
+select getvariable('l_ty').struct2json();
+</code></pre>
+<h2 id="源码解析点操作符的实现原理">源码解析：点操作符的实现原理</h2>
+<h3 id="语法分析流程">语法分析流程</h3>
+<p>在 DuckDB 的语法分析中，<code>a_expr</code> 必须带括号才能使用点操作符：</p>
+<pre><code class="language-sql">indirection_expr_or_a_expr: '(' a_expr ')' { $$ = $2; } 
+| indirection_expr { $$ = $1; } 
+| row { PGFuncCall *n = makeFuncCall(SystemFuncName("row"), $1, @1); $$ = (PGNode *) n; } ;
+</code></pre>
+<p>标量 <code>'A'</code> 会走 <code>d_expr</code> 路线，而不是 <code>a_expr</code> 路线：</p>
+<pre><code class="language-sql">c_expr: d_expr 
+| indirection_expr_or_a_expr opt_extended_indirection { 
+    if ($2) { 
+        PGAIndirection *n = makeNode(PGAIndirection); 
+        n-&gt;arg = (PGNode *) $1; 
+        n-&gt;indirection = check_indirection($2, yyscanner); 
+        $$ = (PGNode *) n; 
+    } else $$ = (PGNode *) $1; 
+} ;
+</code></pre>
+<h3 id="扩展的挑战">扩展的挑战</h3>
+<p>虽然我们可以尝试修改源码以支持更多场景，比如字符串常量不加括号直接使用点操作符，但经过分析，这并不是一两行代码就能搞定的事情，需要对 DuckDB 的语法分析和表达式处理逻辑进行深入的修改，还是不整这个活了。</p>
+<h2 id="总结">总结</h2>
+<p>DuckDB 的点操作符函数链式调用功能为我们提供了一种更加简洁、直观的函数调用方式。<br/>
+传统的函数调用 <code>func1(func2(func3(func4(param))))</code>，阅读的时候，要从左到右找到最里层，然后再从里往外，才能知道最后返回了什么；<br/>
+而链式调用<code>func4(param).func3().func2().func1()</code>，直接从左往右读一次就行。</p>
+<p>通过合理使用这一特性，我们可以编写出更加优雅、易读的 SQL 代码，提高开发效率。同时，自定义类型和自定义变量的点操作符应用，进一步扩展了 DuckDB 的灵活性和可扩展性。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

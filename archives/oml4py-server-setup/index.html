@@ -157,7 +157,201 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在 oracle 数据库 21C（20C）版本中，ORACLE数据库加入了机器学习功能，叫OML，全称（Oracle machine learning），并且加入了对python语言的支持，组件名叫 oml4py。这个组件是部署在数据库服务器端，然后有客户端，可使用python连接数据库进行机器学习操作，并且支持在oracle数据库存储中创建管理python脚本并运行它。这样，我们可以通过这个功能，给ORACLE数据库添加python函数。以下内容根据oracle官网多篇文档翻译整合加本人实测遇坑优化而来,目前各种搜索引擎都搜不到完整的安装使用用例。</p>
+<h2 id="一安装数据库并启动">一、安装数据库并启动</h2>
+<p>官方安装包<br/>
+<a href="https://www.oracle.com/database/technologies/oracle-database-software-downloads.html">https://www.oracle.com/database/technologies/oracle-database-software-downloads.html</a></p>
+<p>安装这个就不细说了，可以自行下载安装，也可以直接使用docker（我之后会考虑做个已安装相关特性的docker镜像出来）</p>
+<h2 id="二安装python">二、安装python</h2>
+<p><a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/build-and-install-python-linux-premises-databases.html">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/build-and-install-python-linux-premises-databases.html</a></p>
+<p>以下是在数据库所在操作系统上操作,<br/>
+这python版本要求太高了，yum上还没有这个版本，所以只能自己编译</p>
+<ol>
+<li>去python官网下载 3.9.5 版本的tgz文件 wget <a href="https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz">https://www.python.org/ftp/python/3.9.5/Python-3.9.5.tgz</a></li>
+<li>解压</li>
+<li>进入 Python-3.9.5 目录</li>
+<li>安装依赖包</li>
+</ol>
+<pre><code class="language-bash">yum install libffi-devel
+yum install openssl-devel
+yum install tk-devel
+yum install xz-devel
+yum install zlib-devel
+</code></pre>
+<ol start="5">
+<li>编译安装python，“PREFIX”替换为你要安装的目标路径</li>
+</ol>
+<pre><code class="language-bash">./configure --enable-shared --prefix=PREFIX
+make clean; make
+make altinstall
+</code></pre>
+<p>这里如果编译报错 gcc: internal compiler error: Killed (program cc1)，是操作系统内存不足引起的，尝试增加内存或者使用swap交换分区</p>
+<ol start="6">
+<li>设置环境变量</li>
+</ol>
+<pre><code class="language-bash">export PYTHONHOME=PREFIX
+export PATH=$PYTHONHOME/bin:$PATH
+export LD_LIBRARY_PATH=$PYTHONHOME/lib:$LD_LIBRARY_PATH
+</code></pre>
+<p>官方这步操作让人疑惑，这个不是临时环境变量么？安装python最后一步设置个环境变量有毛用？建议自行设置系统环境变量<br/>
+然后官方还提醒，如果python运行找不到命令，就再设置个软链接</p>
+<pre><code class="language-bash">cd PREFIX/bin
+ln -s python3.9 python3
+</code></pre>
+<p>既然设置了这个，不把pip3也设置上去？</p>
+<pre><code class="language-bash">ln -s pip3.9 pip3
+</code></pre>
+<h2 id="三安装python依赖包">三、安装python依赖包</h2>
+<p><a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/install-required-supporting-packages-linux-premises-databases.html">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/install-required-supporting-packages-linux-premises-databases.html</a></p>
+<pre><code class="language-bash">pip3 install numpy
+pip3 install pandas
+pip3 install scipy
+pip3 install matplotlib
+pip3 install cx_Oracle
+pip3 install scikit-learn
+</code></pre>
+<p>这几个包是官方说的，我总觉得可能少了</p>
+<h2 id="四安装oml4py服务端到数据库">四、安装OML4Py服务端到数据库</h2>
+<p><a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/install-oml4py-server-linux-premises-oracle-database-21c.html">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/install-oml4py-server-linux-premises-oracle-database-21c.html</a></p>
+<p>输入sas回车进入sqlplus</p>
+<pre><code class="language-bash">SQL&gt; spool install.txt
+SQL&gt; alter session set container=PDB1;
+SQL&gt; ALTER PROFILE DEFAULT LIMIT PASSWORD_VERIFY_FUNCTION NULL;
+SQL&gt; @$ORACLE_HOME/oml4py/server/pyqcfg.sql
+
+define permtbl_value = SYSAUX --&gt; Specify a permanent tablespace for the PYQSYS schema
+define temptbl_value = TEMP --&gt; Specify a temporary tablespace
+define orahome_value = /u01/app/oracle/product/21.3.0.0/dbhome_1 --&gt; Specify the ORACLE_HOME directory
+define pythonhome = /opt/Python-3.9.5 --&gt; Specify the PYTHON_HOME directory
+</code></pre>
+<p>这段是官方提供的，把最下面两个参数修改成符合自己的。<br/>
+我有点疑惑，又是先跑脚本，再声明变量？反正我跑脚本是没有报错，也试了在脚本后面空格接参数。</p>
+<h2 id="五在数据库中测试">五、在数据库中测试</h2>
+<p><a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/pyqeval-function.html">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/pyqeval-function.html</a></p>
+<pre><code class="language-sql">--创建一个简单的python函数
+BEGIN
+   sys.pyqScriptCreate('pyqFun1', 'func = lambda: "Hello World from a lambda!"',
+                        FALSE, TRUE); -- V_GLOBAL, V_OVERWRITE
+END;
+/
+
+--查询用户创建的python函数列表,这里注意使用oci7的客户端会报错，要使用oci8
+SELECT name, script, description, cdate from USER_PYQ_SCRIPTS;
+
+--执行python函数
+SELECT name, value FROM table(pyqEval(NULL, 'XML', 'pyqFun1'));
+
+--返回
+NAME  VALUE
+----  --------------------------------------------------       
+      &lt;root&gt;&lt;str&gt;Hello World from a lambda!&lt;/str&gt;&lt;/root&gt;
+
+--删除python函数
+BEGIN
+  sys.pyqScriptDrop('pyqFun1');
+END;
+/ 
+
+</code></pre>
+<p>如果提示 ORA-06598: INHERIT PRIVILEGES 权限不足，试着先执行一次</p>
+<pre><code class="language-sql">GRANT INHERIT PRIVILEGES ON USER SYS TO PUBLIC;
+</code></pre>
+<p>支持传入参数，支持以值、行、表的形式返回结果，<br/>
+更多例子详见<br/>
+<a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html</a></p>
+<h2 id="六最后">六、最后</h2>
+<p>谁成功了告诉我一下，我努力照这个说明把前几步都成功完成了，就是最后一步执行python函数时报错，先报</p>
+<pre><code>
+ORA-20000: PyQuery error
+ImportError: 
+
+IMPORTANT: PLEASE READ THIS FOR ADVICE ON HOW TO SOLVE THIS ISSUE!
+
+Importing the numpy c-extensions failed.
+- Try uninstalling and reinstalling numpy.
+- If you have already done that, then:
+  1. Check that you expected to use Python3.9 from "",
+     and that you have no directories in your PATH or PYTHONPATH that can
+     interfere with the Python and numpy version "1.18.1" you're trying to use.
+  2. If (1) looks fine, you can open a new issue at
+     https://github.com/numpy/numpy/issues.  Please include details on:
+     - how you installed Python
+     - how you installed numpy
+     - your operating system
+     - whether or not you have multiple versions of Python installed
+     - if you built from source, your compiler versions and ideally a build log
+
+- If you're working with a numpy git repository, try `git clean -xdf`
+  (removes all files not under version control) and rebuild numpy.
+
+Note: this error has many possible causes, so please don't comment on
+an existi...
+
+libgfortran.so.3: cannot open shared object file: No such file or directory
+</code></pre>
+<p>然后马上再执行一次，报</p>
+<pre><code>ORA-20000: PyQuery error NameError: name 'plt' is not defined
+</code></pre>
+<p>继续执行就都是这个错，<br/>
+但如果新开一个会话，再执行，又报第一次出现的错，再执行，又报第二次出现的错</p>
+<p>总感觉这玩意应该是和服务器上的python联系上了，但好像又没找对地方。</p>
+<p>还有自行编译的python，感觉也很怪异，前面pip3 install都装得好好的，后面再想装其他包，就找不到lib了，我感觉还可能是我使用的docker镜像有问题，偷懒直接用了第三方的docker镜像，改天尝试自己再装一个吧，手里没linux机器。。。</p>
+<p>最后的最后，不要在生产环境使用21c！按大佬的说法，目前19c才是长期版本，下一个长期版本会是23c。</p>
+<h2 id="20211114更新">20211114更新</h2>
+<p>重新自己用ORACLE LINUX 8安装了21c，做成了docker，并微调了官方的安装脚本（脚本里直接强制指定参数的值），终于执行成功了<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png" srcset="/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1200 1200w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=400 400w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1600 1600w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=800 800w"/></p>
+<p>但是安装脚本中最后一个调用的文件pyqatmlcfg.sql，导入机器学习模型imp不成功，一开始我是把docker的数据库文件挂载到了windows本地，查询dba_directories时就报错</p>
+<blockquote>
+<p>ORA-12801: error signaled in parallel query server P000<br/>
+ORA-48189: OS command to create directory failed</p>
+</blockquote>
+<p>然后我又尝试不挂载，结果在执行这段时报错</p>
+<pre><code class="language-sql">dbms_data_mining.import_model(
+  filename =&gt; 'automl_metamodels.dmp',
+  directory =&gt; 'DATA_PUMP_DIR',
+  model_filter =&gt; 'ALL',
+  operation =&gt;'IMPORT',
+  remote_link =&gt; null,
+  jobname =&gt; import_job_name,
+  schema_remap =&gt; 'PYQUSER:PYQSYS',
+  tablespace_remap =&gt; 'PYQUSER:&amp;perm_tbl');
+</code></pre>
+<blockquote>
+<p>ERROR at line 1:<br/>
+ORA-40223: data mining model import failed, job name=OML4PY_IMPORT_4,<br/>
+error=ORA-39001: invalid argument value<br/>
+ORA-06512: at line 40<br/>
+ORA-06512: at "SYS.DBMS_SYS_ERROR", line 95<br/>
+ORA-06512: at "SYS.DBMS_DM_EXP_INTERNAL", line 618<br/>
+ORA-06512: at "SYS.DBMS_DATA_MINING", line 5635<br/>
+ORA-06512: at line 17</p>
+</blockquote>
+<p>为了弄这个环境，我反反复复从编译python起，来了好多次，yum网速贼慢，而且pip install那几个模块，每次都是以building wheel的方式安装的，装一个就要等好几分钟，下次争取直接提前做到docker里去，这玩意太磨人了（2021-11-30原因已找到，是18c禁用了软连接目录，我这个环境的DATA_PUMP_DIR目录对应的是个软连接目录，把目录修改成真实对应的目录就行了<a href="https://www.darkathena.top/archives/18c-symlink-forbid">【ORACLE】有关18c的一个很多文章都没提到的安全方面的变更-禁止软链接</a>）</p>
+<h2 id="20211115-更新">20211115 更新</h2>
+<p>支持oml4py的dockerfile的地址<br/>
+<a href="https://github.com/Dark-Athena/dockerfile/tree/main/ol8_21_oml4py">https://github.com/Dark-Athena/dockerfile/tree/main/ol8_21_oml4py</a></p>
+<p>官方给的"@$ORACLE_HOME/oml4py/server/pyqcfg.sql" 这条执行命令有误，应该为</p>
+<pre><code>@$ORACLE_HOME/oml4py/server/pyqcfg.sql SYSAUX TEMP $PYTHON_HOME
+</code></pre>
+<p>其中$PYTHON_HOME为python安装的路径，如果不传参数，则Oracle会以$ORACLE_HOME/python作为python主目录</p>
+<h2 id="20211119-更新">20211119 更新</h2>
+<p>其实官方有更简单的oml4py的安装方式，就是用DBCA配置，</p>
+<pre><code>dbca -slient -configureDatabase -sourceDB pdb1 -configureOML4PY -sysDBAPassword SysPassword1 -sysDBAUserName SYS
+
+或
+
+dbca -slient -configurePluggableDatabase  -pdbName pdb1 -sourceDB cdb1 -configureOML4PY -sysDBAPassword SysPassword1 -sysDBAUserName SYS
+</code></pre>
+<p>因为oracle已经把python3.9.5的绿色版放在了ORACLE_HOME目录下，而且相关的模块也已经安装。<br/>
+但实测，<br/>
+第一种装完后无法执行python函数，和我第一次报错一样<br/>
+第二种安装时提示[FATAL] [DBT-15311] Container database is not configured with OML4Py.</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

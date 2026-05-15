@@ -155,7 +155,137 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>在oracle里引入cityhash及murmurhash3算法函数</p>
+<h3 id="前言">前言</h3>
+<p>Oracle自带ora_hash函数，该函数可以对任意的数据进行hash计算，返回一个整型数值，计算速度非常快，能用于检查数据一致性。但目前网上找不到该函数使用的算法，所以我们无法将此函数用于ORACLE数据库内和ORACLE数据库外（比如国产数据库内）的数据核对，因此考虑引入比较流行的算法，通过在ORACLE中直接引入自定义C函数来达到进行快速hash计算的目的</p>
+<h3 id="一murmurhash3">一、murmurhash3</h3>
+<h4 id="c源码">C源码</h4>
+<p>murmurhash3_function.c</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;string.h&gt;
+
+// MurmurHash3 32-bit implementation
+uint32_t MurmurHash3_x86_32(const void *key, int len, uint32_t seed) {
+    const uint8_t *data = (const uint8_t *)key;
+    const int nblocks = len / 4;
+    uint32_t h1 = seed;
+    const uint32_t c1 = 0xcc9e2d51;
+    const uint32_t c2 = 0x1b873593;
+
+    // Body
+    const uint32_t *blocks = (const uint32_t *)(data + nblocks * 4);
+    for (int i = -nblocks; i; i++) {
+        uint32_t k1 = blocks[i];
+        k1 *= c1;
+        k1 = (k1 &lt;&lt; 15) | (k1 &gt;&gt; (32 - 15));
+        k1 *= c2;
+        h1 ^= k1;
+        h1 = (h1 &lt;&lt; 13) | (h1 &gt;&gt; (32 - 13));
+        h1 = h1 * 5 + 0xe6546b64;
+    }
+
+    // Tail
+    const uint8_t *tail = (const uint8_t *)(data + nblocks * 4);
+    uint32_t k1 = 0;
+    switch (len &amp; 3) {
+        case 3:
+            k1 ^= tail[2] &lt;&lt; 16;
+        case 2:
+            k1 ^= tail[1] &lt;&lt; 8;
+        case 1:
+            k1 ^= tail[0];
+            k1 *= c1;
+            k1 = (k1 &lt;&lt; 15) | (k1 &gt;&gt; (32 - 15));
+            k1 *= c2;
+            h1 ^= k1;
+    }
+
+    // Finalization
+    h1 ^= len;
+    h1 ^= h1 &gt;&gt; 16;
+    h1 *= 0x85ebca6b;
+    h1 ^= h1 &gt;&gt; 13;
+    h1 *= 0xc2b2ae35;
+    h1 ^= h1 &gt;&gt; 16;
+
+    return h1;
+}
+
+int murmurhash3(const char *str) {
+    size_t len = strlen(str);
+    uint32_t seed = 42; // You can use any seed value
+    uint32_t hash = MurmurHash3_x86_32(str, len, seed);
+    return (int)hash;
+}
+</code></pre>
+<h4 id="编译">编译</h4>
+<pre><code class="language-shell">gcc -shared -o libmurmurhash3_function.so -fPIC murmurhash3_function.c -std=c99
+cp libmurmurhash3_function.so $ORACLE_HOME/lib
+</code></pre>
+<h4 id="创建自定义函数">创建自定义函数</h4>
+<pre><code class="language-sql">CREATE OR REPLACE LIBRARY libmurmurhash3_lib AS '$ORACLE_HOME/lib/libmurmurhash3_function.so';
+/
+
+
+CREATE OR REPLACE FUNCTION murmurhash3(input_string IN VARCHAR2)
+RETURN binary_integer parallel_enable
+AS
+    LANGUAGE C
+    LIBRARY libmurmurhash3_lib
+    NAME "murmurhash3"
+    PARAMETERS (input_string STRING, RETURN INT);
+/
+
+</code></pre>
+<h3 id="二cityhash">二、cityhash</h3>
+<h4 id="下载并编译cityhash库">下载并编译cityhash库</h4>
+<pre><code class="language-shell">git clone https://github.com/google/cityhash
+cd cityhash
+./configure --enable-sse4.2
+make all check CXXFLAGS="-g -O3 -msse4.2"
+sudo make install
+cp /usr/local/lib/libcityhash.* $ORACLE_HOME/lib/
+</code></pre>
+<h4 id="c源码-1">C源码</h4>
+<p>cityhash_function.c</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;cstring&gt;
+#include &lt;city.h&gt;
+
+extern "C" {
+    int cityhash32(const char *str) {
+        size_t len = strlen(str);
+        uint32_t hash = CityHash32(str, len);
+        return (int)hash;
+    }
+}
+</code></pre>
+<h4 id="编译-1">编译</h4>
+<pre><code class="language-shell">g++ -shared -o libcityhash_function.so -fPIC cityhash_function.c -lcityhash
+</code></pre>
+<h4 id="创建自定义函数-1">创建自定义函数</h4>
+<pre><code class="language-sql">CREATE OR REPLACE LIBRARY libcityhash_lib AS '$ORACLE_HOME/lib/libcityhash_function.so';
+/
+
+
+CREATE OR REPLACE FUNCTION cityhash32(input_string IN VARCHAR2)
+RETURN binary_integer parallel_enable
+AS
+    LANGUAGE C
+    LIBRARY libcityhash_lib
+    NAME "cityhash32"
+    PARAMETERS (input_string STRING, RETURN INT);
+/        
+
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

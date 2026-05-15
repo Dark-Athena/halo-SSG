@@ -153,7 +153,586 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="前言">前言</h1>
+<p><a href="https://www.darkathena.top/archives/antlr4-part1-install-offline">基于语法树的SQL自动改写工具开发系列（1）-离线安装语法树解析工具antlr4</a><br/>
+<a href="https://www.darkathena.top/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战</a></p>
+<p>前两篇分别介绍了如何搭建开发环境，以及如何使用python作为开发语言进行开发。<br/>
+python做做小活问题不大，但是对于生成语法树这种任务，计算量还是有点大，所以其性能表现非常差。<br/>
+实际测试中，python版本的解析器，输入一个2万行的create package语句，需要20分钟才能把语法树生成，但使用java版本的解析器，则只要不到1分钟，而且得益于java的缓存机制，这个处理会越来越快，实际平均大概为二十秒左右。<br/>
+本篇介绍如何使用java作为开发语言基于antlr4进行SQL自动改写的开发</p>
+<h1 id="实战">实战</h1>
+<h2 id="demo1">demo1</h2>
+<p>还是以上一篇中的table函数转换成unnest为例，以下给出一个完整的demo</p>
+<pre><code class="prism language-java">import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.*;
+import org.antlr.v4.runtime.misc.Interval;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+
+public class PlSqlRewriter {
+    public static void main(String[] args) throws Exception {
+        // 输入文件名
+        String inputFileName = "input.sql";
+        // 输出文件名
+        String outputFileName = "output.sql";
+
+        // 从文件中读取 PL/SQL 代码
+        String input = new String(Files.readAllBytes(Paths.get(inputFileName)));
+
+        // 创建词法分析器和解析器
+        PlSqlLexer lexer = new PlSqlLexer(CharStreams.fromString(input));
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        PlSqlParser parser = new PlSqlParser(tokens);
+
+        // 获取语法树
+        ParseTree tree = parser.sql_script();
+
+        // 创建 TokenStreamRewriter
+        TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+
+        // 创建自定义的 Visitor
+        PlSqlParserBaseVisitor&lt;Void&gt; visitor = new PlSqlParserBaseVisitor&lt;Void&gt;() {
+  
+            @Override 
+            public Void visitTable_collection_expression(PlSqlParser.Table_collection_expressionContext ctx){
+                if (ctx.getText().toLowerCase().startsWith("table")) {
+                    String argument = ctx.expression().getText();
+                    String newText = "(select * from unnest(" + argument + ") column_value)";
+                    rewriter.replace(ctx.start.getTokenIndex(), ctx.stop.getTokenIndex(), newText);
+                }
+                return null;
+            }
+  
+        };
+
+        // 将改写后的代码输出到文件
+        String output = rewriter.getText();
+        Files.write(Paths.get(outputFileName), output.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+        System.out.println("转换后的结果已输出到文件：" + outputFileName);
+    }
+}
+</code></pre>
+<p>其实可以发现，用java或者用python来开发antlr4的程序，代码逻辑是差不多的。<br/>
+如果想要修改某个节点，就去PlSqlParserBaseVisitor.java里找对应的visit函数复制过来，在里面填充自己想要的处理逻辑即可。</p>
+<p>需要注意的是，由于这一段我是基于这个节点进行了整体替换，替换后，这个节点内部的语法树就不能用了，因此这里执行完后我写的是<code>return null;</code> ，避免再继续下钻到子节点。大部分的情况下，应该要使用<code>return visitChildren(ctx);</code>，避免改了外层没改内层。</p>
+<h2 id="demo2">demo2</h2>
+<p>openGauss不支持 <code>{a} [not] member of {b}</code>语法，需要改成 <code>[not] {a}=any({b})</code><br/>
+这里我发现个antlr4的plsql语法bug,它没有支持这个语法中的not，于是提交了代码进行修复<br/>
+<a href="https://github.com/antlr/grammars-v4/pull/4347/files">https://github.com/antlr/grammars-v4/pull/4347/files</a><br/>
+其实很简单，就只是把</p>
+<pre><code>: relational_expression (multiset_type = (MEMBER | SUBMULTISET) OF? concatenation)?
+</code></pre>
+<p>改成了</p>
+<pre><code>: relational_expression (multiset_type = NOT? (MEMBER | SUBMULTISET) OF? concatenation)?
+</code></pre>
+<p>这里<code>NOT</code>后面的<code>?</code>表示是此处的语法可以有<code>NOT</code>，也可以没有<code>NOT</code><br/>
+语法解析规则修复后，需要重新生成对应的语法解析器</p>
+<pre><code class="prism language-sh">SET CLASSPATH=.:antlr-4.13.2-complete.jar
+java org.antlr.v4.Tool -Dlanguage=Java -no-listener -visitor PlSqlLexer.g4 
+java org.antlr.v4.Tool -Dlanguage=Java -no-listener -visitor PlSqlParser.g4 
+</code></pre>
+<p>然后根据生成的语法树，找到合适的节点，编写对应的visit函数即可</p>
+<pre><code class="prism language-sh">set CLASSPATH=.:antlr-4.13.2-complete.jar
+java org.antlr.v4.gui.TestRig PlSql sql_script -tree 
+
+declare
+L_TYT_A TYT_a:=TYT_a();
+L_TYT_VARCHAR2 TYT_VARCHAR2:=TYT_VARCHAR2();
+begin
+if L_TYT_A(1).B not member of L_TYT_VARCHAR2 then 
+  p1;
+end if;
+end;
+/
+^z
+(sql_script
+  (unit_statement
+    (anonymous_block
+      declare
+        (seq_of_declare_specs
+          (declare_spec
+            (variable_declaration
+              (identifier
+                (id_expression
+                  (regular_id L_TYT_A)))
+              (type_spec
+                (type_name
+                  (id_expression
+                    (regular_id TYT_a))))
+              (default_value_part :=
+                (expression
+                  (logical_expression
+                    (unary_logical_expression
+                      (multiset_expression
+                        (relational_expression
+                          (compound_expression
+                            (concatenation
+                              (model_expression
+                                (unary_expression
+                                  (atom
+                                    (general_element
+                                      (general_element_part
+                                        (id_expression
+                                          (regular_id TYT_a)))
+                                      (function_argument ())))))))))))));))
+          (declare_spec
+            (variable_declaration
+              (identifier
+                (id_expression
+                  (regular_id L_TYT_VARCHAR2)))
+              (type_spec
+                (type_name
+                  (id_expression
+                    (regular_id TYT_VARCHAR2))))
+              (default_value_part :=
+                (expression
+                  (logical_expression
+                    (unary_logical_expression
+                      (multiset_expression
+                        (relational_expression
+                          (compound_expression
+                            (concatenation
+                              (model_expression
+                                (unary_expression
+                                  (atom
+                                    (general_element
+                                      (general_element_part
+                                        (id_expression
+                                          (regular_id TYT_VARCHAR2)))
+                                      (function_argument ())))))))))))));)))
+      begin
+        (seq_of_statements
+          (statement
+            (if_statement
+              if
+                (condition
+                  (expression
+                    (logical_expression
+                      (unary_logical_expression
+                        (multiset_expression
+                          (relational_expression
+                            (compound_expression
+                              (concatenation
+                                (model_expression
+                                  (unary_expression
+                                    (atom
+                                      (general_element
+                                        (general_element
+                                          (general_element_part
+                                            (id_expression
+                                              (regular_id L_TYT_A)))
+                                          (function_argument
+                                            ((argument
+                                              (expression
+                                                (logical_expression
+                                                  (unary_logical_expression
+                                                    (multiset_expression
+                                                      (relational_expression
+                                                        (compound_expression
+                                                          (concatenation
+                                                            (model_expression
+                                                              (unary_expression
+                                                                (atom
+                                                                  (constant
+                                                                    (numeric 1)))))))))))))))) . (general_element_part
+                                              (id_expression
+                                                (regular_id B)))))))))) not member of (concatenation
+                                (model_expression
+                                  (unary_expression
+                                    (atom
+                                      (general_element
+                                        (general_element_part
+                                          (id_expression
+                                            (regular_id L_TYT_VARCHAR2))))))))))))) then
+                (seq_of_statements
+                  (statement
+                    (call_statement
+                      (routine_name
+                        (identifier
+                          (id_expression
+                            (regular_id p1))))));)
+            end if);)
+      end));) / &lt;EOF&gt;)
+</code></pre>
+<pre><code class="prism language-java">// 将member of 改成 =any
+            @Override
+            public Void visitMultiset_expression(PlSqlParser.Multiset_expressionContext ctx) {
+                String newExpr;
+                if (ctx.MEMBER() != null &amp;&amp; ctx.OF() != null) {
+                    // 获取左侧和右侧表达式
+                    String leftExpr = ctx.getChild(0).getText();
+                    String rightExpr = ctx.getChild(ctx.getChildCount() - 1).getText();
+                    // 构建新的表达式
+                    if (ctx.NOT() != null ){
+                     newExpr = "not (" + leftExpr + " = any(" + rightExpr + "))";
+                    } else {
+                     newExpr = " (" + leftExpr + " = any(" + rightExpr + "))";
+                    }
+                    // 替换原有表达式
+                    rewriter.replace(ctx.getStart(), ctx.getStop(), newExpr);
+                }
+                return visitChildren(ctx);
+            }
+</code></pre>
+<h2 id="demo3">demo3</h2>
+<p>openGauss不支持存储过程参数中的nocopy，绝大部分场景下可以移除（注意这并非绝对等价，nocopy在异常抛出时，是可能导致程序运行结果不一致的，因为使用指针直接修改了出参的值，而不是执行完后拷贝给出参）</p>
+<p>语法树：</p>
+<pre><code class="prism language-sh">create procedure t(a in out  nocopy number,
+b in number) is
+begin
+null;
+end;
+/
+^z
+(sql_script
+  (unit_statement
+    (create_procedure_body
+      create procedure
+        (procedure_name
+          (identifier
+            (id_expression
+              (regular_id t))))
+        (
+          (parameter
+            (parameter_name
+              (identifier
+                (id_expression
+                  (regular_id a))))
+            in out nocopy
+            (type_spec
+              (datatype
+                (native_datatype_element number))))
+          ,
+          (parameter
+            (parameter_name
+              (identifier
+                (id_expression
+                  (regular_id b))))
+            in
+            (type_spec
+              (datatype
+                (native_datatype_element number))))
+        )
+        is
+        (body
+          begin
+            (seq_of_statements
+              (statement
+                (null_statement null));)
+          end))); / &lt;EOF&gt;)
+</code></pre>
+<p>处理代码：</p>
+<pre><code class="prism language-java"> //移除参数中的nocopy
+            @Override
+            public Void visitParameter(PlSqlParser.ParameterContext ctx) {
+                if (ctx.NOCOPY() != null) {
+                    // 删除 nocopy
+                    for (TerminalNode nocopyNode : ctx.NOCOPY()) {
+                        rewriter.delete(nocopyNode.getSymbol());
+                    }
+                }
+                return visitChildren(ctx);
+            }
+</code></pre>
+<p>这个demo示范了如何在指定节点里删除其中的部分元素</p>
+<h2 id="demo4">demo4</h2>
+<p>在ORACLE中,having 子句可以写在group by子句的前面或者后面，而openGauss只支持having子句在group by子句的后面，因此要编写代码，把having子句移动到group by子句后面去</p>
+<pre><code class="prism language-java"> //将group by 前面的having 移动到group by后
+            @Override
+            public Void visitGroup_by_clause(PlSqlParser.Group_by_clauseContext ctx) {
+                PlSqlParser.Having_clauseContext havingClause = null;
+                Integer groupByFound =0;
+                // 查找 having_clause
+                for (ParseTree child : ctx.children) {
+                    if (child instanceof PlSqlParser.Group_by_elementsContext){
+                        groupByFound=1;
+                    }
+                    if (child instanceof PlSqlParser.Having_clauseContext &amp;&amp; groupByFound!=1) {
+                        havingClause = (PlSqlParser.Having_clauseContext) child;
+                        break;
+                    }
+                }
+
+                // 如果存在 having_clause 且存在 group_by_elements
+                if (havingClause != null &amp;&amp; ctx.group_by_elements() != null &amp;&amp; !ctx.group_by_elements().isEmpty()) {
+                    // 删除原有的 having_clause
+                    rewriter.delete(havingClause.getStart(), havingClause.getStop());
+
+                    // 获取原始的having_clause文本
+                    TokenStream tokens = rewriter.getTokenStream();
+                    String havingText = tokens.getText(havingClause.getSourceInterval());
+                    rewriter.insertAfter(ctx.group_by_elements(ctx.group_by_elements().size() - 1).getStop(), " " + havingText);
+                }
+
+                return visitChildren(ctx);
+            }
+</code></pre>
+<p>这个demo示范了如何获取节点的原始文本</p>
+<h2 id="demo5">demo5</h2>
+<p>ORACLE存储过程的一个声明区域里，支持声明相同名称的变量，在这些变量没有被使用到时，存储过程可以正常编译成功；如果变量有被使用到，则会编译失败。在openGauss中则不允许在同一个声明区域声明相同名称的变量，为了保证代码最少改动，我们可以对重复名称的变量保留最后一个</p>
+<pre><code class="prism language-java">  //移除重复声明的变量 存储过程自己的变量声明
+            @Override
+            public Void visitSeq_of_declare_specs(PlSqlParser.Seq_of_declare_specsContext ctx) {
+                Map&lt;String, PlSqlParser.Declare_specContext&gt; lastOccurrence = new HashMap&lt;&gt;();
+                List&lt;PlSqlParser.Declare_specContext&gt; declareSpecs = ctx.declare_spec();
+
+                // 记录每个变量名的最后一个声明
+                for (PlSqlParser.Declare_specContext declareSpec : declareSpecs) {
+                    if (declareSpec.variable_declaration() != null) {
+                        String varName = declareSpec.variable_declaration().identifier().id_expression().regular_id().getText();
+                        lastOccurrence.put(varName, declareSpec);
+                    }
+                }
+
+                // 删除所有重复的声明，保留最后一个
+                for (PlSqlParser.Declare_specContext declareSpec : declareSpecs) {
+                    if (declareSpec.variable_declaration() != null) {
+                        String varName = declareSpec.variable_declaration().identifier().id_expression().regular_id().getText();
+                        if (lastOccurrence.get(varName) != declareSpec) {
+                            rewriter.delete(declareSpec.getStart(), declareSpec.getStop());
+                        }
+                    }
+                }
+
+                return visitChildren(ctx);
+            }
+            //移除重复声明的变量 存储过程内部匿名块的变量声明
+            @Override
+            public Void visitBlock(PlSqlParser.BlockContext ctx) {
+                Map&lt;String, PlSqlParser.Declare_specContext&gt; lastOccurrence = new HashMap&lt;&gt;();
+                List&lt;PlSqlParser.Declare_specContext&gt; declareSpecs = ctx.declare_spec();
+
+                // 记录每个变量名的最后一个声明
+                for (PlSqlParser.Declare_specContext declareSpec : declareSpecs) {
+                    if (declareSpec.variable_declaration() != null) {
+                        String varName = declareSpec.variable_declaration().identifier().id_expression().regular_id().getText();
+                        lastOccurrence.put(varName, declareSpec);
+                    }
+                }
+
+                // 删除所有重复的声明，保留最后一个
+                for (PlSqlParser.Declare_specContext declareSpec : declareSpecs) {
+                    if (declareSpec.variable_declaration() != null) {
+                        String varName = declareSpec.variable_declaration().identifier().id_expression().regular_id().getText();
+                        if (lastOccurrence.get(varName) != declareSpec) {
+                            rewriter.delete(declareSpec.getStart(), declareSpec.getStop());
+                        }
+                    }
+                }
+
+                return visitChildren(ctx);
+            }
+</code></pre>
+<p>这个demo描述了子节点为List时的一种处理方式。</p>
+<p>这里注意，我写了两段visit，是因为declare_spec这个节点存在于多个语法分支下，在PlSqlParser.g4里搜索 <code>declare_spec</code>,可以发现有四处，所以这四处理论上都需要进行处理，但另外两处是触发器里的，而openGauss目前仍然不支持ORACLE语法的触发器，所以这两处也就懒得改了。</p>
+<h2 id="demo6">demo6</h2>
+<p>ORACLE和openGauss在多行注释上，是存在差异的，ORACLE的多行注释符合C语言的风格，不支持嵌套的多行注释，而openGauss则遵循PG的风格，支持多行的嵌套注释。所以对于ORACLE是正确的注释<code>/*/* comment*/</code>，在openGauss中就不正确了，因为PG风格的多行注释要求有几个 <code>/*</code>，就要有几个<code>*/</code>，就像括号一样，必须成对出现，或者去掉不成对的 <code>/</code>，比如改成<code>/** comment*/</code>。</p>
+<p>上面几个demo都是按visit的方式进行的处理，这要求需要处理的内容都在语法树中，但是SQL中有些东西是不在可见的语法树中的，比如多行注释，因为注释只在词法规则PlSqlLexer.g4中定义了</p>
+<pre><code>MULTI_LINE_COMMENT  : '/*' .*? '*/'                    -&gt; channel(HIDDEN);
+</code></pre>
+<p>这里可以看到后面有个 <code>-&gt; channel(HIDDEN)</code>,意思就是遇到前面这个格式的字符串都放到隐藏通道里，不做语法树解析。</p>
+<p>这里的<code>MULTI_LINE_COMMENT</code>，是可以在使用工具解析语法树时，加上<code>-tokens</code>打印出来的。</p>
+<pre><code class="prism language-sh">set CLASSPATH=.:antlr-4.13.2-complete.jar
+java org.antlr.v4.gui.TestRig PlSql sql_script -tree -tokens
+
+select 1 /*/*/ from dual; 
+^Z
+[@0,0:5='select',&lt;'SELECT'&gt;,1:0]
+[@1,6:6=' ',&lt;SPACES&gt;,channel=1,1:6]
+[@2,7:7='1',&lt;UNSIGNED_INTEGER&gt;,1:7]
+[@3,8:8=' ',&lt;SPACES&gt;,channel=1,1:8]
+[@4,9:13='/*/*/',&lt;MULTI_LINE_COMMENT&gt;,channel=1,1:9]
+[@5,14:14=' ',&lt;SPACES&gt;,channel=1,1:14]
+[@6,15:18='from',&lt;'FROM'&gt;,1:15]
+[@7,19:19=' ',&lt;SPACES&gt;,channel=1,1:19]
+[@8,20:23='dual',&lt;REGULAR_ID&gt;,1:20]
+[@9,24:24=';',&lt;';'&gt;,1:24]
+[@10,25:26='\r\n',&lt;SPACES&gt;,channel=1,1:25]
+[@11,27:26='&lt;EOF&gt;',&lt;EOF&gt;,2:0]
+(sql_script
+  (unit_statement
+    (data_manipulation_language_statements
+      (select_statement
+        (select_only_statement
+          (subquery
+            (subquery_basic_elements
+              (query_block
+                select
+                  (selected_list
+                    (select_list_elements
+                      (expression
+                        (logical_expression
+                          (unary_logical_expression
+                            (multiset_expression
+                              (relational_expression
+                                (compound_expression
+                                  (concatenation
+                                    (model_expression
+                                      (unary_expression
+                                        (atom
+                                          (constant
+                                            (numeric 1)))))))))))))))
+                  (from_clause
+                    from
+                      (table_ref_list
+                        (table_ref
+                          (table_ref_aux
+                            (table_ref_aux_internal
+                              (dml_table_expression_clause
+                                (tableview_name
+                                  (identifier
+                                    (id_expression
+                                      (regular_id dual))))))))))))))); &lt;EOF&gt;)
+
+</code></pre>
+<p>由于不能在语法树中处理了，因此这个改动需要在上面我们定义的<code>visitor</code>外面来处理</p>
+<pre><code class="prism language-java"> public static String removeComment(String input) {
+            if (input.length() &lt;= 4) {
+                return input;
+            }
+            String prefix = input.substring(0, 1);
+            String suffix = input.substring(input.length() - 1);
+            String middle = input.substring(1, input.length() - 1);
+            middle = middle.replaceAll("/\\*", "\\*");
+            return prefix + middle + suffix;
+        }
+</code></pre>
+<pre><code class="prism language-java"> visitor.visit(tree);
+
+        Token previousToken = null;
+        Token prePreviousToken = null;
+        //遍历所有token
+        for (Token token : tokens.getTokens()) {
+            // 处理多行注释
+            if (token.getType() == PlSqlLexer.MULTI_LINE_COMMENT) {
+                String comment = token.getText();
+                // 去除注释内部的`/`
+                String modifiedComment = removeComment(comment);
+                rewriter.replace(token, modifiedComment);
+            }
+        }
+</code></pre>
+<p>这个demo演示了如何针对token来进行处理</p>
+<h2 id="demo7">demo7</h2>
+<p>ORACLE在使用ZHS16GBK字符集时，能够解析SQL中的全角符号，比如全角逗号、全角括号、全角空格等，但openGauss明显是不支持的，而且目前antlr4的PLSQL词法和语法解析规则也不支持识别这种全角符号。因此，如果要解决这个问题，我们就得先从词法和语法规则上动手了。<br/>
+先来最简单的，全角空格<code>\u3000</code><br/>
+在PlSqlLexer.g4中，找到空格的定义<code>SPACES:</code></p>
+<pre><code>SPACES: ([ \t\r\n]+ )-&gt; channel(HIDDEN);
+</code></pre>
+<p>这里是把连续多个的空格、tab、回车、换行，都视为空格，放入隐藏通道，我们可以把全角空格也加进来,比如</p>
+<pre><code>SPACES: ([ \t\r\n]+ |'\u3000')-&gt; channel(HIDDEN);
+</code></pre>
+<p>这里的<code>|</code>表示<strong>or</strong> ,为了后面方便处理，我把全角空格按单个字符拆开了。<br/>
+注意，在g4文件中，对于非ascii字符，需要用unicode码表示。</p>
+<p>改完g4文件后，要重新生成解析器</p>
+<pre><code class="prism language-sh">SET CLASSPATH=.:antlr-4.13.2-complete.jar
+java org.antlr.v4.Tool -Dlanguage=Java -no-listener -visitor PlSqlLexer.g4 
+java org.antlr.v4.Tool -Dlanguage=Java -no-listener -visitor PlSqlParser.g4 
+</code></pre>
+<p>然后在上面demo6的遍历所有token的循环里，加上一段</p>
+<pre><code class="prism language-java"> // 处理全角空格
+            if (token.getType() == PlSqlLexer.SPACES &amp;&amp; token.getText().equals("\u3000")) {
+                rewriter.replace(token, ' ');
+            }
+
+</code></pre>
+<p>就这么简单。</p>
+<p>接下来看全角逗号<code>\uFF0C</code></p>
+<p>首先逗号的确是有在词法中定义的</p>
+<pre><code>COMMA           : ',';
+</code></pre>
+<p>但是语法规则中，极少用<code>COMMA</code>来表示逗号，绝大多是情况下，是直接用的<code>','</code>这样一个字符串，因此我们需要做两个事情<br/>
+1.在词法规则中新增一个用来表示全角逗号的规则，<br/>
+2.在语法规则中，对于所有的 <code>','</code>，改成 (<code>','</code>或 全角逗号)</p>
+<p>PlSqlLexer.g4</p>
+<pre><code>PERCENT         : '%';
+AMPERSAND       : '&amp;';
+LEFT_PAREN      : '(';
+RIGHT_PAREN     : ')';
+DOUBLE_ASTERISK : '**';
+ASTERISK        : '*';
+PLUS_SIGN       : '+';
+MINUS_SIGN      : '-';
+COMMA           : ',';
+SOLIDUS         : '/';
+AT_SIGN         : '@';
+ASSIGN_OP       : ':=';
+HASH_OP         : '#';
+WIDTH_COMMA : '\uFF0C';
+</code></pre>
+<p>PlSqlParser.g4</p>
+<pre><code>selected_list
+    : '*'
+    | select_list_elements ((','|WIDTH_COMMA) select_list_elements)*
+    ;
+</code></pre>
+<p>上面这里表示在select的列表里，分隔符可以用半角逗号或者全角逗号，其他地方的逗号也是这样修改，大概有三十几处。<br/>
+改完g4文件后，重新生成解析器，然后在demo6中遍历token的循环里，加上这么一段</p>
+<pre><code class="prism language-java">// 处理全角逗号
+            if (token.getType() == PlSqlLexer.WIDTH_COMMA) {
+                rewriter.replace(token, ',');
+            }
+</code></pre>
+<h1 id="总结">总结</h1>
+<p>相比python而言，java处理语法树的处理性能好太多了，原本用python写几个转换感觉只能当成玩具耍耍，用到java后，感觉这种自动化改写完全可以当成正式的产品来用了。基于语法树改写的比正则替换的风险小多了，而且新增功能也很简单。目前我已经写了几十种ORACLE迁移到openGauss的自动转换规则，并且做了很多自定义的参数配置，后续看情况可能会开源。</p>
+<pre><code class="prism language-sh">PLSQLREWRITE4OPENGAUSS
+│  .gitignore
+|  batch_rewrite.bat # WINDOWS环境下批量转换脚本
+|  batch_rewrite.sh # LINUX环境下批量转换脚本
+│  build.bat  #  WINDOWS环境下的构建脚本
+│  build.sh   #  LINUX环境下的构建脚本
+|  grun_tree.bat  # WINDOWS环境下查看语法树
+|  grun_tree.sh  # LINUX环境下查看语法树
+│  LICENSE
+│  readme.md  # 说明文件
+│  regen_parser.bat  # WINDOWS环境下的词法语法解析器重新生成脚本
+│  regen_parser.sh   # LINUX环境下的词法语法解析器重新生成脚本
+│
+├─build 构建临时目录
+|
+├─config 配置文件目录
+│    atom_mapping.properties # 使用指定函数转换指定的字段名
+│    config.properties # 杂项配置
+│    datatype_mapping.properties # 数据类型映射
+|    exception_mapping.properties  # 异常名称映射
+|    general_element_mapping.properties  # 函数表达式映射
+|    patterns.properties # 正则替换规则
+|    query_block_mapping.properties # 查询块规则
+|    regular_id_mapping.properties # 字段名、变量名映射
+|    token_mapping.properties # token映射
+|
+├─lib  # 三方库目录
+│      antlr-4.13.2-complete.jar # https://www.antlr.org/download/antlr-4.13.2-complete.jar
+│
+├─src  # 源码目录
+│  └─main
+│      └─java
+│              PlSqlLexer.g4  # 词法解析规则
+│              PlSqlParser.g4  # 语法解析规则
+│              PlSqlLexerBase.java  # 词法基类
+│              PlSqlParserBase.java  # 语法基类
+│              PlSqlRewriter.java  # 主程序源码
+│
+└─test  # 测试目录
+    │ compare.bat  # WINDOWS下比较测试结果是否符合预期
+    │ compare.sh   # LINUX下比较测试结果是否符合预期    
+    │
+    ├─except  # 预期测试输出文件
+    │      test.sql
+    │    
+    ├─input   # 测试输入文件
+    │      test.sql
+    │
+    └─output  # 测试输出文件
+           test.sql
+</code></pre>
+</div>
+</article>
     </div>
     
 </article>

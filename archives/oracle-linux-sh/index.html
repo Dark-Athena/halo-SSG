@@ -155,7 +155,98 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>今天在$ORACLE_HOME/oml4py/server/pyqatmlcfg.sql  中看到了一段这样的代码</p>
+<pre><code class="language-sql">declare
+  pyqdmp_dir varchar2(4000);
+  pdb_dir varchar2(4000);
+  load_script varchar2(32767);
+  sched_job_name varchar2(30);
+  out_File  UTL_FILE.FILE_TYPE;
+  l_fexists boolean;
+  l_flen    number;
+  l_bsize   number;
+begin
+  pyqdmp_dir := '&amp;dmpf_dir';
+
+  select directory_path into pdb_dir
+  from dba_directories
+  where directory_name='DATA_PUMP_DIR';
+
+  load_script :=
+'#!/bin/bash
+if [ -d ' || pdb_dir || ' ]; then
+  cp -f ' || pyqdmp_dir || '/' || '&amp;dump_file' || ' ' || pdb_dir || '/' || '&amp;dump_file' || '
+fi
+exit 0 ';
+
+  -- Generate a name for the scheduler job
+  sched_job_name := dbms_scheduler.generate_job_name(prefix =&gt; 'OML4PY_');
+
+  dbms_output.put_line(load_script);
+  out_File := UTL_FILE.FOPEN('DATA_PUMP_DIR', 'load_' || sched_job_name || '.log' , 'a');
+  UTL_FILE.PUT_LINE(out_file , load_script);
+  UTL_FILE.FCLOSE(out_file);
+
+  -- Create a scheduler job 
+  DBMS_SCHEDULER.create_job(
+    job_name            =&gt; sched_job_name,
+    job_type            =&gt; 'EXECUTABLE',
+    job_action          =&gt; '/bin/sh',
+    number_of_arguments =&gt; 2,
+    enabled             =&gt; false,
+    auto_drop           =&gt; true);
+
+  -- Set the arguments for the scheduler job 
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 1, '-c');
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 2, load_script);
+
+  DBMS_SCHEDULER.enable(name =&gt; sched_job_name);
+  -- Run the scheduler job in the current session
+  DBMS_SCHEDULER.run_job(job_name =&gt; sched_job_name,
+                         use_current_session =&gt; true);
+
+  UTL_FILE.FGETATTR('DATA_PUMP_DIR', '&amp;dump_file', l_fexists, l_flen, l_bsize);
+  out_File := UTL_FILE.FOPEN('DATA_PUMP_DIR', 'load_' || sched_job_name || '.log' , 'a');
+  IF l_fexists THEN
+    UTL_FILE.PUT_LINE(out_file , '### SUCCEEDED ###');
+  ELSE
+    UTL_FILE.PUT_LINE(out_file , '### FAILED ###');
+  END IF;
+
+  UTL_FILE.FCLOSE(out_file);
+exception
+  when others then
+    -- dbms_scheduler may throw ORA-27369 when running on post-install
+    -- Trap ORA-27369 and re-throw ORA-20101 if dmp file does not exist
+    if SQLCODE = -27369 then
+      UTL_FILE.FGETATTR('DATA_PUMP_DIR', '&amp;dump_file', l_fexists, l_flen, l_bsize);
+      out_File := UTL_FILE.FOPEN('DATA_PUMP_DIR', 'load_' || sched_job_name || '.log' , 'a');
+      IF l_fexists THEN
+        UTL_FILE.PUT_LINE(out_file , '### SUCCEEDED ###');
+        UTL_FILE.FCLOSE(out_file);
+      ELSE
+        UTL_FILE.PUT_LINE(out_file , '### FAILED ###');
+        UTL_FILE.FCLOSE(out_file);
+        raise_application_error(-20101, 'load_' || sched_job_name ||
+                                ' failed to copy ' || '&amp;dump_file');
+      END IF;
+    else
+      raise;
+    end if;
+end;
+/
+</code></pre>
+<p>这段代码是在数据库中，通过schedulejob来执行操作系统命令，和我之前这篇文章很类似<a href="https://www.darkathena.top/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令</a>，<br/>
+但是我写的是在windows环境下，我也一直在找怎么在linux环境下执行命令。但是网上搜到的全部都是执行sh文件，sh文件还得授权。而且在操作系统中能直接执行的命令在schedulejob中却不能直接执行。不过一看这段代码思路就打开了。</p>
+<p>注意看load_script参数，这个参数内直接就是sh文件内的内容，也就是说，其实我们不需要先生成一个sh文件，而是可以通过set_job_argument_value的方式，直接将sh的内容，传递到/bin/sh执行。</p>
+<p>其实对于schedulejob来说，linux和windows的可执行程序是有区别的，windows里bat和exe都能直接运行，而linux里却要通过/bin/sh来运行。对于同样的一条命令 "python --help",直接在windows和linux下都能运行（因为登录linux就是用的shell），但是换到schedulejob中，windows下能执行，linux下提示找不到文件。就算把python的全路径写上去，同样也是提示找不到文件。这也是为什么网上搜到的相关例子全部都是先写个sh文件再去运行它的原因。</p>
+<p>有这个例子，我们可以让数据库执行操作系统命令更简单，理论上这个方法对于windows和linux都是通用的，不再需要新建一个目录来存储bat或者sh文件，传入命令直接执行即可，哪怕命令再长而且有换行，只要以参数的形式传入，再长都不怕。</p>
+<p>晚点补充实验代码</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

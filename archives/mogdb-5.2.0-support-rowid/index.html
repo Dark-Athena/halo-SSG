@@ -155,7 +155,735 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一、背景">一、背景</h2>
+<p>从ORACLE迁移到国产数据库，经常会遇到rowid的兼容性问题，可能是不支持rowid这个关键字，也可能是rowid数据类型或rowid的行为和oracle不一样。</p>
+<ul>
+<li>rowid特征：</li>
+</ul>
+<ol>
+<li>rowid是表上的一个伪列</li>
+<li>rowid字段在数据字典中不存在</li>
+<li>select * from tab时，不显示rowid字段</li>
+<li>select rowid from tab能查出rowid列</li>
+<li>rowid的值对于同一行比较稳定，但有些情况下可能会变</li>
+<li>相同的一个rowid，在不同的时刻可能指向不同的行（比如删除记录再插入，可能会插入到之前的物理位置）</li>
+</ol>
+<ul>
+<li>rowid常用场景：</li>
+</ul>
+<ol>
+<li>使用rowid排序,确保无主键表的排序结果稳定性</li>
+<li>删除表中的重复记录</li>
+<li>使用rowid定位行，进行dml操作</li>
+<li>把处理过的rowid记录存储下来，表示该行数据已经被处理过，无需对原表更新表示状态的字段（业务队列表）</li>
+</ol>
+<ul>
+<li>oracle某行的rowid会变的几种情况:</li>
+</ul>
+<ol>
+<li>对分区表的数据记录进行更新分区键字段的操作</li>
+<li>手动执行move命令</li>
+<li>手动执行shrink</li>
+<li>压缩表</li>
+<li>移动表空间</li>
+</ol>
+<p>可以看到就算是正常进行dml操作，ORACLE的rowid也是可能会变化的，只是没那么容易变化。</p>
+<p>但PG/OG系数据库中类似rowid的这种表示物理位置的字段叫ctid，每次更新这行记录后，都会发生"变化",但其实是"没变"的，更新是旧行标记作废，插入新行，新行的ctid和旧行不一样。</p>
+<p>收集了一下目前知名的几家数据库是否支持ROWID</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>数据库</th>
+<th>基于PG/OG</th>
+<th>是否支持ROWID</th>
+<th>是否有提供改写方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DM</td>
+<td>N</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>崖山</td>
+<td>N</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>OCEANBASE</td>
+<td>N</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>KINGBASE</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>POLARDB-O</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>TDSQL</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>UXDB</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>GAUSSDB</td>
+<td>Y</td>
+<td>N</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>OPENGAUSS</td>
+<td>Y</td>
+<td>N</td>
+<td>同GAUSSDB</td>
+</tr>
+<tr>
+<td>GBASE 8c</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>VASTBASE G100 BUILD 16</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>神通</td>
+<td>Y</td>
+<td>Y</td>
+<td></td>
+</tr>
+<tr>
+<td>海盒</td>
+<td>Y</td>
+<td>？</td>
+<td>？</td>
+</tr>
+<tr>
+<td>瀚高</td>
+<td>Y</td>
+<td>?</td>
+<td>?</td>
+</tr>
+</tbody>
+</table>
+</div><p>对于从头开始纯自研的数据库来说，rowid的兼容自然不成问题，但基于PG或者源于PG的其他数据库来说，rowid的兼容并不简单,因为使用了astore这种存储引擎。很多家数据库声称支持了rowid，但是实际测试下来，有些场景和ORACLE的结果并不一致。</p>
+<p>PG系如果要支持rowid，目前已知的大致有四种方案</p>
+<ol>
+<li>借用ctid，但由于分区表的不同分区里可能出现相同的ctid，因此需要结合tableoid和ctid两个字段；如果是分布式的，还需要结合节点字段。但是记录被update时，ctid一定会变，不能使用同一个ctid去对某条记录进行两次更新。</li>
+<li>在表上直接加一个物理存储的列，用于存储rowid，并且给它加上唯一约束或索引，而其值本身可能直接使用一个全局序列的值。</li>
+<li>也是在表上直接加一个物理存储的列，但需要引入每个表的序列管理，这个序列值结合tableoid计算出一个base64编码的值，存到这个表里。</li>
+<li>新增一种存储引擎，update数据时在原行上更新，不像astore这种更新实际上是插入了新行。</li>
+</ol>
+<p>简单来说，PG系rowid实现其实也就两种，一种是再建一个字段存储唯一值，另一种就是ctid或其变种。前者带来大量性能损耗，后者一update就会变。</p>
+<h2 id="二、准备测试用例">二、准备测试用例</h2>
+<h3 id="select--不显示rowid">1.select * 不显示rowid</h3>
+<pre><code class="prism language-sql">create table test_rowid_update(id number,content varchar2(200));
+insert into test_rowid_update values (1,'1');
+select * from test_rowid_update ;
+drop table test_rowid_update;
+</code></pre>
+<h3 id="select-rowid-不报错">2.select rowid 不报错</h3>
+<pre><code class="prism language-sql">create table test_rowid_update(id number,content varchar2(200));
+insert into test_rowid_update values (1,'1');
+select rowid,t.rowid,t.* from test_rowid_update t ;
+drop table test_rowid_update;
+</code></pre>
+<h3 id="通过rowid快速检索数据">3.通过rowid快速检索数据</h3>
+<pre><code class="prism language-sql">create table test_rowid_update(id number,content varchar2(200));
+insert into test_rowid_update select id,'id_'||id from generate_series(1,1000) id;
+vacuum test_rowid_update;
+vacuum test_rowid_update;
+explain analyze select  t.* from test_rowid_update t where rowid = (select rowid from test_rowid_update  where content='id_50') ;
+drop table test_rowid_update;
+</code></pre>
+<h3 id="对同一个rowid进行多次更新">4.对同一个rowid进行多次更新</h3>
+<pre><code class="prism language-sql">create table test_rowid_update(id number,content varchar2(200));
+insert into test_rowid_update values (1,'1');
+
+declare
+i int;
+begin
+for rec in (select rowid rd from test_rowid_update) loop
+update test_rowid_update set content='2' where rowid=rec.rd;
+update test_rowid_update set content='3' where rowid=rec.rd;
+end loop;
+select 1 into i from test_rowid_update where id=1 and content='3';
+end;
+/
+select * from test_rowid_update where  id=1 and content='3';
+drop table test_rowid_update ;
+</code></pre>
+<h3 id="删除表中重复记录">5.删除表中重复记录</h3>
+<pre><code class="prism language-sql">create table test_rowid_update as select id,'n_'||id as content from generate_series(1,10) id;
+
+insert into test_rowid_update select id,'d_'||id from generate_series(1,5) id;
+
+DELETE FROM test_rowid_update t1
+WHERE t1.rowid &gt; (
+SELECT MIN(t2.rowid)
+FROM test_rowid_update t2
+WHERE t1.id= t2.id
+);
+</code></pre>
+<h2 id="三、执行测试">三、执行测试</h2>
+<h3 id="dm-8"><a href="http://1.DM">1.DM</a> 8</h3>
+<p>在线测试环境：<a href="https://eco.dameng.com/tour/">https://eco.dameng.com/tour/</a><br/>
+在这个环境中测试，得到DM的rowid是一个数字，可以认为它是一个自增主键。每个表的第一行记录的rowid是1，因此它表示一个逻辑位置，而非物理位置，在DM的一些官方文档中可以找到相关描述<br/>
+<a href="https://eco.dameng.com/document/dm/zh-cn/pm/manage-table">https://eco.dameng.com/document/dm/zh-cn/pm/manage-table</a><br/>
+<a href="https://eco.dameng.com/document/dm/zh-cn/pm/management-table">https://eco.dameng.com/document/dm/zh-cn/pm/management-table</a><br/>
+但是DM的下面这篇文档，却说是一个物理位置，而且演示的用例，rowid也不是数字了<br/>
+<a href="https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification">https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification</a><br/>
+出现这个差异的原因是，DM的表有索引组织表和堆表两种，默认建表是索引组织表，可以通过修改参数来修改默认行为</p>
+<pre><code class="prism language-sql">alter system set 'LIST_TABLE'=1 both;
+</code></pre>
+<p>在堆表情况下，rowid就不是从1开始的数字了，但它仍然是数字类型，该数字通过计算得到，没有进行实际存储</p>
+<h3 id="oceanbase-4.1">2.OCEANBASE 4.1</h3>
+<p>没有拿到免费的ORACLE租户环境，暂无法测试，但从文档来看</p>
+<p><a href="https://www.oceanbase.com/docs/common-oceanbase-database-cn-0000000001967397">https://www.oceanbase.com/docs/common-oceanbase-database-cn-0000000001967397</a></p>
+<blockquote>
+<p>OceanBase 数据库当前版本所支持的 <code>ROWID</code> 为逻辑 <code>ROWID</code></p>
+</blockquote>
+<p><a href="https://www.oceanbase.com/docs/common-oceanbase-database-cn-10000000001701107">https://www.oceanbase.com/docs/common-oceanbase-database-cn-10000000001701107</a></p>
+<blockquote>
+<p>ROWID 伪列提供了快速定位表中某一行的能力，ROWID 值由主键编码得到，不会进行实际的存储</p>
+</blockquote>
+<p><a href="http://www.oceanbase.wiki/concept/database-objects/oracle-mode/tables/oracle-mode-data-types/rowid-data-types/">http://www.oceanbase.wiki/concept/database-objects/oracle-mode/tables/oracle-mode-data-types/rowid-data-types/</a></p>
+<blockquote>
+<p>ROWID 伪列的值是每行数据的 Key（对于有主键表是 Primary Key，对于无主键表是系统自动生成的序列），通过 Base64 编码转换而成</p>
+</blockquote>
+<p><a href="https://www.oceanbase.com/docs/common-oceanbase-database-cn-10000000001699615">https://www.oceanbase.com/docs/common-oceanbase-database-cn-10000000001699615</a></p>
+<blockquote>
+<p>OceanBase 数据库的无主键表采用分区级自增列作为隐藏主键。</p>
+</blockquote>
+<p>这意味着OceanBase并没有提供物理位置的rowid，而且对于非主键表，也会自动增加一个序列字段作为主键（分布式数据库的表必须要有主键？）。</p>
+<h3 id="崖山-23.1">3.崖山 23.1</h3>
+<p>环境准备：<br/>
+<a href="https://download.yashandb.com/download">https://download.yashandb.com/download</a><br/>
+<a href="https://doc.yashandb.com/yashandb/23.1/zh/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2/%E5%AE%89%E8%A3%85%E5%89%8D%E5%87%86%E5%A4%87/%E5%AE%89%E8%A3%85%E5%89%8D%E5%87%86%E5%A4%87.html">https://doc.yashandb.com/yashandb/23.1/zh/快速上手/安装部署/安装前准备/安装前准备.html</a><br/>
+<a href="https://doc.yashandb.com/yashandb/23.1/zh/%E5%BF%AB%E9%80%9F%E4%B8%8A%E6%89%8B/%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2/YashanDB%E4%BA%A7%E5%93%81%E5%AE%89%E8%A3%85/YashanDB%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%AE%89%E8%A3%85.html">https://doc.yashandb.com/yashandb/23.1/zh/快速上手/安装部署/YashanDB产品安装/YashanDB服务端安装.html</a></p>
+<p>yashandb的rowid格式像这个样子"2487:0:0:2532:0"，准确指向物理位置，行被update后，rowid不会发生变化。但是注意直接粘贴匿名块到命令行客户端，会无法准确识别语句结束符，暂未找到相关文档说明。</p>
+<h3 id="kingbase-8">4.KINGBASE 8</h3>
+<p>环境准备:</p>
+<pre><code class="prism language-bash">wget https://kingbase.oss-cn-beijing.aliyuncs.com/KESV8R3/05.Docker%E7%89%88%E6%9C%AC/kdb_x86_64_V009R001C001B0030.tar
+docker load -i kdb_x86_64_V009R001C001B0030.tar
+docker run -tid \
+--privileged \
+--name kingbase \
+-p 54321:54321 \
+-e ENABLE_CI=no  \
+-e NEED_START=yes \
+-e DB_USER=root \
+-e DB_PASSWORD=root \
+-e DB_MODE=oracle \
+kingbase_v009r001c001b0030_single_x86:v1
+docker exec -it kingbase /bin/bash
+ksql -d test
+</code></pre>
+<p>在建表前需要先开启参数 <code>set default_with_rowid to on;</code> 表上才会有rowid字段，且该字段会是一个实际存在的字段，数据里会直接存储rowid的值，并且在这个字段上会自动创建一个主键约束。<br/>
+虽然这种方式极大的保证了使用rowid处理数据的结果正确性，但它已经不是物理位置，而是逻辑位置，增加了额外的存储空间，并且会引发DML语句的性能问题，比如插入数据时，会去校验主键约束，数据插入完后，索引也要同步更新，然后vacuum时要同时处理表和索引；更新和删除记录时也是。</p>
+<h3 id="polardb-o">5.POLARDB-O</h3>
+<p>之前2.0版本免费公测的时候测了下，现在没有免费测试方法了，以下不代表最新版的情况。</p>
+<p>众所周知，POLARDB-O 1.0来自于EDB，其实EDB处理rowid的方案和kingbase类似，也是要配置一个参数，参数名叫 <code>default_with_rowids</code>。不过kingbase的rowid是个字符串，而EDB的rowid是个bigint, 默认值是一个序列。<br/>
+POLARDB-O 2.0版本中，无需配置参数(参数名改成了 <code>polar_default_with_rowid</code>)，建表时直接就给你加了个 <code>polar_sys_rowid_attr</code>字段。稍微有点坑的是，这个字段在pg_attribute中记录的列号是大于0的，这意味着第三方工具(比如dbeaver)如果把它当成pg去查建表的ddl语句，则会出现表中多一列的情况，可惜当时没测再加列会是什么效果，希望有环境的伙伴可以验证一下再告诉我。</p>
+<pre><code class="prism language-sql">CREATE TABLE public.t1 (
+a text NULL,
+"polar_sys_rowid_attr" int8 NOT NULL DEFAULT nextval('polar_sys_seq'::regclass)
+);
+
+CREATE INDEX polar_rowid_17309_index ON public.t1 USING btree("polar_sys_rowid_attr");
+</code></pre>
+<p>既然是新增了存储的信息，必然会导致性能受影响，在polardb官网文档中的性能测试相关描述中，特意说明了是在关闭了rowid这个功能后进行的测试<br/>
+<a href="https://help.aliyun.com/zh/polardb/polardb-for-oracle/difference-between-2-0-and-1-0-versions-of-polardb-for-oracle">https://help.aliyun.com/zh/polardb/polardb-for-oracle/difference-between-2-0-and-1-0-versions-of-polardb-for-oracle</a></p>
+<blockquote>
+<p>性能测试中的参数均保持一致，其中参数 <code>polar_enable_stmt_transaction_rollback</code>与 <code>polar_default_with_rowid</code>设置为 <code>off</code>，其余参数使用默认值。</p>
+</blockquote>
+<h3 id="opengauss和gaussdb">6.openGauss和GaussDB</h3>
+<p>环境准备</p>
+<pre><code class="prism language-yaml">vi og600.yaml
+
+global:  cluster_name: og600
+  user: og600
+  base_dir: /opt/og600rc
+
+db_servers:
+  - host: 127.0.0.1
+    db_port: 21000
+</code></pre>
+<pre><code class="prism language-bash">curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+ptk checkos -o root_fix.sh
+source root_fix.sh
+ptk install -f og600.yaml -p https://opengauss.obs.cn-south-1.myhuaweicloud.com/6.0.0/openEuler20.03/x86/openGauss-All-6.0.0-openEuler20.03-x86_64.tar.gz
+
+su - og600
+gsql -r
+</code></pre>
+<p>不支持rowid，但是gaussdb的官方文档中，说明了应该要如何改写<br/>
+<a href="https://support.huaweicloud.com/tg-dws/dws_mt_0128.html">https://support.huaweicloud.com/tg-dws/dws_mt_0128.html</a></p>
+<pre><code class="prism language-sql">select CAST((xc_node_id||'#'||tableoid||'#'||ctid ) AS TEXT ) AS rowid`
+</code></pre>
+<p>简单来说，gaussdb是分布式的，所以要拼一个xc_node_id，区分是哪个节点的数据；然后拼一个tableoid，因为不同的表中是会有相同的ctid的，为了保证唯一性，就拼了三个字段当成rowid去用。但是astore中，一旦该条记录被更新，ctid就会变，用这种方式拼出来的rowid也无法再找到刚刚被更新过的数据。<br/>
+不过，在ustore引擎下，这个ctid就不会变化了，可以说openGauss/GaussDB从原理上可以支持不变的rowid，但是并没有支持 <code>rowid</code>这个关键字</p>
+<h3 id="vastbase-g100-v2.2-build-16">7.VASTBASE G100 V2.2 BUILD 16</h3>
+<p>未提供公开的安装介质，找关系申请到了试用版本。<br/>
+支持在查询中使用rowid伪列，不过情况和openGauss一样，虽然这个rowid长得和ORACLE类似，但是数据一更新，原rowid也无法再查到数据</p>
+<pre><code class="prism language-sql">vastbase=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+vastbase=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+vastbase=# select rowid rd from test_rowid_update;
+          rd
+----------------------
+ YGoAAA==AAAAAA==AQA=
+(1 行记录)
+
+vastbase=# update test_rowid_update set content='2' where rowid='YGoAAA==AAAAAA==AQA=';
+UPDATE 1
+vastbase=# select * from test_rowid_update where rowid='YGoAAA==AAAAAA==AQA=';
+ id | content
+----+---------
+(0 行记录)
+
+vastbase=#
+</code></pre>
+<h3 id="gbase-8c">8.GBASE 8c</h3>
+<p>环境准备:<br/>
+centos 7 x86_64</p>
+<pre><code class="prism language-bash">curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+ptk checkos -o root_fix.sh
+source root_fix.sh
+
+useradd gbase
+su - gbase
+
+wget https://cdn.gbase.cn/products/34/_eiStkqoJ9JedVQPogBdj/GBase8cV5_5.0.0_%E4%B8%BB%E5%A4%87%E5%BC%8F_x86.zip
+unzip GBase8cV5_5.0.0_主备式_x86.zip
+mv  GBase8cV5_5.0.0_主备式_x86 gbase
+cd gbase/Server
+tar -xf GBase8cV5_S5.0.0B28_centos7.8_x86_64.tar.gz
+tar -xf GBase8cV5_S5.0.0B28_CentOS_x86_64.tar.bz2
+mkdir data
+
+echo "export GAUSSHOME=/home/gbase/gbase/Server"&gt;&gt;/home/gbase/.bash_profile &amp;&amp;\
+echo "export PATH=\$GAUSSHOME/bin:\$PATH"&gt;&gt;/home/gbase/.bash_profile &amp;&amp;\
+echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$LD_LIBRARY_PATH"&gt;&gt;/home/gbase/.bash_profile &amp;&amp;\
+echo "export PGDATA=\$GAUSSHOME/data"&gt;&gt;/home/gbase/.bash_profile
+source /home/gbase/.bash_profile
+
+gs_initdb --nodename=primary --pwpasswd=gbase@123 --encoding=UTF-8 --locale=en_US.UTF-8
+gs_ctl start
+gsql -r -d postgres
+</code></pre>
+<p>和vastbase一样，gbase使用了tableoid+ctid的方式，数据一更新，rowid就变了，原rowid无法再查到数据。<br/>
+另外发现个差异，gbase 8c 默认plsql里执行select into 没有找到数据时不会报错，和原版openGauss不一致，不符合ORACLE的行为，需要注意。</p>
+<pre><code class="prism language-sql">[gbase@ha_node2 ~]$ gsql -r -d postgres
+gsql ((single_node GBase8cV5 S5.0.0B28 build 51dce1ce) compiled at 2024-06-21 17:06:17 commit 0 last mr 587 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+postgres=#  create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+postgres=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+postgres=# select rowid rd from test_rowid_update;
+         rd
+--------------------
+ AAAGAAAAAAAAAAAAAA
+(1 row)
+
+postgres=# update test_rowid_update set content='2' where rowid='AAAGAAAAAAAAAAAAAA';
+UPDATE 1
+postgres=# select * from test_rowid_update where rowid='AAAGAAAAAAAAAAAAAA';
+ id | content
+----+---------
+(0 rows)
+
+postgres=#
+</code></pre>
+<h3 id="神通">9.神通</h3>
+<p>神通的openGauss版本没有公开下载介质，需要打电话联系客服，比较麻烦。而且也没有openGauss版本对应的文档，暂无法确认rowid的兼容程度。<br/>
+对于非openGauss的版本，从公开文档中可以看到，神通数据库把ctid这个字段名直接改成了rowid，并且把数据类型修改成了bigint，从用例中的数值长度来看，应该不仅包含ctid的信息了。<br/>
+<a href="http://shentongdata.com/index.php/download/list-26">http://shentongdata.com/index.php/download/list-26</a><br/>
+<code>神通数据库-优化及运维手册</code></p>
+<h3 id="uxdb">10.UXDB</h3>
+<p>没有公开下载介质，但可以从官方文档里看到一些描述<br/>
+<a href="https://www.uxsino.com/index.php/list82/82/%E4%BC%98%E7%82%AB%E6%95%B0%E6%8D%AE%E5%BA%93/0.html">https://www.uxsino.com/index.php/list82/82/优炫数据库/0.html</a><br/>
+<code>优炫数据库参考手册 V2.1</code></p>
+<blockquote>
+<p>UXDB数据库的rowid是为了兼容达梦rowid伪列所做功能适配，用来标识数据库基表中每一条记录的唯一键值。本次实现，还新增了数据类型：rowid。该类型是一个大范围整数的数字类型，其范围和功能等同bigint类型。<br/>
+新增GUC参数：create_as_parallel。该参数的作用：控制在执行create … as或者select … into命令时，数据库可以并行的条件下，是否走并行。如果设置为off，表示为不并行，此时rowid功能正常；设置为on时，表示为走并行，此时无法保证rowid功能正常。该参数默认值为off。</p>
+</blockquote>
+<p>这意味着UXDB的rowid也是个真正存储的一个值，而不是表示物理位置，甚至在同一个表中也还是会出现rowid重复的情况</p>
+<h3 id="瀚高">11.瀚高</h3>
+<p>环境准备：<br/>
+centos 7 x86_64</p>
+<pre><code class="prism language-bash">wget https://www.highgo.com/upload/download/20220708/1b73693f2c91fd7f38acbc7d3882cf6c.rpm
+rpm -ivh 1b73693f2c91fd7f38acbc7d3882cf6c.rpm
+su - highgo
+cd $HGDB_HOME/etc
+./setup primary #输入密码
+pg_ctl -D /opt/HighGo6.0.4-cluster/data -l logfile start
+psql #输入密码
+</code></pre>
+<p>建表就报错了，因为不支持number/varchar2类型，手动改成numeric/varchar建表成功。<br/>
+然后执行匿名块又报错了，因为ORACLE的匿名块语句分隔符是 <code>/</code>，而PG遇到 <code>;</code>就表示语句结束了。<br/>
+直接select rowid from tab也是报错，没有rowid这个字段。<br/>
+在pg_setting中也没有包含 <code>rowid</code>字样的参数。<br/>
+由于官方文档内容很少，也没有搜索功能，不确认是否支持rowid。</p>
+<h3 id="tdsql-pg（oracle兼容版）">12.TDSQL-PG（ORACLE兼容版）</h3>
+<p>没有公开下载地址，只能看文档<br/>
+<a href="https://doc.fincloud.tencent.cn/tcloud/Database/TBASE/73365/19613/37492/84290">https://doc.fincloud.tencent.cn/tcloud/Database/TBASE/73365/19613/37492/84290</a></p>
+<p>先开启参数 default_with_rowid，再建表就带rowid字段了，但是为了避免DML的性能问题，没有自动创建rowid的索引，从这个角度上看，也是真实存了数据，不是真正的物理位置。</p>
+<h3 id="海盒">13.海盒</h3>
+<p>没有公开下载，需要联系客服，并且没有公开的文档，无法确认rowid 的支持情况。</p>
+<h3 id="mogdb-5.2.0">14.MogDB 5.2.0</h3>
+<p>环境准备：<br/>
+<a href="https://www.darkathena.top/archives/mogdb-5.2.0-how-to-download">【MogDB】MogDB5.2.0重磅发布第二篇-发布了哪些介质，如何获取？</a></p>
+<p>测试记录：</p>
+<ul>
+<li>场景一：select * 不显示rowid</li>
+</ul>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+MogDB=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+MogDB=# select * from test_rowid_update ;
+ id | content
+----+---------
+  1 | 1
+(1 row)
+
+MogDB=# drop table test_rowid_update;
+DROP TABLE
+MogDB=#
+</code></pre>
+<ul>
+<li>场景二：select rowid 不报错</li>
+</ul>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+MogDB=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+MogDB=# select rowid,t.rowid,t.* from test_rowid_update t ;
+      rowid       |      rowid       | id | content
+------------------+------------------+----+---------
+ AAAAAAEAAADsVAAA | AAAAAAEAAADsVAAA |  1 | 1
+(1 row)
+
+MogDB=# drop table test_rowid_update;
+DROP TABLE
+MogDB=#
+</code></pre>
+<ul>
+<li>场景三：通过rowid快速检索数据</li>
+</ul>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+MogDB=# insert into test_rowid_update select id,'id_'||id from generate_series(1,1000) id;
+INSERT 0 1000
+MogDB=# vacuum test_rowid_update;
+VACUUM
+MogDB=# vacuum test_rowid_update;
+VACUUM
+MogDB=# explain analyze select  t.* from test_rowid_update t where rowid = (select rowid from test_rowid_update  where content='id_50') ;
+                                                    QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------
+ Tid Scan on test_rowid_update t  (cost=12.13..16.14 rows=1 width=450) (actual time=0.272..0.273 rows=1 loops=1)
+   TID Cond: (rowid = $0)
+   InitPlan 1 (returns $0)
+     -&gt;  Seq Scan on test_rowid_update  (cost=0.00..12.12 rows=1 width=12) (actual time=0.040..0.261 rows=1 loops=1)
+           Filter: ((content)::text = 'id_50'::text)
+           Rows Removed by Filter: 999
+ Total runtime: 0.407 ms
+(7 rows)
+
+
+MogDB=# drop table test_rowid_update;
+DROP TABLE
+MogDB=#
+</code></pre>
+<p>可以看到这里使用rowid作为where条件时，使用的是<code>Tid Scan</code>，和使用ctid作为where条件时，执行计划是一样的，也就是通过物理位置进行快速检索。</p>
+<ul>
+<li>场景四：对同一个rowid进行多次更新</li>
+</ul>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+MogDB=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+MogDB=# declare
+MogDB-# i int;
+MogDB-# begin
+MogDB$# for rec in (select rowid rd from test_rowid_update) loop
+MogDB$# update test_rowid_update set content='2' where rowid=rec.rd;
+MogDB$# update test_rowid_update set content='3' where rowid=rec.rd;
+MogDB$# end loop;
+MogDB$# select 1 into i from test_rowid_update where id=1 and content='3';
+MogDB$# end;
+MogDB$# /
+ANONYMOUS BLOCK EXECUTE
+MogDB=# select * from test_rowid_update where  id=1 and content='3';
+ id | content
+----+---------
+  1 | 3
+(1 row)
+
+MogDB=# drop table test_rowid_update ;
+DROP TABLE
+MogDB=#
+</code></pre>
+<p>从这里可以看到，该行数据用相同的rowid作为更新条件，能正常进行多次更新。<br/>
+MogDB的rowid同样也是基于tableoid+ctid分别进行base64编码，在update后也会变，但是仍旧可以用之前的rowid找到变更后的这行记录，所以对一行进行多次更新也不会有问题（建议在一个事务内完成，避免vacuum释放掉历史ctid）。</p>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update(id number,content varchar2(200));
+CREATE TABLE
+MogDB=# \dS+ test_rowid_update
+                           Table "public.test_rowid_update"
+ Column  |          Type          | Modifiers | Storage  | Stats target | Description
+---------+------------------------+-----------+----------+--------------+-------------
+ id      | numeric                |           | main     |              |
+ content | character varying(200) |           | extended |              |
+Has OIDs: no
+Options: orientation=row, compression=no
+
+MogDB=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+MogDB=# select rowid rd from test_rowid_update;
+        rd
+------------------
+ AAAAAAEAAADPWAAA
+(1 row)
+
+MogDB=# update test_rowid_update set content='2' where rowid='AAAAAAEAAADPWAAA';
+UPDATE 1
+MogDB=# select * from test_rowid_update  where rowid='AAAAAAEAAADPWAAA';
+ id | content
+----+---------
+  1 | 2
+(1 row)
+
+MogDB=# update test_rowid_update set content='3' where rowid='AAAAAAEAAADPWAAA';
+UPDATE 1
+MogDB=# select * from test_rowid_update  where rowid='AAAAAAEAAADPWAAA';
+ id | content
+----+---------
+  1 | 3
+(1 row)
+
+MogDB=# select rowid,* from test_rowid_update  where rowid='AAAAAAEAAADPWAAA';
+      rowid       | id | content
+------------------+----+---------
+ AAAAAAMAAADPWAAA |  1 | 3
+(1 row)
+</code></pre>
+<ul>
+<li>场景五：删除表中重复记录</li>
+</ul>
+<pre><code class="prism language-sql">MogDB=# create table test_rowid_update as select id,'n_'||id as content from generate_series(1,10) id;
+INSERT 0 10
+MogDB=# insert into test_rowid_update select id,'d_'||id from generate_series(1,5) id;
+INSERT 0 5
+MogDB=# DELETE FROM test_rowid_update t1
+MogDB-# WHERE t1.rowid &gt; (
+MogDB(# SELECT MIN(t2.rowid)
+MogDB(# FROM test_rowid_update t2
+MogDB(# WHERE t1.id= t2.id
+MogDB(# );
+DELETE 5
+MogDB=# select * from test_rowid_update;
+ id | content
+----+---------
+  1 | n_1
+  2 | n_2
+  3 | n_3
+  4 | n_4
+  5 | n_5
+  6 | n_6
+  7 | n_7
+  8 | n_8
+  9 | n_9
+ 10 | n_10
+(10 rows)
+
+MogDB=#
+</code></pre>
+<p>正确删除了指定字段的重复行</p>
+<h2 id="四、测试结果汇总">四、测试结果汇总</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>数据库</th>
+<th>是否增加了物理存储字段</th>
+<th>select * 不显示rowid</th>
+<th>select rowid 不报错</th>
+<th>通过rowid快速检索数据</th>
+<th>对同一个rowid进行多次更新</th>
+<th>删除表中重复记录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DM8</td>
+<td>Y/N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>崖山 23.2.4</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>OCEANBASE 4.1</td>
+<td><font color="red">Y</font></td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>KINGBASE 8</td>
+<td><font color="red">Y</font></td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>POLARDB-O 2.0</td>
+<td><font color="red">Y</font></td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>TDSQL-PG(Oracle兼容版）</td>
+<td><font color="red">Y</font></td>
+<td>Y</td>
+<td>Y</td>
+<td><font color="red">N</font></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>UXDB</td>
+<td><font color="red">Y</font></td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>神通(openGauss版)</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>海盒</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>瀚高  6.0.4</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>GAUSSDB 503.1.0.SPC1700</td>
+<td>N</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+<td><font color="red">N</font></td>
+<td>N</td>
+</tr>
+<tr>
+<td>OPENGAUSS 6.0</td>
+<td>N</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+<td><font color="red">N</font></td>
+<td>N</td>
+</tr>
+<tr>
+<td>GBASE 8c</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td><font color="red">N</font></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>VASTBASE G100 V2.2 BUILD 16</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td><font color="red">N</font></td>
+<td>Y</td>
+</tr>
+<tr>
+<td>MogDB 5.2.0</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td><font color="red">Y</font></td>
+<td>Y</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="五、总结">五、总结</h2>
+<p>PG/OG系最佳的rowid实现方案，在astore下必然无法实现，所以OG系的ustore应该是当下最佳实现方案，但ustore仍然还需要一段时间来进行市场验证。因此MogDB5.2.0在astore下实现的这个rowid，在一众PG/OG系的解决方案里，属于是一种全新的方案了，这种方案不仅没有让DML性能下降，又可以比同样DML性能没有下降的其他数据库支持更多的场景，是PG/OG系中已知的目前唯一一款在astore下没有新增物理字段又同时支持了这5个rowid使用场景的数据库。</p>
+<p>声明：本文不涉及任何商业行为，仅对自测结果进行客观陈述，如果觉得有不妥当，请联系本人进行修改 <a href="mailto:darkathena@qq.com">darkathena@qq.com</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,272 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【ORACLE】你以为的真的是你以为的么?--ORA-38104: Columns referenced in the ON Clause cannot be updated</p>
+<h2 id="前言">前言</h2>
+<p>在ORACLE迁移到openGauss的过程中，可能会发现一个这样的报错</p>
+<blockquote>
+<p>ERROR: Columns referenced in the ON Clause cannot be updated</p>
+</blockquote>
+<p>这个报错发生在merge into语句中，当update的列存在于on子句中就会报错。<br/>
+但是经常在ORACLE里写SQL的都知道，ORACLE里也是有这个报错的。<br/>
+是不是在ORACLE中的原始SQL执行也会报错？但事实上，迁移的这条原始SQL在ORACLE里真的不会报错！</p>
+<h2 id="分析">分析</h2>
+<p>先写个简单的例子，证实我们的记忆没错，ORACLE的merge into，update的列存在于on子句中就会报错</p>
+<pre><code class="language-sql">create table test_merge_a(id int ,name varchar(10),memo varchar(20));
+create table test_merge_b(id int ,name varchar(10),memo varchar(20));
+
+merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and a.name=b.name)
+when matched then
+  update set name='***';
+</code></pre>
+<blockquote>
+<p>ORA-38104: Columns referenced in the ON Clause cannot be updated<br/>
+ORA-38104: 无法更新 ON 子句中引用的列: "A"."NAME"</p>
+</blockquote>
+<p>接下来看看ORACLE中没有报错的那条SQL</p>
+<pre><code class="language-sql">merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and (a.name=b.name or a.name=' '))
+when matched then
+  update set name='***';
+</code></pre>
+<p>这个SQL在ORACLE执行真的不会报错！它只是把<code>a.name=b.name</code>换成了<code>(a.name=b.name or a.name=' ')</code>，而<code>a.name=' '</code>是业务意义上的恒假，业务保证了a.name里没有等于<code>' '</code>的，也就是说只要把要更新的字段，在on条件里的形式变成 <code>(原条件 or 任意恒假条件)</code>，就可以突破ORACLE在此场景下不能merge into 的限制！</p>
+<p>为什么会出现这种情况？先看看执行计划吧。</p>
+<pre><code class="language-sql">--符合ORACLE规范的SQL
+merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and a.name=b.name)
+when matched then
+  update set a.memo=b.memo;
+  
+ Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |    24 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID" AND "A"."NAME"="B"."NAME")
+
+</code></pre>
+<pre><code class="language-sql">--绕过ORACLE报错的不规范SQL
+merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and (a.name=b.name or a.name=' '))
+when matched then
+  update set name='***';
+  
+ Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    2 |    14 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    2 |   152 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID")
+* 3 - filter("A"."NAME"="B"."NAME" OR "A"."NAME"=' ')
+
+</code></pre>
+<p>对比这两个执行计划，似乎可以发现，当存在or条件时，a.name=b.name不是连接条件，而是过滤条件了，也就是说它已经不是on的字段，而是转移到了where中，所以就不满足ORA-38014的报错条件。这似乎可以解释得通。</p>
+<p>但是，再观察下面这个也不会报错的SQL执行计划</p>
+<pre><code class="language-sql">merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and (a.name=b.name or 1=2))
+when matched then
+  update set name='***';
+  
+ Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |     7 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID" AND "A"."NAME"="B"."NAME")
+
+</code></pre>
+<p><code>1=2</code>恒假，<code>or 1=2</code>被优化器去掉，等同于<code>a.id=b.id and a.name=b.name</code> ，即那个应该会报错的SQL中出现的，而且<code>a.name</code>出现在了连接条件中！<br/>
+也就是说，实际上oracle的执行器可以处理“merge into中更新on里的字段”这种场景！但是ORACLE加了个半拉子校验来限制这个功能！</p>
+<p>无独有偶，我在网上也搜到了一篇文章，作者用了好几种方式来绕过这个报错：<br/>
+<a href="https://blog.jooq.org/how-to-work-around-ora-38104-columns-referenced-in-the-on-clause-cannot-be-updated/">《How to Work Around ORA-38104: Columns referenced in the ON Clause cannot be updated》</a></p>
+<pre><code class="language-sql">--构造标量子查询
+merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and (select a.name from dual)=b.name )
+when matched then
+  update set name='***';
+
+Plan Hash Value  : 1209804999 
+
+---------------------------------------------------------------------------------
+| Id  | Operation               | Name         | Rows | Bytes | Cost | Time     |
+---------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT         |              |    1 |     7 |    6 | 00:00:01 |
+|   1 |   MERGE                 | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                 |              |      |       |      |          |
+| * 3 |     FILTER              |              |      |       |      |          |
+| * 4 |      HASH JOIN          |              |    2 |   152 |    4 | 00:00:01 |
+|   5 |       TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   6 |       TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+|   7 |      FAST DUAL          |              |    1 |       |    2 | 00:00:01 |
+---------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - filter("B"."NAME"= (SELECT :B1 FROM "SYS"."DUAL" "DUAL"))
+* 4 - access("A"."ID"="B"."ID")
+</code></pre>
+<pre><code class="language-sql">--给目标表的查询增加函数转换字段
+merge into (select a.*,nvl(name, null) name_ali from test_merge_a a) a
+using test_merge_b b
+on (a.id=b.id and a.name_ali=b.name )
+when matched then
+  update set name='***';
+  
+Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |     7 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID" AND "B"."NAME"=NVL("NAME",NULL))
+
+</code></pre>
+<pre><code class="language-sql">--将冲突条件移到where中
+merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id  )
+when matched then
+  update set name='***'
+  where a.name=b.name;
+  
+ Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    2 |    92 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    2 |   152 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID")
+</code></pre>
+<p>这个作者是流行的orm框架jooq的开发者<strong>lukaseder</strong>，他认为“<strong>ORA-38104 should be abandoned entirely</strong>”。<br/>
+另外<strong>asktom</strong>里也有人发现了这个现象（<a href="https://asktom.oracle.com/ords/f?p=100:11:0::::P11_QUESTION_ID:556373000346392260">《join update》</a>），但是绕过的方式是把条件再复制一次，还是用or连接，比如</p>
+<pre><code class="language-sql">merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id and (a.name=b.name or a.name=b.name))
+when matched then
+  update set name='***';
+  
+ Plan Hash Value  : 1377381318 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name    | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |     7 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW             |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_B |    2 |    64 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID" AND "A"."NAME"="B"."NAME")
+
+</code></pre>
+<p>2012年的时候，这个帖子里有人认为这条语句执行不报错是一个BUG，但从ORACLE后续这十几年版本更新表现来看，ORACLE并没有把这个问题当回事。</p>
+<p>ORACLE官方论坛里对<code>ORA-38104</code>这个报错也有过激烈的讨论(<a href="https://forums.oracle.com/ords/apexds/post/ora-38104-columns-referenced-in-the-on-clause-cannot-be-upd-2786">https://forums.oracle.com/ords/apexds/post/ora-38104-columns-referenced-in-the-on-clause-cannot-be-upd-2786</a>),但是当时他们未发现本文中的这种规避方式。</p>
+<p>在ORACLE一家独大的时候，专家们往往为ORACLE自圆其说，认为如果允许merge into里更新on里的字段会导致出现更新后的数据再去匹配而产生异常。但是实际上，从执行计划里看，merge into是把目标表和源表做了个join，构造了个view，基于这个view的结果集再去处理，此时目标表发生变更不会影响到快照里view的数据，类似于<code>update t t1 set c=(select t2.c from t t2 where t1.pid=t2.id and t1.c =t2.c||',')</code>，在更新t表的同时，查询t表的数据一定遵循acid的原则，即查询的是这条语句开始执行时刻的t表的可见快照（DML重启动场景本文暂不讨论）。</p>
+<p>我们再看下其他支持<code>merge into</code>语法的数据库是什么情况</p>
+<table><thead><tr><th>数据库</th><th>是否支持merge into中更新on里的字段</th><th><code>a and (b or 1=2)</code>不报错</th><th><code>a and (b or b)</code>不报错</th><th><code>a and (b or b=' ')</code> 不报错</th></tr></thead><tbody><tr><td>Oracle 23c</td><td>N</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>DB2 developer-C 11.1</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>Firebird 4.0</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>Postgresql 15</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>Postgresql 17</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>SQLSERVER 2014</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>SQLSERVER 2022</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>YaShan 23</td><td><strong>Y</strong></td><td>Y</td><td>Y</td><td>Y</td></tr><tr><td>KingBase 9</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>openGauss 6.0.0</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>MogDB 5.0.11</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>VastBase V2.2 build 16</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>Gbase8c</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>HighGo 6</td><td><strong>N</strong></td><td><strong>Y</strong></td><td><strong>Y</strong></td><td><strong>Y</strong></td></tr><tr><td>DM 8</td><td>N</td><td>N</td><td>N</td><td>N</td></tr><tr><td>OceanBase 4.2</td><td>N</td><td>N</td><td>N</td><td>N</td></tr></tbody></table>
+<p>对于国外这些支持merge into语法的数据库，都完全不限制是否能更新on里的字段，但国产数据库们只有yashan没去做限制，比较有意思的是基于PG的highgo,原本PG是支持的，但它"欲练神功,****"了。</p>
+<p>前面的例子是on里有两个目标表的字段，但只更新一个字段，那么假设on里只有一个目标表字段，并且还要更新它时，类似的策略是否可行？<br/>
+实测也是可行的，不过要额外再在on里引用一次这个字段</p>
+<pre><code class="language-sql">merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id)
+when matched then
+  update set id=2;
+  
+ORA-38104: 无法更新 ON 子句中引用的列: "A"."ID"
+
+--改写
+merge into test_merge_a a
+using test_merge_b b
+on ((a.id=b.id or 1=2) and (a.id=b.id or 1=2 ))
+when matched then
+  update set a.id=2;
+  
+ Plan Hash Value  : 4101543598 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |    13 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_B |    1 |    32 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID")
+
+
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>综上所述，ORACLE本可以不用去限制merge into 更新on里的字段，或许是代码不严谨存在漏洞，ORACLE怕出问题才加上这个限制，但是其他数据库做merge into的时候都没加这个限制，而且ORACLE还能通过小手段来绕过这个限制，足以看到ORACLE的严谨性是存在欠缺的。建议国产数据库们在做ORACLE兼容性功能时，还是要有一些立场，对于明显不对的东西不应该去进行模仿，应该取其精华去其糟粕。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

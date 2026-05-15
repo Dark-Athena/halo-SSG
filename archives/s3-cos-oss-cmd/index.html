@@ -155,7 +155,157 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h3 id="前言">前言</h3>
+<p>对象存储服务，简单来说，可以把它当成一个“网盘”，可以上传下载数据，也可以直接在这个“网盘”中对文件进行某些操作。</p>
+<p>我之前所在部门收到的，涉及到第三方合作的数据分析项目，自从对象存储服务开始流行起来后，大多都使用了这些对象存储服务。这些项目在技术方面，内部几乎完全交给了我一个人，正好给了我学习这个东西的经验。</p>
+<p>我为什么要写一篇这样的文章呢，背景是这样的<br/>
+这3个对象存储服务，都是有各种开发环境sdk的，其他公司大多会选择使用java/python/.NET等来开发数据导出及同步的服务。而我所在部门，当时并没有专职的开发人员，而且也很难从公司申请到硬件资源来部署服务。<br/>
+我能用的仅有一台很早之前申请的windows服务器。</p>
+<p>所以对于这些项目，我大致的方案为<br/>
+1.定时或者基于某种条件自动地，每天从数据库中导出指定格式的数据，生成文件，保存到服务器本地指定目录内<br/>
+2.使用对应的命令行工具，对服务器本地指定目录和对象存储服务中的指定目录，以完全同步的方式进行上传</p>
+<p>对于第1步，我用bat写了个通用的数据导出就解决了（<a href="/archives/cmd%E5%AF%BC%E5%87%BA%E5%A4%9Aoracle%E5%BA%93%E5%A4%9A%E6%95%B0%E6%8D%AE">【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理</a>）。对于第2步，由于之前完全没接触过，就只能翻官方文档看了<br/>
+亚马逊云 S3 - <a href="https://aws.amazon.com/cn/cli/">https://aws.amazon.com/cn/cli/</a><br/>
+腾讯云 COS - <a href="https://cloud.tencent.com/document/product/436/10976">https://cloud.tencent.com/document/product/436/10976</a><br/>
+阿里云 OSS - <a href="https://help.aliyun.com/document_detail/50452.html">https://help.aliyun.com/document_detail/50452.html</a></p>
+<p>下面以入门视角来一个一个进行说明</p>
+<h3 id="一s3的命令行工具安装及使用">一、S3的命令行工具安装及使用</h3>
+<h4 id="1安装">1.安装</h4>
+<p>打开官方文档，可以看到有两种方式<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png" srcset="/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1200 1200w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=400 400w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1600 1600w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=800 800w"/><br/>
+对于windows环境，官方建议下载安装程序，我当时就踩了这个坑。<br/>
+这个windows版本的aws命令行工具，实际安装后，是通过python环境来执行的，如果本地服务器上没有安装python，那么这个安装程序自带一个2.*版本python并进行自动安装。这种情况下，在执行同步命令的时候，会有满屏的unicode报错，</p>
+<blockquote>
+<p>UnicodeWarning: Unicode equal comparison failed to convert both arguments to Unicode - interpreting them as being unequal</p>
+</blockquote>
+<p>虽然实际同步还是成功的，但是如果要看日志就很痛苦了。当然如果之前就安装了python3再安装这个windows版本的工具也没问题。<br/>
+不过服务器上老是要安装什么程序是特别不爽的，其实如果我们的windows服务器上如果有python环境，完全可以使用官方提供的第二个方案，直接pip安装</p>
+<pre><code class="language-bat">pip install awscli
+</code></pre>
+<p>这个问题官方也有记录，2013年有人第一次提出，但直到2019年官方才解决，6年解决一个这样的问题也真是“高效”<br/>
+<a href="https://github.com/aws/aws-cli/issues/424">https://github.com/aws/aws-cli/issues/424</a></p>
+<h4 id="2配置">2.配置</h4>
+<p>在cmd下执行</p>
+<pre><code>aws configure
+</code></pre>
+<p>按提示输入对应的账号信息,如果为空则直接回车</p>
+<pre><code>AWS Access Key ID [None]: accesskey
+AWS Secret Access Key [None]: secretkey
+Default region name [None]: us-west-2
+Default output format [None]: 
+</code></pre>
+<p>配置完成后，就可以使用其同步文件的命令了。</p>
+<pre><code>aws s3 sync E:\upload s3://upload/
+</code></pre>
+<p>但是，这个配置方式是交互式的，不能简单地通过*.bat文件一步到位，而且这个配置只会保存在执行该配置的操作系统用户下，如果是使用操作系统的其他用户来同步文件，那么需要再重新配置。<br/>
+不过我找到一个方法，可以使用临时环境变量来配置</p>
+<pre><code>set AWS_ACCESS_KEY_ID=accesskey
+set AWS_SECRET_ACCESS_KEY=secretkey
+set AWS_DEFAULT_REGION=us-west-2
+call aws s3 sync E:\upload s3://upload/
+exit
+</code></pre>
+<p>或</p>
+<pre><code>set AWS_ACCESS_KEY_ID=accesskey
+set AWS_SECRET_ACCESS_KEY=secretkey
+call aws s3 sync E:\upload s3://upload/ --region us-west-2
+exit
+</code></pre>
+<p>保存以上两段中的任意一段为*.bat文件，然后设置一个定时任务去执行，就能完成自动同步了。</p>
+<h4 id="3日常手工维护命令">3.日常手工维护命令</h4>
+<p>列举几个常用的例子</p>
+<p>查看目录</p>
+<pre><code>aws s3 ls s3://upload/
+</code></pre>
+<p>同步所有文件(基于文件md5自动识别增加或者变化的文件进行上传）</p>
+<pre><code>aws s3 sync E:\upload s3://upload/
+</code></pre>
+<p>上传指定文件到指定目录</p>
+<pre><code>aws s3 cp E:\upload\123.zip s3://upload/123.zip
+</code></pre>
+<p>删除指定文件</p>
+<pre><code>aws s3 rm s3://upload/123.zip
+</code></pre>
+<p>其他操作及详细说明请查看官方文档<br/>
+<a href="https://docs.amazonaws.cn/cli/latest/userguide/cli-services-s3-commands.html">https://docs.amazonaws.cn/cli/latest/userguide/cli-services-s3-commands.html</a></p>
+<h3 id="二cos的命令行工具安装及使用">二、cos的命令行工具安装及使用</h3>
+<h4 id="1安装-1">1.安装</h4>
+<p>如果有python环境，直接pip安装，同样和前面一样，建议用 3.*版本的python<br/>
+（注意：py环境要用administrator用户使用管理员权限安装，选择自定义安装，一定要勾上 “FOR ALL USER” 和 “ADD PATH”）</p>
+<pre><code>pip install coscmd
+</code></pre>
+<h4 id="2配置-1">2.配置</h4>
+<p>cos和S3不一样，coscmd倒是直接提供了命令行配置方式</p>
+<pre><code>coscmd config -a AChT4ThiXAbpBDEFGhT4ThiXAbp**** -s WE54wreefvds3462refgwewe**** -b configure-bucket-1250000000 -r ap-chengdu
+</code></pre>
+<p>所以自动同步文件的bat脚本内容为</p>
+<pre><code>call coscmd config -a AChT4ThiXAbpBDEFGhT4ThiXAbp**** -s WE54wreefvds3462refgwewe**** -b configure-bucket-1250000000 -r ap-chengdu
+call coscmd upload -rs E:\upload data/upload 
+exit
+</code></pre>
+<h4 id="3日常手工维护命令-1">3.日常手工维护命令</h4>
+<p>--执行同步（跳过MD5重复文件）</p>
+<pre><code>coscmd upload -rs E:\upload data/upload 
+</code></pre>
+<p>--执行同步（忽略txt和doc后缀的文件）</p>
+<pre><code>coscmd upload -rs /data/examplefolder data/examplefolder --ignore *.txt,*.doc
+</code></pre>
+<p>--执行同步（不校验重复，强制覆盖）<br/>
+“-rs” 参数 改为 “-r”</p>
+<pre><code>coscmd upload -r E:\upload data/upload 
+</code></pre>
+<p>--上传单个文件</p>
+<pre><code>coscmd upload E:\upload\exampleobject.txt data/upload/ 
+</code></pre>
+<p>--删除文件</p>
+<pre><code>coscmd delete data/upload/exampleobject.txt
+</code></pre>
+<p>--删除文件夹</p>
+<pre><code>coscmd delete -r /data/examplefolder/
+</code></pre>
+<p>--显示文件清单</p>
+<pre><code>coscmd list examplefolder/
+</code></pre>
+<p>其他操作及详细说明请查看官方文档<br/>
+<a href="https://cloud.tencent.com/document/product/436/10976">https://cloud.tencent.com/document/product/436/10976</a></p>
+<p>另外，有意思的是，腾讯云官方提供了一个UI工具，可以对cos执行可视化操作<br/>
+<a href="https://cloud.tencent.com/document/product/436/11366">https://cloud.tencent.com/document/product/436/11366</a></p>
+<h3 id="三oss的命令行工具安装及使用">三、oss的命令行工具安装及使用</h3>
+<p>阿里云官方只提供了单文件可执行程序的命令行工具，所以我们需要手动下载，下载页面</p>
+<blockquote>
+<p><a href="https://help.aliyun.com/document_detail/120075.html">https://help.aliyun.com/document_detail/120075.html</a></p>
+</blockquote>
+<p>下载好后，为方便使用，我们可以把这个文件放到c:\windows\system32下，或者设置环境变量指向文件，当然也可以不用做这一步，在使用时使用该文件的绝对路径也行。</p>
+<p>中间的过程就不废话了，和前面差不多，直接贴最终的bat内容</p>
+<pre><code>E:\ossutil64\ossutil64.exe config -e oss-cn-beijing.aliyuncs.com -i LTAIbZcdVCmQ**** -k D26oqKBudxDRBg8Wuh2EWDBrM0****  -L CH
+E:\ossutil64\ossutil64.exe --recursive cp E:\upload oss://data/upload -u
+exit
+</code></pre>
+<p>至于日常运维操作，自己去看官方文档吧，阿里云的这个算是同类服务中功能最多（fuzha）的了</p>
+<blockquote>
+<p><a href="https://help.aliyun.com/document_detail/120050.html">https://help.aliyun.com/document_detail/120050.html</a></p>
+</blockquote>
+<h3 id="四其他">四、其他</h3>
+<p>下面几个我没用过，但都有命令行工具，使用方式和前面几个差不多，就贴个链接吧</p>
+<p>京东云 oss</p>
+<blockquote>
+<p><a href="https://docs.jdcloud.com/cn/object-storage-service/s3cmd">https://docs.jdcloud.com/cn/object-storage-service/s3cmd</a></p>
+</blockquote>
+<p>七牛云 Kodo</p>
+<blockquote>
+<p><a href="https://developer.qiniu.com/kodo/1302/qshell">https://developer.qiniu.com/kodo/1302/qshell</a></p>
+</blockquote>
+<p>华为云 OBS</p>
+<blockquote>
+<p><a href="https://support.huaweicloud.com/utiltg-obs/obs_11_0001.html">https://support.huaweicloud.com/utiltg-obs/obs_11_0001.html</a></p>
+</blockquote>
+<h3 id="总结">总结</h3>
+<p>本文档整理的内容适用于无开发人员、硬件环境简陋的场景，无需编写程序，只要写几行简单的脚本，即可实现本地文件自动同步上云。同时，也让初次接触这方面内容的开发者，大致对这些云存储服务有个初步的了解。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

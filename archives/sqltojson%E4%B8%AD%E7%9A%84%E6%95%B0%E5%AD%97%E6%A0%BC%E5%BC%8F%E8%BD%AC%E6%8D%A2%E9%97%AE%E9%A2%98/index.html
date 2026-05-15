@@ -155,7 +155,105 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>JSON(JavaScript Object Notation) 是一种轻量级的数据交换格式。它基于JavaScript（Standard ECMA-262 3rd Edition - December 1999）的一个子集。 JSON采用完全独立于语言的文本格式，但是也使用了类似于C语言家族的习惯（包括C, C++, C#, Java, JavaScript, Perl, Python等）。这些特性使JSON成为理想的数据交换语言。易于人阅读和编写，同时也易于机器解析和生成。</p>
+<p>目前绝大多数的api接口都采用json格式来传输数据。</p>
+<p>在ORACLE11g版本及之前，ORACLE数据库原生不支持json的解析及操作，有个大佬E.I.Sarmas，用plsql写了一套三方的json库，其中所有的对象都是“json”开头，之后由于oracle12c版本原生支持json，为了防止关键字冲突，这个三方的json库中所有的对象改成了“pljson”开头，而且随着不断的升级，修复了一些BUG，速度也有所提升。（<a href="https://github.com/dsnz/pljson">https://github.com/dsnz/pljson</a> ）</p>
+<p>我写这篇文章记录一下我在之前工作中使用这个三方包遇到的一些问题</p>
+<h2></h2>
+<p>json_util_pkg.sql_to_json这个函数，支持传入任意查询sql，然后将查询结果转换成jsonlist，可以极大的提高程序开发效率，不需要再用字符串的方式逐个key和value去进行拼接。然后配合json_list.to_clob,可以转换成jsonlist的字符串。<br/>
+实际使用中，如果sql查询结果中的某个值是数字，而且是形如 “0.123”这样的小于1大于0的小数，执行时会报错</p>
+<pre><code class="language-sql">select json_util_pkg.sql_to_json(p_sql =&gt; 'select 0.1 a from dual', 
+                                   p_max_rows =&gt; 1, 
+                                   p_skip_rows =&gt; 0) from dual;
+</code></pre>
+<pre><code>ORA-20100: JSON Scanner exception @ line: 1 column: 23 - Unexpected char: . 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 506 
+ORA-06512: 在 "****.JSON_PARSER", line 176 
+ORA-06512: 在 "****.JSON_PARSER", line 538 
+ORA-06512: 在 "****.JSON_PARSER", line 814 
+ORA-06512: 在 "****.JSON", line 24 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 490 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 521 ORA-06512: 在 line 1
+</code></pre>
+<p>这是因为，在ORACLE中，大于0小于1的小数，实际存储时会省略小数点前面的0，比如“0.123”实际存储是“.123”,而这个json库在执行数据转换成jsonlist时，其实是套用的另一个三方通用xml转换模板（ORACLE原生支持XML语法）</p>
+<pre><code> /*
+
+  Purpose:    return XSLT stylesheet for XML to JSON transformation
+
+  Remarks:    see http://code.google.com/p/xml2json-xslt/
+
+  Who     Date        Description
+  ------  ----------  -------------------------------------
+  MBR     30.01.2010  Created
+  MBR     30.01.2010  Added fix for nulls
+
+  */
+</code></pre>
+<p>这个转换模板没有考虑到ORACLE数据库的这种特殊情况，所以没有做特殊处理。<br/>
+我当时遇到这个问题的时候，自己分析出了这个原因，并且找到了异常代码的位置，因为之前没接触过这种语法，就参考着前后改了，测试一下，这个问题就解决了。<br/>
+后来在网上搜索，发现也有其他人遇到了这个问题，而且用类似的方法解决了，所以我这里就不贴代码了<br/>
+<a href="https://blog.csdn.net/gear1023/article/details/51064842">https://blog.csdn.net/gear1023/article/details/51064842</a></p>
+<h2></h2>
+<p>但这个问题其实还没完，因为后面我的某个项目里，又发现另一个问题，如果sql查询结果中的某个值是个varchar2类型，且是0开头接后面一串纯数字，比如“012345”这样的，也会报错</p>
+<pre><code class="language-sql">select json_util_pkg.sql_to_json(p_sql =&gt; q'{select '01' a from dual}', 
+                                   p_max_rows =&gt; 1, 
+                                   p_skip_rows =&gt; 0) from dual;
+</code></pre>
+<pre><code>ORA-20101: JSON Parser exception @ line: 1 column: 25 - A comma seperator is probably missing 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 509 
+ORA-06512: 在 "****.JSON_PARSER", line 552 
+ORA-06512: 在 "****.JSON_PARSER", line 722 
+ORA-06512: 在 "****.JSON_PARSER", line 639 
+ORA-06512: 在 "****.JSON_PARSER", line 703 
+ORA-06512: 在 "****.JSON_PARSER", line 639 
+ORA-06512: 在 "****.JSON_PARSER", line 703 
+ORA-06512: 在 "****.JSON_PARSER", line 817 
+ORA-06512: 在 "****.JSON", line 24 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 489 
+ORA-06512: 在 "****.JSON_UTIL_PKG", line 520 
+ORA-06512: 在 line 1
+</code></pre>
+<p>有了前面的修改经验，这个也就不难处理了</p>
+<pre><code>&lt;!-- number (no support for javascript mantissa) --&gt;
+  &lt;xsl:template match="text()[not(string(number())='NaN' or
+                      (starts-with(.,'0' ) and . != '0' and
+not(starts-with(.,'0.' ))) or
+                      (starts-with(.,'-0' ) and . != '-0' and
+not(starts-with(.,'-0.' )))
+                      )]"&gt;
+ &lt;xsl:choose&gt;
+      &lt;xsl:when test="starts-with(., '.')"&gt;
+          &lt;xsl:value-of select="concat('0', .)"/&gt;
+      &lt;/xsl:when&gt;
+      &lt;xsl:otherwise&gt;&lt;xsl:value-of select="."/&gt;&lt;/xsl:otherwise&gt;
+    &lt;/xsl:choose&gt;
+  &lt;/xsl:template&gt; 
+</code></pre>
+<p>不知道这个语法的，直接看这个容易被这个小数点弄晕，我也是猜这个不在引号内的小数点可能代表一个占位符，是个变量，是传入这个程序的这个数值或字符串本身。以前也不知道这种语法，这次也没去学，但基本也看懂了，而且还改成功了。</p>
+<h2></h2>
+<p>但是，这个问题其实还没完，因为这个json库还有其他问题，开发者会进行不定期更新，每次我这边数据库里对这个包进行更新时，还要自己手动修复这个bug，所以我把这个问题及解决方案提交给了这个json库的开发者<br/>
+<a href="https://github.com/pljson/pljson/issues/237">https://github.com/pljson/pljson/issues/237</a><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png" srcset="/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1200 1200w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=400 400w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1600 1600w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=800 800w"/><br/>
+然后这个问题终于在之后的版本中得到了修复。</p>
+<h2></h2>
+<p>但是还有但是，我提交的这个问题后面，又有另一个人提了另一个问题<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png" srcset="/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1200 1200w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=400 400w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1600 1600w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=800 800w"/><br/>
+大概意思就是如果把数字字符集改成德国的，这个修复方案就还是不行，所以这个开发者后面又改了一版。</p>
+<p>至此，这个问题应该算是正式解决了，但是，没错，还有个但是。</p>
+<h2></h2>
+<p>就是在老版本的"JSON"库切换到"PLSJON"库时，这个开发者提供了一个无痛升级方案，</p>
+<blockquote>
+<p>1.卸载老版本<br/>
+2.部署新版本<br/>
+3.针对所有对象创建老对象名称指向新对象名称的同义词</p>
+</blockquote>
+<p>比如同义词 json_util_pkg 指向到 pljson_util_pkg， jsonlist指向到 pljsonlist，乍看下貌似没有什么问题，但实际在创建这批同义词的时候，会发现新版本的json库文件中，不存在pljson_value.type.decl.sql和 pljson_value.type.impl.sql这两个文件，也就是说，新版不存在“json_value”这个type对象，于是我又提了个bug。<a href="https://github.com/pljson/pljson/issues/203">https://github.com/pljson/pljson/issues/203</a></p>
+<p>但是我后来自己仔细研究，发现新版json库中，的确没有任何一个地方使用了“json_value”，比较新老代码，老的用json_value的地方，在新的里面，改成了pljson_element，所以只要创建json_value 指向pljson_element的同义词即可解决这个问题。而这个作者貌似没有提到这个，我也没管了，直接把github上这个问题关了，反正未来ORACLE12C以上都只能用新版的了，老版本的不能再继续使用。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

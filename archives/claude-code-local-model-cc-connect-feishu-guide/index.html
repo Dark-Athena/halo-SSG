@@ -149,13 +149,331 @@
         
         <span>2026-05-05</span>
         
-        <span>256 阅读</span>
+        <span>261 阅读</span>
         
         <a href="/categories/ai">AI</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="将-无官方订阅的Claude-Code-接入飞书-cc-connect-配置踩坑全记录">将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录</h1>
+<h2 id="背景">背景</h2>
+<p>Claude Code 是 Anthropic 推出的终端 AI 编程助手，能力很强，但只能通过本地终端使用（Remote Control和Channels都需要订阅）。cc-connect 是一个开源工具，能将 Claude Code（以及 Cursor、Gemini CLI 等）桥接到飞书、钉钉、Telegram 等即时通讯平台，实现手机远程调用 Claude Code。</p>
+<blockquote>
+<p>本文记录了使用 <a href="https://github.com/chenhg5/cc-connect">cc-connect</a> 将本地 Claude Code 接入飞书群聊的完整过程，包括第三方 API 代理的认证配置和实际踩坑经验。</p>
+<p>环境：macOS + LMStudio 本地代理 + Claude Code + 飞书自建应用</p>
+</blockquote>
+<h2 id="前置条件">前置条件</h2>
+<ul>
+<li>已安装 <a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>（<code>npm install -g @anthropic-ai/claude-code</code>）</li>
+<li>已有一个运行中的 Anthropic 兼容 API 代理（本文使用 LMStudio 本地代理，地址 <code>http://127.0.0.1:3456</code>）</li>
+<li>飞书开放平台已创建自建应用，且已启用机器人能力</li>
+</ul>
+<h2 id="第一步-安装-cc-connect">第一步：安装 cc-connect</h2>
+<pre><code class="language-bash">npm install -g cc-connect
+</code></pre>
+<p>验证安装：</p>
+<pre><code class="language-bash">cc-connect --version
+# v1.3.2
+</code></pre>
+<h2 id="第二步-绑定飞书应用">第二步：绑定飞书应用</h2>
+<pre><code class="language-bash">cc-connect feishu bind --app "&lt;App ID&gt;:&lt;App Secret&gt;"
+</code></pre>
+<p>其中 <code>&lt;App ID&gt;:&lt;App Secret&gt;</code> 从飞书开放平台 &gt; 应用开发 &gt; 凭证与基础信息中获取。</p>
+<p>绑定成功后会输出 WebSocket 连接信息，说明飞书通道已打通。</p>
+<h2 id="第三步-首次启动验证">第三步：首次启动验证</h2>
+<pre><code class="language-bash">cc-connect start -f
+</code></pre>
+<p>启动后，在飞书中给机器人发一条消息。此时有两种情况：</p>
+<ul>
+<li><strong>官方账号用户</strong>：如果已通过 <code>claude login</code> 登录了 Anthropic 官方账号，Claude Code 会正常回复，配置到此完成</li>
+<li><strong>第三方 API 代理用户</strong>：会收到 <code>Not logged in. Please run /login</code> 的回复。这是因为 Claude Code 没有检测到有效的认证信息。继续下一步</li>
+</ul>
+<h2 id="第四步-配置第三方-API-代理-核心难点-">第四步：配置第三方 API 代理（核心难点）</h2>
+<h3 id="为什么需要这步-">为什么需要这步？</h3>
+<p>Claude Code 启动时检查 <code>ANTHROPIC_API_KEY</code> 环境变量来决定使用哪个 API 端点。使用第三方代理时，需要通过环境变量指定代理地址和密钥。</p>
+<h3 id="cc-connect-内置的-Provider-机制不生效">cc-connect 内置的 Provider 机制不生效</h3>
+<p>cc-connect 提供了 <code>provider add</code> 命令和配置文件中的 <code>[[projects.agent.providers]]</code> 机制来管理 API 代理。理论上可以在配置文件中声明 provider 并通过 <code>--env</code> 注入环境变量：</p>
+<pre><code class="language-toml"># ~/.cc-connect/config.toml
+[[projects]]
+  name = "claude-workroom"
+
+  [projects.agent]
+    type = "claudecode"
+    provider = "local-proxy"    # 声明默认 provider
+
+    [[projects.agent.providers]]
+      name = "local-proxy"
+      api_key = "test"
+      base_url = "http://127.0.0.1:3456"
+
+      [projects.agent.providers.env]
+        ANTHROPIC_API_KEY = "sk-xxx"
+        ANTHROPIC_BASE_URL = "http://127.0.0.1:3456"
+</code></pre>
+<p><strong>但在实际测试中（v1.3.2），这个机制完全不生效：</strong></p>
+<ul>
+<li>debug 日志中 <code>activeIdx=-1</code>（始终未激活），<code>providerEnv=[]</code>（始终为空）</li>
+<li>配置文件中声明 <code>provider = "local-proxy"</code> 不会自动激活</li>
+<li><code>provider add --env "KEY=VAL"</code> 注入的 env 也不会传递给 Claude Code 子进程</li>
+<li>只有在飞书中手动发送 <code>/provider switch local-proxy</code> 后才生效，但该状态<strong>仅存在于内存中</strong>，重启 cc-connect 或新建 session（<code>/new</code>）后立即丢失</li>
+</ul>
+<p>这是 cc-connect 的一个已知问题。如果未来版本修复了，provider 机制会是最优雅的方案。但在当前版本下，需要用下面的替代方案。</p>
+<h3 id="替代方案-启动脚本中设置环境变量">替代方案：启动脚本中设置环境变量</h3>
+<p>由于 cc-connect 的 provider env 不生效，但 Claude Code 会继承父进程的环境变量，因此<strong>在启动 cc-connect 的 shell 环境中直接设置 <code>ANTHROPIC_API_KEY</code> 和 <code>ANTHROPIC_BASE_URL</code> 即可</strong>：</p>
+<pre><code class="language-bash">export ANTHROPIC_API_KEY="你的API密钥"
+export ANTHROPIC_BASE_URL="http://你的代理地址:端口"
+cc-connect start -f
+</code></pre>
+<p>建议写成启动脚本，方便重复使用：</p>
+<pre><code class="language-bash">#!/bin/bash
+# start-cc-connect.sh
+
+export ANTHROPIC_API_KEY="你的API密钥"
+export ANTHROPIC_BASE_URL="http://你的代理地址:端口"
+export API_TIMEOUT_MS="600000"
+export DISABLE_TELEMETRY="true"
+export DISABLE_COST_WARNINGS="true"
+export NO_PROXY="127.0.0.1"
+
+# 防止继承父进程的 CLAUDECODE 环境变量（可能导致冲突）
+unset CLAUDECODE
+
+exec cc-connect start -f "$@"
+</code></pre>
+<p>使用方法：</p>
+<pre><code class="language-bash">chmod +x start-cc-connect.sh
+./start-cc-connect.sh
+</code></pre>
+<h3 id="环境变量说明">环境变量说明</h3>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>必需</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ANTHROPIC_API_KEY</code></td>
+<td>是</td>
+<td>Claude Code 的 API 密钥，值为代理的密钥</td>
+</tr>
+<tr>
+<td><code>ANTHROPIC_BASE_URL</code></td>
+<td>是</td>
+<td>API 代理地址，如 <code>http://127.0.0.1:3456</code></td>
+</tr>
+<tr>
+<td><code>API_TIMEOUT_MS</code></td>
+<td>否</td>
+<td>API 请求超时时间（毫秒），默认值可能过短，建议 <code>600000</code>（10 分钟）</td>
+</tr>
+<tr>
+<td><code>DISABLE_TELEMETRY</code></td>
+<td>否</td>
+<td>禁用 Claude Code 的遥测数据上报</td>
+</tr>
+<tr>
+<td><code>DISABLE_COST_WARNINGS</code></td>
+<td>否</td>
+<td>禁用费用警告</td>
+</tr>
+<tr>
+<td><code>NO_PROXY</code></td>
+<td>否</td>
+<td>不走代理的地址，防止本地代理请求走系统代理。值为 <code>127.0.0.1</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>注意：<code>unset CLAUDECODE</code> 很重要。如果父进程（如另一个终端或脚本）设置了 <code>CLAUDECODE</code> 环境变量，Claude Code 可能会尝试使用不兼容的通信协议，导致启动失败。</p>
+</blockquote>
+<h3 id="自动跳过权限确认-推荐-">自动跳过权限确认（推荐）</h3>
+<p>Claude Code 默认在执行文件读写、Shell 命令等操作前会弹出权限确认。如果你通过手机飞书发消息，无法回到电脑上点击允许，需要配置自动跳过权限。</p>
+<p>在 Claude Code 的全局配置目录创建 <code>settings.json</code>：</p>
+<pre><code class="language-bash">mkdir -p ~/.claude
+cat &gt; ~/.claude/settings.json &lt;&lt; 'EOF'
+{
+  "permissions": {
+    "dangerouslySkipPermissions": true
+  }
+}
+EOF
+</code></pre>
+<blockquote>
+<p>此配置对<strong>所有</strong> Claude Code 实例生效，包括本地终端直接使用的场景。如果你只希望在 cc-connect 中跳过权限，可以将 settings.json 放在工作目录的 <code>.claude/settings.json</code> 下（本文中为 <code>/Users/mac/cchome/workroom/.claude/settings.json</code>）。</p>
+<p>cc-connect 配置文件中的 <code>mode = "bypassPermissions"</code> 设置的是 <code>--permission-mode bypassPermissions</code>，这和 <code>dangerouslySkipPermissions</code> 不同。前者仅跳过部分编辑权限，后者跳过<strong>所有</strong>权限检查。两者可以同时设置，settings.json 的优先级更高。</p>
+</blockquote>
+<h2 id="第五步-重启验证">第五步：重启验证</h2>
+<pre><code class="language-bash">pkill -9 -f cc-connect
+./start-cc-connect.sh
+</code></pre>
+<p>在飞书中发送 <code>/new</code> 开启新会话，然后发一条消息。Claude Code 应正常回复（不再是 "Not logged in"）。</p>
+<h2 id="第六步-开机自启动-推荐-">第六步：开机自启动（推荐）</h2>
+<h3 id="安装-daemon-服务">安装 daemon 服务</h3>
+<pre><code class="language-bash">cc-connect daemon install --config ~/.cc-connect/config.toml
+</code></pre>
+<p>这会在 <code>~/Library/LaunchAgents/</code> 下创建 launchd plist 文件，实现开机自启动和崩溃自动重启。</p>
+<h3 id="配置环境变量">配置环境变量</h3>
+<p><strong>关键：</strong> cc-connect 以 daemon 方式运行时，不会加载 <code>.zshrc</code> 等 shell profile，因此环境变量必须在 plist 文件中显式配置。</p>
+<p>编辑生成的 plist 文件（路径为 <code>~/Library/LaunchAgents/com.cc-connect.service.plist</code>），在 <code>EnvironmentVariables</code> 中添加必要的环境变量：</p>
+<pre><code class="language-xml">&lt;key&gt;EnvironmentVariables&lt;/key&gt;
+&lt;dict&gt;
+    &lt;key&gt;CC_LOG_FILE&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.cc-connect/logs/cc-connect.log&lt;/string&gt;
+    &lt;key&gt;CC_LOG_MAX_SIZE&lt;/key&gt;
+    &lt;string&gt;10485760&lt;/string&gt;
+    &lt;key&gt;PATH&lt;/key&gt;
+    &lt;string&gt;/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin&lt;/string&gt;
+    &lt;!-- 以下为 Claude Code 所需的环境变量 --&gt;
+    &lt;key&gt;ANTHROPIC_API_KEY&lt;/key&gt;
+    &lt;string&gt;你的API密钥&lt;/string&gt;
+    &lt;key&gt;ANTHROPIC_BASE_URL&lt;/key&gt;
+    &lt;string&gt;http://你的代理地址:端口&lt;/string&gt;
+    &lt;key&gt;API_TIMEOUT_MS&lt;/key&gt;
+    &lt;string&gt;600000&lt;/string&gt;
+    &lt;key&gt;DISABLE_TELEMETRY&lt;/key&gt;
+    &lt;string&gt;true&lt;/string&gt;
+    &lt;key&gt;DISABLE_COST_WARNINGS&lt;/key&gt;
+    &lt;string&gt;true&lt;/string&gt;
+    &lt;key&gt;NO_PROXY&lt;/key&gt;
+    &lt;string&gt;127.0.0.1&lt;/string&gt;
+&lt;/dict&gt;
+</code></pre>
+<blockquote>
+<p><strong>macOS 的限制：</strong> launchd 启动的进程不继承用户 shell 的环境变量，包括 <code>.zshrc</code>、<code>.bash_profile</code> 等。即使你在 <code>.zshrc</code> 中 export 了 <code>ANTHROPIC_API_KEY</code>，daemon 进程也看不到。必须写在 plist 的 <code>EnvironmentVariables</code> 中。</p>
+</blockquote>
+<h3 id="重启-daemon-使配置生效">重启 daemon 使配置生效</h3>
+<pre><code class="language-bash">cc-connect daemon stop
+cc-connect daemon start
+</code></pre>
+<h3 id="daemon-管理命令">daemon 管理命令</h3>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cc-connect daemon status</code></td>
+<td>查看运行状态</td>
+</tr>
+<tr>
+<td><code>cc-connect daemon logs -f</code></td>
+<td>实时查看日志</td>
+</tr>
+<tr>
+<td><code>cc-connect daemon restart</code></td>
+<td>重启</td>
+</tr>
+<tr>
+<td><code>cc-connect daemon stop</code></td>
+<td>停止</td>
+</tr>
+<tr>
+<td><code>cc-connect daemon start</code></td>
+<td>启动</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>后续如果需要修改环境变量（如更换 API Key），编辑 plist 文件后执行 <code>cc-connect daemon restart</code> 即可。</p>
+</blockquote>
+<h2 id="踩坑记录">踩坑记录</h2>
+<h3 id="坑-1-cc-connect-的-Provider-env-机制不生效">坑 1：cc-connect 的 Provider env 机制不生效</h3>
+<p><strong>现象</strong>：配置了 <code>[[projects.agent.providers]]</code> 和 <code>env</code>，debug 日志中 <code>providerCount=1</code> 但 <code>providerEnv=[]</code>。</p>
+<p><strong>原因</strong>：cc-connect v1.3.2 的 claudecode agent 在启动 Claude Code 子进程时，不会读取 provider 中定义的 env 并注入。</p>
+<p><strong>解决</strong>：通过系统环境变量传递 <code>ANTHROPIC_API_KEY</code> 和 <code>ANTHROPIC_BASE_URL</code>。</p>
+<h3 id="坑-2--配置不自动激活">坑 2：<code>provider = "local-proxy"</code> 配置不自动激活</h3>
+<p><strong>现象</strong>：config.toml 中声明了 <code>provider = "local-proxy"</code>，但 debug 日志中 <code>activeIdx=-1</code>。</p>
+<p><strong>原因</strong>：cc-connect 的 config 解析和 provider 激活逻辑存在脱节。config 中声明 provider 不会自动设置 activeIdx。</p>
+<p><strong>解决</strong>：同坑 1，通过环境变量绕过 provider 机制。或在飞书中每次手动 <code>/provider switch</code>（不推荐，状态不持久化）。</p>
+<h3 id="坑-3--会删除-config-中的--字段">坑 3：<code>provider add</code> 会删除 config 中的 <code>provider</code> 字段</h3>
+<p><strong>现象</strong>：执行 <code>cc-connect provider add --project xxx --name xxx --env "KEY=VAL"</code> 后，之前手动添加的 <code>provider = "local-proxy"</code> 字段从 config.toml 中消失了。</p>
+<p><strong>原因</strong>：<code>provider add</code> 命令会重写整个 <code>[projects.agent]</code> 配置段，导致手动添加的字段丢失。</p>
+<p><strong>解决</strong>：<code>provider add</code> 后需要手动补回 <code>provider</code> 字段。但如果 provider 机制本身不生效（坑 1），这一步意义不大。</p>
+<h3 id="坑-4--是必须的">坑 4：<code>unset CLAUDECODE</code> 是必须的</h3>
+<p><strong>现象</strong>：Claude Code 启动后立即退出或行为异常。</p>
+<p><strong>原因</strong>：如果父进程设置了 <code>CLAUDECODE</code> 环境变量（例如在另一个 Claude Code session 中启动 cc-connect），Claude Code 会认为自己是被另一个 Claude Code 实例嵌套调用的，导致通信协议冲突。</p>
+<p><strong>解决</strong>：在启动脚本中 <code>unset CLAUDECODE</code>。</p>
+<h3 id="坑-5--防止代理死循环">坑 5：<code>NO_PROXY</code> 防止代理死循环</h3>
+<p><strong>现象</strong>：Claude Code 请求超时或连接被拒。</p>
+<p><strong>原因</strong>：如果系统配置了 HTTP 代理（如 <code>http_proxy</code>），对 <code>127.0.0.1</code> 的请求也会走代理，而代理可能不支持或配置不正确，导致连接失败。</p>
+<p><strong>解决</strong>：设置 <code>NO_PROXY=127.0.0.1</code>。</p>
+<h3 id="坑-6--不等于跳过所有权限">坑 6：<code>bypassPermissions</code> 不等于跳过所有权限</h3>
+<p><strong>现象</strong>：cc-connect 配置了 <code>mode = "bypassPermissions"</code>，但 Claude Code 执行工具（如 Bash、Edit）时仍然需要手动确认。</p>
+<p><strong>原因</strong>：cc-connect 的 <code>mode = "bypassPermissions"</code> 对应的是 Claude Code 的 <code>--permission-mode bypassPermissions</code>，这只跳过部分权限，不是完全跳过。</p>
+<p><strong>解决</strong>：在 <code>~/.claude/settings.json</code> 中设置 <code>"permissions": {"dangerouslySkipPermissions": true}</code>，这会跳过所有权限检查。</p>
+<h3 id="坑-7-daemon-模式下环境变量不生效">坑 7：daemon 模式下环境变量不生效</h3>
+<p><strong>现象</strong>：交互式终端中启动脚本运行正常，但 daemon 模式下飞书回复 "Not logged in"。</p>
+<p><strong>原因</strong>：launchd 启动的进程不继承用户 shell 的环境变量。直接编辑 plist 文件中的 <code>EnvironmentVariables</code> 后，必须通过 <code>cc-connect daemon stop &amp;&amp; cc-connect daemon start</code> 重启才能生效。仅修改 plist 文件而未重启，或者用 <code>launchctl bootstrap</code> 方式重新加载，可能因残留的 lock 文件导致启动失败。</p>
+<p><strong>解决</strong>：环境变量写在 plist 的 <code>EnvironmentVariables</code> 中，通过 <code>cc-connect daemon stop/start</code> 重启。如果启动失败，检查并清理 <code>~/.cc-connect/.config.toml.lock</code> 锁文件。</p>
+<h2 id="完整配置参考">完整配置参考</h2>
+<p>最终的 <code>~/.cc-connect/config.toml</code>（不含 API 密钥，密钥通过环境变量注入）：</p>
+<pre><code class="language-toml">data_dir = ""
+attachment_send = ""
+language = "zh"
+
+[[projects]]
+  name = "claude-workroom"
+
+  [projects.agent]
+    type = "claudecode"
+
+    [projects.agent.options]
+      mode = "bypassPermissions"
+      work_dir = "/Users/mac/cchome/workroom"
+
+  [[projects.platforms]]
+    type = "feishu"
+
+    [projects.platforms.options]
+      app_id = "cli_xxxxxxxxxxxx"
+      app_secret = "xxxxxxxxxxxxxxxxxxxxxxxx"
+
+[log]
+  level = "info"
+
+[speech]
+  enabled = false
+  provider = ""
+  language = ""
+
+[tts]
+  enabled = false
+  provider = ""
+  voice = ""
+  tts_mode = ""
+  max_text_len = 0
+
+[cron]
+  session_mode = ""
+
+[webhook]
+  port = 0
+
+[bridge]
+  port = 0
+
+[management]
+  port = 0
+
+[management.auth]
+  token = ""
+</code></pre>
+<hr/>
+<blockquote>
+<p>本文虽然看起来风格像我，但完全是由AI根据实际问题处理案例生成。我不知道中间有没有错误的内容，但是最终结果是配置成功了。</p>
+<p><img alt="image-HYYc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-HYYc.png" srcset="/upload/image-HYYc.png?width=1200 1200w, /upload/image-HYYc.png?width=400 400w, /upload/image-HYYc.png?width=1600 1600w, /upload/image-HYYc.png?width=800 800w"/></p>
+</blockquote>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

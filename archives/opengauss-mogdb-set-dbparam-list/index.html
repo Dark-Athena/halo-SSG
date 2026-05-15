@@ -155,7 +155,115 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>在openGauss/MogDB数据库中，有些数据库参数是列表形式（比如behavior_compat_options、sql_beta_feature、rewrite_rule、plsql_compile_check_options等），如果想对这个列表增加删除值时，需要先查出当前值，然后修改当前值的字符串，再set上去，操作比较麻烦。<br/>
+本文通过创建一组自定义函数，来对这样的列表型参数进行更简单的设置</p>
+<h2 id="函数定义">函数定义</h2>
+<pre><code class="language-sql">create function current_setting_as_table (text) returns table(value text)
+as $$
+select unnest(string_to_array( current_setting($1) ,','));
+$$language sql;
+
+create or replace function set_config_add_value (text, text, bool)  returns setOF TEXT
+as $$
+declare
+begin
+if not $2=any(string_to_array( current_setting($1) ,',')) then
+set_config($1,current_setting($1)||','||$2,$3);
+end if;
+return query SELECT unnest(string_to_array( current_setting($1) ,','));
+end;
+$$language plpgsql;
+
+create or replace function set_config_del_value (text, text, bool) returns setOF TEXT
+as $$
+declare
+begin
+if  $2=any(string_to_array( current_setting($1) ,',')) then
+set_config($1,array_to_string(array_remove(string_to_array( current_setting($1) ,','),$2),','),$3);
+end if;
+return query SELECT unnest(string_to_array( current_setting($1) ,','));
+end;
+$$language plpgsql;
+</code></pre>
+<h2 id="使用示例">使用示例</h2>
+<h3 id="1以表格方式查看指定参数的列表值">1.以表格方式查看指定参数的列表值</h3>
+<pre><code class="language-sql">MogDB=&gt; select * from current_setting_as_table('behavior_compat_options');
+              value
+---------------------------------
+ convert_string_digit_to_numeric
+ char_coerce_compat
+ proc_outparam_override
+ proc_implicit_for_loop_variable
+ plpgsql_dependency
+ allow_procedure_compile_check
+ plstmt_implicit_savepoint
+ compat_cursor
+ aformat_null_test
+ plsql_security_definer
+ skip_insert_gs_source
+ truncate_numeric_tail_zero
+(12 rows)
+
+MogDB=&gt;
+</code></pre>
+<h3 id="2在指定参数的列表中新增一个值">2.在指定参数的列表中新增一个值</h3>
+<pre><code class="language-sql">MogDB=&gt; select set_config_add_value('behavior_compat_options','end_month_calculate',false);
+      set_config_add_value
+---------------------------------
+ convert_string_digit_to_numeric
+ char_coerce_compat
+ proc_outparam_override
+ proc_implicit_for_loop_variable
+ plpgsql_dependency
+ allow_procedure_compile_check
+ plstmt_implicit_savepoint
+ compat_cursor
+ aformat_null_test
+ plsql_security_definer
+ skip_insert_gs_source
+ truncate_numeric_tail_zero
+ end_month_calculate
+(13 rows)
+
+MogDB=&gt;
+</code></pre>
+<h3 id="3在指定参数的列表中移除一个值">3.在指定参数的列表中移除一个值</h3>
+<pre><code class="language-sql">MogDB=&gt; select set_config_del_value('behavior_compat_options','end_month_calculate',false);
+      set_config_del_value
+---------------------------------
+ convert_string_digit_to_numeric
+ char_coerce_compat
+ proc_outparam_override
+ proc_implicit_for_loop_variable
+ plpgsql_dependency
+ allow_procedure_compile_check
+ plstmt_implicit_savepoint
+ compat_cursor
+ aformat_null_test
+ plsql_security_definer
+ skip_insert_gs_source
+ truncate_numeric_tail_zero
+(12 rows)
+
+MogDB=&gt;
+</code></pre>
+<h2 id="用到的一些语法或者内置函数说明">用到的一些语法或者内置函数说明</h2>
+<ol>
+<li>returns table/setof  返回表、集合</li>
+<li>language sql/plpgsql 函数语言使用sql还是plpgsql，如果是sql语言就只需要select，如果是plpgsql则需要有begin end;</li>
+<li>string_to_array函数，将字符串转换成数组类型，第一个参数为原始字符串，第二个参数为分隔符</li>
+<li>unnest函数，将一个数组展开成一个表（多行数据）</li>
+<li>current_setting函数，指定参数名称获取参数值，和show的结果一样，但更加适用于在sql/plsql中使用</li>
+<li>set_config函数，设置某个参数的值。当第三个参数为true时，仅作用于当前事务；当第三个参数为false时，和set作用一样。也是适用于在sql/plsql中使用</li>
+<li>text=any(array) ，当某个值存在于数组中，返回true，否则返回false</li>
+<li>return query,当返回setof时，可以使用return next 返回单行，或者使用return query 返回一个查询的结果集（多行）</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,55 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>最近在研究国产数据库存储过程debug的一些东西，想到以前我经常用plsql developer的debug功能，就整理回顾一下其用法，顺便也是给已经或者即将开发国产数据库存储过程debug功能的设计人员和开发人员一个借鉴，plsql开发者是如何进行debug的。</p>
+<h2 id="%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C" tabindex="-1">基本操作</h2>
+<p>在对象浏览器中鼠标右键，或者直接在sql编辑器中对对象名称鼠标右键，选择测试(debug)，注意"添加调试信息"这里要打勾，否则无法跟踪到此对象内部。（"添加调试信息"其实就是加上debug参数对对象进行编译，当然也可以直接在会话级开启PLSQL_DEBUG = true;<br/>
+）<br/>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image.png" srcset="/upload/2022/05/image.png?width=1200 1200w, /upload/2022/05/image.png?width=400 400w, /upload/2022/05/image.png?width=1600 1600w, /upload/2022/05/image.png?width=800 800w"/></p>
+<p>会弹出调试界面，这里上方的“DBMS输出”其实就是dbms_output的内容，相关按钮说明和各区域说明见截图（重点）<br/>
+<img alt="image-1652019375892" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019375892.png" srcset="/upload/2022/05/image-1652019375892.png?width=1200 1200w, /upload/2022/05/image-1652019375892.png?width=400 400w, /upload/2022/05/image-1652019375892.png?width=1600 1600w, /upload/2022/05/image-1652019375892.png?width=800 800w"/></p>
+<p>此处可以进行一些修改，比如<br/>
+<img alt="image-1652019520395" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019520395.png" srcset="/upload/2022/05/image-1652019520395.png?width=1200 1200w, /upload/2022/05/image-1652019520395.png?width=400 400w, /upload/2022/05/image-1652019520395.png?width=1600 1600w, /upload/2022/05/image-1652019520395.png?width=800 800w"/></p>
+<p>取消了一个绑定变量，改为declare声明，并在plsql块中进行了赋值；增加了一条dml语句。<br/>
+填入相关参数值后，点击"启动调试"（执行 dbms_debug.debug_on;相当于是会话级开启了调试功能,并且开了一个新的会话执行 DBMS_DEBUG.ATTACH_SESSION，接下来所有的调试操作都在这个新会话里）<br/>
+<img alt="image-1652019663861" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019663861.png" srcset="/upload/2022/05/image-1652019663861.png?width=1200 1200w, /upload/2022/05/image-1652019663861.png?width=400 400w, /upload/2022/05/image-1652019663861.png?width=1600 1600w, /upload/2022/05/image-1652019663861.png?width=800 800w"/></p>
+<p>此处的变量区域可以自行填写，比如填个"d"<br/>
+<img alt="image-1652019755781" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019755781.png" srcset="/upload/2022/05/image-1652019755781.png?width=1200 1200w, /upload/2022/05/image-1652019755781.png?width=400 400w, /upload/2022/05/image-1652019755781.png?width=1600 1600w, /upload/2022/05/image-1652019755781.png?width=800 800w"/></p>
+<p>一开始当然是null，然后点"单步进入",代码会逐行执行，当给d赋值的这行执行完后，下面就会显示变量的值已经变了<br/>
+<img alt="image-1652019880456" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019880456.png" srcset="/upload/2022/05/image-1652019880456.png?width=1200 1200w, /upload/2022/05/image-1652019880456.png?width=400 400w, /upload/2022/05/image-1652019880456.png?width=1600 1600w, /upload/2022/05/image-1652019880456.png?width=800 800w"/></p>
+<p>继续"单步进入",会显示要调用的过程的完整代码<br/>
+<img alt="image-1652019964620" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652019964620.png" srcset="/upload/2022/05/image-1652019964620.png?width=1200 1200w, /upload/2022/05/image-1652019964620.png?width=400 400w, /upload/2022/05/image-1652019964620.png?width=1600 1600w, /upload/2022/05/image-1652019964620.png?width=800 800w"/><br/>
+并且下方右侧的调用堆栈多了一行，<br/>
+这里的堆栈从下往上，是从外层程序到内层程序，并且显示了当前在各个堆栈的哪一行。如果当前堆栈不是独立的plsql块，而是数据库内的程序对象，那么这个行号其实就是dba_source中的行号，显示的内容其实就是这行对应的"text"字段内容</p>
+<p>然后我们可以把想要跟踪的参数或者变量添加到左侧的变量区域（游标中的某个字段和触发器的:new/:old变量均可以跟踪）<br/>
+<img alt="image-1652020304880" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652020304880.png" srcset="/upload/2022/05/image-1652020304880.png?width=1200 1200w, /upload/2022/05/image-1652020304880.png?width=400 400w, /upload/2022/05/image-1652020304880.png?width=1600 1600w, /upload/2022/05/image-1652020304880.png?width=800 800w"/></p>
+<p>继续单步执行，可以看到值发生了变化<br/>
+<img alt="image-1652020384914" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652020384914.png" srcset="/upload/2022/05/image-1652020384914.png?width=1200 1200w, /upload/2022/05/image-1652020384914.png?width=400 400w, /upload/2022/05/image-1652020384914.png?width=1600 1600w, /upload/2022/05/image-1652020384914.png?width=800 800w"/></p>
+<p>可以点击三个点，看到更多的字符串<br/>
+<img alt="image-1652020507988" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652020507988.png" srcset="/upload/2022/05/image-1652020507988.png?width=1200 1200w, /upload/2022/05/image-1652020507988.png?width=400 400w, /upload/2022/05/image-1652020507988.png?width=1600 1600w, /upload/2022/05/image-1652020507988.png?width=800 800w"/></p>
+<p>比如上图就能证实，此处replace函数的确执行有了效果</p>
+<p>全部都单步调试效率太低，只想跟踪重点位置，那么可以在左侧行号位置打断点，<br/>
+<img alt="image-1652020857287" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652020857287.png" srcset="/upload/2022/05/image-1652020857287.png?width=1200 1200w, /upload/2022/05/image-1652020857287.png?width=400 400w, /upload/2022/05/image-1652020857287.png?width=1600 1600w, /upload/2022/05/image-1652020857287.png?width=800 800w"/></p>
+<p>此时点击第2个按钮或者第7个按钮均可执行到断点（当然前提是代码逻辑的确会运行到这里）</p>
+<p>由于我传入的参数中，目录其实是不存在的，因此在运行到保存文件时会报错，我们点运行到下一个异常，即可自动定位到代码即将抛出exception的位置<br/>
+<img alt="image-1652020988696" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652020988696.png" srcset="/upload/2022/05/image-1652020988696.png?width=1200 1200w, /upload/2022/05/image-1652020988696.png?width=400 400w, /upload/2022/05/image-1652020988696.png?width=1600 1600w, /upload/2022/05/image-1652020988696.png?width=800 800w"/></p>
+<p>当然，由于这是一个内置包，被加密了，看不到内容，但如果是个没加密的包，就能清楚的看到在哪一行出了问题，此时甚至可以把此行用到的变量再添加到变量区域，看这些值是什么。另外，就算不添加变量，鼠标直接在代码区域悬停在变量名称上，也可以显示变量当前的值是什么</p>
+<p><img alt="image-1652021372664" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652021372664.png" srcset="/upload/2022/05/image-1652021372664.png?width=1200 1200w, /upload/2022/05/image-1652021372664.png?width=400 400w, /upload/2022/05/image-1652021372664.png?width=1600 1600w, /upload/2022/05/image-1652021372664.png?width=800 800w"/></p>
+<p>另外，在调试过程中，可以点击第8个按钮，在调试会话中执行sql<br/>
+<img alt="image-1652023021196" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652023021196.png" srcset="/upload/2022/05/image-1652023021196.png?width=1200 1200w, /upload/2022/05/image-1652023021196.png?width=400 400w, /upload/2022/05/image-1652023021196.png?width=1600 1600w, /upload/2022/05/image-1652023021196.png?width=800 800w"/><br/>
+<img alt="image-1652023049338" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652023049338.png" srcset="/upload/2022/05/image-1652023049338.png?width=1200 1200w, /upload/2022/05/image-1652023049338.png?width=400 400w, /upload/2022/05/image-1652023049338.png?width=1600 1600w, /upload/2022/05/image-1652023049338.png?width=800 800w"/></p>
+<p>试想，如果你代码里有对表数据的修改，比如更新了某个字段，但是最后发现数据是错的，通过单步调试定位到更新的那一行代码，执行过后，就在这个会话里“侵入式”的去查一下更新后的数据是否正常，这样就能检查得更细致，到底这个时候更新的数据是不是对的，以此来排除异常原因，因为有可能是其他原因导致的数据异常。</p>
+<p>另外一个常见的场景，A表数据经过处理后逐行插入到B表，但某行插入时报错，由于中间处理过程比较复杂，一般情况下很难知道是哪行数据的问题，如果使用调试功能，直接运行到下一个异常，光标会直接定位insert语句，然后鼠标往插入的变量上一放，直接就能知道是哪一行了。</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>支持plsql代码开发及调试的各个程序里，plsql developer的调试功能算是近乎完美，我曾用这个调试功能排查了不少藏得极深的代码BUG，而且还能直观地根据每段的执行时长来进行针对性的性能优化。</p>
+<p>但是对于我们国产数据库的相关工具，目前能达到plsql developer这个水平的，应该没有。</p>
+<p>Oracle数据库几十年沉淀了不少的plsql开发人员，如果我们国产数据库能有个如此方便的plsql代码调试工具，相信会吸引不少原有的Oracle开发者加入国产数据库大军。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

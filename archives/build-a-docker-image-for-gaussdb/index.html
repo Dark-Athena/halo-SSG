@@ -153,7 +153,302 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb构建一个gaussdb的docker镜像">【GaussDB】构建一个GaussDB的Docker镜像</h1>
+<h2 id="-背景">📋 背景</h2>
+<p>华为官方未提供GaussDB的Docker镜像，这在很多场景下对应用开发测试非常不方便。</p>
+<p>TPOPS用的元库是在docker里的，但是在TPOPS 25.1.30.10 中（GaussDB 内核 506.0 SPC0100）使用的元库是GaussDB 505.1.0.B026版本，这个元库版本里还有GaussDBInstaller（从505.2版本开始不再提供GaussDBInstaller的安装方式），版本不是最新，而且镜像大小超过1GB，包含了一些不必要的东西。（镜像构建代码位置:<code>\docker-service\action\mainAction\build_service_image.sh -&gt;install_build_gaussdb_package</code>)</p>
+<p>DockerHub上有apecloud提供的gaussdb，但是只是解压了gaussdb内核和om，并没有安装和初始化数据目录，不是开箱即用的状态，而且内核版本也比较老(503.1.0)。GaussDB最近的版本每次都会有大量特性更新，就算两个相邻版本间差异也会比较大，所以还是需要使用最新版本的内核进行构建。</p>
+<p>本文介绍一种构建GaussDB的Docker镜像的方式(单机集中式，不含om、cm、etcd等组件)。</p>
+<hr/>
+<h2 id="️-前置准备">🛠️ 前置准备</h2>
+<h3 id="基础镜像选择">基础镜像选择</h3>
+<p>首先，准备基础镜像。由于GaussDB目前只提供以下几个操作系统对应的内核包，因此，操作系统镜像最好也是从这几个里面选：</p>
+<ul>
+<li><strong>麒麟 V10 SP1</strong></li>
+<li><strong>麒麟 V10 SP2</strong></li>
+<li><strong>麒麟 V10 SP3</strong></li>
+<li><strong>统信 V20</strong></li>
+<li><strong>HCE 2.0</strong></li>
+<li><strong>SUSE 12 SP5</strong></li>
+<li><strong>BCLINUX 21.10</strong></li>
+</ul>
+<p>这几个操作系统中，国际上使用范围最广的应该是SUSE（毕竟是基于RHEL的分支），但是由于目前国内信创上用得最多的是麒麟V10，为了让运行环境尽量相似，所以本次暂时还是使用麒麟V10作为基础镜像。</p>
+<blockquote>
+<p><strong>注意</strong>：由于麒麟官方似乎并未发布Docker镜像，所以我只能在DockerHub上找了个基本完整的镜像 <code>xudingjun3131/kylinv10:sp3-20230324</code>，如果使用其他镜像，需要自行检查其他依赖包是否完整</p>
+</blockquote>
+<h3 id="gaussdb内核程序">GaussDB内核程序</h3>
+<p>然后就是GaussDB内核程序，在 <a href="https://www.darkathena.top/archives/GaussDB-How-to-Extract-Kernel-Binaries-from-the-Release-Package">【GaussDB】如何从GaussDB发布包中提取出内核二进制文件</a> 这篇文章中，我们已经提取到了GaussDB的 <code>GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin</code>，这是一个包含有GaussDB内核可执行程序的最小自解压包。</p>
+<hr/>
+<h2 id="-构建脚本">🔧 构建脚本</h2>
+<h3 id="dockerfile">Dockerfile</h3>
+<p>在构建阶段，把GaussDB内核包拷贝进去（不解压）、安装了libaio（需要有访问麒麟官方yum仓库的网络权限）、配置了基本环境变量：</p>
+<pre><code class="language-dockerfile">FROM xudingjun3131/kylinv10:sp3-20230324 as builder
+COPY GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin /opt/gaussdb/
+COPY entrypoint.sh /opt/gaussdb/
+
+RUN mkdir /opt/gaussdb/log &amp;&amp;\
+mkdir /opt/gaussdb/data &amp;&amp;\
+yum install libaio sudo -y &amp;&amp;\
+yum clean all &amp;&amp; \
+dnf clean all &amp;&amp; \
+rm -rf /var/cache/dnf/* &amp;&amp; \
+ln -s /usr/bin/vim /usr/bin/vi &amp;&amp;\
+mkdir /var/run &amp;&amp;\
+touch /var/run/passwd &amp;&amp;\
+useradd gaussdb &amp;&amp;\
+rm -rf /tmp/* &amp;&amp;\
+echo "export GAUSSHOME=/opt/gaussdb"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PATH=\$GAUSSHOME/bin:\$PATH"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$LD_LIBRARY_PATH"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PGDATA=\$GAUSSHOME/data"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PGDATABASE=postgres"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export GAUSSLOG=\$GAUSSHOME/log"&gt;&gt;/home/gaussdb/.bash_profile
+
+ENTRYPOINT ["/opt/gaussdb/entrypoint.sh"]
+EXPOSE 5432
+CMD ["gaussdb"]
+</code></pre>
+<p>dockerfile的编写是控制镜像大小的关键，由于docker镜像每个命令分层，可以还原出每层的文件，所以任何文件新增、删除、修改、甚至是改文件属性，都会使最后镜像的大小受影响。如非必要，千万不要在dockerfile里执行<code>chmod</code>和<code>chown</code>这样的命令，因为这会导致被操作的文件占用大小翻倍。</p>
+<h3 id="启动脚本">启动脚本</h3>
+<p>启动脚本 <code>entrypoint.sh</code> 的工作流程：</p>
+<ol>
+<li>先检查是否已存在解压后的数据库软件：</li>
+</ol>
+<ul>
+<li><strong>如果未安装</strong>：释放GaussDB内核文件</li>
+<li><strong>如果已安装</strong>：跳过安装</li>
+</ul>
+<ol start="2">
+<li>检查是否已经初始化过数据目录：</li>
+</ol>
+<ul>
+<li><strong>如果未初始化</strong>： 初始化数据目录 → 修改数据库参数 → 创建一个管理员用户 → 重启数据库</li>
+<li><strong>如果已经初始化</strong>：直接启动数据库</li>
+</ul>
+<pre><code class="language-sh">#!/bin/bash
+export OSEXEC="sudo -u gaussdb -i "
+export DBSET="$OSEXEC gs_guc set -D /opt/gaussdb/data"
+
+if [ -s "/opt/gaussdb/bin/gaussdb" ]; then
+                BINARY_ALREADY_EXISTS='true'
+else 
+chmod +x /opt/gaussdb/GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin 
+chown gaussdb: /opt/gaussdb -R 
+$OSEXEC /bin/bash -c "cd /opt/gaussdb &amp;&amp; ./GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin &amp;&amp; rm -rf GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin" 
+fi
+
+if [ -s "/opt/gaussdb/data/PG_VERSION" ]; then
+                DATABASE_ALREADY_EXISTS='true'
+else 
+$OSEXEC gs_initdb --pgdata=/opt/gaussdb/data --nodename=primary --pwpasswd=Gaussdb@123 --encoding=UTF-8 --locale=C
+$DBSET -c "a_format_dev_version='s6'"
+$DBSET -c "a_format_version='10c'"
+$DBSET -c "ai_watchdog_oom_other_used_memory_threshold=-1"
+$DBSET -c "ai_watchdog_oom_process_threshold=1"
+$DBSET -c "character_set_client='UTF8'"
+$DBSET -c "checkpoint_segments=1024"
+$DBSET -c "client_encoding='UTF8'"
+$DBSET -c "cursor_sharing=off"
+$DBSET -c "dcf_rep_append_thread_num=3"
+$DBSET -c "dcf_run_mode=1"
+$DBSET -c "effective_cache_size=160MB"
+$DBSET -c "enable_mergejoin=off"
+$DBSET -c "enable_nestloop=off"
+$DBSET -c "enable_slot_log=on"
+$DBSET -c "enable_thread_pool=on"
+$DBSET -c "explain_perf_mode='pretty'"
+$DBSET -c "extra_float_digits=3"
+$DBSET -c "gs_format_behavior_compat_options='sqrt_karatsuba'"
+$DBSET -c "instr_unique_sql_combination_options='in_clause,forbid_select_for_update'"
+$DBSET -c "instr_unique_sql_count=200000"
+$DBSET -c "listen_addresses='*'"
+$DBSET -c "local_bind_address='0.0.0.0'"
+$DBSET -c "log_line_prefix='%m %n %u %d %h %p %S %x %a %e'"
+$DBSET -c "log_min_duration_statement=100ms"
+$DBSET -c "log_timezone='Asia/Shanghai'"
+$DBSET -c "maintenance_work_mem=16MB"
+$DBSET -c "max_compile_packages=2000"
+$DBSET -c "max_concurrent_autonomous_transactions=1000"
+$DBSET -c "max_connections=3000"
+$DBSET -c "max_files_per_process=1024"
+$DBSET -c "max_process_memory=24GB"
+$DBSET -c "max_replication_slots=20"
+$DBSET -c "max_wal_senders=20"
+$DBSET -c "numa_distribute_mode='all'"
+$DBSET -c "password_effect_time=0"
+$DBSET -c "password_reuse_time=0"
+$DBSET -c "product_version='V2.0'"
+$DBSET -c "recovery_max_workers=4"
+$DBSET -c "recovery_time_target=0"
+$DBSET -c "session_timeout=0"
+$DBSET -c "sql_beta_feature='a_style_coerce,sel_semi_poisson, sel_expr_instr, rand_cost_opt, page_est_opt, param_path_opt'"
+$DBSET -c "ssl=off"
+$DBSET -c "ssl_ca_file=cacert.pem"
+$DBSET -c "standby_shared_buffers_fraction=1"
+$DBSET -c "system_view_version=1"
+$DBSET -c "thread_pool_attr='16,2,(nobind)'"
+$DBSET -c "vacuum_cost_delay=1"
+$DBSET -c "vacuum_cost_limit=1000"
+$DBSET -c "verify_log_buffers=16MB"
+$DBSET -c "wal_buffers=256MB"
+$DBSET -c "wal_keep_segments=128"
+$DBSET -c "work_mem=64MB"
+$DBSET -c "xloginsert_locks=16"
+$DBSET -c "password_encryption_type=1"
+$DBSET -c "password_lock_time=1"
+$DBSET -c "failed_login_attempts=100"
+$DBSET -c "wal_level='logical'"
+$DBSET -c "log_statement='ddl'"
+$DBSET -c "log_error_verbosity='verbose'"
+$DBSET -c "track_activity_query_size=40960"
+$DBSET -c "lockwait_timeout=0"
+$DBSET -c "update_lockwait_timeout=0"
+$DBSET -c "idle_in_transaction_timeout=0"
+$DBSET -c "behavior_compat_options='aformat_null_test,aformat_regexp_match,allow_procedure_compile_check,bind_procedure_searchpath,compat_cursor,convert_string_digit_to_numeric,correct_to_number,current_sysdate,display_leading_zero,dynamic_sql_compat,enable_bpcharlikebpchar_compare,enable_case_when_alias,enable_crosstype_integer_operator,enable_ora_joinop_in_updatestmt,enable_use_ora_timestamptz,end_month_calculate,forbid_package_function_with_prefix,forbid_skip_tableof_empty_str_elem,forbid_update_multi_same_tables,plsql_rollback_keep_user,plsql_security_definer,plstmt_implicit_savepoint,proc_implicit_for_loop_variable,proc_outparam_override,proc_outparam_transfer_length,rownum_type_compat,show_full_error_lineno,sys_function_without_brackets,tableof_elem_constraints,time_constexpr_compact,truncate_numeric_tail_zero,unbind_divide_bound,varray_compat'"
+$DBSET -c "disable_keyword_options='datetime,regexp,rlike,zerofill,unit'"
+$DBSET -c "max_stack_depth=4MB"
+$DBSET -c "ddl_invalid_mode='invalid'"
+$DBSET -c "enable_force_create_obj=on"
+$DBSET -c "max_compile_functions=100000"
+$DBSET -c "max_recursive_times=1500"
+$DBSET -c "enable_recyclebin=on"
+$DBSET -c "undo_retention_time=900"
+$DBSET -c "audit_resource_policy=off"
+$DBSET -c "audit_file_remain_time=180"
+$DBSET -c "log_directory='/opt/gaussdb/log/pg_log/dn_6001'"
+$DBSET -c "audit_directory='/opt/gaussdb/log/pg_audit/dn_6001'"
+$DBSET -c "asp_log_directory='/opt/gaussdb/log/asp_data/dn_6001'"
+$DBSET -c "perf_directory='/opt/gaussdb/log/pg_perf/dn_6001'"
+$DBSET -c "query_log_directory='/opt/gaussdb/log/sql_monitor/dn_6001'"
+$DBSET -h "host     all      all  0.0.0.0/0    md5"
+$OSEXEC gs_ctl reload -D /opt/gaussdb/data
+$OSEXEC gs_ctl start -D /opt/gaussdb/data
+$OSEXEC gsql -d postgres -c "begin create user admin password 'Gaussdb@123' sysadmin monadmin; exception when others then null; end;"
+$OSEXEC gs_ctl stop -D /opt/gaussdb/data
+fi
+
+$OSEXEC gaussdb -D /opt/gaussdb/data
+</code></pre>
+<blockquote>
+<p><strong>参数说明</strong>：这组参数大部分是参考了TPOPS推荐的参数，但根据实际项目需要修改了部分参数。注意 <code>shared_buffers</code> 没有配置，因为Docker环境往往内存比较小，建议根据实际环境进行修改。</p>
+</blockquote>
+<hr/>
+<h2 id="-执行构建">🚀 执行构建</h2>
+<pre><code class="language-powershell">PS F:\GITEE\gaussdb506.0-docker&gt; docker build -t gaussdb506.0:2 .
+[+] Building 20.7s (9/9) FINISHED                                                                             docker:desktop-linux 
+ =&gt; [internal] load build definition from dockerfile                                                                          0.1s 
+ =&gt; =&gt; transferring dockerfile: 1.01kB                                                                                        0.0s 
+ =&gt; WARN: FromAsCasing: 'as' and 'FROM' keywords' casing do not match (line 1)                                                0.1s 
+ =&gt; [internal] load metadata for docker.io/xudingjun3131/kylinv10:sp3-20230324                                                0.0s 
+ =&gt; [internal] load .dockerignore                                                                                             0.0s 
+ =&gt; =&gt; transferring context: 2B                                                                                               0.0s 
+ =&gt; CACHED [1/4] FROM docker.io/xudingjun3131/kylinv10:sp3-20230324                                                           0.0s 
+ =&gt; [internal] load build context                                                                                             3.2s 
+ =&gt; =&gt; transferring context: 111.17MB                                                                                         3.2s 
+ =&gt; [2/4] COPY GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin /opt/gaussdb/                                                   0.3s 
+ =&gt; [3/4] COPY entrypoint.sh /opt/gaussdb/                                                                                    0.1s 
+ =&gt; [4/4] RUN mkdir /opt/gaussdb/log &amp;&amp;mkdir /opt/gaussdb/data &amp;&amp;yum install libaio sudo -y &amp;&amp;yum clean all &amp;&amp; dnf clean al  16.1s 
+ =&gt; exporting to image                                                                                                        0.7s 
+ =&gt; =&gt; exporting layers                                                                                                       0.6s 
+ =&gt; =&gt; writing image sha256:8fe043ded72154ffd233b1aa3bdec7ffa7cf44a3e3beee238b63469b68b1d181                                  0.0s 
+ =&gt; =&gt; naming to docker.io/library/gaussdb506.0:2                                                                             0.0s 
+
+ 1 warning found (use docker --debug to expand):
+ - FromAsCasing: 'as' and 'FROM' keywords' casing do not match (line 1)
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/9b8ukn96t8ogbb77mzbwn19l3
+
+What's next:
+    View a summary of image vulnerabilities and recommendations → docker scout quickview 
+</code></pre>
+<p>这个warning可以忽略，原本是想用多阶段构建看能不能让镜像再缩小一点，就加了个标签，但后面发现效果不好，就没有使用多阶段构建。</p>
+<h3 id="-构建结果分析">📊 构建结果分析</h3>
+<p>如果不算基础镜像下载时间，构建只需要二十秒左右。</p>
+<ul>
+<li><strong>ZIP压缩后的镜像大小</strong>：308MB</li>
+<li><strong>压缩前的镜像大小</strong>：732.88MB
+<ul>
+<li>基础镜像：609MB</li>
+<li>GaussDB内核：111MB</li>
+<li>RUN命令产生的文件变化：约12MB（主要是执行yum命令引起的相关文件变化）</li>
+</ul>
+</li>
+</ul>
+<pre><code>PS F:\GITEE\gaussdb506.0-docker&gt; docker history gaussdb506.0:2
+IMAGE          CREATED             CREATED BY                                       SIZE      COMMENT
+8434929c5065   2 minutes ago       CMD ["gaussdb"]                                  0B        buildkit.dockerfile.v0
+&lt;missing&gt;      2 minutes ago       EXPOSE map[5432/tcp:{}]                          0B        buildkit.dockerfile.v0
+&lt;missing&gt;      2 minutes ago       ENTRYPOINT ["/opt/gaussdb/entrypoint.sh"]        0B        buildkit.dockerfile.v0
+&lt;missing&gt;      2 minutes ago       RUN /bin/sh -c mkdir /opt/gaussdb/log &amp;&amp;mkdi…   17.6MB    buildkit.dockerfile.v0
+&lt;missing&gt;      58 minutes ago      COPY entrypoint.sh /opt/gaussdb/ # buildkit      5.01kB    buildkit.dockerfile.v0
+&lt;missing&gt;      About an hour ago   COPY GaussDB-Kernel_506.0.0.SPC0100_Kylin_64…   111MB     buildkit.dockerfile.v0
+&lt;missing&gt;      21 months ago                                                        609MB     Imported from -PS F:\GITEE\gaussdb506.0-docker&gt;
+</code></pre>
+<p>想要再大幅减少空间就需要从阉割基础镜像开始了，暂时没太大必要。这里先提供一个方案，用tpops里的<code>docker-service\package\base_image\x86_64\base_image_gaussdb_x86_64.tar</code>作为基础镜像，然后提取对应<strong>HCE</strong>系统版本的GaussDB内核再来构建，估计压缩前的镜像大小能缩小到444MB ,zip压完估计到200MB以内了。</p>
+<hr/>
+<h2 id="️-启动容器">▶️ 启动容器</h2>
+<pre><code class="language-powershell">PS F:\GITEE\gaussdb506.0-docker&gt; docker run --name gaussdb506.0_1 -d -p 8000:5432 gaussdb506.0:2
+6fa7ff2a2ecdab48c0b568dae369eb4b1e1878936af1b190caeab5ab2c8c0a68
+</code></pre>
+<blockquote>
+<p><strong>注意</strong>：初次启动需要一些时间进行初始化，后续启动就很快了。</p>
+</blockquote>
+<hr/>
+<h2 id="-连接测试">🔗 连接测试</h2>
+<h3 id="内部连接">内部连接</h3>
+<pre><code class="language-sh">PS F:\GITEE\gaussdb506.0-docker&gt; docker exec -it gaussdb506.0_1 /bin/bash
+[root@7e63c063a43c /]# su - gaussdb
+[gaussdb@7e63c063a43c ~]$ gsql -r
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=# \q
+[gaussdb@7e63c063a43c ~]$ gsql -r -d postgres -U admin -WGaussdb@123 -h 127.0.0.1 -p 5432
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=&gt; \q
+[gaussdb@7e63c063a43c ~]$ 
+</code></pre>
+<h3 id="外部连接">外部连接</h3>
+<pre><code class="language-sh">[Ruby@gaussdb-dn1 ~]$ gsql -r -d postgres -U admin -WGaussdb@123 -h 192.168.163.227 -p 8000
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=&gt; select version();
+                                                    version
+---------------------------------------------------------------------------------------------------------------
+ gaussdb (GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release
+(1 row)
+
+gaussdb=&gt;
+</code></pre>
+<hr/>
+<h2 id="-关于数据目录持久化">💾 关于数据目录持久化</h2>
+<p>容器内的数据目录在 <code>/opt/gaussdb/data</code>，可以在创建容器的时候映射到本地目录：</p>
+<pre><code class="language-powershell">PS F:\GITEE\gaussdb506.0-docker&gt; docker run --name gaussdb506.0_1 -d -p 8000:5432 -v .\data:/opt/gaussdb/data gaussdb506.0:2       
+0ffa152c266e4b6a1fa2d6e780228edacfde44acfaac14f51fd292aa7354bbeb
+</code></pre>
+<blockquote>
+<p><strong>注意</strong>：映射数据目录会让首次启动速度慢很多。</p>
+</blockquote>
+<hr/>
+<h2 id="-开源">📂 开源</h2>
+<p>相关代码已开源，后续优化会在开源仓里更新：</p>
+<p><strong>开源地址</strong>：<a href="https://gitee.com/darkathena/gaussdb-docker">https://gitee.com/darkathena/gaussdb-docker</a></p>
+<hr/>
+<h2 id="️-免责声明">⚠️ 免责声明</h2>
+<blockquote>
+<p><strong>声明</strong>：该方案非华为官方提供，使用该方案出现的任何问题，使用者自行承担，本人和华为公司均不承担任何责任。</p>
+</blockquote>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

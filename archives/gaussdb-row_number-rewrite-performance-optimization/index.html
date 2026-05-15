@@ -153,7 +153,793 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb分析函数性能优化案例-row_number改写">【GaussDB】分析函数性能优化案例-row_number改写</h1>
+<h2 id="背景">背景</h2>
+<p>在应用查询SQL中，分组top-N查询是很常见的，因此分析函数row_number/rank/dense_rank经常会出现在ORACLE的SQL中，GaussDB同样也支持这些函数，因此将ORACLE中这样的SQL迁移到GaussDB上也是可以执行的。但是，如果SQL保持不变，在GaussDB上的执行时长可能是ORACLE的好几倍。<br/>
+最近就遇到一个典型案例，本文尝试通过SQL改写来避免GaussDB使用分析函数的性能问题。</p>
+<h2 id="案例代码">案例代码</h2>
+<h3 id="数据构造">数据构造</h3>
+<pre><code class="language-sql">create table your_table (group_col1 number,group_col2 varchar2(20),group_col3 varchar2(20),sort_col1 date,sort_col2 number);
+
+TRUNCATE TABLE your_table;
+
+set max_recursive_times=500000;
+set nls_date_format='yyyy-mm-dd';
+-- 插入包含平局情况的测试数据
+INSERT INTO your_table (group_col1, group_col2, group_col3, sort_col1, sort_col2)
+    SELECT 4 as g1, 'A' as g2, 'Type_X' as g3, DATE '2024-01-10' as d1, 500 as n2 FROM DUAL UNION ALL
+    SELECT 4, 'A', 'Type_X', DATE '2024-01-10', 400 FROM DUAL UNION ALL  -- 平局：相同日期，不同数字
+    SELECT 4, 'A', 'Type_X', DATE '2024-01-09', 600 FROM DUAL UNION ALL
+    SELECT 4, 'A', 'Type_X', DATE '2024-01-09', 600 FROM DUAL UNION ALL  -- 完全相同的行
+    SELECT 4, 'B', 'Type_X', DATE '2024-01-15', 300 FROM DUAL UNION ALL
+    SELECT 4, 'B', 'Type_X', DATE '2024-01-14', 300 FROM DUAL UNION ALL  -- 不同日期，相同数字
+    SELECT 4, 'B', 'Type_X', DATE '2024-01-14', 200 FROM DUAL UNION ALL
+    SELECT 4, 'C', 'Type_Y', DATE '2024-01-20', 800 FROM DUAL UNION ALL
+    SELECT 4, 'C', 'Type_Y', DATE '2024-01-20', 800 FROM DUAL UNION ALL  -- 完全相同
+    SELECT 4, 'C', 'Type_Y', DATE '2024-01-19', 700 FROM DUAL UNION ALL
+    SELECT 5, 'A', 'Type_X', DATE '2024-01-12', 550 FROM DUAL UNION ALL
+    SELECT 5, 'A', 'Type_X', DATE '2024-01-11', 550 FROM DUAL UNION ALL  -- 不同日期，相同数字
+    SELECT 5, 'A', 'Type_X', DATE '2024-01-11', 450 FROM DUAL UNION ALL
+    SELECT 5, 'B', 'Type_Y', DATE '2024-01-18', 650 FROM DUAL UNION ALL
+    SELECT 5, 'B', 'Type_Y', DATE '2024-01-18', 650 FROM DUAL UNION ALL  -- 完全相同
+    SELECT 5, 'B', 'Type_Y', DATE '2024-01-17', 750 FROM DUAL UNION ALL
+    SELECT 5, 'C', 'Type_Z', DATE '2024-01-22', 900 FROM DUAL UNION ALL
+    SELECT 5, 'C', 'Type_Z', DATE '2024-01-21', 850 FROM DUAL UNION ALL
+    SELECT 5, 'C', 'Type_Z', DATE '2024-01-21', 850 FROM DUAL UNION ALL  -- 完全相同
+    SELECT 6, 'A', 'Type_Z', DATE '2024-01-25', 950 FROM DUAL UNION ALL
+    SELECT 6, 'A', 'Type_Z', DATE '2024-01-25', 950 FROM DUAL UNION ALL  -- 完全相同
+    SELECT 6, 'B', 'Type_Y', DATE '2024-01-30', 1000 FROM DUAL UNION ALL
+    SELECT 6, 'B', 'Type_Y', DATE '2024-01-29', 950 FROM DUAL UNION ALL
+    SELECT 6, 'C', 'Type_X', DATE '2024-01-28', 850 FROM DUAL
+;
+
+
+INSERT INTO your_table (group_col1, group_col2, group_col3, sort_col1, sort_col2)
+SELECT 
+    MOD(LEVEL-1, 3) + 1 as group_col1,  -- 1,2,3循环
+    CHR(65 + MOD(LEVEL-1, 3)) as group_col2,  -- A,B,C循环
+    'Type_' || CHR(65 + MOD(LEVEL-1, 3)) as group_col3,  -- Type_A, Type_B, Type_C循环
+    DATE '2024-01-01' + (LEVEL-1) * 2 as sort_col1,  -- 递增日期
+    1000 - LEVEL * 10 as sort_col2  -- 递减数字
+FROM DUAL
+CONNECT BY LEVEL &lt;= 500000;
+
+</code></pre>
+<h3 id="查询sql">查询SQL</h3>
+<pre><code class="language-sql">select group_col1,
+    group_col2,
+    group_col3,
+    sort_col1,
+    sort_col2 from (
+SELECT 
+    group_col1,
+    group_col2,
+    group_col3,
+    sort_col1,
+    sort_col2,
+    ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn
+FROM your_table) where rn=1;
+</code></pre>
+<h3 id="oracle-1913-执行耗时">ORACLE 19.13 执行耗时</h3>
+<pre><code class="language-sql">SQL&gt; set timing on;
+SQL&gt; 
+SQL&gt; select group_col1,
+  2      group_col2,
+  3      group_col3,
+  4      sort_col1,
+  5      sort_col2 from (
+  6  SELECT
+  7      group_col1,
+  8      group_col2,
+  9      group_col3,
+ 10      sort_col1,
+ 11      sort_col2,
+ 12      ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn
+ 13  FROM your_table) where rn=1;
+
+GROUP_COL1 GROUP_COL2           GROUP_COL3           SORT_COL1    SORT_COL2
+---------- -------------------- -------------------- ----------- ----------
+         1 A                    Type_A               4761/11/24    -4998990
+         2 B                    Type_B               4761/11/26    -4999000
+         3 C                    Type_C               4761/11/22    -4998980
+         4 A                    Type_X               2024/1/10          500
+         4 B                    Type_X               2024/1/15          300
+         4 C                    Type_Y               2024/1/20          800
+         5 A                    Type_X               2024/1/12          550
+         5 B                    Type_Y               2024/1/18          650
+         5 C                    Type_Z               2024/1/22          900
+         6 A                    Type_Z               2024/1/25          950
+         6 B                    Type_Y               2024/1/30         1000
+         6 C                    Type_X               2024/1/28          850
+
+12 rows selected
+
+
+Executed in 0.928 seconds
+
+</code></pre>
+<h3 id="gaussdb-5060-执行耗时">GaussDB 506.0 执行耗时</h3>
+<pre><code class="language-sql">gaussdb=# \timing on
+Timing is on.
+gaussdb=# select group_col1,
+gaussdb-#     group_col2,
+gaussdb-#     group_col3,
+gaussdb-#     sort_col1,
+gaussdb-#     sort_col2 from (
+gaussdb(# SELECT 
+gaussdb(#     group_col1,
+gaussdb(#     group_col2,
+gaussdb(#     group_col3,
+gaussdb(#     sort_col1,
+gaussdb(#     sort_col2,
+gaussdb(#     ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn
+gaussdb(# FROM your_table) where rn=1;
+ group_col1 | group_col2 | group_col3 |       sort_col1        | sort_col2 
+------------+------------+------------+------------------------+-----------
+          1 | A          | Type_A     | 4761-11-24 00:00:00 AD |  -4998990
+          2 | B          | Type_B     | 4761-11-26 00:00:00 AD |  -4999000
+          3 | C          | Type_C     | 4761-11-22 00:00:00 AD |  -4998980
+          4 | A          | Type_X     | 2024-01-10 00:00:00 AD |       500
+          4 | B          | Type_X     | 2024-01-15 00:00:00 AD |       300
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 AD |       800
+          5 | A          | Type_X     | 2024-01-12 00:00:00 AD |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 AD |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 AD |       900
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 AD |       950
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 AD |      1000
+          6 | C          | Type_X     | 2024-01-28 00:00:00 AD |       850
+(12 rows)
+
+Time: 2765.445 ms
+</code></pre>
+<p>可以发现这条SQL，在GaussDB的执行耗时大约是ORACLE的3倍。</p>
+<h3 id="pg-181-执行耗时">PG 18.1 执行耗时</h3>
+<p>可能有人想看原生PG的情况，这里也贴一下</p>
+<pre><code class="language-sql">postgres=# \timing on
+Timing is on.
+postgres=# select group_col1,
+postgres-#     group_col2,
+postgres-#     group_col3,
+postgres-#     sort_col1,
+postgres-#     sort_col2 from (
+postgres(# SELECT 
+postgres(#     group_col1,
+postgres(#     group_col2,
+postgres(#     group_col3,
+postgres(#     sort_col1,
+postgres(#     sort_col2,
+postgres(#     ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn
+postgres(# FROM your_table) where rn=1;
+ group_col1 | group_col2 | group_col3 |      sort_col1      | sort_col2 
+------------+------------+------------+---------------------+-----------
+          1 | A          | Type_A     | 4761-11-24 00:00:00 |  -4998990
+          2 | B          | Type_B     | 4761-11-26 00:00:00 |  -4999000
+          3 | C          | Type_C     | 4761-11-22 00:00:00 |  -4998980
+          4 | A          | Type_X     | 2024-01-10 00:00:00 |       500
+          4 | B          | Type_X     | 2024-01-15 00:00:00 |       300
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 |       800
+          5 | A          | Type_X     | 2024-01-12 00:00:00 |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 |       900
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 |       950
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 |      1000
+          6 | C          | Type_X     | 2024-01-28 00:00:00 |       850
+(12 rows)
+
+Time: 1806.094 ms (00:01.806)
+</code></pre>
+<p>执行耗时大约是ORACLE的两倍</p>
+<h2 id="分析">分析</h2>
+<p>尝试把排序去掉，可以发现ORACLE耗时降为 21ms，GaussDB耗时降为1ms ,这意味着分析函数的主要耗时就是在排序上，而且GaussDB排序的性能影响比ORACLE大很多，因此考虑的优化方向为尝试消除排序。</p>
+<pre><code class="language-sql">SQL&gt; select group_col1,
+  2      group_col2,
+  3      group_col3,
+  4      sort_col1,
+  5      sort_col2 from (
+  6  SELECT
+  7      group_col1,
+  8      group_col2,
+  9      group_col3,
+ 10      sort_col1,
+ 11      sort_col2,
+ 12      ROW_NUMBER() OVER (order by 1) as rn
+ 13  FROM your_table) where rn=1;
+
+GROUP_COL1 GROUP_COL2           GROUP_COL3           SORT_COL1    SORT_COL2
+---------- -------------------- -------------------- ----------- ----------
+         4 A                    Type_X               2024/1/10          500
+
+Executed in 0.021 seconds
+</code></pre>
+<pre><code class="language-sql">gaussdb=# select group_col1,
+gaussdb-#     group_col2,
+gaussdb-#     group_col3,
+gaussdb-#     sort_col1,
+gaussdb-#     sort_col2 from (
+gaussdb(# SELECT 
+gaussdb(#     group_col1,
+gaussdb(#     group_col2,
+gaussdb(#     group_col3,
+gaussdb(#     sort_col1,
+gaussdb(#     sort_col2,
+gaussdb(#     ROW_NUMBER() OVER (order by 1) as rn
+gaussdb(# FROM your_table) where rn=1;
+ group_col1 | group_col2 | group_col3 |       sort_col1        | sort_col2 
+------------+------------+------------+------------------------+-----------
+          4 | A          | Type_X     | 2024-01-10 00:00:00 AD |       500
+(1 row)
+
+Time: 1.008 ms
+gaussdb=# 
+</code></pre>
+<h3 id="优化">优化</h3>
+<p>消除排序，一种常见方式是建索引，但是这个场景，需要将partition by和order by 的字段都放进索引，而且由于里面还有个倒序的，那么这个索引就会变成一个表达式索引（即所谓的函数索引），会带来很多负面影响，不推荐。<br/>
+因此需要回退到比较原始的方式，在没有分析函数的情况下，用SQL实现分组取top-1</p>
+<pre><code class="language-sql">gaussdb=# SELECT t1.*
+gaussdb-# FROM your_table t1
+gaussdb-# WHERE NOT EXISTS (
+gaussdb(#     SELECT 1
+gaussdb(#     FROM your_table t2
+gaussdb(#     WHERE t2.group_col1 = t1.group_col1
+gaussdb(#         AND t2.group_col2 = t1.group_col2
+gaussdb(#         AND t2.group_col3 = t1.group_col3
+gaussdb(#         AND (
+gaussdb(#             t2.sort_col1 &gt; t1.sort_col1 
+gaussdb(#             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 &gt; t1.sort_col2)
+gaussdb(#             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 = t1.sort_col2 AND t2.ctid &lt; t1.ctid)
+gaussdb(#         )
+gaussdb(# );
+ group_col1 | group_col2 | group_col3 |       sort_col1        | sort_col2 
+------------+------------+------------+------------------------+-----------
+          4 | A          | Type_X     | 2024-01-10 00:00:00 AD |       500
+          4 | B          | Type_X     | 2024-01-15 00:00:00 AD |       300
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 AD |       800
+          5 | A          | Type_X     | 2024-01-12 00:00:00 AD |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 AD |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 AD |       900
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 AD |       950
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 AD |      1000
+          6 | C          | Type_X     | 2024-01-28 00:00:00 AD |       850
+          3 | C          | Type_C     | 4761-11-22 00:00:00 AD |  -4998980
+          1 | A          | Type_A     | 4761-11-24 00:00:00 AD |  -4998990
+          2 | B          | Type_B     | 4761-11-26 00:00:00 AD |  -4999000
+(12 rows)
+
+Time: 1070.786 ms
+
+</code></pre>
+<p>这样改写后，耗时就接近ORACLE了。<br/>
+主要的逻辑为：</p>
+<ol>
+<li>使用not exists反关联自己，剔除不需要的行</li>
+<li>关联条件即为分组条件</li>
+<li>排序字段有两个，因此显式逐个字段比大小， 先比sort_col1 ，如果sort_col1相等则比sort_col2，如果两个字段都相等，则利用ctid不等任取一行（这个方法不支持分区表，或者说还要引入tableoid字段）</li>
+</ol>
+<p>贴一下执行计划：</p>
+<pre><code class="language-sql">QUERY PLAN                                                                                                                                                                                                                                      |
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+Hash Anti Join  (cost=16744.66..59958.20 rows=148155 width=28) (actual time=354.240..1152.999 rows=12 loops=1)                                                                                                                                  |
+  Hash Cond: ((t1.group_col1 = t2.group_col1) AND ((t1.group_col2)::text = (t2.group_col2)::text) AND ((t1.group_col3)::text = (t2.group_col3)::text)), (Expression Flatten Optimized)                                                          |
+  Join Filter: ((t2.sort_col1 &gt; t1.sort_col1) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 &gt; t1.sort_col2)) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 = t1.sort_col2) AND (t2.ctid &lt; t1.ctid))), (Expression Flatten Optimized)|
+  Rows Removed by Join Filter: 500047                                                                                                                                                                                                           |
+  -&gt;  Seq Scan on your_table t1  (cost=0.00..7994.24 rows=500024 width=34) (actual time=0.029..137.957 rows=500024 loops=1)                                                                                                                     |
+  -&gt;  Hash  (cost=7994.24..7994.24 rows=500024 width=34) (actual time=353.637..353.637 rows=500024 loops=1)                                                                                                                                     |
+         Buckets: 524288  Batches: 1  Memory Usage: 34179kB                                                                                                                                                                                     |
+        -&gt;  Seq Scan on your_table t2  (cost=0.00..7994.24 rows=500024 width=34) (actual time=0.027..143.211 rows=500024 loops=1)                                                                                                               |
+Total runtime: 1154.141 ms                                                                                                                                                                                                                      |
+</code></pre>
+<h3 id="这个改写逻辑在oracle上能用么">这个改写逻辑在ORACLE上能用么？</h3>
+<p>先回答，不能。<br/>
+这里不是指ctid的问题，在ORACLE里其实可以改成rowid，这个SQL就能执行了。<br/>
+但是，ORACLE跑这个SQL会巨慢，我等了三十分钟还没查出结果（没继续等，取消了）。</p>
+<pre><code class="language-sql"> Plan Hash Value  : 513672191 
+
+------------------------------------------------------------------------------------
+| Id  | Operation            | Name       | Rows   | Bytes    | Cost    | Time     |
+------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |            | 500023 | 13500621 | 3512743 | 00:02:18 |
+| * 1 |   FILTER             |            |        |          |         |          |
+|   2 |    TABLE ACCESS FULL | YOUR_TABLE | 500024 | 13500648 |     600 | 00:00:01 |
+| * 3 |    TABLE ACCESS FULL | YOUR_TABLE |      2 |       54 |       7 | 00:00:01 |
+------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - filter( NOT EXISTS (SELECT 0 FROM "YOUR_TABLE" "T2" WHERE "T2"."GROUP_COL1"=:B1 AND "T2"."GROUP_COL3"=:B2 AND "T2"."GROUP_COL2"=:B3 AND ("T2"."SORT_COL1"&gt;:B4 OR "T2"."SORT_COL1"=:B5 AND
+  "T2"."SORT_COL2"&gt;:B6 OR "T2"."SORT_COL1"=:B7 AND "T2"."SORT_COL2"=:B8 AND "T2".ROWID&lt;:B9)))
+* 3 - filter("T2"."GROUP_COL1"=:B1 AND "T2"."GROUP_COL3"=:B2 AND "T2"."GROUP_COL2"=:B3 AND ("T2"."SORT_COL1"&gt;:B4 OR "T2"."SORT_COL1"=:B5 AND "T2"."SORT_COL2"&gt;:B6 OR "T2"."SORT_COL1"=:B7 AND
+  "T2"."SORT_COL2"=:B8 AND "T2".ROWID&lt;:B9))
+</code></pre>
+<p>这个笛卡尔积有 50w*50w</p>
+<h3 id="改写后的逻辑在原生pg上怎么样">改写后的逻辑在原生PG上怎么样？</h3>
+<p>PG默认有并行，能跑出结果</p>
+<pre><code class="language-sql">QUERY PLAN                                                                                                                                                                                                            |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+Gather  (cost=12034.44..49420.09 rows=148155 width=28) (actual time=194.959..1307.592 rows=12.00 loops=1)                                                                                                             |
+  Workers Planned: 2                                                                                                                                                                                                  |
+  Workers Launched: 2                                                                                                                                                                                                 |
+  Buffers: shared hit=7354, temp read=9590 written=9676                                                                                                                                                               |
+  -&gt;  Parallel Hash Anti Join  (cost=11034.44..33604.59 rows=61731 width=28) (actual time=200.676..1092.552 rows=4.00 loops=3)                                                                                        |
+        Hash Cond: ((t1.group_col1 = t2.group_col1) AND ((t1.group_col2)::text = (t2.group_col2)::text) AND ((t1.group_col3)::text = (t2.group_col3)::text))                                                          |
+        Join Filter: ((t2.sort_col1 &gt; t1.sort_col1) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 &gt; t1.sort_col2)) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 = t1.sort_col2) AND (t2.ctid &lt; t1.ctid)))|
+        Rows Removed by Join Filter: 2651064                                                                                                                                                                          |
+        Buffers: shared hit=7354, temp read=9590 written=9676                                                                                                                                                         |
+        -&gt;  Parallel Seq Scan on your_table t1  (cost=0.00..5760.43 rows=208343 width=34) (actual time=0.013..23.542 rows=166674.67 loops=3)                                                                          |
+              Buffers: shared hit=3677                                                                                                                                                                                |
+        -&gt;  Parallel Hash  (cost=5760.43..5760.43 rows=208343 width=34) (actual time=105.431..105.432 rows=166674.67 loops=3)                                                                                         |
+              Buckets: 131072 (originally 131072)  Batches: 16 (originally 8)  Memory Usage: 12800kB                                                                                                                  |
+              Buffers: shared hit=3677, temp read=2479 written=6088                                                                                                                                                   |
+              -&gt;  Parallel Seq Scan on your_table t2  (cost=0.00..5760.43 rows=208343 width=34) (actual time=0.020..26.788 rows=166674.67 loops=3)                                                                    |
+                    Buffers: shared hit=3677                                                                                                                                                                          |
+Planning:                                                                                                                                                                                                             |
+  Buffers: shared hit=20                                                                                                                                                                                              |
+Planning Time: 0.849 ms                                                                                                                                                                                               |
+Execution Time: 1307.712 ms                                                                                                                                                                                           |
+
+</code></pre>
+<p>但是关闭并行后，就和ORACLE一样超过30分钟不出结果了</p>
+<pre><code class="language-sql">SET max_parallel_workers_per_gather = 0;
+</code></pre>
+<p>当时没细想为什么，后来经同事<a href="https://www.modb.pro/u/399670">落落</a>提醒，就查了下无并行的执行计划：</p>
+<pre><code class="language-sql">                                                                                                    QUERY PLAN                                                                            
+                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------
+ Merge Anti Join  (cost=139366.21..324181778.65 rows=148155 width=28)
+   Merge Cond: ((t1.group_col1 = t2.group_col1) AND ((t1.group_col2)::text = (t2.group_col2)::text) AND ((t1.group_col3)::text = (t2.group_col3)::text))
+   Join Filter: ((t2.sort_col1 &gt; t1.sort_col1) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 &gt; t1.sort_col2)) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 = t1.sort_col2) AN
+D (t2.ctid &lt; t1.ctid)))
+   -&gt;  Sort  (cost=69683.11..70933.17 rows=500024 width=34)
+         Sort Key: t1.group_col1, t1.group_col2, t1.group_col3
+         -&gt;  Seq Scan on your_table t1  (cost=0.00..8677.24 rows=500024 width=34)
+   -&gt;  Materialize  (cost=69683.11..72183.23 rows=500024 width=34)
+         -&gt;  Sort  (cost=69683.11..70933.17 rows=500024 width=34)
+               Sort Key: t2.group_col1, t2.group_col2, t2.group_col3
+               -&gt;  Seq Scan on your_table t2  (cost=0.00..8677.24 rows=500024 width=34)
+ JIT:
+   Functions: 21
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+(13 rows)
+
+</code></pre>
+<p>一看到这个merge join，先关了吧</p>
+<pre><code class="language-sql">set enable_mergejoin to off;
+</code></pre>
+<pre><code class="language-sql">                                                                                                                                                                           QUERY PLAN     
+                                                                                                                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Anti Join  (cost=0.00..3173414693.20 rows=148155 width=28)
+   Join Filter: ((t2.group_col1 = t1.group_col1) AND ((t2.group_col2)::text = (t1.group_col2)::text) AND ((t2.group_col3)::text = (t1.group_col3)::text) AND ((t2.sort_col1 &gt; t1.sort_col1
+) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 &gt; t1.sort_col2)) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 = t1.sort_col2) AND (t2.ctid &lt; t1.ctid))))
+   -&gt;  Seq Scan on your_table t1  (cost=0.00..8677.24 rows=500024 width=34)
+   -&gt;  Materialize  (cost=0.00..15084.36 rows=500024 width=34)
+         -&gt;  Seq Scan on your_table t2  (cost=0.00..8677.24 rows=500024 width=34)
+ JIT:
+   Functions: 7
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+(8 rows)
+</code></pre>
+<p>还有nestloop，也关了吧</p>
+<pre><code class="language-sql">set enable_nestloop to off;
+</code></pre>
+<pre><code class="language-sql">QUERY PLAN                                                                            
+                        
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------
+ Hash Anti Join  (cost=10000021334.66..10000099383.85 rows=148155 width=28)
+   Hash Cond: ((t1.group_col1 = t2.group_col1) AND ((t1.group_col2)::text = (t2.group_col2)::text) AND ((t1.group_col3)::text = (t2.group_col3)::text))
+   Join Filter: ((t2.sort_col1 &gt; t1.sort_col1) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 &gt; t1.sort_col2)) OR ((t2.sort_col1 = t1.sort_col1) AND (t2.sort_col2 = t1.sort_col2) AN
+D (t2.ctid &lt; t1.ctid)))
+   -&gt;  Seq Scan on your_table t1  (cost=0.00..8677.24 rows=500024 width=34)
+   -&gt;  Hash  (cost=8677.24..8677.24 rows=500024 width=34)
+         -&gt;  Seq Scan on your_table t2  (cost=0.00..8677.24 rows=500024 width=34)
+ JIT:
+   Functions: 11
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+(9 rows)
+</code></pre>
+<p>这样看上去就和GaussDB差不多了,但明显cost计算方式是有差异的。<br/>
+执行结果一致：</p>
+<pre><code class="language-sql">postgres=# SELECT t1.*
+postgres-# FROM your_table t1
+postgres-# WHERE NOT EXISTS (
+postgres(#     SELECT 1
+postgres(#     FROM your_table t2
+postgres(#     WHERE t2.group_col1 = t1.group_col1
+postgres(#         AND t2.group_col2 = t1.group_col2
+postgres(#         AND t2.group_col3 = t1.group_col3
+postgres(#         AND (
+postgres(#             t2.sort_col1 &gt; t1.sort_col1 
+postgres(#             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 &gt; t1.sort_col2)
+postgres(#             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 = t1.sort_col2 AND t2.ctid &lt; t1.ctid)
+postgres(#         )
+postgres(# );
+ group_col1 | group_col2 | group_col3 |      sort_col1      | sort_col2 
+------------+------------+------------+---------------------+-----------
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 |      1000
+          4 | B          | Type_X     | 2024-01-15 00:00:00 |       300
+          5 | A          | Type_X     | 2024-01-12 00:00:00 |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 |       900
+          4 | A          | Type_X     | 2024-01-10 00:00:00 |       500
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 |       800
+          2 | B          | Type_B     | 4761-11-26 00:00:00 |  -4999000
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 |       950
+          1 | A          | Type_A     | 4761-11-24 00:00:00 |  -4998990
+          6 | C          | Type_X     | 2024-01-28 00:00:00 |       850
+          3 | C          | Type_C     | 4761-11-22 00:00:00 |  -4998980
+(12 rows)
+
+Time: 1209.397 ms (00:01.209)
+postgres=# 
+</code></pre>
+<p>GaussDB出厂默认关闭mergejoin 和nestloop，这也是商业版本根据大量真实运行环境而得出的最佳设置。</p>
+<h3 id="duckdb-141">DuckDB 1.4.1</h3>
+<p>现在遇到慢的SQL就想在DuckDB试一下。<br/>
+改写前的SQL跑得飞快，耗时只要ORACLE的十分之一，但改写后的SQL同样也是跑不动了，直接撑爆机器内存。</p>
+<pre><code class="language-sql">D create table your_table (group_col1 NUMERIC,group_col2 varchar(20),group_col3 varchar(20),sort_col1 TIMESTAMP(0),sort_col2 NUMERIC);
+D INSERT INTO your_table (group_col1, group_col2, group_col3, sort_col1, sort_col2)
+路     SELECT 4 as g1, 'A' as g2, 'Type_X' as g3, DATE '2024-01-10' as d1, 500 as n2  UNION ALL
+路     SELECT 4, 'A', 'Type_X', DATE '2024-01-10', 400  UNION ALL  -- 平局：相同日期，不同数字
+路     SELECT 4, 'A', 'Type_X', DATE '2024-01-09', 600  UNION ALL
+路     SELECT 4, 'A', 'Type_X', DATE '2024-01-09', 600  UNION ALL  -- 完全相同的行
+路     SELECT 4, 'B', 'Type_X', DATE '2024-01-15', 300  UNION ALL
+路     SELECT 4, 'B', 'Type_X', DATE '2024-01-14', 300  UNION ALL  -- 不同日期，相同数字
+路     SELECT 4, 'B', 'Type_X', DATE '2024-01-14', 200  UNION ALL
+路     SELECT 4, 'C', 'Type_Y', DATE '2024-01-20', 800  UNION ALL
+路     SELECT 4, 'C', 'Type_Y', DATE '2024-01-20', 800  UNION ALL  -- 完全相同
+路     SELECT 4, 'C', 'Type_Y', DATE '2024-01-19', 700  UNION ALL
+路     SELECT 5, 'A', 'Type_X', DATE '2024-01-12', 550  UNION ALL
+路     SELECT 5, 'A', 'Type_X', DATE '2024-01-11', 550  UNION ALL  -- 不同日期，相同数字
+路     SELECT 5, 'A', 'Type_X', DATE '2024-01-11', 450  UNION ALL
+路     SELECT 5, 'B', 'Type_Y', DATE '2024-01-18', 650  UNION ALL
+路     SELECT 5, 'B', 'Type_Y', DATE '2024-01-18', 650  UNION ALL  -- 完全相同
+路     SELECT 5, 'B', 'Type_Y', DATE '2024-01-17', 750  UNION ALL
+路     SELECT 5, 'C', 'Type_Z', DATE '2024-01-22', 900  UNION ALL
+路     SELECT 5, 'C', 'Type_Z', DATE '2024-01-21', 850  UNION ALL
+路     SELECT 5, 'C', 'Type_Z', DATE '2024-01-21', 850  UNION ALL  -- 完全相同
+路     SELECT 6, 'A', 'Type_Z', DATE '2024-01-25', 950  UNION ALL
+路     SELECT 6, 'A', 'Type_Z', DATE '2024-01-25', 950  UNION ALL  -- 完全相同
+路     SELECT 6, 'B', 'Type_Y', DATE '2024-01-30', 1000  UNION ALL
+路     SELECT 6, 'B', 'Type_Y', DATE '2024-01-29', 950  UNION ALL
+路     SELECT 6, 'C', 'Type_X', DATE '2024-01-28', 850
+路 ;
+D
+D INSERT INTO your_table (group_col1, group_col2, group_col3, sort_col1, sort_col2)
+路 SELECT
+路     MOD(generate_series-1, 3) + 1 as group_col1,  -- 1,2,3循环
+路     CHR((65 + MOD(generate_series-1, 3))::int) as group_col2,  -- A,B,C循环
+路     'Type_' || CHR((65 + MOD(generate_series-1, 3))::int) as group_col3,  -- Type_A, Type_B, Type_C循环
+路     DATE '2024-01-01' + ((generate_series-1) * 2)::int as sort_col1,  -- 递增日期
+路     1000 - generate_series * 10 as sort_col2  -- 递减数字
+路 FROM generate_series(1,500000) ;
+D
+D explain analyze select group_col1,
+路     group_col2,
+路     group_col3,
+路     sort_col1,
+路     sort_col2 from (
+路 SELECT
+路     group_col1,
+路     group_col2,
+路     group_col3,
+路     sort_col1,
+路     sort_col2,
+路     ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn
+路 FROM your_table) where rn=1;
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+explain analyze select group_col1,     group_col2,     group_col3,     sort_col1,     sort_col2 from ( SELECT      group_col1,     group_col2,     group_col3,     sort_col1,     sort_col2,     ROW_NUMBER() OVER (PARTITION BY group_col1, group_col2, group_col3 ORDER BY sort_col1 DESC, sort_col2 DESC) as rn FROM your_table) where rn=1;
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0961s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│           0 rows          │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             #0            │
+│             #1            │
+│             #2            │
+│             #3            │
+│             #4            │
+│                           │
+│          12 rows          │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           FILTER          │
+│    ────────────────────   │
+│          (rn = 1)         │
+│                           │
+│          12 rows          │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             #0            │
+│             #1            │
+│             #2            │
+│             #3            │
+│             #4            │
+│             #5            │
+│                           │
+│        500,024 rows       │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           WINDOW          │
+│    ────────────────────   │
+│        Projections:       │
+│     ROW_NUMBER() OVER     │
+│ (PARTITION BY group_col1, │
+│   group_col2, group_col3  │
+│   ORDER BY sort_col1 DESC │
+│    NULLS LAST, sort_col2  │
+│      DESC NULLS LAST)     │
+│                           │
+│        500,024 rows       │
+│          (0.33s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│     Table: your_table     │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│         group_col1        │
+│         group_col2        │
+│         group_col3        │
+│         sort_col1         │
+│         sort_col2         │
+│                           │
+│        500,024 rows       │
+│          (0.01s)          │
+└───────────────────────────┘
+Run Time (s): real 0.100 user 0.390625 sys 0.046875
+</code></pre>
+<pre><code class="language-sql">D explain
+路 SELECT t1.*
+路 FROM your_table  t1
+路 WHERE NOT EXISTS (
+路     SELECT 1
+路     FROM your_table  t2
+路     WHERE t2.group_col1 = t1.group_col1
+路         AND t2.group_col2 = t1.group_col2
+路         AND t2.group_col3 = t1.group_col3
+路         AND (
+路             t2.sort_col1 &gt; t1.sort_col1
+路             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 &gt; t1.sort_col2)
+路             OR (t2.sort_col1 = t1.sort_col1 AND t2.sort_col2 = t1.sort_col2 AND t2.rowid &lt; t1.rowid)
+路         )
+路 );
+
+┌─────────────────────────────┐
+│┌───────────────────────────┐│
+││       Physical Plan       ││
+│└───────────────────────────┘│
+└─────────────────────────────┘
+┌───────────────────────────┐
+│      LEFT_DELIM_JOIN      │
+│    ────────────────────   │
+│      Join Type: ANTI      │
+│                           │
+│        Conditions:        │
+│ rowid IS NOT DISTINCT FROM│
+│            rowid          │
+│ sort_col2 IS NOT DISTINCT │
+│       FROM sort_col2      │
+│ sort_col1 IS NOT DISTINCT ├──────────────┬──────────────────────────────────────────────────────────────────────────────────────┐
+│       FROM sort_col1      │              │                                                                                      │
+│ group_col3 IS NOT DISTINCT│              │                                                                                      │
+│       FROM group_col3     │              │                                                                                      │
+│ group_col2 IS NOT DISTINCT│              │                                                                                      │
+│       FROM group_col2     │              │                                                                                      │
+│ group_col1 IS NOT DISTINCT│              │                                                                                      │
+│       FROM group_col1     │              │                                                                                      │
+│                           │              │                                                                                      │
+│       ~100,004 rows       │              │                                                                                      │
+└─────────────┬─────────────┘              │                                                                                      │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐                                                          ┌─────────────┴─────────────┐
+│         SEQ_SCAN          ││         HASH_JOIN         │                                                          │       HASH_GROUP_BY       │
+│    ────────────────────   ││    ────────────────────   │                                                          │    ────────────────────   │
+│     Table: your_table     ││      Join Type: ANTI      │                                                          │          Groups:          │
+│   Type: Sequential Scan   ││                           │                                                          │             #5            │
+│                           ││        Conditions:        │                                                          │             #4            │
+│        Projections:       ││ rowid IS NOT DISTINCT FROM│                                                          │             #3            │
+│         group_col1        ││            rowid          │                                                          │             #2            │
+│         group_col2        ││ sort_col2 IS NOT DISTINCT │                                                          │             #1            │
+│         group_col3        ││       FROM sort_col2      │                                                          │             #0            │
+│         sort_col1         ││ sort_col1 IS NOT DISTINCT ├──────────────┐                                           │                           │
+│         sort_col2         ││       FROM sort_col1      │              │                                           │                           │
+│                           ││ group_col3 IS NOT DISTINCT│              │                                           │                           │
+│                           ││       FROM group_col3     │              │                                           │                           │
+│                           ││ group_col2 IS NOT DISTINCT│              │                                           │                           │
+│                           ││       FROM group_col2     │              │                                           │                           │
+│                           ││ group_col1 IS NOT DISTINCT│              │                                           │                           │
+│                           ││       FROM group_col1     │              │                                           │                           │
+│                           ││                           │              │                                           │                           │
+│       ~500,024 rows       ││       ~100,004 rows       │              │                                           │       ~500,024 rows       │
+└───────────────────────────┘└─────────────┬─────────────┘              │                                           └───────────────────────────┘
+                             ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                             │      COLUMN_DATA_SCAN     ││         PROJECTION        │
+                             │    ────────────────────   ││    ────────────────────   │
+                             │                           ││           rowid           │
+                             │                           ││         sort_col2         │
+                             │                           ││         sort_col1         │
+                             │                           ││         group_col3        │
+                             │                           ││         group_col2        │
+                             │                           ││         group_col1        │
+                             │                           ││                           │
+                             │       ~100,004 rows       ││       ~166,674 rows       │
+                             └───────────────────────────┘└─────────────┬─────────────┘
+                                                          ┌─────────────┴─────────────┐
+                                                          │         PROJECTION        │
+                                                          │    ────────────────────   │
+                                                          │             #0            │
+                                                          │             #1            │
+                                                          │             #2            │
+                                                          │             #6            │
+                                                          │             #7            │
+                                                          │             #8            │
+                                                          │                           │
+                                                          │       ~166,674 rows       │
+                                                          └─────────────┬─────────────┘
+                                                          ┌─────────────┴─────────────┐
+                                                          │           FILTER          │
+                                                          │    ────────────────────   │
+                                                          │  ((sort_col1 &gt; sort_col1) │
+                                                          │      OR ((sort_col1 =     │
+                                                          │  sort_col1) AND (sort_col2│
+                                                          │     &gt; sort_col2)) OR (    │
+                                                          │  (sort_col1 = sort_col1)  │
+                                                          │      AND (sort_col2 =     │
+                                                          │   sort_col2) AND (rowid &lt; │
+                                                          │          rowid)))         │
+                                                          │                           │
+                                                          │       ~166,674 rows       │
+                                                          └─────────────┬─────────────┘
+                                                          ┌─────────────┴─────────────┐
+                                                          │         HASH_JOIN         │
+                                                          │    ────────────────────   │
+                                                          │      Join Type: INNER     │
+                                                          │                           │
+                                                          │        Conditions:        │
+                                                          │  group_col1 = group_col1  ├──────────────┐
+                                                          │  group_col2 = group_col2  │              │
+                                                          │  group_col3 = group_col3  │              │
+                                                          │                           │              │
+                                                          │       ~166,674 rows       │              │
+                                                          └─────────────┬─────────────┘              │
+                                                          ┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+                                                          │         SEQ_SCAN          ││         DELIM_SCAN        │
+                                                          │    ────────────────────   ││    ────────────────────   │
+                                                          │     Table: your_table     ││       Delim Index: 1      │
+                                                          │   Type: Sequential Scan   ││                           │
+                                                          │                           ││                           │
+                                                          │        Projections:       ││                           │
+                                                          │         group_col1        ││                           │
+                                                          │         group_col2        ││                           │
+                                                          │         group_col3        ││                           │
+                                                          │         sort_col1         ││                           │
+                                                          │         sort_col2         ││                           │
+                                                          │                           ││                           │
+                                                          │       ~500,024 rows       ││       ~500,024 rows       │
+                                                          └───────────────────────────┘└───────────────────────────┘
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>GaussDB虽然有分析函数，能应对从ORACLE迁移过来的这些SQL的兼容性，但是能执行不代表性能就好。反过来，改后的这条SQL，GaussDB只要1秒，但在ORACLE性能慢得三十分钟不出结果，这可能违背了很多人的认知。</p>
+<p>还有些人认为GaussDB内核源自PG 9.2.4,就认为GaussDB表现应该和PG一样甚至应该比PG高版本更弱，但实际上从这个案例来看，改写后的SQL在PG上竟然不开并行就跑不动，虽然最后发现是默认参数不一样，但出厂参数的优化同样属于产品的一部分。</p>
+<p>肯定会有人质疑SQL写得烂，所以ORACLE/PG跑不动，但却忘记了相同的说辞同样发生在ORACLE/PG跑得快但国产库跑不动的时候，当时怎么解释的？“<strong>优化器做得比别人好/差</strong>”。<strong>不能这么一概而论</strong>。</p>
+<p>不同数据库对相同SQL执行的实现存在一些差异，因此不能保证相同的SQL性能一定一样，有时候性能相差几千上万倍都是有可能的。数据库SQL语言可以算是一种开发语言，但和其他开发语言不一样的是，其他开发语言都有各自相对统一的编译器，而SQL在不同数据库的编译和执行都是不一样的。</p>
+<blockquote>
+<p>注：除DuckDB外，本文使用的三个数据库均部署在同一个环境里，所有配置参数均为默认。</p>
+</blockquote>
+<h2 id="20250121更新">20250121更新</h2>
+<p>同事<a href="https://www.modb.pro/u/399670">落落</a>给了个改写方法，在ORACLE里的性能会比之前用分析函数row_number还要好，分享一下</p>
+<pre><code class="language-sql">SQL&gt; select group_col1,
+  2         group_col2,
+  3         group_col3,
+  4         to_char(sort_col1, 'yyyy-mm-dd hh24:mi:ss') sort_col1,
+  5         sort_col2 from your_table where rowid in (
+  6  select min(rowid) keep(dense_rank first order by sort_col1 desc, sort_col2 desc)
+  7    from your_table
+  8   group by group_col1, group_col2, group_col3);
+
+GROUP_COL1 GROUP_COL2           GROUP_COL3           SORT_COL1            SORT_COL2
+---------- -------------------- -------------------- ------------------- ----------
+         4 A                    Type_X               2024-01-10 00:00:00        500
+         5 B                    Type_Y               2024-01-18 00:00:00        650
+         1 A                    Type_A               4761-11-24 00:00:00   -4998990
+         5 C                    Type_Z               2024-01-22 00:00:00        900
+         6 A                    Type_Z               2024-01-25 00:00:00        950
+         6 B                    Type_Y               2024-01-30 00:00:00       1000
+         6 C                    Type_X               2024-01-28 00:00:00        850
+         2 B                    Type_B               4761-11-26 00:00:00   -4999000
+         5 A                    Type_X               2024-01-12 00:00:00        550
+         3 C                    Type_C               4761-11-22 00:00:00   -4998980
+         4 B                    Type_X               2024-01-15 00:00:00        300
+         4 C                    Type_Y               2024-01-20 00:00:00        800
+
+12 rows selected
+
+
+Executed in 0.208 seconds
+</code></pre>
+<p>这个思路同样在GaussDB里也可以使用，但性能就弱于ORACLE了</p>
+<pre><code class="language-sql">gaussdb=# select group_col1,
+gaussdb-#         group_col2,
+gaussdb-#          group_col3,
+gaussdb-#           to_char(sort_col1, 'yyyy-mm-dd hh24:mi:ss') sort_col1,
+gaussdb-#           sort_col2 from your_table where tidsend(ctid) in (
+gaussdb(#     select tidsend(min(ctid) keep(dense_rank first order by sort_col1 desc, sort_col2 desc))
+gaussdb(#      from your_table
+gaussdb(#    group by group_col1, group_col2, group_col3);
+ group_col1 | group_col2 | group_col3 |      sort_col1      | sort_col2 
+------------+------------+------------+---------------------+-----------
+          4 | A          | Type_X     | 2024-01-10 00:00:00 |       500
+          4 | B          | Type_X     | 2024-01-15 00:00:00 |       300
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 |       800
+          5 | A          | Type_X     | 2024-01-12 00:00:00 |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 |       900
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 |       950
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 |      1000
+          6 | C          | Type_X     | 2024-01-28 00:00:00 |       850
+          3 | C          | Type_C     | 4761-11-22 00:00:00 |  -4998980
+          1 | A          | Type_A     | 4761-11-24 00:00:00 |  -4998990
+          2 | B          | Type_B     | 4761-11-26 00:00:00 |  -4999000
+(12 rows)
+
+Time: 958.133 ms
+</code></pre>
+<p>需要注意，gaussdb里如果两列ctid直接join，性能会有些差，需要先转换一下类型，可以用tidsend函数转成二进制，或者直接加<code>::text</code>转换成字符串，经验证，用tidsend会比转成test性能好一点点</p>
+<pre><code class="language-sql">gaussdb=# select group_col1,
+        group_col2,
+         group_col3,
+          to_char(sort_col1, 'yyyy-mm-dd hh24:mi:ss') sort_col1,
+          sort_col2 from your_table where (ctid)::text in (
+    select (min(ctid) keep(dense_rank first order by sort_col1 desc, sort_col2 desc))::text
+     from your_table
+   group by group_col1, group_col2, group_col3);
+ group_col1 | group_col2 | group_col3 |      sort_col1      | sort_col2 
+------------+------------+------------+---------------------+-----------
+          4 | A          | Type_X     | 2024-01-10 00:00:00 |       500
+          4 | B          | Type_X     | 2024-01-15 00:00:00 |       300
+          4 | C          | Type_Y     | 2024-01-20 00:00:00 |       800
+          5 | A          | Type_X     | 2024-01-12 00:00:00 |       550
+          5 | B          | Type_Y     | 2024-01-18 00:00:00 |       650
+          5 | C          | Type_Z     | 2024-01-22 00:00:00 |       900
+          6 | A          | Type_Z     | 2024-01-25 00:00:00 |       950
+          6 | B          | Type_Y     | 2024-01-30 00:00:00 |      1000
+          6 | C          | Type_X     | 2024-01-28 00:00:00 |       850
+          3 | C          | Type_C     | 4761-11-22 00:00:00 |  -4998980
+          1 | A          | Type_A     | 4761-11-24 00:00:00 |  -4998990
+          2 | B          | Type_B     | 4761-11-26 00:00:00 |  -4999000
+(12 rows)
+
+Time: 1094.093 ms
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

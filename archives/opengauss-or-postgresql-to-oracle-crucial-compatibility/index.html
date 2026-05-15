@@ -149,13 +149,325 @@
         
         <span>2024-07-21</span>
         
-        <span>645 阅读</span>
+        <span>646 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>[TOC]</p>
+<h2 id="前言">前言</h2>
+<p>其实无论是对于现在热门的数据库国产化替代，还是在更早的数据库开源化替代，一直有大量的数据库厂商或者开源社区在投入对ORACLE的兼容性开发。</p>
+<p>不过，语法、函数、视图的这种兼容太低级了。虽然对于大多数应用开发者而言，最直观的就是，我原本在ORACLE数据库上的代码，拉过来到新的数据库上，执行是否报错。但实际上大部分这种兼容性能力开发，对于数据库内核研发人员来说，非常简单。</p>
+<p>而真正最需要关注的一些兼容性能力，或者说原理实现上比较难或者比较复杂的东西，大多数数据库使用者并不会意识到。往往是简单一次PoC快速选择了迁移成功率最好的数据库后，再进行适配开发测试。但这个时候就会发现，所有对象明明都创建成功了，执行的时候各种报错，甚至有的不报错，但执行结果和ORACLE不一样。</p>
+<p>执行报错还好说，而不报错的，对于复杂的应用系统而言，怎么去判断正确性？然后极大概率可能就会后悔选了这家数据库。其实语法、函数不兼容的，改写一下，工作量也在可控范围内，但去找相同语法、函数的结果差异，难上加难。</p>
+<p>所以本文列举一些真正需要关注的兼容性能力。</p>
+<h2 id="一数据类型">一、数据类型</h2>
+<h3 id="1基本类型">1.基本类型</h3>
+<h4 id="11-varchar">1.1 varchar</h4>
+<p>为什么不说varchar2?其实截止到目前ORACLE最新版本23ai,varchar2和varchar仍然还是完全一样的，类型名称的区别不在本文的讨论范围内，关键看机制。</p>
+<h5 id="111-非法字符">1.1.1 非法字符：</h5>
+<p>在PG系数据库中，会严格控制字符串类型的值，必须存在于当前数据库的字符集中（数据库为SQL_ASCII字符集的情况除外），表面现象上看，这要求应用程序要严格做好字符管理，但实际上在ORACLE，varchar2中除了写入错误字符集的数据以及各种控制字符以外，还存在有写入加密数据的情况，而此类加密数据实际存储的是一段二进制，即RAW值，但数据类型却为varchar2,直接查询时会显示成乱码，（比如函数 dbms_obfuscation_toolkit.md5(input_string VARCHAR2) return varchar2）。</p>
+<p>这其实并不是不可实现的，比如openGauss 5.0开始的B模式，为了兼容mysql，可以同一个库下的不同schema甚至不同表、不同列使用不同的字符集；又比如openGuass里的postgres库下的statement_history这个表里，采集了该实例下各个库（可以是不同字符集的库）执行的SQL，但都能进行查询，而且使用各种字符函数去处理这个SQL字段，也不会存在预期以外的异常。</p>
+<p>但是，这里仍然存在一个问题，即“\x00”字符，这个字符表示字符串的结束，在ORACLE的sqlplus里查询都存在问题，查询显示的结果会被截断,但实际上的值是没有截断的，ORACLE里的字符函数都可以正确处理这个包含“\x00”的字符串。而PG/OG系的库中，最多也只能把这个值吐出来一次，不能做二次处理（length(utl_raw.cast_to_varchar2(hextoraw('310032')) ）。</p>
+<h5 id="112-字符串的长度">1.1.2 字符串的长度：</h5>
+<p>在ORACLE里，所有字符类型都必须有长度（clob属于大对象，不在正常的字符串类型讨论范围内），哪怕是函数的参数，虽然没指定长度，但实际上数据库处理时是直接拿最大长度去处理的。但到了PG系，字段的数据类型可以不指定长度，甚至还有一个text类型这样的奇葩存在。这样如果要使用C语言去开发对接数据库的程序，字符串的内存空间分配就非常难受了，本来查个数据字典就能知道需要多大的内存空间来存字符串，可以避免溢出或者截断，但到了PG就不能按这种方式了。</p>
+<h4 id="12-char">1.2 char</h4>
+<p>ORACLE的char类型是一种定长类型，存储时会在右侧用空格补齐长度，这点和PG系数据库是一致的。但实际上用起来，两种数据库对于char类型的区别非常多。为此我单独写了一篇文章，<a href="https://www.darkathena.top/archives/oracle_char_type">【ORACLE】对Oracle中char类型的研究分析</a></p>
+<p>这里我只引用一个ORACLE里看似是BUG的例子:</p>
+<pre><code>连接到:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; create table test_3(type varchar2(10),amt number(24,6));
+
+表已创建。
+
+SQL&gt; insert into test_3 values ('tp1',1.1);
+
+已创建 1 行。
+
+SQL&gt; select * from (
+  2  select 'summary' as type,sum(amt) amt from test_3
+  3  ) where type='summary ';
+
+TYPE                  AMT
+-------------- ----------
+summary               1.1
+
+SQL&gt; select * from (
+  2  select 'summary' as type,sum(amt) amt from test_3
+  3  union all
+  4  select type,sum(amt) from test_3 group by type
+  5  ) where type='summary ';
+
+未选定行
+
+SQL&gt;
+</code></pre>
+<p>第二个查询只是在第一段查询中添加了一段union all，理论上返回的数据行数不可能比第一个查询要少，但实际查询结果却是记录变少了。但在oracle 11g版本里，第二个SQL是可以查到数据的。即使这样，其实19c的处理方式仍然还是比11g要好一点，具体细节详见我上面说的那篇文章。</p>
+<p>按照ORACLE对CHAR类型描述的文档，这个例子无论结果是何表现，都是和ORACLE的文档相矛盾的，根本不可能有正确结果。尽管我们可以清楚分析出ORACLE的处理规则，出现任何结果我们都能替ORACLE来自圆其说。但我仍然建议char类型最好还是不用或者慎用。我见过运行了十几二十几年的在ORACLE上的应用系统仍然在char的使用上存在各种各样的错误。</p>
+<h4 id="13-nvarcharncharnclob">1.3 nvarchar/nchar/nclob</h4>
+<p>这三种类型是国家字符集的字符类型，至于什么是国家字符集，可以参考我这篇文章，<a href="https://www.darkathena.top/archives/about-nvarchar2-and-national-charset">【ORACLE】谈一谈NVARCHAR2、NCHAR、NCLOB等数据类型和国家字符集</a>,本文不再复述。</p>
+<p>这里存在三个问题，<br/>
+第一是nvarchar(n)定义的数据长度，这个问题不大，反正是变长，就按varchar,再改个长度校验方式就行。<br/>
+第二是nchar(n)，问题就来了，char的存储是定长，nchar(n)如果按字符，就不是按字节的定长了，但ORACLE里其实nchar还是定长，为什么呢？因为oracle里的nchar存的是按国家字符集存的，其字节数是可以根据字符数算出来的:如果国家字符集选择为AL16UTF16，那么一个字符必占2个字节，不足两个字节的也会补到两个字节，而一个4字节的unicode字符按两个字符算，占4字节；如果选择UTF8（CESU)，则一个字符占3个字节，不足3字节补足3字节，4字节的unicode字符按两个字符算，在国家字符集的UTF8里占6字节。<br/>
+这里就已经引入了好几个东西，一是同一个数据库下，不同表的不同列要支持多种字符集，前面说过了，这个在技术上没问题；其次就是要支持UTF16，但PG原生并不支持以这种编码进行存储；再者就是ORACLE的非标准UTF8-CESU，目前这么多数据库只有ORACLE用这个，其他都是用的标准的UTF8，而且一般情况下也没有人安装的时候选择这个UTF8作为国家字符集，所以暂不考虑这个。<br/>
+所以国家字符集的第三个问题就是对UTF16的支持。</p>
+<h4 id="14-clobblobraw">1.4 clob/blob/RAW</h4>
+<p>clob/blob的问题其实就在于是不是把它俩当大对象类型。其实PG本来就有large object的功能，但是openGauss把这个功能限制掉了，然后做了个简单粗暴的处理，即把clob映射到text，把blob当成bytea进行存储。不过后续版本的openGauss会把large object这个功能打开，而至于会不会把clob/blob再映射到大对象上，暂时还没看到有规划，也有可能换另外的方式实现。目前GaussDB的blob已经支持32TB了，这比ORACLE默认的4G大到哪里去了。</p>
+<p>oracle里的blob/raw,查出来看似是一串十六进制字符串，但这其实是它的展示格式而已,ORACLE可以通过修改客户端设置，让它展示成不同的格式。但是openGauss查询出来就真是一串十六进制字符串，虽然它存储上的确是原始二进制。</p>
+<h4 id="15-timestamp">1.5 timestamp</h4>
+<p>timestamp在ORACLE里分三种</p>
+<ul>
+<li>timestamp without time zone</li>
+<li>timestamp with time zone</li>
+<li>timestamp with local time zone</li>
+</ul>
+<p>但在原生PG中，只有两种</p>
+<ul>
+<li>timestamp without time zone</li>
+<li>timestamp with time zone</li>
+</ul>
+<p>而且就算名称一样，其实也不是一回事，PG中的timestamp with time zone其实更符合oracle中的timestamp with local time zone；而ORACLE中的timestamp with time zone在PG中其实没有能对应的类型，因为PG在存储上压根就没额外存储时区信息<br/>
+至于秒后的小数，ORACLE支持9位，PG只支持6位，这其实不算什么大问题</p>
+<h4 id="16-date">1.6 date</h4>
+<p>PG原生的DATE，只有年月日，没有时分秒，和ORACLE的date不一致。在openGauss的A模式中，在SQL引擎里就进行了处理，把date类型转化成了timestamp(0) without time zone，正常用起来感觉不到什么差异，但是仔细去对比，如果把相同的timestamp(n)(n&gt;0)类型值往oracle的date以及openGauss的timestamp(0) without time zone写，可能会得到不一样的结果，因为ORACLE写入date时是trunc，而ORACLE和openGauss写入timestamp(0) without time zone时是round。如果不真实新增一种兼容ORACLE的date类型，这个行为将无法和ORACLE对齐</p>
+<pre><code>select 
+cast(to_timestamp('2024-12-31 23:59:59.500','yyyy-mm-dd hh24:mi:ss.ff') as timestamp(0)) ts,
+cast(to_timestamp('2024-12-31 23:59:59.500','yyyy-mm-dd hh24:mi:ss.ff') as date) dt
+from dual;
+</code></pre>
+<h4 id="17-numberintegerfloat">1.7 number/integer/float</h4>
+<p>ORACLE发明了一种number的存储格式，存储空间小，计算快，且精度较高，算法可以从我这篇文章里找 <a href="https://www.darkathena.top/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a></p>
+<p>在PG中，number类型一般就直接对应到numeric了。numeric的存储精度和长度远超ORACLE的number,但有一些缺陷。虽然numeric这玩意也考虑了一些存储空间的问题，有类似ORACLE的指数运算存储压缩，但是其存储仍然是当成了字符串，一是占用空间比ORACLE大,二是计算时需要将字符串转成数字后再算，性能下降比较严重。而且为了提升计算性能,在进行某些运算时,会保留特定的小数位数进行四舍五入。</p>
+<pre><code>postgres=# select 2::numeric/3::numeric*3::numeric;
+        ?column?
+------------------------
+ 2.00000000000000000001
+</code></pre>
+<p>ORACLE的integer在存储上直接按number类型存了，所以ORACLE的integer计算性能和number一样，理论上不如binary_integer，而binary_integer其实就对应pg的integer（int4).</p>
+<p>ORACLE的float也是按number类型存了，而PG的float其实对应的是ORACLE的binary_float,PG的float8对应的是ORACLE的binary_double.</p>
+<h3 id="2自定义类型">2.自定义类型</h3>
+<p>object type(对象类型)、 collection type(集合类型):<br/>
+这两个类型在原生PG中，存在很多语法功能缺失，那些功能缺失我们暂且不谈，因为PG自家的商业版EDB其实支持支持那些缺失的功能,这说明语法不是问题。</p>
+<p>这里最重要的点，是在数据结构上，object type在pg对应到了composite type，但这玩意和record/refcursor总会有各种转换的情况，如果内核不做特殊处理，执行必然会报错。比如把游标的一行往rowtype上转，然后再反向转回去。下面给一段简单示意代码，说明下composite type/record/refcursor这三种类型是怎么来的：</p>
+<pre><code>create table test_t1 (a int,b text);
+create type test_t2 is (a int,b text);
+
+declare
+v1 test_t1%rowtype;
+v2 test_t2;
+cursor c is select 1::int a,'x'::text b;
+v3 c%rowtype;
+begin
+    raise notice 'c:%',pg_typeof(c);
+	begin
+	 raise notice 'v3:%',pg_typeof(v3);
+    exception
+     when others then 
+     raise notice 'ERROR:%',sqlerrm;
+    end;
+  open c;
+  fetch c into v3;
+  raise notice 'v1:%',pg_typeof(v1);
+  raise notice 'v2:%',pg_typeof(v2);
+  raise notice 'v3:%',pg_typeof(v3);
+  close c;
+end;
+/
+</code></pre>
+<blockquote>
+<p>NOTICE:  c:refcursor<br/>
+NOTICE:  ERROR:record "v3" is not assigned yet when get datum type info<br/>
+NOTICE:  v1:test_t1<br/>
+NOTICE:  v2:test_t2<br/>
+NOTICE:  v3:record<br/>
+ANONYMOUS BLOCK EXECUTE</p>
+</blockquote>
+<p>继续深入去看这几个类型，又会涉及到以这些类型为参数类型的函数查找，再复杂点还会涉及到重载、inout参数，这里就不继续扩展了。去围绕这些方面去构造用例，可以发现各种奇奇怪怪的场景。</p>
+<p>另一个问题还是在数据结构，它既然可以被称之为“对象类型”，就不仅仅只是当成对象用，它在内存里也需要是一个对象，比如我们构造一个超大的对象，往存储过程的inout参数传，在存储过程内修改这个对象的成员和属性，再把这个对象从这个存储过程吐出来，在内存里是复制这个对象还是用指针指过去原地修改？参考oracle里的<code>nocopy</code>。</p>
+<p>既然提到了对象，那么此处就会涉及到一个空对象和null的问题。ORACLE里对于一个类型为object type的变量，在声明后如果不做初始化，那么它就是null；如果new一个出来，即使它所有的属性都是null,但这个对象本身也不是null。由于pg系直接用的composite type,其数据结构上就是一堆字段，就算不new它出来，它也占了一个内存空间，此时对于它是不是null，只可能有两种判断规则：1.无论是否new一个对象出来，只要所有属性为null，则认为此参数为null；2.无论是否new一个对象出来，只要这个参数存在，则认为此参数is not null。openGauss的aformat_null_test参数能切换这两种规则,但这两种都和ORACLE不完全一致。如果要兼容ORACLE行为，那么必然要在复合类型的值的数据结构上，增加是否初始化的标记，而PG中的复合类型，和表的rowtype是一个玩意，ORACLE里的rowtype类型是不需要new的，又冲突了。</p>
+<pre><code>create type test_object_type is object (col1 number);
+/
+declare
+v test_object_type;
+begin
+  if v is null then 
+    dbms_output.put_line('1: v is null ');
+  end if;
+  if v is not null then 
+    dbms_output.put_line('2: v is not null ');
+  end if;
+    
+  v:=test_object_type(null);
+  
+  if v is null then 
+    dbms_output.put_line('3: v is null ');
+  end if;
+  if v is not null then 
+    dbms_output.put_line('4: v is not null ');
+  end if;
+end;
+/
+</code></pre>
+<blockquote>
+<p>1: v is null<br/>
+4: v is not null</p>
+</blockquote>
+<h2 id="二操作符表达式">二、操作符、表达式</h2>
+<p>PG原生支持自定义操作符<code>create operator</code>，而且能对应编写自定义函数来实现操作符的逻辑，这算是做Oracle兼容的一大便利，但是其下仍然隐含着不少坑</p>
+<h3 id="1">1.!=</h3>
+<p>由于原生PG支持<code>!</code>操作符，即阶乘，而ORACLE不支持，那么从oracle迁移到PG系数据库中，<code>3!=6</code>这种写法就必然会存在歧义，应该理解成<code>3*2=6</code>还是<code>3&lt;&gt;6</code>?<br/>
+如果选择要兼容Oracle,那么就需要放弃阶乘操作符。</p>
+<h3 id="2">2.||</h3>
+<p>其实实现两个字符串拼接没有任何难度，这里的问题仍然在于前面提过的char类型：拼接带不带空格？返回类型是什么？这里就不细阐述了，还是看我之前那篇文章吧 <a href="https://www.darkathena.top/archives/oracle_char_type">【ORACLE】对Oracle中char类型的研究分析</a>。</p>
+<h2 id="二事务">二、事务</h2>
+<h3 id="1自治事务">1.自治事务</h3>
+<p>自治事务应该的表现:<br/>
+ORACLE的自治事务是定义在procedure或者function里的，除了参数和基本的连接信息可以从主事务传递到自治事务或者传递回来，其他所有的内存上下文包括事务，都是隔离的。</p>
+<p>OG自治事务实现的原理以及存在的问题:<br/>
+OG的自治事务，其实是新建了一个连接，并且把主事务中的所有内存，都往自治事务里复制一份，执行完了再复制回来，并没有考虑哪些可以不用复制，存在较为严重的性能问题。当然，这里涉及到另一个问题，原生PG的天然缺陷，即plsql的执行编译，下面会提到。</p>
+<h3 id="2dqldmlddlplsql的事务行为">2.DQL/DML/DDL/PLSQL的事务行为</h3>
+<p>首先，在一个事务中，只要执行了任意返回error的命令，接下来都只能执行rollback或者commit，而且此时commit的行为也是rollback。而其他非PG的数据库，均可在该事务中继续执行其他命令，也可以commit掉之前成功的命令。PG可以实现在每个语句执行前自动加一个savepoint来实现语句级回滚的效果,但代价则是内存占用的开销和性能的下降。</p>
+<p>在ORACLE中，执行长时间的查询SQL，可能会出现一个报错，叫快照过旧，这是因为在查询启动时，会确定一个数据快照，确保该条查询不会由于查询中的数据变更而导致出现事务不一致的问题，其实就是查询时，如果发现数据变更，那么就回滚到快照时的状态。但是ORACLE的undo并不会一直保留，从而会让过旧的快照淘汰掉。<br/>
+但是openGauss的astore并不会出现这个问题，因为在astore下，它的查询其实是先开启了一个事务，只要这个事务不结束，在这个事务之后的所有变更版本，全部都会保留，vacuum不会把这些数据历史版本清掉，但这会引起数据膨胀，而且这是对整个实例而言。PG的新版本中有引入新的特性来实现ORACLE这种快照过旧的功能，但是它仍旧是绑死了全局的最小未提交事务和数据快照之间的关系。</p>
+<p>对于DDL，这里也存在至少两个问题，<br/>
+首先truncate语句在oracle是算ddl的，但是在PG内核里，竟然不在DDL语句的分类里，而且它加的锁，介于DML和DDL之间。<br/>
+然后就是ORACLE的DDL的前后自动提交，虽然PG支持DDL的回滚看上去是个特性，但是这个会让数据库内核锁的处理变得更复杂。</p>
+<p>PLSQL的情况，虽然PG使用exception的子事务，部分兼容了ORACLE的行为，但是它回滚的仍然是包含exception的这个plsql块，不是语句级的。</p>
+<p>PLSQL的另一个问题就是游标，看这个例子</p>
+<pre><code>create table test_cursor_truncate(a number);
+insert into test_cursor_truncate values (1);
+
+declare
+  cursor c is
+    select * from test_cursor_truncate;
+  x int;
+begin
+  open c;
+  loop
+    fetch c into x;
+    exit when c%notfound;
+  end loop;
+  execute immediate 'truncate table test_cursor_truncate';
+end;
+/
+</code></pre>
+<blockquote>
+<p>ERROR: cannot TRUNCATE “test_cursor_truncate” because it is being used by active queries in this session</p>
+</blockquote>
+<p>游标何时关闭?PG支持scroll游标,所以不能在数据fetch完后关闭,而且实际场景中就有可能不需要fetch所有数据就执行truncate table 。</p>
+<h3 id="3dml的重启动">3.DML的重启动</h3>
+<p>创建一个带主键的表，然后开两个会话，并发循环去执行delete+insert，在ORACLE永远不会报错，而在PG系数据库中，可能会出现主键冲突的报错。</p>
+<pre><code>create table t(id int priamry key,value varchar2(10));
+insert into t(id,value) values (1,'');
+</code></pre>
+<p>SESSION 1</p>
+<pre><code>start transaction;
+delete from t where id=1;
+insert into t(id,value) values (1,'S1');
+end;
+</code></pre>
+<p>SESSION 2</p>
+<pre><code>start transaction;
+delete from t where id=1;
+insert into t(id,value) values (1,'S2');
+end;
+</code></pre>
+<p>出现报错时，可以发现前一条delete删除的记录数为0，这是因为它delete想要删的那行记录(ctid)，在物理上其实已经被另一个会话删掉了。而ORACLE的处理，则是发现要删的数据没了(rowid)，就先回滚，然后再重新根据SQL里的条件去找数据去删除。</p>
+<p>首先这不算是PG系的BUG，按照SQL标准定义的数据可见性相关内容来看，PG系这种场景出现报错甚至是比ORACLE更符合SQL标准的，一条SQL发起时就应该绑定当前的数据快照，发生重启动可能会基于一个新的数据快照来执行。一条SQL执行过程中切换不同的数据快照,理论上可能会引发一些问题。</p>
+<p>ORACLE官方文档对这个重启动有一些说明，但是并未说清楚这个机制，到底是什么情况下会触发重启动，然后重启动是在SQL执行的哪个阶段发生，重启动的结果是否会由于执行计划的变化而导致差异，这些都是黑盒。有不少ORACLE专家通过日志挖掘的方式去猜ORACLE的行为，但最终得到的结论也只是猜测出来的。</p>
+<p>反观PG系的处理方式，虽然会报错，但是原理是能说清楚的。</p>
+<p>如果要做兼容ORACLE行为的DML重启动，而且在任意场景下处理完全一致，这几乎是个不可能的事（SQL重写、触发器、多表更新、级联外键、DML引发的隐式DDL......），不过如果只做几个简单的场景，问题还是不大的，毕竟已经有一些PG系数据库已经实现了DML重启动。</p>
+<p>另外，在ORACLE中，这个重启动也有一些让人迷惑的情况，比如下面两个用例都是更新，只是其中一个是update，另一个是merge into，会话2的目的都是期望把id=1的这行记录修改成(1,'Tom'),但是却出现了不同的结果。</p>
+<p>用例一：</p>
+<pre><code>drop table test_dml_restart;
+
+create table test_dml_restart(id number ,name varchar2(10));
+insert into test_dml_restart values (1,'Alice');
+commit;
+
+--会话一，执行后不提交
+update test_dml_restart set id=id*10;
+
+--会话二执行，被锁
+update test_dml_restart set name='Tom' where id=1;
+
+--会话一提交，会话二自动解锁，更新0行，会话2根据id=1进行了重启动
+commit;
+
+--会话二查询
+select * from test_dml_restart;
+
+10,Alice
+</code></pre>
+<p>用例二：</p>
+<pre><code>drop table test_dml_restart;
+
+create table test_dml_restart(id number ,name varchar2(10));
+insert into test_dml_restart values (1,'Alice');
+commit;
+
+--会话一，执行后不提交
+update test_dml_restart set id=id*10;
+
+--会话二执行，被锁
+merge into test_dml_restart t1
+using (select 1 id, 'Tom' name from dual) t2
+on (t1.id=t2.id)
+when matched then 
+update set t1.name=t2.name;
+
+--会话一提交，会话二自动解锁，更新1行，会话2仍然按旧的id找到了数据进行更新
+commit;
+
+--会话二查询
+select * from test_dml_restart;
+
+10,Tom
+</code></pre>
+<p>就算是在oracle 19c中，也依然是这种表现。而且扩展一下场景，如果这个merge into还有insert，而且id是主键，哪怕源表目标表各自都没重复数据，在ORACLE中仍然可能会出现主键冲突的报错！所以这里提个醒，update set=子查询 能修改成merge into去提速么？能！但是前提是join的字段不能存在被更新的情况！</p>
+<h2 id="三对象">三、对象</h2>
+<h3 id="1表和索引">1.表和索引</h3>
+<h4 id="11系统列伪列">1.1系统列、伪列</h4>
+<h5 id="111-rowid">1.1.1 rowid</h5>
+<p>这个与存储方式有关, astore下的vacuum机制，必然导致ctid值不如ORACLE的rowid那么稳定，不过可以在有限场景下，使用currtid函数来进行较为稳定的ctid查询。<br/>
+另外，PG/OG系的ctid，只包含了页（即块）和元组（即行）的位置，也就是说不同的表是可能有相同的ctid的，这样无法确认某个ctid来自于哪个表，看上去问题不大，但是，如果是分区表，由于对于分区表而言，每个分区其实是个单独的表，这样就会出现分区表中的ctid存在重复值。此时就需要使用tableoid和ctid两个列，才能唯一确定一行。</p>
+<h5 id="112-rownum">1.1.2 rownum</h5>
+<p>这个在join on语句里就是一个大坑，可参考我这篇文章<a href="https://www.darkathena.top/archives/left-join-rownum-equ0-less0-diff">【ORACLE】什么时候ROWNUM等于0和ROWNUM小于0，两个条件不等价？</a></p>
+<p>以前我在ORACLE里写SQL，除了full join的情况下必须要用join，其他情况绝不使用join，都是直接在from后，用逗号分隔各个表，然后关联条件全在where里，所以我以前从没发现rownum和join结合使用的问题。但是现在国产化替代，有不少软件开发商为了兼容更多的数据库，在内部制定标准不准使用ORACLE风格的join方式，在人工改写历史SQL的时候，一不小心就会掉入 <code>join tabname on rownum &lt; ? </code>的陷阱</p>
+<h4 id="12-表和索引重名">1.2 表和索引重名</h4>
+<p>这里其实涉及到namespace（即命名空间），但是并非是指PG系中的namespace/schema的概念。在ORACLE的<code>dba_objects</code>视图中，有个<code>namespace</code>字段，同一个namespace下的对象不能出现重名，而索引和表是不同的namespace，所以可以重名。但由于PG系数据库，把索引也视为是一种表，并且和普通的表一起放在pg_class里进行管理，从而出现了PG系数据库的表和索引不能重名的问题。</p>
+<p>这里提一嘴，PG的对象元数据设计，完全是按"类"和"对象"的方式来进行组织的，所有的"类"名都在pg_class里，比如<code>pg_authid</code>就是一种"类"，这个类的id是<code>select oid as classid from pg_class where relname='pg_authid'</code>,然后这种"类"的对象，都在pg_authid这个表里<code>select oid as objectid from pg_authid</code>。同理像pg_proc/pg_namespace等也是类似的。而"表"和"索引"这种对象，则是pg_class这种"类"的对象；而一个"表"，本身也是一种"类"，其下还有tuple可以认为是这个类的"对象"。<br/>
+所以按照这种方式，表和索引都是pg_class类，所以不能重名，而表和函数由于分属pg_class和pg_proc类，则可以重名。但在ORACLE里，表和函数同属于一个namespace，不能重名。我认为在目前PG系的架构上，对于"命名空间"这个问题，几乎无法做到和ORACLE完全一致,而且也没必要去做到完全一致。真要做的话，也不是没有办法，除了加一些重名校验外，还得完全重构索引功能，不过这值得么？</p>
+<h3 id="2存储过程和函数">2.存储过程和函数</h3>
+<h4 id="21-重载">2.1 重载</h4>
+<p>PG只支持入参不同的重载，不支持仅出参不同的重载，这在openGauss中得到了解决。但是解决得并不彻底，比如出参为复合类型、为rowtype类型、为数组类型、还有inout参数等情况，见我这篇文章<a href="https://www.darkathena.top/archives/opengauss-procoutparamoverride-test">【openGauss】带有out参数的存储过程及自定义函数的重载测试</a></p>
+<h4 id="22-搜索路径和权限">2.2 搜索路径和权限</h4>
+<p>在我这篇文章里有提到相关的问题，<a href="https://www.darkathena.top/archives/mogdb506-release-compatible-update#%E4%B8%83%E3%80%81%E5%AF%B9%E9%BD%90oracle%E4%B8%AD%E2%80%9Cauthid-current_user%E2%80%9D%E7%9A%84%E8%A1%8C%E4%B8%BA">【MogDB】解读MogDB5.0.6版本中有关兼容性的一些更新</a></p>
+<p>但是不仅仅是如此，如果涉及到自治事务，这个会变得异常复杂，因为openGauss的自治事务是个新的连接。</p>
+<p>另外还有owner、creator、schema的问题,在绝大多数情况下，oracle里对应的creator就会是owner，所以定义者权限等同于owner的权限。但是在使用异构迁移工具迁移到PG系数据库时，可能都是用的一个用户进行创建，此时creator不等于schema时,会容易引起权限的混乱。</p>
+<h4 id="23-编译及内存">2.3 编译及内存</h4>
+<p>原生PG，包括现在最新版的OG，对于procedure以及function的执行，都是在执行前，在会话内进行编译，编译后再执行，编译的结果只在当前会话内，当连接断开，编译结果就会释放掉，再次连接执行，需要重新编译，由此引发两大问题，内存膨胀和性能恶化。OG的自治事务是新建连接,那么一旦调用自治事务,自治事务里使用到的存储过程也要编译,对于某些应用系统那几百万甚至上千万行的存储过程,光想想就觉得恐怖了.</p>
+<p>而ORACLE的procedure，虽然也存在首次执行时先编译的情况，但是这个编译结果是会放到全局缓存中的，可以被其他会话共享使用。所以PG系数据库解决这个问题，也只能参考这种方式。但由于原理的差异，PG系数据库编译plsql速度会比ORACLE低很多，并且所占用的内存也会比ORACLE高很多，所以要达到和ORACLE同样的效果，并不是那么容易。</p>
+<h4 id="24-依赖关系">2.4 依赖关系</h4>
+<p>在ORACLE中,对于plsql对象,只要前面的<code>create or replace package|function|procedure|type {name} </code> 这段是正确的,后面错成啥样都能创建到数据库里去,但是ORACLE会在dba_errors视图里显示出这个对象编译错误的信息,比如少了表或者语法错误之类的,在dba_objects里也会显示出这个对象的有效失效状态。</p>
+<p>而PG的处理方式则是,首先function/procedure的参数类型必须存在,即 "as"之前的部分必须没有任何错误;然后函数体中的sql只进行基础的语法校验,不尝试进行编译,比如一条select 语句里的表就算没有,它也可以不报错,因为它认为可能在这条select前,会有逻辑去创建这个缺少的表,就算没有创建,那么执行到这里报错了也认为这是使用者自己的问题;最后,没有识别到错误,就创建成功了,不存在创建成功但编译失败的情况。这有个好处,就是create or replace报错时,不会覆盖数据库里原本正常可执行的对象。相比ORACLE,并不能说PG不进行严格校验,只是两者严格的地方不一样,比如PG对参数类型的校验就比ORACLE严格多了。而缺点显而易见,PG必须按照依赖对象的顺序来进行创建,而且一旦涉及到关于参数类型的循环依赖,就没法直接创建上去了。</p>
+<h3 id="3视图">3.视图</h3>
+<h4 id="31视图元数据">3.1视图元数据</h4>
+<p>PG在创建视图后，会丢掉原始的SQL，只会把这个SQL编译后的结果存到一个pg_node_tree的结构里，一旦对里面涉及到的表进行列的变更，就会报错，说这个表被哪个视图依赖了。而这可不仅仅只是依赖关系的问题,还涉及到"类"的变化,因为视图也会在pg_type里生成对应的composite type 。这里需要引入一个机制，存储原始SQL字符串,然后支持动态编译。</p>
+<p>结合上面的 存储过程2.4依赖关系 ,可以在PG中轻易构造一个无解的例子,即创建一个视图调用一个自定义函数,而这个自定义函数使用这个视图的rowtype或者这个视图某个字段的type作为参数的类型,无论先创建哪个都无法创建成功</p>
+<h2 id="总结">总结</h2>
+<p>其实PG兼容ORACLE的阻碍远不止本文提到的这些，不过相较于mysql而言，基于PG/OG去改成兼容ORACLE行为会更加容易。</p>
+<p>另外，不要迷信进入市场较早的数据库，就像我最开始说的，执行不报错和执行结果一致，是两码事。在很多项目中，如果客户愿意花充足的时间去进行适配和验证，去和数据库厂商进行各种交流沟通，会了解到各种原理的细节，这样才能去比较哪个数据库更符合自己的需要,也会更加去认识清楚自己的应用代码还有哪些地方可以优化。</p>
+<p>最后做个预告,云和恩墨的MogDB在后续的5.2版本中,对Oracle的兼容性会有极大的提升,不仅仅是语法和函数等表面上的兼容,而且还做了非常多的底层原理实现。<br/>
+目前MogDB的最新实验版本,在一个有数百万行存储过程的应用程序的适配完成时间上,仅次于某一款公认的有最多Oracle兼容性的老牌国产数据库,同期的还有另外4款公认的ORACLE兼容性非常高的国产数据库也在进行适配,但这4家由于存在大量原理实现上的问题,还未完成这款应用程序的适配。所以未来MogDB的表现,非常值得期待。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

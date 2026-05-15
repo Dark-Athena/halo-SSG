@@ -149,13 +149,414 @@
         
         <span>2024-11-01</span>
         
-        <span>206 阅读</span>
+        <span>207 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【MogDB】MogDB5.2.0重磅发布第九篇-SQL宽容性提升</p>
+<h2 id="一前言">一、前言</h2>
+<p>在ORACLE迁移到国产库的过程中，经常会遇到一些由于原本SQL不是太标准而导致在国产库上报错。这种错误，如果只有一个两个，手动改了就好了，但是如果如果要改的量非常大，还不能批量替换，而且不能根据数据库的报错信息直接判断出原因，就很是难受，浑身蚂蚁在爬一样，需要反复投入大量人力干一些没技术含量的活。因此MogDB考虑把项目中遇到的这些点，在数据库内核里全给支持了，使SQL的宽容度得到极大提升。</p>
+<h2 id="二部分特性列举">二、部分特性列举</h2>
+<h3 id="1c风格非对称块注释">1.C风格非对称块注释</h3>
+<p>原生PG在块注释风格上独树一帜，看上去是C语言风格的注释，但实际上有差异，即C语言的块注释是以<code>/*</code>开头，直到出现第一个<code>*/</code>，中间的都为注释；而原生PG的块注释则类似括号，出现几次<code>/*</code>，就要有几次<code>*/</code>才能结束注释。很明显，这两种方式不能在一条SQL的执行中同时支持。</p>
+<pre><code class="language-sql">--ORACLE风格 (C风格）
+select /*/*comment*/ 1 from dual;
+--PG风格
+select /*/*comment*/*/ 1 from dual;
+</code></pre>
+<p>在ANSI SQL标准中，对于注释的语法是这么写的</p>
+<pre><code>&lt;comment&gt; ::=
+  &lt;simple comment&gt;
+  | &lt;bracketed comment&gt;
+&lt;simple comment&gt; ::=
+  &lt;simple comment introducer&gt; [ &lt;comment character&gt;... ] &lt;newline&gt;
+&lt;simple comment introducer&gt; ::=
+  &lt;minus sign&gt; &lt;minus sign&gt;
+&lt;bracketed comment&gt; ::=
+  &lt;bracketed comment introducer&gt;
+  [ &lt;bracketed comment contents&gt; ]
+  &lt;bracketed comment terminator&gt;
+&lt;bracketed comment introducer&gt; ::=
+  /* !! &lt;U+002F, U+002A&gt;
+&lt;bracketed comment terminator&gt; ::=
+  */ !! &lt;U+002A, U+002F&gt;
+&lt;bracketed comment contents&gt; ::=
+  { &lt;comment character&gt; | &lt;separator&gt; }...!! See the Syntax Rules.
+&lt;comment character&gt; ::=
+  &lt;non-quote character&gt;
+  | &lt;quote&gt;
+</code></pre>
+<p>可以看到，在<code>&lt;bracketed comment contents&gt;</code>中是没有再次出现<code>&lt;bracketed comment&gt;</code>的，也就是说ANSI SQL标准并不支持嵌套注释，或者说PG在ANSI SQL没有明确说禁止嵌套注释的情况下，基于标准进行了"<strong>扩展</strong>"（学院派也不靠谱）。</p>
+<p>虽然PG这种方式有个好处，就是进行大段代码注释的时候，就算里面原本包含有块注释也不会导致注释异常。ORACLE完全遵循C风格的块注释，因此是没法支持这种嵌套注释场景的，一般需要依靠工具，比如PLSQLDEV，自动将内层的注释符号变成<code>\*</code> <code>*\</code>，让其不再识别为注释标识符号。<br/>
+MogDB 5.2.0版本中，可以通过参数配置来修改块注释的风格，可以选择保持和PG一致，也可以选择保持和ORACLE一致，达到真正的和ORACLE的注释兼容。<br/>
+截止至目前，除了MogDB有真正支持这种注释，其余所有PG/OG系国产数据库宣传的完全兼容ORACLE的注释都可以认为是不恰当的。</p>
+<h3 id="2or-和-一起用">2.or 和 (+)一起用</h3>
+<p>ORACLE风格的外关联<code>(+)</code>是所有国产数据库都会去做的一个点，所以几乎所有国产数据库都会说自家支持使用<code>(+)</code>。但实际上支持得可能并不完善，比如以下这条SQL，在ORACLE中正常执行，在openGauss中执行会报错</p>
+<pre><code class="language-sql">create table test_t (col1 number,col2 number);
+select 1 from test_t a,test_t b where a.col1=b.col1(+) and (b.col1(+)&lt;&gt;0 or b.col2(+)&lt;&gt;0);
+ERROR:  Operator "(+)" is not allowed used with "OR" together
+</code></pre>
+<p>原生PG是不支持<code>(+)</code>的，PG系的翰高支持<code>(+)</code>，但是这个用例也同样会报错</p>
+<pre><code class="language-sql">highgo=#  create table test_t (col1 numeric,col2 numeric);
+CREATE TABLE
+highgo=# select 1 from test_t a,test_t b where a.col1=b.col1(+) and (b.col1(+)&lt;&gt;0 or b.col2(+)&lt;&gt;0);
+ERROR:  syntax error at or near "&lt;&gt;"
+LINE 1: ...t a,test_t b where a.col1=b.col1(+) and (b.col1(+)&lt;&gt;0 or b.c...
+highgo=#
+</code></pre>
+<p>对于纯自研的崖山，也是不支持这个用法</p>
+<pre><code class="language-sql">SQL&gt; select 1 from test_t a,test_t b where a.col1=b.col1(+) and (b.col1(+)&lt;&gt;0 or b.col2(+)&lt;&gt;0);
+
+YAS-04904 invalid usage of (+)
+</code></pre>
+<h3 id="3join和一起用">3.join和(+)一起用</h3>
+<p>又是一个与<code>(+)</code>有关的用法，在openGauss中不支持</p>
+<pre><code class="language-sql">openGauss=# create table test_t (col1 number,col2 number);
+CREATE TABLE
+openGauss=# select 1 from test_t a join test_t b on a.col1=b.col1(+);
+ERROR:  Operator "(+)" can only be used in WhereClause of Select-Statement or Subquery.
+LINE 1: select 1 from test_t a join test_t b on a.col1=b.col1(+);
+                                                       ^
+</code></pre>
+<h3 id="4支持gbk和gb18030转换">4.支持GBK和GB18030转换</h3>
+<p>在openGauss中，有时候客户端连接数据库执行任何SQL时都会报一个错</p>
+<pre><code>DETAIL:  Conversion between GBK and GB18030 is not supported.
+</code></pre>
+<p>这是因为openGauss数据库中未内置GBK和GB18030之间的转换关系，当数据库字符集为GB18030，客户端字符集为GBK时，就会报这个错。</p>
+<pre><code class="language-sql">openGauss=# select * from pg_catalog.pg_conversion where conname like '%gb18030%';
+       conname        | connamespace | conowner | conforencoding | contoencoding |       conproc        | condefault
+----------------------+--------------+----------+----------------+---------------+----------------------+------------
+ gb18030_to_utf8      |           11 |       10 |             36 |             7 | gb18030_to_utf8      | t
+ utf8_to_gb18030      |           11 |       10 |              7 |            36 | utf8_to_gb18030      | t
+(2 rows)
+</code></pre>
+<p>目前很多开发语言其实并没有GB18030这种字符集，有时候是仍然叫GBK字符集，但实际已经根据GB18030进行了扩充，所以这个错会经常遇到，需要额外手动设置数据库连接上的客户端字符集才能避免这个报错。</p>
+<h3 id="5支持部分关键字作为列名">5.支持部分关键字作为列名</h3>
+<ul>
+<li>tid<br/>
+tid是openGauss的数据类型名称，同时也是列存表的一个隐藏字段名，因此无法作为普通的列名使用，但是有很多应用系统中，使用tid表示事务id。</li>
+<li>authid<br/>
+authid出现在创建存储过程时的authid definer /authid current_user，很多应用系统中使用authid表示授权id。</li>
+<li>position<br/>
+position是一个内置函数，有些应用系统中用position表示职务。</li>
+<li>timestamp<br/>
+timestamp是一个数据类型，同时也会用在函数名的位置，有些应用系统中表示记录时间</li>
+<li>offset<br/>
+offset一般用在分页语句中，有些应用系统中表示一个计算逻辑的偏移量</li>
+</ul>
+<p>以上不仅支持在建表时作为字段名，在查询列表、条件列表中也可以使用，也可以作为函数的参数名称</p>
+<pre><code class="language-sql">create table test_t1(authid int,position int,timestamp int,offset int);
+</code></pre>
+<p>以上几个关键字，在openGauss中全部都不能作为字段名；然后几乎所有PG/OG系数据库都不支持offset作为字段名</p>
+<h3 id="6支持无参函数调用时不带括号">6.支持无参函数调用时不带括号</h3>
+<p>其实这个点看似简单，但很可能没做全，随便列举几个场景</p>
+<pre><code class="language-sql">select funcname;
+select schemaname.funcname;
+select packagename.funcname;
+select schemaname.packagename.funcname;
+select synonymname;
+select 1 from dual where funcname=1;
+select objectname.funcname;
+select nesttable(1).funcname;
+select cursorname.nesttable(1).funcname;
+declare 
+x int:=funcname;
+begin 
+ null;
+end;
+/
+</code></pre>
+<p>另外还有所有参数都有默认值的情况，不能只看一个简单用例就认为都支持了，而且这种是用改写工具很难实现离线自动改写的，不连库就无法知道对应的语法位置是不是函数。</p>
+<h3 id="7支持多字符操作符中间有空格">7.支持多字符操作符中间有空格</h3>
+<p>在使用图形化开发工具编写SQL时，自动格式化功能可能会导致多字符操作符中间自动添加空格的情况，比如</p>
+<ul>
+<li><code>&gt;=</code> 变成 <code>&gt; =</code></li>
+<li><code>&lt;=</code> 变成 <code>&lt; =</code></li>
+<li><code>&lt;&gt;</code> 变成 <code>&lt; &gt;</code></li>
+<li><code>!=</code> 变成 <code>! =</code><br/>
+上面三种在openGauss中会报错，应该可以在执行时发现；而第四种，可能不会报错，而是出现结果错误的情况，因为PG/OG系支持<code>!</code>作为阶乘操作符</li>
+</ul>
+<pre><code class="language-sql">SQL&gt; select case when 1!=1 then 'Y' else 'N' end a, case when 1! =1 then 'Y' else 'N' end b from dual;
+
+A B
+- -
+N N
+</code></pre>
+<pre><code class="language-sql">openGauss=# select case when 1!=1 then 'Y' else 'N' end a, case when 1! =1 then 'Y' else 'N' end b;
+ a | b
+---+---
+ N | Y
+(1 row)
+</code></pre>
+<p>对于同样是openGauss系的gbase 8c 和vastbase G100 V2.2,表现也不一样</p>
+<pre><code class="language-sql">gbase=# select case when 1!=1 then 'Y' else 'N' end a, case when 1! =1 then 'Y' else 'N' end b from dual;
+ a | b
+---+---
+ N | N
+(1 row)
+</code></pre>
+<pre><code class="language-sql">vastbase=# select case when 1!=1 then 'Y' else 'N' end a, case when 1! =1 then 'Y' else 'N' end b from dual;
+ a | b
+---+---
+ N | Y
+(1 行记录)
+</code></pre>
+<h3 id="8支持全角逗号括号空格">8.支持全角逗号、括号、空格</h3>
+<p>ORACLE的地区化做得相当好，其中一点就是体现在能在中文地区下支持SQL语句中的全角符号，比如逗号、括号、空格</p>
+<pre><code class="language-sql">select 　count(1) from （select 1,2，3 from dual）;
+</code></pre>
+<p>为了避免文章发出来有字符串被自动替换的问题，可以用以下方式得到此条SQL的原始文本</p>
+<pre><code class="language-sql">select utl_raw.cast_to_varchar2('73656C65637420A1A1636F756E742831292066726F6D20A3A873656C65637420312C32A3AC332066726F6D206475616CA3A9') s from dual;
+</code></pre>
+<h3 id="9支持plsql的if表达式中case-when-不用加括号">9.支持PLSQL的if表达式中，case when 不用加括号</h3>
+<pre><code class="language-sql">declare
+x varchar2(1);
+begin
+ if x=case when 1=1 then 'a' else 'b' end then
+ null;
+end if;
+end;
+</code></pre>
+<h3 id="10支持insert-into-的表不带as使用别名">10.支持insert into 的表，不带as使用别名</h3>
+<p>openGauss和原生PG，其实都是支持在insert into的表上使用表别名的，但是必须要加上<code>as</code></p>
+<pre><code class="language-sql">create table test_t2 (a int);
+insert into test_t2 t values (1);
+insert into test_t2 t(a) values (1);
+insert into test_t2 t select 1 from dual;
+</code></pre>
+<h3 id="11支持nologging在不带as的情况下作为insert-into-的表别名">11.支持<code>nologging</code>在不带as的情况下作为insert into 的表别名</h3>
+<pre><code class="language-sql">insert into test_t2 nologging select 1 from dual;
+</code></pre>
+<p>在ORACLE语法中，此条语句的<code>nologging</code>是处于表的别名位置，但是网上有很多非官方教程，说这种方法可以加快插入速度，于是有些开发者就直接这么用了，而实际上此处放nologging是起不到加速插入的作用的。nologging的正确用法应该是，非forcelogging的情况下，将表建成nologging的表，然后插入数据时加上append的hint。<br/>
+前面一条已经说了别名，此处把nologging单列，是因为这个东西是个保留关键字，在openGauss中一般情况下是不能作为表别名使用的。</p>
+<h3 id="12支持包头和包体deterministic声明不一致">12.支持包头和包体deterministic声明不一致</h3>
+<p>在openGauss中，deterministic其实没有实际意义，但是MogDB将deterministic等价转换成了immutable，以此来确保能达到ORACLE中一致的效果。<br/>
+但是在某些项目中，发现有些应用的package，存在一种情况，就是对应函数在package头中有deterministic，但package body中没有，而openGauss在创建package body时，严格要求 <code>as|is</code>之前的内容都完全一致，不一致则会报错，这和ORACLE规则并不相同。</p>
+<pre><code class="language-sql">create package test_pkg is
+function f1 return int deterministic;
+end;
+/
+create package body test_pkg is
+function f1 return int is
+begin
+return 1;
+end;
+end;
+/
+SELECT provolatile FROM PG_PROC WHERE PRONAME='f1';
+</code></pre>
+<h3 id="13创建索引时支持索引名和表名一致">13.创建索引时支持索引名和表名一致</h3>
+<p>在PG/OG系数据库，表和索引都属于relation，是pg_class里的对象，同一个schema下的表和索引不能重名；而在ORACLE中，表和索引是在不同的命名空间(dba_objects.namespace)下，因此可以重名。于是ORACLE的应用迁移到PG/OG系数据库，经常就会出现创建索引报错</p>
+<pre><code class="language-sql">gaussdb=# create table test_t3(a int);
+CREATE TABLE
+gaussdb=# create index test_t3 on test_t3(a);
+ERROR:  relation "test_t3" already exists
+</code></pre>
+<p>想要让索引创建成功，要么让索引名和表名不一样，要么让数据库内核重构索引的逻辑。但后者对于基于PG/OG开发的数据库而言，明显不太现实。那么既然肯定得改索引名称了，让数据库内核多做一步，自动改名创建，似乎并没有什么难度，这样能减少ORACLE脚本在国产库执行时出现中断或报错的概率。于是MogDB5.2.0版本中对于创建索引和表名重名的，会自动给索引加上列名和<code>idx</code>后缀。</p>
+<h3 id="14创建约束时支持约束名和表名一致">14.创建约束时支持约束名和表名一致</h3>
+<p>这个问题其实和上面是类似的，不过建表语句中是可以直接就带上约束的，根据事务一致性，PG/OG系数据库对于以下语句，建好表后自动建约束会报错，然后回滚，表也没建进去</p>
+<pre><code class="language-sql">gaussdb=# create table test_t4 (
+gaussdb(# a int not null,
+gaussdb(# Constraint test_t4 Primary Key (a));
+NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "test_t4" for table "test_t4"
+ERROR:  relation "test_t4" already exists
+gaussdb=# select * from test_t4;
+ERROR:  relation "test_t4" does not exist on primary
+LINE 1: select * from test_t4;
+</code></pre>
+<p>MogDB 5.2.0在约束和表重名的情况下，会自动对约束进行重命名，加上<code>_const_</code>前缀</p>
+<h3 id="15支持一批oracle授权语法">15.支持一批ORACLE授权语法</h3>
+<p>举例来说，原本在oracle中，将一个package授权给另外一个用户，语句像下面这样</p>
+<pre><code class="language-sql">grant all on package_name to user_name;
+</code></pre>
+<p>但是对于PG/OG系数据库，则必须指定需要授权的对应是什么类型，如下</p>
+<pre><code class="language-sql">grant all on package package_name to user_name;
+</code></pre>
+<p>这是因为在PG/OG系数据库中，属于不同元数据字典表中的对象，是可以重名的，比如函数名就可以和表名一致，package名也可以和表名一致，因此按照ORACLE的语句去执行，会出现歧义。<br/>
+但既然是从ORACLE迁移过来的对象，出现歧义的概率并不大，数据库完全可以实现自己去找它是什么对象。</p>
+<p>于是根据实际遇到的项目，MogDB 5.2.0新增支持了一批ORACLE授权命令</p>
+<pre><code class="language-sql">grant all on {[schema_name.]package_name} to {username};
+GRANT EXECUTE ON {package_name}|{schema_name} TO {username};
+grant all on [schema_name.]type_name to username ;
+GRANT CONNECT,RESOURCE TO {username};
+GRANT CREATE TABLE TO {username};
+GRANT CREATE VIEW TO {username};
+GRANT CREATE SEQUENCE TO {username};
+GRANT CREATE PROCEDURE TO {username};
+grant create database link  to {username};
+grant create synonym  to {username};
+ALTER USER {username} QUOTA UNLIMITED ON {tablespacename};
+</code></pre>
+<p>对于以上授权语句，其实有些在PG/OG系并无意义。对于有相应授权规则的，MogDB在内核层自动转换；对于没有对应功能的，MogDB仅作语法支持。以此确保在ORACLE上能执行的脚本在MogDB上不做修改也能成功执行，且最终期望效果一致。</p>
+<h3 id="16procedure有游标类型出参在autocommit为on的情况下也能获取游标内的数据">16.PROCEDURE有游标类型出参，在autocommit为on的情况下也能获取游标内的数据</h3>
+<p>在原生PG/OG中，默认的游标是不能跨事务的，但很多java应用都是使用框架进行开发，默认为自动提交。因此应用执行存储过程后会自动进行提交，此时如果存储过程出参是个游标类型的参数，那么java应用中将无法获取这个游标内的内容，报错游标不存在。<br/>
+如果把应用改成非自动提交，那么有非常多的地方需要手动再加上commit;一些复杂的事务逻辑控制业务也可能得进行重构;对于使用了开发框架的事务传播特性的，将更麻烦。</p>
+<pre><code class="language-sql">gaussdb=# create procedure test_p2(o out sys_refcursor) is
+gaussdb$# begin
+gaussdb$# open o for select 1 a;
+gaussdb$# end;
+gaussdb$# /
+CREATE PROCEDURE
+gaussdb=# call test_p2(null);
+         o
+--------------------
+ &lt;unnamed portal 1&gt;
+(1 row)
+
+gaussdb=# fetch "&lt;unnamed portal 1&gt;";
+ERROR:  cursor "&lt;unnamed portal 1&gt;" does not exist
+gaussdb=#
+</code></pre>
+<p>原生PG/OG其实支持一种跨事务的游标，即在游标属性里加上hold，但需要改代码，而且ORACLE不支持hold语法。<br/>
+MogDB 5.2.0版本中，通过开启数据库参数，能在存储过程出参的游标返回到主事务时自动hold，这样ORACLE的应用就不需要做修改了。</p>
+<pre><code class="language-sql">MogDB=# show enable_plsql_return_hold_cursor ;
+ enable_plsql_return_hold_cursor
+---------------------------------
+ on
+(1 row)
+MogDB=# create procedure test_p2(o out sys_refcursor) is
+MogDB$# begin
+MogDB$# open o for select 1 a;
+MogDB$# end;
+MogDB$# /
+CREATE PROCEDURE
+MogDB=# call test_p2(null);
+         o
+--------------------
+ &lt;unnamed portal 1&gt;
+(1 row)
+
+MogDB=# fetch "&lt;unnamed portal 1&gt;";
+ a
+---
+ 1
+(1 row)
+</code></pre>
+<h3 id="17支持创建用户时密码不需要强制加引号">17.支持创建用户时，密码不需要强制加引号</h3>
+<p>ORACLE创建用户时，密码是不需要加引号的，但是openGauss中则必须要加引号，导致用户创建语句无法完全兼容ORACLE</p>
+<pre><code class="language-sql">openGauss=# CREATE USER TEST IDENTIFIED BY TEST;
+ERROR:  Password must be quoted
+</code></pre>
+<p>MogDB 5.2.0则取消了这一限制，不过需要注意，在没有加引号时，该sql会自动转换为小写执行，因此密码也会变成小写，如果后续该密码需要同时支持使用大写登录，则需要结合另一个功能，即支持用户名密码忽略大小写</p>
+<h3 id="18to_date函数的第一个参数支持有多余的空格">18.to_date函数的第一个参数支持有多余的空格</h3>
+<p>在openGauss 5.0以及之前的版本，to_date函数的一个参数必须要求和第二个参数格式一致，连一个空格都不能多，否则会出现如下报错</p>
+<pre><code class="language-sql">vastbase=# select to_date('202401  ','yyyymm');
+ERROR:  invalid data for match  in date string
+背景:  referenced column: to_date
+</code></pre>
+<p>但这个场景在原生PG中却不会报错，所以这个问题即可以当成BUG也可以当成差异。openGauss 6.0.0版本和MogDB 5.2.0版本同时优化了此场景，让其不会报错。<br/>
+可能有人觉得，这个删掉空格就行了，但实际上这个问题比想象中还要复杂，因为当时发现这个问题是在存储过程中，to_date两个参数都是变量，第一个参数使用了subtype char(8)，第二个参数的格式会变，几百万行的存储过程去搜to_date，能搜到非常多个，无法直接定位出哪些地方要改。全部加上rtrim也会导致代码有很多差异</p>
+<h3 id="19子查询引用的表的别名和子查询外的表别名相同时子查询内的join条件别名引用可自动判断取哪个表">19.子查询引用的表的别名和子查询外的表别名相同时，子查询内的join条件别名引用可自动判断取哪个表</h3>
+<pre><code class="language-sql">with 
+t1 as (select 1 a ,2 b from dual),
+t2 as (select 2 a ,2 c from dual)
+  SELECT *
+     FROM t1 T
+      WHERE   EXISTS(
+       SELECT 1
+      FROM t2 t
+      WHERE t.a = 2 and t.b=t.c);
+</code></pre>
+<p>以上SQL，在 exists的外面和里面，均有一个t表，子查询内的t.a指的是t2.a，而子查询内的t.b，由于t2没有b，就可以找外面的t1，逻辑上没有任何问题。但openGauss 5.0版本中，该SQL会报错t.b不存在，因为出现了重复的t，里面的t的字段把外面t的字段覆盖掉了。在openGauss 6.0中已经修复掉了这个问题，但其余PG系数据库，比如kingbase/highgo仍旧会报错</p>
+<pre><code class="language-sql">kingbase=# with
+kingbase-# t1 as (select 1 a ,2 b from dual),
+kingbase-# t2 as (select 2 a ,2 c from dual)
+kingbase-#   SELECT *
+kingbase-#      FROM t1 T
+kingbase-#       WHERE   EXISTS(
+kingbase(#        SELECT 1
+kingbase(#       FROM t2 t
+kingbase(#       WHERE t.a = 2 and t.b=t.c);
+kingbase-# /
+ERROR:  column t.b does not exist
+LINE 9:       WHERE t.a = 2 and t.b=t.c);
+                                ^
+HINT:  There is a column named "b" in table "t", but it cannot be referenced from this part of the query.
+kingbase=#
+</code></pre>
+<h3 id="20支持嵌套聚合函数506">20.支持嵌套聚合函数（5.0.6）</h3>
+<p>这个特性已经在MogDB 5.0.6版本中释放，但的确是在MogDB 5.2.0版本上先做的，可以参考我之前的一篇文章<br/>
+<a href="https://www.darkathena.top/archives/mogdb506-release-compatible-update#%E4%B8%89%E3%80%81%E6%94%AF%E6%8C%81%E8%81%9A%E9%9B%86%E5%87%BD%E6%95%B0%E8%BF%9B%E8%A1%8C%E5%B5%8C%E5%A5%97%E4%BD%BF%E7%94%A8">【MogDB】解读MogDB5.0.6版本中有关兼容性的一些更新</a></p>
+<pre><code class="language-sql"> select max(count(1)) from dual group by dummy;
+</code></pre>
+<pre><code class="language-sql"> openGauss=# select max(count(1)) from sys_dummy group by dummy;
+ERROR:  aggregate function calls cannot be nested
+LINE 1: select max(count(1)) from sys_dummy group by dummy;
+                   ^
+CONTEXT:  referenced column: max
+</code></pre>
+<p>PG/OG系数据库不支持嵌套聚合，这个我是可以理解的，因为这个报错就是在原生PG的代码里判断的，但是这里yashan也出现了报错</p>
+<pre><code class="language-sql">SQL&gt; select max(count(1)) from dual group by dummy;
+
+[1:12]YAS-04317 aggregate function cannot be nested
+</code></pre>
+<h3 id="21支持order-by-常量-506">21.支持order by 常量 (5.0.6)</h3>
+<p>这个特性同样也是在MogDB 5.0.6版本中推出的，主要是由于框架式开发所生成的SQL会自动拼上一些没什么意义的内容，而PG/OG系对于SQL要求非常严格，不允许这种操作</p>
+<pre><code class="language-sql">select 1 from dual order by null;
+select 1 from dual order by 'a';
+</code></pre>
+<h3 id="22较短的char变量接收较长的char值时自动截掉超长的空格">22.较短的char变量接收较长的char值时，自动截掉超长的空格</h3>
+<p>oracle中的char类型是个非常特殊的类型，但绝大多数SQL开发人员都没有彻底理解这个类型的相关特性，char类型的特性可以参考我这篇文章<a href="https://www.darkathena.top/archives/oracle_char_type">【ORACLE】对Oracle中char类型的研究分析</a></p>
+<p>在原生PG中，char类型和其他字符串类型比较时，会发生隐式转换，并且自动截掉右空格，但是ORACLE中则不会，因此openGauss中加了一个兼容选项char_coerce_compat，用于控制这个规则，以兼容ORACLE行为。但是开启这个参数后，下面这两个场景的执行结果又和ORACLE不一致了。</p>
+<pre><code class="language-sql">gaussdb=# set behavior_compat_options='char_coerce_compat';
+SET
+gaussdb=# declare
+gaussdb-# l_cur  sys_refcursor;
+gaussdb-# x  char(8);
+gaussdb-# begin
+gaussdb$#  open l_cur for select cast('12345' as char(30)) product_id ;
+gaussdb$#  loop
+gaussdb$#  fetch l_cur into x;
+gaussdb$#  exit when l_cur%notfound;
+gaussdb$#  end loop;
+gaussdb$# end;
+gaussdb$# /
+ERROR:  value too long for type character(8)
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at FETCH
+gaussdb=# create table test_t6(a nvarchar2(1));
+CREATE TABLE
+gaussdb=# insert into test_t6 values ('啊');
+ERROR:  value too long for type nvarchar2(1)
+CONTEXT:  referenced column: a
+gaussdb=#
+</code></pre>
+<h3 id="23优化create-type-schema_nametype_name-is-table-of-type_name中后一个type的schema查找逻辑">23.优化create type schema_name.type_name is table of type_name中，后一个type的schema查找逻辑</h3>
+<p>按照ORACLE的语意，create 一个对象时，指定了对象的schema，则该对象内部所有的引用，都应该从这个schema或public获取。<br/>
+但是PG系数据库，则与search_path有关，这里就出现了这两个type可能在不同的schema下，或者由于找不到后一个type而报错。</p>
+<pre><code class="language-sql">kingbase=# create schema TEST_SCHEMA;
+kingbase-# create type test_schema.test_type is object (a int);
+kingbase-# create type test_schema.test_type_tb is table of test_type;
+kingbase-# /
+CREATE SCHEMA
+CREATE TYPE
+ERROR:  type "test_type" does not exist
+</code></pre>
+<p>虽然openGauss已经把create package/procedure/function的search_path限制到了该对象所属的schema，但是type在PG/OG系中并不属于plsql对象，所以几乎都没有去做这个逻辑的额外处理。</p>
+<pre><code class="language-sql">openGauss=# create schema TEST_SCHEMA;
+CREATE SCHEMA
+openGauss=# create type test_schema.test_type is  (a int);
+CREATE TYPE
+openGauss=# create type test_schema.test_type_tb is table of test_type;
+ERROR:  type "test_type" does not exist
+</code></pre>
+<h3 id="24listagg可以省略within-group子句">24.listagg可以省略within group子句</h3>
+<p>listagg是一个聚合函数，用于将一个列聚合成一个字符串。而省略<code>within group</code>子句这个特性是ORACLE 18c引入的，因为有时候并不需要做排序，这样处理速度能更快。虽然openGauss支持listagg，但是用法和oracle 11g中一样，必须加within group子句</p>
+<pre><code class="language-sql">openGauss=# select LISTAGG(1,',') from dual;
+ERROR:  missing WITHIN keyword.
+LINE 1: select LISTAGG(1,',') from dual;
+</code></pre>
+<h2 id="三部分国产库支持情况对比">三、部分国产库支持情况对比</h2>
+<table><thead><tr><th>数据库\特性编号</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th><th>16</th><th>17</th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th><th>23</th><th>24</th><th>支持百分比</th></tr></thead><tbody><tr><td>DM8</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100.00%</td></tr><tr><td>崖山 23.2.4</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>79.17%</td></tr><tr><td>KINGBASE 8</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>58.33%</td></tr><tr><td>OCEANBASE 4.1</td><td>Y</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>OCEANBASE 4.3.3.1</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>95.83%</td></tr><tr><td>POLARDB-O 2.0</td><td>N</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>TDSQL-PG(Oracle兼容版）</td><td>N</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>UXDB</td><td>N</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>神通(openGauss版)</td><td>N</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>海盒</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td></tr><tr><td>瀚高 6.0.4</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>8.33%</td></tr><tr><td>GAUSSDB 503.1.0.SPC1700</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>0.00%</td></tr><tr><td>OPENGAUSS 6.0</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>8.33%</td></tr><tr><td>GBASE 8c</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>16.67%</td></tr><tr><td>VASTBASE G100 V2.2 BUILD 16</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>29.17%</td></tr><tr><td>MogDB 5.2.0</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100.00%</td></tr></tbody></table>
+<h2 id="四总结">四、总结</h2>
+<p>无论数据库厂家说得再好，产品的ORACLE兼容度再高，总是无可避免的由于ORACLE太过宽松的语法，原有应用迁移到国产数据库上必然会出现要修改的情况。而且随着国产化改造进入深水区，使用转换工具进行自动化改造已经无法满足客户的要求了。客户对于核心应用系统要求的是，国产库上执行的SQL、PLSQL代码和ORACLE内的保持绝对一致。可以改代码，但两边都要兼容，而且任何一行代码变更都要走评审流程。试想简单的删个空格加个括号之类的就能变更数千行代码，由客户去走代码变更流程，谁来承担其中的风险？</p>
+<p>MogDB为客户考虑，在5.2.0版本中全方位进行了优化，深到内核存储事务原理，浅到语法中一个符号，以尽可能降低ORACLE应用迁移到国产库后的代码改动量，甚至在部分复杂的存储过程的应用上能实现真正的代码0变动。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

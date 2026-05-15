@@ -155,7 +155,353 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E8%83%8C%E6%99%AF" tabindex="-1">背景</h2>
+<p>openGauss 2.1.0版本,新增package类型的对象,可以像oracle一样创建package,参考此篇文章<br/>
+<a href="https://www.modb.pro/db/215771" target="_blank">《openGauss存储过程功能全面升级，支持PACKAGE,PLDEBUGGER等诸多新特性》</a></p>
+<p>然而当你在自己的openGauss数据库中,运行此篇文章中创建package的命令,如下:</p>
+<pre><code class="language-sql">CREATE OR REPLACE PACKAGE PCK1 --包头，在包头内声明的变量存储过程等都为公有的，可以被外部访问
+IS
+public_var1 int:=1; --在包头声明的公有变量public_var1，可以被外部访问
+procedure public_proc1(col1 int,col2 int); --只在包头内声明的存储过程，因此为公有的，可以被外部访问。
+END PCK1;
+/
+</code></pre>
+<p>极有可能会收到一条报错信息<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png" srcset="/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1200 1200w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=400 400w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1600 1600w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=800 800w"/></p>
+<p>这是因为,你安装数据库的时候,可能没有配置此参数 “–dbcompatibility”,或者此参数不是配置的"A",而是默认的"PG"。</p>
+<p>根据官方文档介绍<a href="https://opengauss.org/zh/docs/1.0.1/docs/Developerguide/CREATE-DATABASE.html" target="_blank">CREATE DATABASE</a></p>
+<blockquote>
+<p>DBCOMPATIBILITY [ = ] compatibilty_type<br/>
+指定兼容的数据库的类型。<br/>
+取值范围：A、B、C、PG。分别表示兼容O、MY、TD和POSTGRES。</p>
+</blockquote>
+<p>我本地的第一个openGauss数据库使用的是官方的docker镜像,在<a href="https://github.com/enmotech/enmotech-docker-opengauss" target="_blank">github</a>上查看它的docker构建脚本,可以发现它直接配置成了PG,而且没有作为docker容器的运行参数放出来。</p>
+<pre><code class="language-bash">if [ -n "$GS_NODENAME" ]; then
+                eval 'gs_initdb --pwfile=&lt;(echo "$GS_PASSWORD") --nodename=$GS_NODENAME --encoding=UTF-8 --locale=en_US.UTF-8 --dbcompatibility=PG -D $PGDATA'
+        else
+                eval 'gs_initdb --pwfile=&lt;(echo "$GS_PASSWORD") --nodename=gaussdb --encoding=UTF-8 --locale=en_US.UTF-8 --dbcompatibility=PG -D $PGDATA'
+        fi  
+</code></pre>
+<p>所以如果要使用一个支持创建create package的openGauss的docker容器,必须修改这个构建脚本,再自行构建一个docker镜像。</p>
+<p>下面以X86的数据库为例开始说明操作步骤</p>
+<h2 id="%E6%89%A7%E8%A1%8C%E6%9E%84%E5%BB%BA%E7%9A%84%E6%AD%A5%E9%AA%A4" tabindex="-1">执行构建的步骤</h2>
+<ol>
+<li>准备一台已经安装好docker的linux服务器,而且是有外网的</li>
+<li>下载仓库并解压<a href="https://github.com/enmotech/enmotech-docker-opengauss/archive/refs/heads/master.zip" target="_blank">enmotech-docker-opengauss</a><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png" srcset="/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1200 1200w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=400 400w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1600 1600w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=800 800w"/></li>
+<li>编辑entrypoint.sh文件,将所有的"–dbcompatibility=PG"替换成"–dbcompatibility=A",保存<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png" srcset="/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1200 1200w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=400 400w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1600 1600w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=800 800w"/></li>
+<li>下载数据库安装包<a href="https://opengauss.obs.cn-south-1.myhuaweicloud.com/2.1.0/x86/openGauss-2.1.0-CentOS-64bit.tar.bz2" target="_blank">openGauss-2.1.0-CentOS-64bit.tar.bz2</a>,放到仓库目录的2.1.0文件夹下</li>
+<li>修改docker环境的DNS并重启docker服务(防止apt-get失败),下面为此步的操作方式(<a href="https://www.cnblogs.com/wdp-home/p/12213771.html" target="_blank">参考</a>):</li>
+</ol>
+<pre><code class="language-bash">vi /etc/docker/daemon.json
+</code></pre>
+<p>将以下内容保存进daemon.json文件内<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png" srcset="/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1200 1200w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=400 400w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1600 1600w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=800 800w"/></p>
+<pre><code class="language-json">{   
+  "dns": ["8.8.8.8", "114.114.114.114"]    
+}
+</code></pre>
+<ol start="6">
+<li>在2.1.0目录新增一个sources.list文件,添加阿里云的apt源(防止官方源连不上),文件内容为<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png" srcset="/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1200 1200w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=400 400w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1600 1600w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=800 800w"/></li>
+</ol>
+<pre><code class="language-">deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multivers
+deb http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
+</code></pre>
+<ol start="7">
+<li>修改dockerfile_amd文件,在"COPY Oracle_Views_1.0.0.sql /tmp"下添加一行"COPY sources.list  /etc/apt/"<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png" srcset="/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1200 1200w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=400 400w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1600 1600w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=800 800w"/></li>
+<li>授权buildDockerImage.sh为可执行"chmod 777 <a href="http://buildDockerImage.sh" target="_blank">buildDockerImage.sh</a>"</li>
+<li><a href="http://xn--buildDockerImage-np69bqx3e.sh" target="_blank">运行buildDockerImage.sh</a> “./buildDockerImage.sh  -v 2.1.0”</li>
+<li>构建成功,运行容器</li>
+</ol>
+<pre><code class="language-bash">docker run --name opengauss --privileged=true -d -e GS_PASSWORD=Enmo@123 -p 5432:5432 opengauss:2.1.0
+</code></pre>
+<p>以下为构建时输出的信息以及最后运行容器成功的信息</p>
+<pre><code class="language-bash">[root@MiWiFi-R3G-srv enmotech-docker-opengauss-master]# ./buildDockerImage.sh -v 2.1.0
+Checking Docker version.
+Checking if required packages are present and valid...
+openGauss-2.1.0-CentOS-64bit.tar.bz2: 成功
+==========================
+DOCKER info:
+Client:
+ Context:    default
+ Debug Mode: false
+ Plugins:
+  app: Docker App (Docker Inc., v0.9.1-beta3)
+  buildx: Build with BuildKit (Docker Inc., v0.6.3-docker)
+  scan: Docker Scan (Docker Inc., v0.9.0)
+
+Server:
+ Containers: 0
+  Running: 0
+  Paused: 0
+  Stopped: 0
+ Images: 88
+ Server Version: 20.10.10
+ Storage Driver: overlay2
+  Backing Filesystem: xfs
+  Supports d_type: true
+  Native Overlay Diff: false
+  userxattr: false
+ Logging Driver: json-file
+ Cgroup Driver: cgroupfs
+ Cgroup Version: 1
+ Plugins:
+  Volume: local
+  Network: bridge host ipvlan macvlan null overlay
+  Log: awslogs fluentd gcplogs gelf journald json-file local logentries splunk syslog
+ Swarm: inactive
+ Runtimes: io.containerd.runc.v2 io.containerd.runtime.v1.linux runc
+ Default Runtime: runc
+ Init Binary: docker-init
+ containerd version: 5b46e404f6b9f661a205e28d59c982d3634148f8
+ runc version: v1.0.2-0-g52b36a2
+ init version: de40ad0
+ Security Options:
+  seccomp
+   Profile: default
+ Kernel Version: 5.4.17-2102.201.3.el8uek.x86_64
+ Operating System: Oracle Linux Server 8.4
+ OSType: linux
+ Architecture: x86_64
+ CPUs: 2
+ Total Memory: 1.658GiB
+ Name: MiWiFi-R3G-srv
+ ID: RPPF:B6GN:7V7V:JHO3:EGJP:UL6S:P245:OP3W:ZWA5:FFN2:KPGP:EPJX
+ Docker Root Dir: /var/lib/docker
+ Debug Mode: false
+ Registry: https://index.docker.io/v1/
+ Labels:
+ Experimental: false
+ Insecure Registries:
+  127.0.0.0/8
+ Live Restore Enabled: false
+
+==========================
+Building image 'opengauss:2.1.0' ...
+Sending build context to Docker daemon  92.93MB
+Step 1/18 : FROM ubuntu:18.04
+ ---&gt; 886eca19e611
+Step 2/18 : ADD  openGauss-2.1.0-CentOS-64bit.tar.bz2 /usr/local/opengauss
+ ---&gt; 4c90a6a44199
+Step 3/18 : COPY gosu-amd64 /usr/local/bin/gosu
+ ---&gt; 33d1c096fba6
+Step 4/18 : COPY wal2json.so /tmp
+ ---&gt; 95f10e5c049f
+Step 5/18 : COPY Oracle_Functions_1.0.0.sql /tmp
+ ---&gt; 45c710d2da6f
+Step 6/18 : COPY Oracle_Views_1.0.0.sql /tmp
+ ---&gt; d42d1810e1c2
+Step 7/18 : COPY sources.list  /etc/apt/
+ ---&gt; 574e4cdef3ee
+Step 8/18 : ENV LANG en_US.utf8
+ ---&gt; Running in c0759aad881f
+Removing intermediate container c0759aad881f
+ ---&gt; d373dcebb6a5
+Step 9/18 : RUN set -eux;     apt-get update &amp;&amp; apt-get install -y     libaio-dev     libkeyutils-dev     locales     libreadline-dev &amp;&amp;     rm -rf /var/lib/apt/lists/*;     ln -s /lib/x86_64-linux-gnu/libreadline.so.7 /lib/x86_64-linux-gnu/libreadline.so.6;     groupadd -g 70 omm;      useradd -u 70 -g omm -m -s /bin/bash omm;      mkdir -p /var/lib/opengauss &amp;&amp;     mkdir -p /usr/local/opengauss &amp;&amp;     mkdir -p /var/run/opengauss  &amp;&amp;     mkdir /docker-entrypoint-initdb.d &amp;&amp;     chown omm:omm /var/lib/opengauss /home/omm /var/run/opengauss /docker-entrypoint-initdb.d &amp;&amp;     cp /tmp/wal2json.so /usr/local/opengauss &amp;&amp;     locale-gen en_US.UTF-8
+ ---&gt; Running in 77ba21ff8344
++ apt-get update
+Get:1 http://mirrors.aliyun.com/ubuntu bionic InRelease [242 kB]
+Get:2 http://mirrors.aliyun.com/ubuntu bionic-security InRelease [88.7 kB]
+Get:3 http://mirrors.aliyun.com/ubuntu bionic-updates InRelease [88.7 kB]
+Get:4 http://mirrors.aliyun.com/ubuntu bionic-backports InRelease [74.6 kB]
+Get:5 http://mirrors.aliyun.com/ubuntu bionic-proposed InRelease [242 kB]
+Get:6 http://mirrors.aliyun.com/ubuntu bionic/multiverse Sources [216 kB]
+Get:7 http://mirrors.aliyun.com/ubuntu bionic/restricted Sources [5823 B]
+Get:8 http://mirrors.aliyun.com/ubuntu bionic/main Sources [1063 kB]
+Get:9 http://mirrors.aliyun.com/ubuntu bionic/universe Sources [11.5 MB]
+Get:10 http://mirrors.aliyun.com/ubuntu bionic/universe amd64 Packages [11.3 MB]
+Get:11 http://mirrors.aliyun.com/ubuntu bionic/multiverse amd64 Packages [186 kB]
+Get:12 http://mirrors.aliyun.com/ubuntu bionic/main amd64 Packages [1344 kB]
+Get:13 http://mirrors.aliyun.com/ubuntu bionic/restricted amd64 Packages [13.5 kB]
+Get:14 http://mirrors.aliyun.com/ubuntu bionic-security/universe Sources [364 kB]
+Get:15 http://mirrors.aliyun.com/ubuntu bionic-security/main Sources [327 kB]
+Get:16 http://mirrors.aliyun.com/ubuntu bionic-security/multiverse Sources [8784 B]
+Get:17 http://mirrors.aliyun.com/ubuntu bionic-security/restricted Sources [25.6 kB]
+Get:18 http://mirrors.aliyun.com/ubuntu bionic-security/main amd64 Packages [2498 kB]
+Get:19 http://mirrors.aliyun.com/ubuntu bionic-security/restricted amd64 Packages [725 kB]
+Get:20 http://mirrors.aliyun.com/ubuntu bionic-security/multiverse amd64 Packages [26.8 kB]
+Get:21 http://mirrors.aliyun.com/ubuntu bionic-security/universe amd64 Packages [1459 kB]
+Get:22 http://mirrors.aliyun.com/ubuntu bionic-updates/main Sources [651 kB]
+Get:23 http://mirrors.aliyun.com/ubuntu bionic-updates/restricted Sources [29.1 kB]
+Get:24 http://mirrors.aliyun.com/ubuntu bionic-updates/multiverse Sources [18.1 kB]
+Get:25 http://mirrors.aliyun.com/ubuntu bionic-updates/universe Sources [598 kB]
+Get:26 http://mirrors.aliyun.com/ubuntu bionic-updates/main amd64 Packages [2935 kB]
+Get:27 http://mirrors.aliyun.com/ubuntu bionic-updates/multiverse amd64 Packages [34.5 kB]
+Get:28 http://mirrors.aliyun.com/ubuntu bionic-updates/universe amd64 Packages [2238 kB]
+Get:29 http://mirrors.aliyun.com/ubuntu bionic-updates/restricted amd64 Packages [758 kB]
+Get:30 http://mirrors.aliyun.com/ubuntu bionic-backports/main Sources [5862 B]
+Get:31 http://mirrors.aliyun.com/ubuntu bionic-backports/universe Sources [7129 B]
+Get:32 http://mirrors.aliyun.com/ubuntu bionic-backports/universe amd64 Packages [12.6 kB]
+Get:33 http://mirrors.aliyun.com/ubuntu bionic-backports/main amd64 Packages [11.6 kB]
+Get:34 http://mirrors.aliyun.com/ubuntu bionic-proposed/universe Sources [6089 B]
+Get:35 http://mirrors.aliyun.com/ubuntu bionic-proposed/main Sources [81.8 kB]
+Get:36 http://mirrors.aliyun.com/ubuntu bionic-proposed/restricted Sources [5991 B]
+Get:37 http://mirrors.aliyun.com/ubuntu bionic-proposed/restricted amd64 Packages [90.5 kB]
+Get:38 http://mirrors.aliyun.com/ubuntu bionic-proposed/universe amd64 Packages [11.8 kB]
+Get:39 http://mirrors.aliyun.com/ubuntu bionic-proposed/main amd64 Packages [145 kB]
+Fetched 39.5 MB in 10s (4121 kB/s)
+Reading package lists...
+W: Skipping acquire of configured file 'multivers/source/Sources' as repository 'http://mirrors.aliyun.com/ubuntu bionic-backports InRelease' doesn't have the component 'multivers' (component misspelt in sources.list?)
++ apt-get install -y libaio-dev libkeyutils-dev locales libreadline-dev
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libaio1 libkeyutils1 libreadline7 libtinfo-dev readline-common
+Suggested packages:
+  readline-doc
+The following NEW packages will be installed:
+  libaio-dev libaio1 libkeyutils-dev libkeyutils1 libreadline-dev libreadline7
+  libtinfo-dev locales readline-common
+0 upgraded, 9 newly installed, 0 to remove and 2 not upgraded.
+Need to get 4063 kB of archives.
+After this operation, 16.3 MB of additional disk space will be used.
+Get:1 http://mirrors.aliyun.com/ubuntu bionic/main amd64 readline-common all 7.0-3 [52.9 kB]
+Get:2 http://mirrors.aliyun.com/ubuntu bionic/main amd64 libreadline7 amd64 7.0-3 [124 kB]
+Get:3 http://mirrors.aliyun.com/ubuntu bionic-updates/main amd64 locales all 2.27-3ubuntu1.4 [3611 kB]
+Get:4 http://mirrors.aliyun.com/ubuntu bionic/main amd64 libkeyutils1 amd64 1.5.9-9.2ubuntu2 [8720 B]
+Get:5 http://mirrors.aliyun.com/ubuntu bionic-updates/main amd64 libaio1 amd64 0.3.110-5ubuntu0.1 [6476 B]
+Get:6 http://mirrors.aliyun.com/ubuntu bionic-updates/main amd64 libaio-dev amd64 0.3.110-5ubuntu0.1 [12.8 kB]
+Get:7 http://mirrors.aliyun.com/ubuntu bionic/main amd64 libkeyutils-dev amd64 1.5.9-9.2ubuntu2 [32.7 kB]
+Get:8 http://mirrors.aliyun.com/ubuntu bionic-updates/main amd64 libtinfo-dev amd64 6.1-1ubuntu1.18.04 [81.3 kB]
+Get:9 http://mirrors.aliyun.com/ubuntu bionic/main amd64 libreadline-dev amd64 7.0-3 [133 kB]
+perl: warning: Setting locale failed.
+perl: warning: Please check that your locale settings:
+	LANGUAGE = (unset),
+	LC_ALL = (unset),
+	LANG = "en_US.utf8"
+    are supported and installed on your system.
+perl: warning: Falling back to the standard locale ("C").
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 4063 kB in 1s (2876 kB/s)
+Selecting previously unselected package readline-common.
+(Reading database ... 4051 files and directories currently installed.)
+Preparing to unpack .../0-readline-common_7.0-3_all.deb ...
+Unpacking readline-common (7.0-3) ...
+Selecting previously unselected package libreadline7:amd64.
+Preparing to unpack .../1-libreadline7_7.0-3_amd64.deb ...
+Unpacking libreadline7:amd64 (7.0-3) ...
+Selecting previously unselected package locales.
+Preparing to unpack .../2-locales_2.27-3ubuntu1.4_all.deb ...
+Unpacking locales (2.27-3ubuntu1.4) ...
+Selecting previously unselected package libkeyutils1:amd64.
+Preparing to unpack .../3-libkeyutils1_1.5.9-9.2ubuntu2_amd64.deb ...
+Unpacking libkeyutils1:amd64 (1.5.9-9.2ubuntu2) ...
+Selecting previously unselected package libaio1:amd64.
+Preparing to unpack .../4-libaio1_0.3.110-5ubuntu0.1_amd64.deb ...
+Unpacking libaio1:amd64 (0.3.110-5ubuntu0.1) ...
+Selecting previously unselected package libaio-dev:amd64.
+Preparing to unpack .../5-libaio-dev_0.3.110-5ubuntu0.1_amd64.deb ...
+Unpacking libaio-dev:amd64 (0.3.110-5ubuntu0.1) ...
+Selecting previously unselected package libkeyutils-dev:amd64.
+Preparing to unpack .../6-libkeyutils-dev_1.5.9-9.2ubuntu2_amd64.deb ...
+Unpacking libkeyutils-dev:amd64 (1.5.9-9.2ubuntu2) ...
+Selecting previously unselected package libtinfo-dev:amd64.
+Preparing to unpack .../7-libtinfo-dev_6.1-1ubuntu1.18.04_amd64.deb ...
+Unpacking libtinfo-dev:amd64 (6.1-1ubuntu1.18.04) ...
+Selecting previously unselected package libreadline-dev:amd64.
+Preparing to unpack .../8-libreadline-dev_7.0-3_amd64.deb ...
+Unpacking libreadline-dev:amd64 (7.0-3) ...
+Setting up readline-common (7.0-3) ...
+Setting up libreadline7:amd64 (7.0-3) ...
+Setting up libtinfo-dev:amd64 (6.1-1ubuntu1.18.04) ...
+Setting up libaio1:amd64 (0.3.110-5ubuntu0.1) ...
+Setting up libreadline-dev:amd64 (7.0-3) ...
+Setting up libaio-dev:amd64 (0.3.110-5ubuntu0.1) ...
+Setting up libkeyutils1:amd64 (1.5.9-9.2ubuntu2) ...
+Setting up locales (2.27-3ubuntu1.4) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.26.1 /usr/local/share/perl/5.26.1 /usr/lib/x86_64-linux-gnu/perl5/5.26 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl/5.26 /usr/share/perl/5.26 /usr/local/lib/site_perl /usr/lib/x86_64-linux-gnu/perl-base) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+debconf: falling back to frontend: Teletype
+Generating locales (this might take a while)...
+Generation complete.
+Setting up libkeyutils-dev:amd64 (1.5.9-9.2ubuntu2) ...
+Processing triggers for libc-bin (2.27-3ubuntu1.4) ...
++ rm -rf /var/lib/apt/lists/auxfiles /var/lib/apt/lists/lock /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-backports_InRelease /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-backports_main_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-backports_main_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-backports_universe_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-backports_universe_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_InRelease /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_main_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_main_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_restricted_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_restricted_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_universe_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-proposed_universe_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_InRelease /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_main_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_main_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_multiverse_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_multiverse_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_restricted_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_restricted_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_universe_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-security_universe_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_InRelease /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_main_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_main_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_multiverse_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_multiverse_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_restricted_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_restricted_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_universe_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic-updates_universe_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_InRelease /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_main_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_main_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_multiverse_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_multiverse_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_restricted_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_restricted_source_Sources.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_universe_binary-amd64_Packages.lz4 /var/lib/apt/lists/mirrors.aliyun.com_ubuntu_dists_bionic_universe_source_Sources.lz4 /var/lib/apt/lists/partial
++ ln -s /lib/x86_64-linux-gnu/libreadline.so.7 /lib/x86_64-linux-gnu/libreadline.so.6
++ groupadd -g 70 omm
++ useradd -u 70 -g omm -m -s /bin/bash omm
++ mkdir -p /var/lib/opengauss
++ mkdir -p /usr/local/opengauss
++ mkdir -p /var/run/opengauss
++ mkdir /docker-entrypoint-initdb.d
++ chown omm:omm /var/lib/opengauss /home/omm /var/run/opengauss /docker-entrypoint-initdb.d
++ cp /tmp/wal2json.so /usr/local/opengauss
++ locale-gen en_US.UTF-8
+Generating locales (this might take a while)...
+  en_US.UTF-8... done
+Generation complete.
+Removing intermediate container 77ba21ff8344
+ ---&gt; ad008238d4ab
+Step 10/18 : RUN set -eux;     echo "export GAUSSHOME=/usr/local/opengauss"  &gt;&gt; /home/omm/.bashrc &amp;&amp;     echo "export PATH=\$GAUSSHOME/bin:\$PATH " &gt;&gt; /home/omm/.bashrc &amp;&amp;     echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$LD_LIBRARY_PATH" &gt;&gt; /home/omm/.bashrc
+ ---&gt; Running in 6d46aed37d5a
++ echo export GAUSSHOME=/usr/local/opengauss
++ echo export PATH=$GAUSSHOME/bin:$PATH 
++ echo export LD_LIBRARY_PATH=$GAUSSHOME/lib:$LD_LIBRARY_PATH
+Removing intermediate container 6d46aed37d5a
+ ---&gt; 4ec58ad2af9e
+Step 11/18 : ENV GOSU_VERSION 1.12
+ ---&gt; Running in 44cdb8c81bad
+Removing intermediate container 44cdb8c81bad
+ ---&gt; 31f8cc13249a
+Step 12/18 : RUN set -eux;      chmod +x /usr/local/bin/gosu
+ ---&gt; Running in ee7e959d4246
++ chmod +x /usr/local/bin/gosu
+Removing intermediate container ee7e959d4246
+ ---&gt; 60a3dd36de34
+Step 13/18 : ENV PGDATA /var/lib/opengauss/data
+ ---&gt; Running in 0a5d6175aad3
+Removing intermediate container 0a5d6175aad3
+ ---&gt; c96560adf128
+Step 14/18 : COPY entrypoint.sh /usr/local/bin/
+ ---&gt; d72580c47ccf
+Step 15/18 : RUN chmod 755 /usr/local/bin/entrypoint.sh;ln -s /usr/local/bin/entrypoint.sh / # backwards compat
+ ---&gt; Running in 2c949e9a2238
+Removing intermediate container 2c949e9a2238
+ ---&gt; ba177b514119
+Step 16/18 : ENTRYPOINT ["entrypoint.sh"]
+ ---&gt; Running in 5568219e62d9
+Removing intermediate container 5568219e62d9
+ ---&gt; 2b9340c89e01
+Step 17/18 : EXPOSE 5432
+ ---&gt; Running in e379d23ecdfe
+Removing intermediate container e379d23ecdfe
+ ---&gt; 923629bf1a81
+Step 18/18 : CMD ["gaussdb"]
+ ---&gt; Running in ee5464e3c84d
+Removing intermediate container ee5464e3c84d
+ ---&gt; a1ca1f12b2a1
+Successfully built a1ca1f12b2a1
+Successfully tagged opengauss:2.1.0
+
+
+  openGauss Docker Image  2.1.0 is ready to be extended: 
+    
+    --&gt; opengauss:2.1.0
+
+  Build completed in 57 seconds.
+  
+[root@MiWiFi-R3G-srv enmotech-docker-opengauss-master]# docker run --name opengauss --privileged=true -d -e GS_PASSWORD=Enmo@123 -p 5432:5432 opengauss:2.1.0
+bb0b26897c8d5f90ba9b3fec0c962452599f76f42a3eafa31090b8236ae2ff38
+[root@MiWiFi-R3G-srv enmotech-docker-opengauss-master]# 
+</code></pre>
+<p>最后让我们连上这个数据库,运行一下最开始报错的那段代码<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png" srcset="/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1200 1200w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=400 400w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1600 1600w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=800 800w"/></p>
+<p>打完收工。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

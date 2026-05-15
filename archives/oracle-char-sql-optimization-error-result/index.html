@@ -155,7 +155,194 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>起初是墨天轮上有人提了这个问题：<a href="https://www.modb.pro/issue/36612">oracle中char关联问题</a><br/>
+由于我之前研究过ORACLE的char类型是怎么回事(<a href="https://www.darkathena.top/archives/oracle_char_type">【ORACLE】对Oracle中char类型的研究分析</a>)，就用之前分析的经验看了下，的确是可以解释出这个结果是怎么来的。但是当我把这个场景稍作修改似乎却得出了相反的结论，于是又仔细分析了下这个场景。</p>
+<h2 id="分析">分析</h2>
+<p>测试用例：</p>
+<pre><code class="prism language-sql">drop table t1;
+drop table t2;
+create table t1(id int, name char(4));
+create table t2(id int, name char(5));
+insert into t1 values(100, 'wang');
+insert into t2 values(100, 'wang ');
+commit;
+
+create or replace function rpad5(str varchar2,len number,pad varchar2 default ' ') return varchar2 is
+begin
+  return rpad(str,len,pad);
+end;
+/
+--问题SQL，内置rpad函数查询错误
+select * from t1, t2 where t1.name = t2.name and t1.name = rpad('wang' ,4,' ') 
+                                             and t2.name = rpad('wang' ,5,' ') ;--return 0 row
+--自定义RPAD函数查询正确                        
+select * from t1, t2 where t1.name = t2.name and t1.name = rpad5('wang' ,4,' ') 
+                                             and t2.name = rpad5('wang' ,5,' ') ;--return 1 row
+--入参不是常量，查询正确                                             
+select * from t1, t2 where t1.name = t2.name and t1.name = rpad(t1.name ,4,' ') 
+                                             and t2.name = rpad(t1.name ,5,' ') ;--return 1 row
+--用cast模拟rpad返回的类型，查询正确                                                                                          
+select * from t1, t2 where t1.name = t2.name and t1.name = cast('wang' as varchar2(10) ) 
+                                             and t2.name = cast('wang ' as varchar2(10) ) ;--return 1 row
+--直接引用内置standard包的rpad函数，查询正确                                                                                         
+select * from t1, t2 where t1.name = t2.name and t1.name = standard.rpad('wang' ,4,' ') 
+                                             and t2.name = standard.rpad('wang' ,5,' ') ;--return 1 row
+--不使用函数，查询正确                                             
+select * from t1, t2 where t1.name = t2.name and t1.name = 'wang'
+                                             and t2.name = 'wang'
+                                             and t1.name = 'wang '
+                                             and t2.name = 'wang '; --return 1 row
+--转换成char类型，查询正确                                             
+select * from t1, t2 where t1.name = t2.name and t1.name = cast(rpad('wang' ,4,' ') as char(4)) 
+                                             and t2.name = cast(rpad('wang' ,5,' ') as char(5)) ;--return 1 row
+
+</code></pre>
+<h3 id="为什么用rpad函数时查不到数据">为什么用rpad函数时查不到数据</h3>
+<p>分析执行计划：</p>
+<pre><code class="prism language-sql"> Plan Hash Value  : 487071653 
+
+-----------------------------------------------------------------------
+| Id  | Operation             | Name | Rows | Bytes | Cost | Time     |
+-----------------------------------------------------------------------
+|   0 | SELECT STATEMENT      |      |    1 |    39 |    0 |          |
+| * 1 |   FILTER              |      |      |       |      |          |
+| * 2 |    HASH JOIN          |      |    1 |    39 |    4 | 00:00:01 |
+| * 3 |     TABLE ACCESS FULL | T1   |    1 |    19 |    2 | 00:00:01 |
+| * 4 |     TABLE ACCESS FULL | T2   |    1 |    20 |    2 | 00:00:01 |
+-----------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - filter(NULL IS NOT NULL)
+* 2 - access("T1"."NAME"="T2"."NAME")
+* 3 - filter("T1"."NAME"='wang' AND "T1"."NAME"='wang ')
+* 4 - filter("T2"."NAME"='wang ' AND "T2"."NAME"='wang')
+
+
+Note
+-----
+- dynamic sampling used for this statement
+-
+</code></pre>
+<p>除了自动把谓词条件做了交叉传递，还额外添加了一个 null is not null的恒假条件</p>
+<p>再看一下实际的执行计划</p>
+<pre><code class="prism language-sql">SQL&gt; select /*+ gather_plan_statistics */ * from t1, t2 where t1.name = t2.name and t1.name = rpad('wang' ,4,' ') 
+                                             and t2.name = rpad('wang' ,5,' ') ;  2  
+
+no rows selected
+</code></pre>
+<p>此时返回的结果为0行。</p>
+<p>查看该SQL的执行计划。由于执行时添加了提示<code>/*+ gather_plan_statistics */</code> ，所以，在展示执行计划时，可以显示出每一步中实际返回的行数。</p>
+<pre><code class="prism language-sql">SQL&gt; select * from table(dbms_xplan.display_cursor('','','allstats last'));
+
+PLAN_TABLE_OUTPUT
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  dd7w347qcs1xz, child number 0
+-------------------------------------
+select /*+ gather_plan_statistics */ * from t1, t2 where t1.name =
+t2.name and t1.name = rpad('wang' ,4,' ')
+               and t2.name = rpad('wang' ,5,' ')
+
+Plan hash value: 487071653
+
+-------------------------------------------------------------------------------------------------------
+| Id  | Operation           | Name | Starts | E-Rows | A-Rows |   A-Time   |  OMem |  1Mem | Used-Mem |
+-------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT    |      |      1 |        |      0 |00:00:00.01 |       |       |          |
+|*  1 |  FILTER             |      |      1 |        |      0 |00:00:00.01 |       |       |          |
+|*  2 |   HASH JOIN         |      |      0 |      1 |      0 |00:00:00.01 |  1199K|  1199K|          |
+|*  3 |    TABLE ACCESS FULL| T1   |      0 |      1 |      0 |00:00:00.01 |       |       |          |
+|*  4 |    TABLE ACCESS FULL| T2   |      0 |      1 |      0 |00:00:00.01 |       |       |          |
+-------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   1 - filter(NULL IS NOT NULL)
+   2 - access("T1"."NAME"="T2"."NAME")
+   3 - filter(("T1"."NAME"='wang' AND "T1"."NAME"='wang '))
+   4 - filter(("T2"."NAME"='wang ' AND "T2"."NAME"='wang'))
+
+Note
+-----
+   - dynamic sampling used for this statement (level=2)
+</code></pre>
+<p>可以发现id 2/3/4 的starts是0，也就是说实际上这几个步骤都没执行</p>
+<p>如果把3和4的filter 替换到原SQL中，其实是可以查到数据的，但这里存在两个疑点</p>
+<ol>
+<li>在2和3里的<code>'wang'</code>和<code>'wang '</code> 是什么数据类型？</li>
+<li>为什么会自动添加 <code>null is not null</code> ？</li>
+</ol>
+<p>跟踪10053 ，可以得到展开的SQL</p>
+<pre><code class="prism language-sql">SELECT "T1"."ID" "ID","T1"."NAME" "NAME","T2"."ID" "ID","T2"."NAME" "NAME" FROM "DEMO"."T1" "T1","DEMO"."T2" "T2" 
+WHERE "T1"."NAME"="T2"."NAME" 
+  AND "T1"."NAME"='wang' 
+  AND "T2"."NAME"='wang ' 
+  AND 'wang'='wang ' 
+  AND "T1"."NAME"='wang ' 
+  AND "T2"."NAME"='wang'
+</code></pre>
+<p>原SQL查不到数据，但是手动执行10053里的这个SQL，却是可以查到数据的。</p>
+<p><code>null is not null</code> ,可能来自于<code>'wang'='wang '</code> 这个条件，当两侧数据类型都为<code>char</code>时恒真，都为<code>varchar2</code>时恒假。<br/>
+因此推测此处两侧应该都是varchar2类型。<br/>
+这个字符串来自于rpad函数的输出，而rpad函数在入参为char或varchar2时，返回都是varchar2类型，印证了这个猜想。</p>
+<p>此处不可忽视的一点，就是rpad函数的入参为常量时，会在生成执行计划前将rpad整个表达式优化成字符串常量，<br/>
+而字符串常量之间的直接比较无需再进行数据转换,也无需扫描表数据，因此能根据 varchar2 的<code>'wang' ='wang '</code>推导出<code>null is not null</code>的条件。</p>
+<p>至此，基于结果来说，这个问题的发生原因已经分析清楚了。但是还是有个疑问，<code>t1.name=t2.name</code> ，由于两侧都是char类型，所以条件为真，我们可以理解为是对不包含右侧空格的字符串进行比较，也可以理解为是短的一侧补空格补到和长的一侧长度一致再进行比较，但这都只是结果，而中间是否发生了char到varchar2的类型转换，还看不出来。</p>
+<h3 id="两个不同长度的char比较是否发生类型转换？">两个不同长度的char比较是否发生类型转换？</h3>
+<p>已知char(4) 和 char(5) 在union all 时，对应结果集的字段会变成 varchar(5) ,因此推测 char(4)=char(5) 时，是否可能也会发生类型转换？<br/>
+由于无法跟踪where条件中两个字段的比较是否有发生char到varchar2的转换,<br/>
+于是构造以下两条SQL，case when 表达式和函数表达式不一样，case when 没有固定的返回类型，而是根据then的字段类型来决定返回类型，<br/>
+一般情况下，多个then分支的数据类型不一致时，会报错，但是char(4) 和char(5)，可以视为是不同长度的同一数据类型，所以返回类型是什么就很值得关注了</p>
+<pre><code class="prism language-sql">select dump(case when 1=1 then t1.name else t2.name end ) from t1 ,t2 where t1.name=t2.name;
+select dump(case when rownum=1 then t1.name else t2.name end ) from t1 ,t2 where t1.name=t2.name;
+</code></pre>
+<p>第一条返回的类型是char,而第二条返回的类型是varchar2,<br/>
+我认为第一条可能还是优化器作祟，直接去掉了case when，变成了<code>select t1.name</code> ，返回是char类型，因此不具有参考意义。<br/>
+重点在第二条，<code>rownum=1</code>并不是恒真的，因此它需要找一个新的类型能同时存下char(4) 和char(5) ,所以case when 返回了varchar2(5)</p>
+<p>但是，无论是union all,case when ,decode,coalesce ,都只是对两个或多个值来融合类型，仍旧无法获取 “=” 操作符两侧值的数据类型，10053中也没有标明常量的数据类型，目前还没想到还有没有其他方式能观测。而PG系数据库执行计划里能明确看到常量的数据类型，能更方便分析原理，ORACLE这一块就不够开放了。</p>
+<h3 id="rpad的性能？">rpad的性能？</h3>
+<p>然后再看看用RPAD补空格的性能表现，执行以下几组测试</p>
+<pre><code class="prism language-sql">--0.462s
+select count(1) from dba_objects x where x.object_name=cast(object_name as char(1000));
+--0.917s
+select count(1) from dba_objects x where x.object_name=cast(object_name as char(2000));
+--1.411s
+select count(1) from dba_objects x where x.object_name=rpad(object_name ,1000,' ');
+--2.794s
+select count(1) from dba_objects x where x.object_name=rpad(object_name ,2000,' ');
+
+--0.528s
+select count(cast(object_name as char(1000))) from dba_objects x ;
+--0.955s
+select count(cast(object_name as char(2000))) from dba_objects x ;
+
+--1.518s
+select count(rpad(object_name ,1000,' ')) from dba_objects x ;
+--2.867s
+select count(rpad(object_name ,2000,' ')) from dba_objects x ;
+</code></pre>
+<p>可以发现无论是通过cast还是通过rpad，补空格的确会消耗更多的时间，空格补得越多，时间用得越多。但是通过cast方式补空格，耗时明显比用rpad要少。<br/>
+另外如果在输入条件时，能明确绑定成char类型，其实是根本不需要再补空格的，只是这样对开发人员的要求会稍微高点，需要知道各种开发框架里如何去指定参数的类型，比如mybatis里的typehandler。</p>
+<p>对于流传甚广的，char类型字段写条件要用rpad补空格的这一说法，从这几个例子中可以看到明显不合适，不仅结果不对，性能也差。如果不知道该如何在开发语言中指定绑定变量的数据库类型，那么还是推荐使用 <code>char_colname=cast(? as char(20))</code>的方式来写查询条件，在确保数据查询结果正确的情况下，性能也比rpad要好。</p>
+<h2 id="tom">Tom</h2>
+<p>同事在网上搜，发现刚好墨天轮上提这个问题的同一天，asktom上也出现了完全一样的这个问题，可能是同一个人问的<br/>
+<a href="https://asktom.oracle.com/ords/asktom.search?tag=two-table-join-with-char-return-0-row&amp;p_session=401982313645008">https://asktom.oracle.com/ords/asktom.search?tag=two-table-join-with-char-return-0-row&amp;p_session=401982313645008</a></p>
+<p>Tom和我分析的差不多，而且他已经把问题反馈给ORACLE内部了。</p>
+<h2 id="是不是bug？">是不是BUG？</h2>
+<p>按最简单的逻辑分析来说，如果<code>a=b</code>为真，<code>c=d</code>为真，那么 <code>a=b and c=d</code>也一定为真，而ORACLE在这个场景下违背了这个基本逻辑！</p>
+<p>从ORACLE 11.2（再往前的版本我没测） 直到最新的ORACLE 19c和 ORACLE 23ai ,这个问题一直都存在，而char类型被金融行业广泛使用，期间出现了多少数据结果错误而未被发现，细思极恐。</p>
+<p>本人曾深入开发维护过ORACLE自家的一个大型ERP软件-RETEK（RMS)，当时特意看了这个软件所有表的所有字段都没有使用CHAR类型。</p>
+<p>ORACLE自己都不用的数据类型，还不趁早改了？</p>
+<h2 id="总结">总结</h2>
+<p>总体来说，我之前对于char类型的分析是没有问题的，但是本文的场景是叠加了ORACLE的优化器的问题，因此出现了一些新的现象。<br/>
+如非必要，建议还是不要再用CHAR类型了，ORACLE自己这么几十年都还没把char类型玩明白，更不要谈使用者是否能用好这个类型了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

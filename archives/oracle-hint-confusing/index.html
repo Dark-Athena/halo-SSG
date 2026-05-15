@@ -155,7 +155,267 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一关于use_hash里的多个表名">一、关于use_hash里的多个表名</h2>
+<p>很多人在使用use_hash的时候，认为是把需要hash join的两个表或多个表都放到这个hint中，就连ORACLE官方文档中的用例也似乎在表达这个意思。其实这种理解是<strong>不对</strong>的。<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Comments.html#GUID-FA1147B3-BCAA-41F9-B6A2-8DEDABF1C021">https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Comments.html#GUID-FA1147B3-BCAA-41F9-B6A2-8DEDABF1C021</a></p>
+<blockquote>
+<p>The USE_HASH hint instructs the optimizer to join each specified table with another row source using a hash join. For example:</p>
+</blockquote>
+<pre><code class="language-sql">SELECT /*+ USE_HASH(l h) */ *
+  FROM orders h, order_items l
+  WHERE l.order_id = h.order_id
+    AND l.order_id &gt; 2400;
+</code></pre>
+<p>ORACLE官方文档本想表达use_hash里放的应该是"each specified table"，而"another row source"不应该放在里面，但给的SQL却是两个表都放在hint里了。</p>
+<p>而且实际上，在ORACLE 19C以上版本看执行计划，上面这条SQL可以观察到 USE_HASH(l h) 这个hint是 unused，即没有使用到，但是的确又由于加了这个hint导致执行计划走了hash join。之前有数据库内核研发问过我这是什么原因，当时我也没什么分析思路。但是最近由于要转一批ORACLE的hint到GaussDB,就必须彻底理解这个hint在ORACLE的机制。</p>
+<h3 id="实验">实验</h3>
+<ul>
+<li>初始化数据</li>
+</ul>
+<pre><code class="language-sql">create table t1 (id number,c1 number ,c2 number);
+create table t2 (id number,c3 number ,c4 number);
+insert into t1 select rownum,0,0 from dual connect by rownum&lt;=10000;
+insert into t2 select rownum,0,0 from dual connect by rownum&lt;=10000;
+insert into t2 select rownum,0,0 from dual connect by rownum&lt;=10000;
+commit;
+create index i_t1 on t1(id);
+create index i_t2 on t2(id);
+</code></pre>
+<ul>
+<li>不加hint，没有走hash join</li>
+</ul>
+<pre><code class="language-sql">select * from t1 ,t2 where t1.id=t2.id and t1.id=10;
+
+ Plan Hash Value  : 3498846779 
+
+-----------------------------------------------------------------------------------------
+| Id  | Operation                               | Name | Rows | Bytes | Cost | Time     |
+-----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                        |      |    2 |   156 |    5 | 00:00:01 |
+|   1 |   MERGE JOIN CARTESIAN                  |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED  | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                    | I_T1 |    1 |       |    1 | 00:00:01 |
+|   4 |    BUFFER SORT                          |      |    2 |    78 |    3 | 00:00:01 |
+|   5 |     TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 6 |      INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+-----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("T1"."ID"=10)
+* 6 - access("T2"."ID"=10)
+
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+</code></pre>
+<ul>
+<li>常见的hint,把想hashjoin的两个表放到use_hash的括号里，执行计划的确变为了hash join，但是Hint Report 里显示了<code>use_hash</code>这个hint是未使用的</li>
+</ul>
+<pre><code class="language-sql">select /*+use_hash(t1 t2)*/* from t1 ,t2 where t1.id=t2.id and t1.id=10;
+ Plan Hash Value  : 3906302762 
+
+----------------------------------------------------------------------------------------
+| Id  | Operation                              | Name | Rows | Bytes | Cost | Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |      |    2 |   156 |    5 | 00:00:01 |
+| * 1 |   HASH JOIN                            |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                   | I_T1 |    1 |       |    1 | 00:00:01 |
+|   4 |    TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 5 |     INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - access("T1"."ID"="T2"."ID")
+* 3 - access("T1"."ID"=10)
+* 5 - access("T2"."ID"=10)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+-------------------------------------------------------------------------------
+                             
+ 2 -  SEL$1 / T1@SEL$1       
+       U -  use_hash(t1 t2)  
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+</code></pre>
+<ul>
+<li>尝试把use_hash里的两个表分开写，执行计划仍旧是走了hash join，但是Hint Report显示<code>use_hash(t1)</code>是未使用的</li>
+</ul>
+<pre><code class="language-sql">select /*+use_hash(t1) use_hash(t2)*/* from t1 ,t2 where t1.id=t2.id and t1.id=10;
+ Plan Hash Value  : 3906302762 
+
+----------------------------------------------------------------------------------------
+| Id  | Operation                              | Name | Rows | Bytes | Cost | Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |      |    2 |   156 |    5 | 00:00:01 |
+| * 1 |   HASH JOIN                            |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                   | I_T1 |    1 |       |    1 | 00:00:01 |
+|   4 |    TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 5 |     INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - access("T1"."ID"="T2"."ID")
+* 3 - access("T1"."ID"=10)
+* 5 - access("T2"."ID"=10)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+-------------------------------------------------------------------------------
+                          
+ 2 -  SEL$1 / T1@SEL$1    
+       U -  use_hash(t1)  
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+
+</code></pre>
+<ul>
+<li>use_hash里只放t2一个表，走了hash join ,且无未使用的hint</li>
+</ul>
+<pre><code class="language-sql">select /*+use_hash(t2)*/* from t1 ,t2 where t1.id=t2.id and t1.id=10
+ Plan Hash Value  : 3906302762 
+
+----------------------------------------------------------------------------------------
+| Id  | Operation                              | Name | Rows | Bytes | Cost | Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |      |    2 |   156 |    5 | 00:00:01 |
+| * 1 |   HASH JOIN                            |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                   | I_T1 |    1 |       |    1 | 00:00:01 |
+|   4 |    TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 5 |     INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - access("T1"."ID"="T2"."ID")
+* 3 - access("T1"."ID"=10)
+* 5 - access("T2"."ID"=10)
+
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+
+</code></pre>
+<ul>
+<li>use_hash里只放t1一个表，没有走hash join ，且显示<code>use_hash(t1)</code> 未使用</li>
+</ul>
+<pre><code class="language-sql">select /*+use_hash(t1)*/* from t1 ,t2 where t1.id=t2.id and t1.id=10;
+ Plan Hash Value  : 3498846779 
+
+-----------------------------------------------------------------------------------------
+| Id  | Operation                               | Name | Rows | Bytes | Cost | Time     |
+-----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                        |      |    2 |   156 |    5 | 00:00:01 |
+|   1 |   MERGE JOIN CARTESIAN                  |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED  | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                    | I_T1 |    1 |       |    1 | 00:00:01 |
+|   4 |    BUFFER SORT                          |      |    2 |    78 |    3 | 00:00:01 |
+|   5 |     TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 6 |      INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+-----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("T1"."ID"=10)
+* 6 - access("T2"."ID"=10)
+
+Hint Report (identified by operation id / Query Block Name / Object Alias):
+Total hints for statement: 1 (U - Unused (1))
+-------------------------------------------------------------------------------
+                          
+ 2 -  SEL$1 / T1@SEL$1    
+       U -  use_hash(t1)  
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+</code></pre>
+<h3 id="分析">分析</h3>
+<p>经过以上一系列的实验，我发现<br/>
+use_hash(t1 t2) 应该是被oracle拆成了 use_hash(t1) use_hash(t2)<br/>
+然后由于t1是 another row source，则该hint是unused，oracle把改写后的hint还原回用户输入的原始hint时，又变回了use_hash(t1 t2)，所以显示了一个unused 为use_hash(t1 t2)</p>
+<p>单独使用use_hash，且里面只带了一个表时，可能不会走hash join，比如上面的<code>use_hash(t1)</code>，这是因为没有指定"another row source"，所以需要和leading组合使用，而leading里指定的就是这个"another row source"表。</p>
+<pre><code class="language-sql">select /*+use_hash(t1) leading(t2) */* from t1 ,t2 where t1.id=t2.id and t1.id =10;
+ Plan Hash Value  : 2797962119 
+
+----------------------------------------------------------------------------------------
+| Id  | Operation                              | Name | Rows | Bytes | Cost | Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |      |    2 |   156 |    5 | 00:00:01 |
+| * 1 |   HASH JOIN                            |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+|   4 |    TABLE ACCESS BY INDEX ROWID BATCHED | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 5 |     INDEX RANGE SCAN                   | I_T1 |    1 |       |    1 | 00:00:01 |
+----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - access("T1"."ID"="T2"."ID")
+* 3 - access("T2"."ID"=10)
+* 5 - access("T1"."ID"=10)
+
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+</code></pre>
+<p>和前面走hash join的计划相比，这个计划中的t1和t2就强制反过来了。</p>
+<p>还有一种方式，就是使用ordered来指定按出现在from后面的顺序关联：</p>
+<pre><code class="language-sql">select /*+ ordered */* from t2 ,t1 where t1.id=t2.id and t1.id =10
+ Plan Hash Value  : 2797962119 
+
+----------------------------------------------------------------------------------------
+| Id  | Operation                              | Name | Rows | Bytes | Cost | Time     |
+----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                       |      |    2 |   156 |    5 | 00:00:01 |
+| * 1 |   HASH JOIN                            |      |    2 |   156 |    5 | 00:00:01 |
+|   2 |    TABLE ACCESS BY INDEX ROWID BATCHED | T2   |    2 |    78 |    3 | 00:00:01 |
+| * 3 |     INDEX RANGE SCAN                   | I_T2 |    2 |       |    1 | 00:00:01 |
+|   4 |    TABLE ACCESS BY INDEX ROWID BATCHED | T1   |    1 |    39 |    2 | 00:00:01 |
+| * 5 |     INDEX RANGE SCAN                   | I_T1 |    1 |       |    1 | 00:00:01 |
+----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - access("T1"."ID"="T2"."ID")
+* 3 - access("T2"."ID"=10)
+* 5 - access("T1"."ID"=10)
+
+
+Notes
+-----
+- Dynamic sampling used for this statement ( level = 2 )
+
+</code></pre>
+<h3 id="与opengaussgaussdb的对比">与openGauss/GaussDB的对比</h3>
+<p>在openGauss/GaussDB中，hashjoin/nestloop/leading这些hint都要求必须指定两个以上的表，即驱动表和被驱动表需要同时指定，然后依靠leading来指定驱动关系，且leading里也是必须放两个以上的表。</p>
+<p>同时openGauss/GaussDB中可以使用嵌套括号，逐层指定谁和谁关联。但是ORACLE中，当有三个或三个以上的表进行join时，这个事情变得无法精准控制了，只能先试，发现顺序不对，就加no_swap_join_inputs处理一下，甚至还可能需要改成多层子查询并禁止展开来明确join顺序(或者找到内部块名指定)。</p>
+<h2 id="二关于hint括号里的多个标识符之间的分隔符">二、关于hint括号里的多个标识符之间的分隔符</h2>
+<p>oracle的hint里，use_hash这种括号里可以放多个名称的，在官方文档中是用空格分隔，但是在实际应用中，使用逗号分隔也能起作用，可以认为这是一种ORACLE提供的<strong>容错机制</strong>。另外，可能从来没人提过的，这里用制表符tab、全角空格、回车、换行也可以正确识别为分隔符（本质上就是正则表达式<code>[\s,]</code>）。所以，如果国产数据库仅按照ORACLE官方文档去做这个hint兼容性，不结合实际使用，最后可能会发现实际迁移项目中的HINT还是没有生效。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

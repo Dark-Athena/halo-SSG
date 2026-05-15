@@ -155,7 +155,393 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF" tabindex="-1">一、背景</h2>
+<p>一直以来，很多用过ORACLE数据库的开发人员，都知道在ORACLE中，字符类型可以为varchar2，也可以为nvarchar2，但是很多人都不知道这两种类型有什么区别，同样还有char/nchar,clob/nclob这些，所以今天来谈谈我对这些数据类型的理解。</p>
+<h2 id="%E4%BA%8C%E3%80%81%E4%BC%A0%E8%A8%80" tabindex="-1">二、传言</h2>
+<p>老的oracle开发人员中，可能流传这这样一句传言，</p>
+<blockquote>
+<p>“如果要省存储空间，建表时，字段内容里如果中文占了大多数，就用nvarchar2类型；如果内容是英文和数字为主的字符串，就用varchar2类型。”</p>
+</blockquote>
+<p>首先说明一下，这句话在绝大多数情况下，的确是对的。<br/>
+但是，这其实，是在特定的条件下，仅用例证得到的结论，后面会说明原因。</p>
+<h2 id="%E4%B8%89%E3%80%81%E5%AE%9E%E9%AA%8C%E5%8F%8A%E5%88%86%E6%9E%90" tabindex="-1">三、实验及分析</h2>
+<p>我们先做个实验，看看为什么会有上面这个传言<br/>
+假设数据库字符集为AL32UTF8，建个表，两个字段，分别为varchar2和nvarchar2，插入数字、英文字母、汉字</p>
+<pre><code class="language-sql">CREATE TABLE TEST_CHARSET (A VARCHAR2(100), B NVARCHAR2(100));
+INSERT INTO TEST_CHARSET VALUES (12,n'12');
+INSERT INTO TEST_CHARSET VALUES ('ab',n'ab');
+INSERT INTO TEST_CHARSET VALUES ('啊',n'啊');
+</code></pre>
+<p>然后使用lengthb/dump等函数查看字节长度</p>
+<pre><code class="language-sql">select dump(a,1016),dump(b,1016),t.* from TEST_CHARSET t;
+</code></pre>
+<p><img alt="image-1666515775875" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666515775875.png" srcset="/upload/2022/10/image-1666515775875.png?width=1200 1200w, /upload/2022/10/image-1666515775875.png?width=400 400w, /upload/2022/10/image-1666515775875.png?width=1600 1600w, /upload/2022/10/image-1666515775875.png?width=800 800w"/></p>
+<p>看上去，的确对于汉字，nvarchar2的长度比varchar2要短，看上去不论啥字符插入到nvarchar2中都是2个字节，对于数字和字母就太占空间了。<br/>
+但是，nvarchar2的字符集显示的是AL16UTF16，而非varchar2对应字段中的AL32UTF8<br/>
+所以，我们得回头看看，nvarchar2这个数据类型到底是什么</p>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Data-Types.html#GUID-DF7E10FC-A461-4325-A295-3FD4D150809E" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Data-Types.html#GUID-DF7E10FC-A461-4325-A295-3FD4D150809E</a></p>
+<p>官方文档说</p>
+<blockquote>
+<p>数据类型指定国家字符集中的NVARCHAR2变长字符串。创建数据库时，将国家字符集指定为 AL16UTF16 或 UTF8。AL16UTF16 和 UTF8 是 Unicode 字符集的两种编码形式（对应的 UTF-16 和 CESU-8），因此NVARCHAR2是仅限 Unicode 的数据类型。</p>
+</blockquote>
+<p><img alt="image-1666454570156" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666454570156.png" srcset="/upload/2022/10/image-1666454570156.png?width=1200 1200w, /upload/2022/10/image-1666454570156.png?width=400 400w, /upload/2022/10/image-1666454570156.png?width=1600 1600w, /upload/2022/10/image-1666454570156.png?width=800 800w"/><br/>
+在21c数据库创建界面中可以看到，数据库默认字符集编码为AL32UTF8,国家字符集编码默认为AL16UTF16,可选UTF8。</p>
+<p>文档说</p>
+<blockquote>
+<p>一个代码点在 AL16UTF16 中始终具有 2 个字节，在 UTF8 中始终具有 1 到 3 个字节，具体取决于代码点编码的特定字符。</p>
+</blockquote>
+<p>文档此处存在歧义，AL16UTF16也会有4个字节的情况，比如</p>
+<pre><code class="language-sql">SELECT UTL_I18N.raw_to_Nchar('D840DC43'),
+  DUMP(UTL_I18N.raw_to_Nchar('D840DC43'),1016) FROM DUAL;
+</code></pre>
+<p><img alt="image-1666462542863" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666462542863.png" srcset="/upload/2022/10/image-1666462542863.png?width=1200 1200w, /upload/2022/10/image-1666462542863.png?width=400 400w, /upload/2022/10/image-1666462542863.png?width=1600 1600w, /upload/2022/10/image-1666462542863.png?width=800 800w"/></p>
+<blockquote>
+<p>Oracle Database 21c 支持 Unicode 版本 12.1</p>
+</blockquote>
+<p>我特意去翻了unicode12.1版本的文档，发现补充码的部分对应不上，所以ORACLE这句话其实是有前提条件的<br/>
+<a href="https://www.unicode.org/Public/12.1.0/charts/CodeCharts.pdf" target="_blank">https://www.unicode.org/Public/12.1.0/charts/CodeCharts.pdf</a></p>
+<p>oracle的UTF-8为1到3个字节，而unicode标准中的UTF-8是1~4个字节，所以oracle的UTF-8也不符合unicode标准，甚至还会把unicode中FFFF后面的字符，转换成6个字节来进行存储，比如unicode编码20043（𠁃），对应的UTF-16的D840DC43，存成UTF-8则为eda180edb183,但按照UNICODE标准，它的UTF-8编码应该为F0A08183<br/>
+<img alt="image-1666533622359" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666533622359.png" srcset="/upload/2022/10/image-1666533622359.png?width=1200 1200w, /upload/2022/10/image-1666533622359.png?width=400 400w, /upload/2022/10/image-1666533622359.png?width=1600 1600w, /upload/2022/10/image-1666533622359.png?width=800 800w"/></p>
+<p>其实默认情况下，oracle中的UTF-8根本就不是UTF-8，而是CESU-8，这个在ORACLE官方文档中有提到<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Data-Types.html#GUID-CC15FC97-BE94-4FA4-994A-6DDF7F1A9904" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Data-Types.html#GUID-CC15FC97-BE94-4FA4-994A-6DDF7F1A9904</a></p>
+<blockquote>
+<p>AL16UTF16 和 UTF8 是 Unicode 字符集的两种编码形式（对应的 UTF-16 和 CESU-8）</p>
+</blockquote>
+<p>而且ORACLE官方文档还这么说了<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/supporting-multilingual-databases-with-unicode.html#GUID-F3B0B4F7-B6D9-473D-840F-F98998F37981" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/supporting-multilingual-databases-with-unicode.html#GUID-F3B0B4F7-B6D9-473D-840F-F98998F37981</a></p>
+<blockquote>
+<p>CESU-8 不是核心 Unicode 标准的一部分。Unicode 联盟发布的 Unicode 技术报告 #26 对此进行了描述。CESU-8 是一种与 UTF-8 相同的兼容性编码形式，除了它的补充字符表示。在 CESU-8 中，补充字符被表示为代理对，就像在 UTF-16 中一样。要获得补充字符的 CESU-8 编码，首先将字符编码为 UTF-16，然后将每个代理代码单元视为具有相同值的代码点。然后，将 UTF-8 编码规则（位转换）应用于每个代码点。这将产生两个三字节表示，总共六个字节。<br/>
+CESU-8 只有两个好处：<br/>
+它具有与 UTF-16 相同的二进制排序顺序。<br/>
+每个字符使用相同数量的代码（一个或两个）。这对于字符串处理中的字符长度语义很重要。<br/>
+一般来说，应尽可能避免使用 CESU-8 编码形式。</p>
+</blockquote>
+<p>关于CESU-8，可以参考下面这个对比<br/>
+<img alt="image-1666461280243" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666461280243.png" srcset="/upload/2022/10/image-1666461280243.png?width=1200 1200w, /upload/2022/10/image-1666461280243.png?width=400 400w, /upload/2022/10/image-1666461280243.png?width=1600 1600w, /upload/2022/10/image-1666461280243.png?width=800 800w"/><br/>
+（此表来自<a href="https://infogalactic.com/info/CESU-8" target="_blank">https://infogalactic.com/info/CESU-8</a>）</p>
+<p>在unicode官方文档中也有一些介绍<br/>
+<a href="https://www.unicode.org/reports/tr26/tr26-2.html" target="_blank">https://www.unicode.org/reports/tr26/tr26-2.html</a></p>
+<p>oracle文档中虽然体现出UTF-8和AL32UTF8不是同一种编码</p>
+<table>
+<thead>
+<tr>
+<th>Character Set</th>
+<th>Supported in RDBMS Release</th>
+<th>Unicode Encoding Form</th>
+<th>Unicode Version</th>
+<th>Database Character Set</th>
+<th>National Character Set</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AL24UTFFSS</td>
+<td>7.2 to 8i</td>
+<td>UTF-8</td>
+<td>1.1</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>UTF8</td>
+<td>8.0 to 21c</td>
+<td>CESU-8</td>
+<td>Oracle Database release 8.0 through Oracle8i Release 8.1.6: 2.1</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle8i Database release 8.1.7 and later: 3.0</td>
+<td></td>
+<td>(Oracle9i Database and later versions only)</td>
+</tr>
+<tr>
+<td>UTFE</td>
+<td>8.0 to 21c</td>
+<td>UTF-EBCDIC</td>
+<td>Oracle8i Database releases 8.0 through 8.1.6: 2.1</td>
+<td>YesFoot 1</td>
+<td>No</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>For Oracle8i Database release 8.1.7 and later: 3.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>AL32UTF8</td>
+<td>9i to 21c</td>
+<td>UTF-8</td>
+<td>Oracle9i Database release 1: 3.0</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle9i Database release 2: 3.1</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 10g, release 1: 3.2</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 10g, release 2: 4.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 11g: 5.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 12c, release 1: 6.2</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 12c, release 2: 7.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 18c to Oracle Database 19c: 9.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 21c: 12.1</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>AL16UTF16</td>
+<td>9i to 21c</td>
+<td>UTF-16</td>
+<td>Oracle9i Database release 1: 3.0</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle9i Database release 2: 3.1</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 10g, release 1: 3.2</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 10g, release 2: 4.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 11g: 5.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 12c, release 1: 6.2</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 12c, release 2: 7.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 18c to Oracle Database 19c: 9.0</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>Oracle Database 21c: 12.1</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/supporting-multilingual-databases-with-unicode.html#GUID-CD422E4F-C5C6-4E22-B95F-CA9CABBCB543" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/supporting-multilingual-databases-with-unicode.html#GUID-CD422E4F-C5C6-4E22-B95F-CA9CABBCB543</a></p>
+<p>但是，测试会发现，oracle中的AL32UTF8其实还是CESU-8的做法，</p>
+<pre><code class="language-sql">CREATE TABLE TEST_CHARSET (A VARCHAR2(100), B NVARCHAR2(100));
+INSERT INTO TEST_CHARSET VALUES ('𠁃',n'𠁃');
+select T.*,DUMP(A),dump(b) from TEST_CHARSET T;
+</code></pre>
+<p><img alt="image-1666463429933" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666463429933.png" srcset="/upload/2022/10/image-1666463429933.png?width=1200 1200w, /upload/2022/10/image-1666463429933.png?width=400 400w, /upload/2022/10/image-1666463429933.png?width=1600 1600w, /upload/2022/10/image-1666463429933.png?width=800 800w"/></p>
+<p>而且可能还会导致严重的字符歧义，比如</p>
+<pre><code class="language-sql">SELECT UTL_I18N.raw_to_Nchar('D840DC43'),
+       TO_CHAR(UTL_I18N.raw_to_Nchar('D840DC43')) FROM DUAL;
+</code></pre>
+<p><img alt="image-1666462050065" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666462050065.png" srcset="/upload/2022/10/image-1666462050065.png?width=1200 1200w, /upload/2022/10/image-1666462050065.png?width=400 400w, /upload/2022/10/image-1666462050065.png?width=1600 1600w, /upload/2022/10/image-1666462050065.png?width=800 800w"/></p>
+<p>再来看下面的例子,会发现第一列此时又符合UNICODE标准的UTF-8编码了。<br/>
+也就是说，在ORACLE中，字段类型必须是国家字符集的字符数据类型才会符合UNICODE标准<br/>
+(注意第四个值的二进制数据其实是对的，符合UTF8的4个字节，但是在非国家字符集的字符类型中无法正确解析)。</p>
+<pre><code class="language-sql">select 
+ UTL_I18N.raw_to_Nchar(data =&gt; 'F0A08183', src_charset =&gt;'AL32UTF8' ) N_UTF8,
+ UTL_I18N.raw_to_Nchar(data =&gt; 'D840DC43', src_charset =&gt;'AL16UTF16' ) N_UTF16,
+ UTL_I18N.raw_to_char(data =&gt; 'eda180edb183', src_charset =&gt;'AL32UTF8' ) UTF8,
+ UTL_I18N.raw_to_char(data =&gt; 'D840DC43', src_charset =&gt;'AL16UTF16' ) UTF16,
+ DUMP( UTL_I18N.raw_to_char(data =&gt; 'D840DC43', src_charset =&gt;'AL16UTF16' ) ,1016) UTF16_BINARY
+  FROM DUAL;
+</code></pre>
+<p><img alt="image-1666514718499" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666514718499.png" srcset="/upload/2022/10/image-1666514718499.png?width=1200 1200w, /upload/2022/10/image-1666514718499.png?width=400 400w, /upload/2022/10/image-1666514718499.png?width=1600 1600w, /upload/2022/10/image-1666514718499.png?width=800 800w"/></p>
+<p>所以并不能说ORACLE不遵守UNICODE标准，而是它在兼容原有的CESU-8的基础上，另外提供了一种符合UNICODE标准的方式，即使用国家字符集的字符数据类型来进行数据存储。</p>
+<h2 id="%E5%9B%9B%E3%80%81%E5%9B%9E%E9%A1%BE%E7%9B%B8%E5%85%B3%E5%87%BD%E6%95%B0" tabindex="-1">四、回顾相关函数</h2>
+<ul>
+<li>ascii 传入一个字符，varchar/char类型根据数据库字符集，nvarchar/nchar根据国家字符集，转换成对应的十进制码点</li>
+<li>nchr 将一个十进制数字，根据国家字符集，转换成对应的一个字符</li>
+<li>chr(n) 将一个十进制数字，根据数据库字符集，转换成对应的一个字符</li>
+<li>chr(n using NCHAR_CS) 将一个十进制数字，根据国家字符集，转换成对应的一个字符（等同于nchr）</li>
+<li>unistr 将包含有国家字符集十六进制码点的字符串，转换成人类可识别的字符串</li>
+<li>asciistr 将一个字符串中所有的非ascii字符，根据国家字符集转换成对应的十六进制码点</li>
+</ul>
+<p>也就是说，以上的函数，其实都隐含了两个不确定的参数，即数据库字符集和国家字符集。而这两个字符集，在建库的时候可以指定。也就是说，如果建库的时候不是选择的默认值，那么这些函数的查询结果就可能会有不同。</p>
+<h2 id="%E4%BA%94%E3%80%81%E6%8E%A8%E7%BF%BB%E4%BC%A0%E8%A8%80" tabindex="-1">五、推翻传言</h2>
+<p>经过以上实验分析及相关资料查询后，我们可以做个这样的实验：<br/>
+创建一个新库，把数据库字符集设置成ZHS16GBK，把国家字符集设置成UTF-8，<br/>
+那么存入一个常见汉字到varchar2中会占2个字节，存入到nvarchar2中则占3个字节；存入一个英文字母到varchar2中和nvarchar2中均占1个字节，<br/>
+传言被推翻。</p>
+<p>当然，绝大多数情况下，不会有谁把国家字符集选择成UTF-8，甚至连ORACLE官方文档都是强烈建议，国家字符集要选AL16UTF16，所以本文前面说的这个传言依旧具有一定的指导意义。</p>
+<h2 id="%E5%85%AD%E3%80%81%E6%95%B0%E6%8D%AE%E9%95%BF%E5%BA%A6" tabindex="-1">六、数据长度</h2>
+<h3 id="%E5%85%B3%E4%BA%8Envarchar2%E7%B1%BB%E5%9E%8B%E7%9A%84%E9%95%BF%E5%BA%A6" tabindex="-1">关于NVARCHAR2类型的长度</h3>
+<ol>
+<li>在MAX_STRING_SIZE = STANDARD时，<br/>
+VARCHAR2的最大长度为4000个字节，且建表时，既可以指定最大字节长度也可以指定最大字符个数；<br/>
+而nvarchar2只能指定最大字符个数，在国家字符集为AL16UTF16时，最大字符个数为2000；在国家字符集为UTF-8时，最大字符个数为4000。但实际上，它限定的最大存储长度依然只能是4000个字节，尽管指定它的列长度时的数字，并不能指定字节数。</li>
+<li>在MAX_STRING_SIZE = EXTENDED时，相应的长度上限也会扩大。但同样，它的最大存储长度只能是32767个字节，而且指定列长度时只能指定字符个数</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>国家字符集</th>
+<th>NCHAR 数据类型的最大列大小</th>
+<th>NVARCHAR2 数据类型的最大列大小（当 MAX_STRING_SIZE = STANDARD 时）</th>
+<th>NVARCHAR2 数据类型的最大列大小（当 MAX_STRING_SIZE = EXTENDED 时）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AL16UTF16</td>
+<td>1000 个字符</td>
+<td>2000 个字符</td>
+<td>16383 个字符</td>
+</tr>
+<tr>
+<td>UTF8</td>
+<td>2000 个字符</td>
+<td>4000 个字符</td>
+<td>32767 个字符</td>
+</tr>
+</tbody>
+</table>
+<p>（注：MAX_STRING_SIZE参数是在oracle12c版本中新增的<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/MAX_STRING_SIZE.html#GUID-D424D23B-0933-425F-BC69-9C0E6724693C" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/MAX_STRING_SIZE.html#GUID-D424D23B-0933-425F-BC69-9C0E6724693C</a><br/>
+）</p>
+<h3 id="length%E5%87%BD%E6%95%B0%E6%9F%A5%E7%9A%84%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F" tabindex="-1">length函数查的是什么？</h3>
+<p>一直以来，网上各种教程里都是说，lengthb查的是字节数，length查的是字符数。但ORACLE里的字符数，计算标准其实也有很多种，像下面的这个一个汉字，用length函数查它竟然是2个字符！因为length不是按照unicode标准来进行统计的,lengthc才是，另外还有针对UCS2/UCS4标准的长度计算函数</p>
+<pre><code class="language-sql">select 
+length('𠁃') n,
+unistr('\D840\DC43') str,
+dump(unistr('\D840\DC43'),1016) dp,
+lengthb(unistr('\D840\DC43')) lenb,
+length(unistr('\D840\DC43')) len,
+lengthc(unistr('\D840\DC43'))lenc,
+length2(unistr('\D840\DC43')) len2,
+length4(unistr('\D840\DC43')) len4
+from dual
+</code></pre>
+<p><img alt="image-1666530650519" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666530650519.png" srcset="/upload/2022/10/image-1666530650519.png?width=1200 1200w, /upload/2022/10/image-1666530650519.png?width=400 400w, /upload/2022/10/image-1666530650519.png?width=1600 1600w, /upload/2022/10/image-1666530650519.png?width=800 800w"/></p>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/LENGTH.html#GUID-8F97F652-5AE8-4457-AFD7-7A6F25551E0C" target="_blank">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/LENGTH.html#GUID-8F97F652-5AE8-4457-AFD7-7A6F25551E0C</a></p>
+<p>所以，如果ORACLE 11g中的国家字符集为AL16UTF16，对于nvarchar2(2000)字段，是有可能存入1000个字就满了的（全部存UTF-16编码为4个字节的补充字符的情况下）</p>
+<h2 id="%E4%B8%83%E3%80%81%E5%9B%BD%E5%AE%B6%E5%AD%97%E7%AC%A6%E9%9B%86%E7%9A%84%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF" tabindex="-1">七、国家字符集的使用场景</h2>
+<ol>
+<li>
+<p>假设数据库字符集为ZHS16GBK，某次需要插入一个在这个字符集中不存在的汉字或其他语言的字符，该如何处理？<br/>
+数据库的字符集建库时就确定了，不能轻易修改，如果把字段类型设置成国家字符集的数据类型，比如nvarchar2，那么就可以把这个ZHS16GBK中不存在的字符存进去了。（如果是子集改成母集，且不用对数据进行编码转换，那么可以使用DMU进行快速字符集修改）<br/>
+<img alt="image-1666534176622" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666534176622.png" srcset="/upload/2022/10/image-1666534176622.png?width=1200 1200w, /upload/2022/10/image-1666534176622.png?width=400 400w, /upload/2022/10/image-1666534176622.png?width=1600 1600w, /upload/2022/10/image-1666534176622.png?width=800 800w"/></p>
+</li>
+<li>
+<p>某公司正在使用的一个纯英文的软件，对应的数据库字符集为WE8MSWIN1252,该软件把所有UI菜单及选项的描述都存在了数据库中，当该软件需要扩展多国语言时，只需要把描述列改成NVARCHAR2，然后增加一个语言ID，相关查询接口增加语言ID的逻辑，客户端代码采用UTF8，即可在不用重建数据库的情况下，扩展出UI多语言支持。</p>
+</li>
+</ol>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>ORACLE以标准名称命名非标准的东西，而且时而标准时而不标准，的确很让人犯迷糊，我根据本文总结几点</p>
+<ol>
+<li>ORACLE默认国家字符集为AL16UTF16，完全对应UNICODE的UTF-16标准</li>
+<li>ORACLE中的国家字符集，只有在数据类型为NCHAR/NVARCHAR/NCLOB时才会被使用，也就是前面带N(national)的字符类型</li>
+<li>ORACLE中的UTF-8，不是标准的UTF-8，而是CESU-8</li>
+<li>尽管ORACLE称AL32UTF8是符合UNICODE标准的，但在VARCHAR2类型时体现的依然是CESU-8的特征(单个字符1~3字节，补充字符6字节)</li>
+<li>UNICODE码点在FFFF之前的，其码点和AL16UTF16完全一致，但更大的码点（补充码）就和AL16UTF16不一致了</li>
+<li>ORACLE的length函数把单个补充码字符的字符长度算为2</li>
+<li>UNISTR和ASCIISTR是用国家字符集转换，并非完全是UNICODE编码（不要拿着长度为5的unicode码去转换了，要找到对应4个字节的UTF-16编码去转，AL16UTF16的UNISTR只认"\xxxx"或“\xxxx\xxxx”的格式）</li>
+<li>UNICODE补充字符，存储为UNICODE标准的UTF-8编码，且能无需函数转换，直接select显示出正确字符的，在ORACLE中不支持，需要使用UTL_I18N包来处理，比如</li>
+</ol>
+<pre><code class="language-sql">select UTL_I18N.raw_to_Nchar(data =&gt; 'F0A08183', src_charset =&gt;'AL32UTF8' ) from dual;
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,89 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>这是一个对目前某些暂时在linux专享的功能，在windows上实现的探索，不建议在生产中使用。</p>
+<h2 id="%E6%80%9D%E8%B7%AF" tabindex="-1">思路</h2>
+<ol>
+<li>目前windows10/11上支持搭建docker环境，而不需要使用linux虚拟机</li>
+<li>windows上的docker可以借用VcXsrv或xming等X11工具，来将容器中的图形化界面显示到windows上</li>
+<li>mogeaver的linux版本是用的gtk做的GUI</li>
+</ol>
+<p>所以，理论上，我们可以找个操作系统的docker镜像，装好gtk和jdk环境,把linux版本的mogeaver放进去，然后在windows上用VcXsrv设置一个显示器，启动容器，把容器的dispaly设置到windows上，就能在windows上使用linux版本的mogeaver了。</p>
+<h2 id="%E9%9C%80%E8%A6%81%E8%A7%A3%E5%86%B3%E7%9A%84%E9%97%AE%E9%A2%98" tabindex="-1">需要解决的问题</h2>
+<ol>
+<li>最好能找到一个带gtk环境的docker镜像，这样就不需要自己从头开始构建了（之前没接触过gtk开发，为了省时间。。。）</li>
+<li>一般精简的docker镜像是没有中文字体支持的，因此mogeaver就也不能显示中文字体，而国内的windows的用户应该还是更愿意使用中文界面</li>
+<li>默认在mogeaver中设置好gs_dump/gsql等客户端工具的目录，减少用户配置环境的操作</li>
+<li>用户配置文件信息需要持久化到宿主机上，防止下次启动容器配置丢失</li>
+<li>最好每次在用mogeaver时创建容器，关闭的时候自动删除容器，节约资源</li>
+<li>默认yum仓库源有时候无法连接，需要有个备用源，否则可能构建镜像失败</li>
+</ol>
+<h2 id="%E5%8D%8A%E6%88%90%E5%93%81" tabindex="-1">半成品</h2>
+<p>项目地址：<br/>
+<a href="https://gitee.com/darkathena/mogeaver-docker" target="_blank">https://gitee.com/darkathena/mogeaver-docker</a></p>
+<hr/>
+<h4 id="%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E" tabindex="-1">使用说明</h4>
+<ol>
+<li>先确保本地windows已安装docker-desktop,并已经启动该服务</li>
+</ol>
+<blockquote>
+<p><a href="https://www.docker.com/get-started/" target="_blank">https://www.docker.com/get-started/</a></p>
+</blockquote>
+<ol start="2">
+<li>下载VcXsrv</li>
+</ol>
+<blockquote>
+<p><a href="https://sourceforge.net/projects/vcxsrv/" target="_blank">https://sourceforge.net/projects/vcxsrv/</a></p>
+</blockquote>
+<ol start="3">
+<li>安装VcXsrv，一路下一步，然后打开XLaunch，一路下一步</li>
+<li>下载mogdb和mogeaver压缩包，放到本文件夹</li>
+</ol>
+<pre><code class="language-">wget https://cdn-mogdb.enmotech.com/mogeaver/22.1.5/mogeaver-ce-22.1.5-linux.gtk.x86_64.tar.gz
+wget https://cdn-mogdb.enmotech.com/mogdb-media/3.0.1/MogDB-3.0.1-CentOS-x86_64.tar.gz
+</code></pre>
+<ol start="5">
+<li>进入本目录，执行构建镜像命令</li>
+</ol>
+<pre><code class="language-">docker build -t mogeaver-docker:latest .
+</code></pre>
+<ol start="6">
+<li>构建完成后，执行run_mogeaver.bat即可启动mogeaver</li>
+</ol>
+<h2 id="%E4%B8%AA%E6%80%A7%E5%8C%96%E4%BF%AE%E6%94%B9%E8%AF%B4%E6%98%8E" tabindex="-1">个性化修改说明</h2>
+<ol>
+<li>默认用户配置路径在 d:\MogeaverData ，可以通过修改run_mogeaver.bat文件变更</li>
+<li>默认gs_dump导出文件路径在 d:\dump_data ，可以通过修改run_mogeaver.bat文件变更</li>
+<li>如果需要中文字体支持，请取消dockerfile中关于“Chinese font support”部分的注释</li>
+<li>如果需要更换国内yum源，请取消dockerfile中关于“change yum repo”部分的注释</li>
+</ol>
+<h4 id="%E7%89%B9%E7%82%B9" tabindex="-1">特点</h4>
+<ol>
+<li>已集成openGauss客户端命令行工具，比如gsql/gs_dump等，可以通过mogeaver相关功能调用</li>
+<li>关闭程序即删除容器，节省内存资源</li>
+</ol>
+<h2 id="%E4%BD%BF%E7%94%A8%E6%88%AA%E5%9B%BE" tabindex="-1">使用截图</h2>
+<ol>
+<li>构建<br/>
+<img alt="image-1662550269020" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/09/image-1662550269020.png" srcset="/upload/2022/09/image-1662550269020.png?width=1200 1200w, /upload/2022/09/image-1662550269020.png?width=400 400w, /upload/2022/09/image-1662550269020.png?width=1600 1600w, /upload/2022/09/image-1662550269020.png?width=800 800w"/></li>
+<li>软件打开界面<br/>
+<img alt="image-1662550350017" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/09/image-1662550350017.png" srcset="/upload/2022/09/image-1662550350017.png?width=1200 1200w, /upload/2022/09/image-1662550350017.png?width=400 400w, /upload/2022/09/image-1662550350017.png?width=1600 1600w, /upload/2022/09/image-1662550350017.png?width=800 800w"/></li>
+<li>执行备份<br/>
+<img alt="image-1662550519565" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/09/image-1662550519565.png" srcset="/upload/2022/09/image-1662550519565.png?width=1200 1200w, /upload/2022/09/image-1662550519565.png?width=400 400w, /upload/2022/09/image-1662550519565.png?width=1600 1600w, /upload/2022/09/image-1662550519565.png?width=800 800w"/><br/>
+<img alt="image-1662550700045" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/09/image-1662550700045.png" srcset="/upload/2022/09/image-1662550700045.png?width=1200 1200w, /upload/2022/09/image-1662550700045.png?width=400 400w, /upload/2022/09/image-1662550700045.png?width=1600 1600w, /upload/2022/09/image-1662550700045.png?width=800 800w"/></li>
+<li>生成的文件<br/>
+<img alt="image-1662550744841" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/09/image-1662550744841.png" srcset="/upload/2022/09/image-1662550744841.png?width=1200 1200w, /upload/2022/09/image-1662550744841.png?width=400 400w, /upload/2022/09/image-1662550744841.png?width=1600 1600w, /upload/2022/09/image-1662550744841.png?width=800 800w"/></li>
+</ol>
+<h2 id="%E9%81%97%E7%95%99%E9%97%AE%E9%A2%98" tabindex="-1">遗留问题</h2>
+<p>由于不明原因，一段时间不操作，容器版本的程序就会闪退。。。</p>
+<h2 id="%E5%90%8E%E8%AE%B0" tabindex="-1">后记</h2>
+<p>在做这个东西的时候，了解到了目前很多东西都可以容器化，后来又想到了，能不能封装一个gs_dump.exe调用linux容器中的gs_dump，这样就能用windows版本的mogeaver来调用gs_dump了。以后有时间再看怎么弄吧。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

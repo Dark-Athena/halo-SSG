@@ -157,7 +157,135 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>在oracle21c版本中，添加了4个有关峰度和偏度的聚合函数，分别是</p>
+<ol>
+<li>SKEWNESS_POP-总体偏度</li>
+<li>SKEWNESS_SAMP-样本偏度</li>
+<li>KURTOSIS_POP-总体峰度</li>
+<li>KURTOSIS_SAMP-样本峰度</li>
+</ol>
+<p>这4个函数与统计学有关，至于有什么用，不是本篇重点，请自行检索相关文献。但要注意的是，目前国内某些百科，由于翻译或者语境的问题，导致相关描述存在问题。如果想对此方面有更详细了解的，建议多搜索一些国外的文章。</p>
+<h2 id="二原公式">二、原公式</h2>
+<p>SKEWNESS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png" srcset="/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1200 1200w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=400 400w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1600 1600w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=800 800w"/></p>
+<p>SKEWNESS_POP()=SKEWNESS_SAMP()*(n–2)/SQRT(n(n–1))</p>
+<p>KURTOSIS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png" srcset="/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1200 1200w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=400 400w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1600 1600w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=800 800w"/></p>
+<p>KURTOSIS_POP()=(KURTOSIS_SAMP()*(n-2)*(n-3)/(n-1)-6)/(n+1)</p>
+<p>其中x̄为平均值，n为项数,s为标准差，SQRT为取平方根</p>
+<h2 id="三excel公式计算">三、Excel公式计算</h2>
+<p>在微软office的excel中，自带有skew、skew.p、kurt三个函数，金山wps的表格里只有skew、kurt两个。<br/>
+下面我们以SKEWNESS_SAMP(excel里对应skew)为例，来用公式进行模拟计算，看是否和excel中自带函数计算一致。（文末附该演示案例的excel文件下载地址）</p>
+<h4 id="1准备数据">1.准备数据</h4>
+<p>假设我们有一列这样的数据<br/>
+2<br/>
+3<br/>
+-1<br/>
+3<br/>
+4<br/>
+5<br/>
+0<br/>
+2</p>
+<h4 id="2计算相关统计值">2.计算相关统计值</h4>
+<p>可以得到其项数n=8，平均值x̄=2.25，标准差s=1.9821，<br/>
+(标准差在各可计算的软件及开发语言中一般都有自带函数，一般名称为stddev，因此不在此做模拟演算，其公式为s=sqrt(((x1-x̄)<sup>2 +(x2-x̄)</sup>2 +......(xn-x̄)^2)/n ))</p>
+<h4 id="3计算每一项与平均值的差">3.计算每一项与平均值的差</h4>
+<p>2-2.25=  -0.25<br/>
+3-2.25=  0.75<br/>
+-1-2.25= -3.25<br/>
+3-2.25=  0.75<br/>
+4-2.25=  1.75<br/>
+5-2.25=  2.75<br/>
+0-2.25=  -2.25<br/>
+2-2.25=  -0.25</p>
+<h4 id="4计算这列差每一项的3次方">4.计算这列差每一项的3次方</h4>
+<p>-0.25<sup>3=-0.015625<br/>
+0.75</sup>3= 0.421875<br/>
+-3.25<sup>3=-34.328125<br/>
+0.75</sup>3= 0.421875<br/>
+1.75<sup>3= 5.359375<br/>
+2.75</sup>3= 20.796875<br/>
+-2.25<sup>3=-11.390625<br/>
+-0.25</sup>3=-0.015625</p>
+<h4 id="5将这3次方后的结果求和">5.将这3次方后的结果求和</h4>
+<p>得到 -18.75，即SKEWNESS_SAMP公式中最复杂的分子部分</p>
+<h4 id="6除以分母得到最终结果">6.除以分母得到最终结果</h4>
+<p>-18.75/((8-1)*(8-2)*1.9821^3)=-0.4587</p>
+<h4 id="7和excel函数比较">7.和excel函数比较</h4>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png" srcset="/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1200 1200w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=400 400w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1600 1600w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=800 800w"/><br/>
+可以发现结果完全一致</p>
+<h4 id="8计算skewness-pop即excel中的skewp">8.计算SKEWNESS_POP(即excel中的skew.p）</h4>
+<p>-0.4587*(8–2)/SQRT(8(8–1))=-0.3677</p>
+<h4 id="9关于kurtosis-samp和kurtosis-pop">9.关于KURTOSIS_SAMP和KURTOSIS_POP</h4>
+<p>请参考文末的excel表格，自行增加下图标黄部分,就当留给读者的课后作业了<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png" srcset="/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1200 1200w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=400 400w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1600 1600w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=800 800w"/></p>
+<pre><code>D7=(A7-F$9)^4
+D15=SUM(D7:D14)
+E22=KURT(A7:A14)
+E23=F12*(F12+1)*D15/((F12-1)*(F12-2)*(F12-3)*F10^4)-3*(F12-1)^2/((F12-2)*(F12-3))
+</code></pre>
+<h2 id="四sql计算">四、SQL计算</h2>
+<p>有了上面excel公式模拟作为铺垫后，我们就能用其他程序语言来进行模拟了，这里以sql为例，只为描述逻辑。如果在生产中考虑到内存占用的问题，建议改写成plsql</p>
+<pre><code class="language-sql">--注：以下any_value函数为oracle19c新增，更老的版本请改成max或者min
+
+--21c函数
+select SKEWNESS_POP(salary), SKEWNESS_SAMP(salary) from hr.employees a;
+
+--sql公式计算
+
+with tt as
+ (select salary,
+         count(1) over() ct,
+         avg(salary) over() av,
+         stddev(salary) over() st
+    from hr.employees),
+r as
+ (select any_value(ct) ct,
+         sum(power((salary - av), 3)) avp,
+         any_value(power(st, 3)) stp
+    from tt)
+select ct * (avp / ((ct - 1) * (ct - 2) * stp)) SKEWNESS_POP_,
+ct * (avp / ((ct - 1) * (ct - 2) * stp))*(ct-2)/sqrt(ct*(ct-1)) SKEWNESS_SAMP_ from r;
+
+--21c函数
+select KURTOSIS_SAMP(salary) ,KURTOSIS_POP(salary) from hr.employees a;
+
+--sql公式计算
+with tt as
+ (select salary,
+         count(1) over() ct,
+         avg(salary) over() av,
+         stddev(salary) over() st
+    from hr.employees),
+r as
+ (select any_value(ct) ct,
+         sum(power((salary - av), 4)) avp,
+         any_value(power(st, 4)) stp
+    from tt)
+select ct * (ct + 1) * avp / ((ct - 1) * (ct - 2) * (ct - 3) * stp) -
+       3 * power((ct - 1), 2) / ((ct - 2) * (ct - 3)) KURTOSIS_SAMP_,
+       ((ct * (ct + 1) * avp / ((ct - 1) * (ct - 2) * (ct - 3) * stp) -
+       3 * power((ct - 1), 2) / ((ct - 2) * (ct - 3)))*(ct-2)*(ct-3)/(ct-1)-6)/(ct+1) KURTOSIS_POP_
+  from r;
+
+</code></pre>
+<p>SQL执行对比截图<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png" srcset="/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1200 1200w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=400 400w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1600 1600w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=800 800w"/></p>
+<h3 id="五将函数移植到其他数据库">五、将函数移植到其他数据库</h3>
+<p>比如openGauss(base on postgresql)<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png" srcset="/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1200 1200w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=400 400w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1600 1600w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=800 800w"/><br/>
+代码请参考我的gitee项目<br/>
+<a href="https://gitee.com/darkathena/opengauss-oracle/tree/master/oracle-function">https://gitee.com/darkathena/opengauss-oracle/tree/master/oracle-function</a></p>
+<h2 id="参考资料">参考资料</h2>
+<ol>
+<li><a href="https://excelmaster.co/skewness-of-data/">https://excelmaster.co/skewness-of-data/</a> (文中的excel文件可在此下载)</li>
+<li><a href="http://www.real-statistics.com/descriptive-statistics/symmetry-skewness-kurtosis/">http://www.real-statistics.com/descriptive-statistics/symmetry-skewness-kurtosis/</a></li>
+<li><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/KURTOSIS_POP.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/KURTOSIS_POP.html</a></li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

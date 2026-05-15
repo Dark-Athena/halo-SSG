@@ -155,7 +155,158 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>经常在oracle中写plsql的应该都知道,oracle中使用package不仅仅是把多个函数或者过程整合到一起,它还具有一些其他的优点,比如</p>
+<ol>
+<li>可以定义私有化函数、过程、type、type数组、变量等,让其只能被包内的函数调用</li>
+<li>可以在不同的package内使用同名的函数、过程、type、type数组、变量等</li>
+<li>在调试代码时,不需要跳转很多对象</li>
+<li>把package的ddl文本中的包名进行修改,即可创建一个内部代码完全相同但名字不同的包,无需去修改内部其他函数或过程的名称,方便进行测试</li>
+</ol>
+<p>实际优点远远不止上面提到的这些。</p>
+<h2 id="二postgresql的package">二、PostgreSQL的"package"</h2>
+<p>PostgreSQL是不支持创建package的,更别提调用package中的过程及函数了。</p>
+<p>目前信创环境下,有大量的oracle数据库被要求迁移到开源或国产数据库,但其中的package迁移变成了一个很让人头疼的事,要么重新开发对应的plsql代码,要么就要让目标数据库支持使用package。</p>
+<p>常见的在oracle中调用package中过程的语法为</p>
+<pre><code class="language-sql">begin
+pck.pro;
+end;
+</code></pre>
+<p>上例中,pck为包名,pro为过程名,或者也可以被识别为schema_name.procedure_name,oracle会自动识别前面的是包名还是schema_name。但是这个语法如果放到PostgreSQL中,就只能是后者了,即pck这个schema下的pro过程,这个时候过程就不在package里了。</p>
+<p>因此,有人想到了一种方法,直接用包名建一个schema,然后在这个schema下来创建原有包内的过程及函数。至于会话内的参数暂存及传递,使用会话级临时表进行处理。<br/>
+这样就可以变相地支持package的调用语法了。</p>
+<p>但是,这个方法的缺点也显而易见</p>
+<ol>
+<li>创建一个"package"就得创建一个schema,大型业务系统迁入进来恐怕得有几十上百个schema了,难以管理</li>
+<li>这些过程及函数相当于是全部独立的,无论是在解析还是在参数的处理上,性能都不如单独的一个package</li>
+<li>创建一个"package"也变得困难,需要逐个过程或逐个函数去创建</li>
+</ol>
+<h2 id="三opengauss的package">三、openGauss的"package"</h2>
+<p>在2021年9月份,openGauss发布了2.1.0版本(Preview),并在2021年12月份宣布支持"create or replace package"。</p>
+<p>众所周知,openGauss是基于PostgreSQL开源项目进行的研发,那它是如何实现支持package的呢？</p>
+<p>首先,新建openGauss数据库时,必须要指定兼容A(参考<a href="https://www.darkathena.top/archives/opengauss-docker-compat-oracle">【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</a>),然后在数据库里就可以按照类似oracle语法那样来创建包了,比如</p>
+<pre><code class="language-sql">CREATE OR REPLACE package dbms_lock
+as
+  PROCEDURE sleep(pi_seconds double precision);
+end dbms_lock;
+/
+CREATE OR REPLACE package body dbms_lock
+as
+  PROCEDURE sleep(pi_seconds double precision)
+  AS
+  BEGIN
+    perform pg_sleep(pi_seconds);
+  END;
+end dbms_lock;
+/
+</code></pre>
+<p>还可以像在oracle中一样调用</p>
+<pre><code class="language-sql">begin
+dbms_lock.sleep(1);
+end;
+</code></pre>
+<p>不过要注意的是,在创建包说明和包体的最后,必须要接上包名(ORACLE可接可不接,但是如果接了必须保持和开头的包名一致)；还有PostgreSQL(openGauss)在不指定schema时创建的过程及函数,是默认创建在pg_catalog这个schema下的,同理package也是如此。</p>
+<p>到这里,我突然产生了一个疑问,在pg_proc能不能找到这个包呢？</p>
+<pre><code class="language-sql">select * from pg_proc x where LOWER(x.proname) like '%dbms_lock%';
+</code></pre>
+<p>结果是没有记录？？？<br/>
+然后我去查看所有schema,的确也没有"dbms_lock"这个schema,那这个对象跑哪去了？</p>
+<p>再查</p>
+<pre><code class="language-sql">select * from pg_proc x where LOWER(x.proname) like '%sleep%';
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png" srcset="/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1200 1200w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=400 400w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1600 1600w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=800 800w"/><br/>
+通过drop再create,确认第二个行记录的确就是通过创建包来生成的一个过程,然后可以发现它的propackage和propackageid这两个字段和其他过程是有区别的。我猜测propackageid表示这个过程对应的包id,如果一个包里有多个过程,那么它们的propackageid应该是一样的,实测也证实的确如此。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png" srcset="/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1200 1200w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=400 400w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1600 1600w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=800 800w"/></p>
+<p>可是包名到哪去了？直觉告诉我,应该还有个视图或者表有记录包的信息,于是查</p>
+<pre><code class="language-sql">select * from pg_class where relname like '%package%'
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png" srcset="/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1200 1200w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=400 400w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1600 1600w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=800 800w"/><br/>
+再查第一个表<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png" srcset="/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1200 1200w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=400 400w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1600 1600w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=800 800w"/><br/>
+果然id是对应的,都是16387</p>
+<p>但问题又来了,在PostgreSQL中,pg_proc里的过程及函数,对于一个schema下同名且同参数的,是禁止同时存在多个的,具有唯一性,openGauss这个实现方式难道越过了这个限制么？</p>
+<p>答案是,没有。</p>
+<p>我翻了openGauss的官方文档<br/>
+<a href="https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html">https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png" srcset="/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1200 1200w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=400 400w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1600 1600w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=800 800w"/></p>
+<ol>
+<li>由于升级的限制，在V5R2C00版本中，即使在不同的Package间，也无法创建同名同参的存储过程。</li>
+<li>package只支持集中式，无法在分布式中使用。</li>
+<li>在package specification中声明过的函数或者存储过程，必须在package body中找到定义。</li>
+<li>在实例化中，无法调用带有commit/rollback的存储过程。</li>
+<li>不能在Trigger中调用package函数。</li>
+<li>不能在外部SQL中直接使用package当中的变量。</li>
+<li>不允许在package外部调用package的私有变量和存储过程。</li>
+<li>不支持其它存储过程不支持的用法，例如，在function中不允许调用commit/rollback，则package的function中同样无法调用commit/rollback。</li>
+<li>不支持schema与package同名。</li>
+<li>只支持A风格的存储过程和函数定义。</li>
+<li>不支持package内有同名变量，包括包内同名参数。</li>
+<li>package的全局变量为session级，不同session之间package的变量不共享。</li>
+<li>package中调用自治事务的函数，不允许使用公有变量，以及递归的使用公有变量的函数。</li>
+<li>package中不支持声明ref cursor类型。</li>
+</ol>
+<p>看到这一堆限制,尤其是1、5、10,这真是太可惜了。对于package来说,该有的限制是加上了,但该支持的功能却有一些不支持。</p>
+<p>比如说第1点,以前写个业务功能代码,建个包,里面经常会写个名字为"main"的过程,方便开发人员找到入口；如果是导出的话,对应的过程也会命名为"export_data"之类的。这些都属于企业内部约定俗成的开发规范。但openGauss有这个限制的话,就无法对原有系统实现无缝迁移了,还是得改应用代码。</p>
+<p>第5点这个限制有点莫名其妙,有可能是pg内核的原因。</p>
+<p>第6点这个有点不理解,实测在package外部是可以用package的变量的。</p>
+<pre><code class="language-sql">CREATE OR REPLACE package dbms_lock
+as
+pi_seconds double precision DEFAULT 1;
+  PROCEDURE sleep(pi_seconds double precision);
+end dbms_lock;
+/
+CREATE OR REPLACE package body dbms_lock
+as
+  PROCEDURE sleep(pi_seconds double precision)
+  AS
+  BEGIN
+    perform pg_sleep(pi_seconds);
+  END;
+end dbms_lock;
+/
+
+declare
+a double precision;
+begin
+set client_min_messages='notice';
+ a:=dbms_lock.pi_seconds;
+ raise notice '%',a;
+end;
+
+</code></pre>
+<p>第11点也不理解,实测可以在包内使用同名变量和同名参数。</p>
+<pre><code class="language-sql">CREATE OR REPLACE package dbms_lock
+as
+pi_seconds double precision DEFAULT 1;
+  PROCEDURE sleep(pi_seconds double precision);
+  PROCEDURE sleep2(pi_seconds double precision);
+end dbms_lock;
+/
+CREATE OR REPLACE package body dbms_lock
+as
+  PROCEDURE sleep(pi_seconds double precision)
+  AS
+  a int;
+  BEGIN
+    perform pg_sleep(pi_seconds);
+  END;
+  PROCEDURE sleep2(pi_seconds double precision)
+  AS
+  a int;
+  BEGIN
+    perform pg_sleep(pi_seconds);
+  END;
+end dbms_lock;
+/
+</code></pre>
+<p>另外,这种方式创建的包,无法和目前官方的<a href="https://gitee.com/enmotech/compat-tools">compat_tools</a>兼容,因为compat_tools是用新建一个包就建一个schema的方式写的,而这也违背了第9点。</p>
+<h2 id="四总结">四、总结</h2>
+<p>整体来看,增加package的支持给openGauss带来了不小的优势,可以让熟悉package开发的人员迅速上手来进行业务系统逻辑代码的研发。但是受限于pg的内核,目前看上去openGauss只是在sql解析阶段来兼容了package的创建及使用语法,在后台仍旧是转换成一个个单独的过程来执行,并没有创造一种新的对象,由此带来了官方文档中那一系列限制,这是在未来开发使用中需要注意的。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

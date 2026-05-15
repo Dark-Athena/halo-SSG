@@ -157,7 +157,70 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>从2020年开始，网上时不时会刷到windows terminal（缩写wt，下同）这个软件的各种讨论及新闻。这玩意已在新版的win11中，代替了cmd成为了默认的终端软件，而且集成了cmd/powershell,甚至还能自行添加其他终端进去。拥有各种字体、颜色的个性化设置，一时间互联网上无数好评。而且，这个软件是开源的，微软开源。<br/>
+既然是个终端，在windows操作系统上，，一般情况下，几乎很少需要使用cmd或者powershell去执行什么东西，真正用得多的场景应该是ssh连接linux服务器。<br/>
+但是，其他大多数终端软件都能保存登录密码，而wt不支持！</p>
+<h2 id="%E6%80%9D%E8%B7%AF" tabindex="-1">思路</h2>
+<p>目前网上介绍的使用wt进行ssh连接的方案中，都是创建一个新的配置，命令行里填</p>
+<pre><code class="language-bash">ssh user@ip
+</code></pre>
+<p>比如用root用户连接192.168.1.1服务器</p>
+<pre><code class="language-bash">ssh root@192.168.1.1
+</code></pre>
+<p><img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image.png" srcset="/upload/2022/11/image.png?width=1200 1200w, /upload/2022/11/image.png?width=400 400w, /upload/2022/11/image.png?width=1600 1600w, /upload/2022/11/image.png?width=800 800w"/></p>
+<p>保存配置后，点击上方的下拉三角，选择刚刚创建的配置，即可打开一个新的窗口，只是需要输入密码。<br/>
+<img alt="image-1667743779800" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743779800.png" srcset="/upload/2022/11/image-1667743779800.png?width=1200 1200w, /upload/2022/11/image-1667743779800.png?width=400 400w, /upload/2022/11/image-1667743779800.png?width=1600 1600w, /upload/2022/11/image-1667743779800.png?width=800 800w"/></p>
+<p>而网上能搜到的wt免密登录ssh的方式，都是使用证书来进行免密，但弄证书真是个麻烦事，虽然比密码登录要安全，但我一大堆个人测试服务器，各种删了建，没必要去管什么安全性，哪怕给个明文保存密码的方式我都能接受。</p>
+<p>于是，我先略过wt，直接找ssh免密登录的方式，找到个sshpass，但是这玩意是linux上用的，没找到windows的版本（有找到cygwin的版本，但总感觉又多隔了一层不舒服斯基）。然后又找到了putty,但是putty打开后是个窗口。最后，我目光聚焦到了putty自带的命令行工具plink上。<br/>
+<a href="https://stackoverflow.com/questions/23419659/sshpass-is-not-recognized-on-windows" target="_blank">sshpass-is-not-recognized-on-windows</a></p>
+<p>plink 语法：</p>
+<pre><code class="language-bash">plink 192.168.1.1 -l root -pw password
+</code></pre>
+<p>于是，我把wt中配置的命令行，改成plink的这段，然后连接<br/>
+<img alt="image-1667743888223" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743888223.png" srcset="/upload/2022/11/image-1667743888223.png?width=1200 1200w, /upload/2022/11/image-1667743888223.png?width=400 400w, /upload/2022/11/image-1667743888223.png?width=1600 1600w, /upload/2022/11/image-1667743888223.png?width=800 800w"/><br/>
+<img alt="image-1667743922745" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743922745.png" srcset="/upload/2022/11/image-1667743922745.png?width=1200 1200w, /upload/2022/11/image-1667743922745.png?width=400 400w, /upload/2022/11/image-1667743922745.png?width=1600 1600w, /upload/2022/11/image-1667743922745.png?width=800 800w"/><br/>
+不需要密码，直接一个回车就进来了！<br/>
+但是，事情好像没我想得那么简单，因为，它中文乱码了…<br/>
+<img alt="image-1667743978722" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743978722.png" srcset="/upload/2022/11/image-1667743978722.png?width=1200 1200w, /upload/2022/11/image-1667743978722.png?width=400 400w, /upload/2022/11/image-1667743978722.png?width=1600 1600w, /upload/2022/11/image-1667743978722.png?width=800 800w"/><br/>
+我linux服务器是utf8的，而windows简体中文环境默认是gbk，乱码原因显而易见。</p>
+<p>在putty中，可以在设置中调整窗口的字符集，但是plink本身就是个命令行工具，而且并没有字符集设置的启动参数。<br/>
+我尝试在cmd中直接使用plink连接，中文也是乱码的。<br/>
+再打开一个cmd，输入chcp 65001，再用plink连接，中文不乱码了。<br/>
+<img alt="image-1667744324931" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744324931.png" srcset="/upload/2022/11/image-1667744324931.png?width=1200 1200w, /upload/2022/11/image-1667744324931.png?width=400 400w, /upload/2022/11/image-1667744324931.png?width=1600 1600w, /upload/2022/11/image-1667744324931.png?width=800 800w"/></p>
+<p>可是wt的命令行里咋输入这两条指令呢？</p>
+<p>直接填这两条命令，打开会报错，<br/>
+在cmd中，是用"&amp;&amp;"来连接两个命令；<br/>
+在powershell中，可以用 ";"来连接两个命令。<br/>
+但是填进去都不对。</p>
+<p>于是我又开始分析，这个wt，既然能加入各种终端软件，是不是它本身并没有内置一个终端？必须使用一个命令行工具作为启动入口？<br/>
+于是我添加了一个这样的命令行</p>
+<pre><code class="language-bash">cmd /c chcp 65001&amp;&amp;plink -ssh 192.168.1.1 -l root -pw password
+</code></pre>
+<p><img alt="image-1667744775194" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744775194.png" srcset="/upload/2022/11/image-1667744775194.png?width=1200 1200w, /upload/2022/11/image-1667744775194.png?width=400 400w, /upload/2022/11/image-1667744775194.png?width=1600 1600w, /upload/2022/11/image-1667744775194.png?width=800 800w"/><br/>
+于是，它自动登录，而且没有乱码了！<br/>
+<img alt="image-1667744807250" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744807250.png" srcset="/upload/2022/11/image-1667744807250.png?width=1200 1200w, /upload/2022/11/image-1667744807250.png?width=400 400w, /upload/2022/11/image-1667744807250.png?width=1600 1600w, /upload/2022/11/image-1667744807250.png?width=800 800w"/></p>
+<p>我又尝试了使用powershell作为启动入口的方式</p>
+<pre><code class="language-bash">powershell /c chcp 65001;plink -ssh 192.168.1.1 -l root -pw password
+</code></pre>
+<p>同样也没出现中文乱码了。</p>
+<h2 id="%E6%80%BB%E7%BB%93%E6%96%B9%E6%A1%88" tabindex="-1">总结方案</h2>
+<ol>
+<li>下载putty（建议选择非安装版）</li>
+<li>解压putty压缩包</li>
+<li>把解压后的路径添加到操作系统环境变量path中</li>
+<li>在wt中添加个新配置文件，命令行填写如下二者之一,并保存</li>
+</ol>
+<pre><code class="language-bash">powershell /c chcp 65001;plink -ssh 192.168.1.1 -l root -pw password
+cmd /c chcp 65001&amp;&amp;plink -ssh 192.168.1.1 -l root -pw password
+</code></pre>
+<p>此时即可在wt里享受免密登录ssh了。<br/>
+不过需要注意的是，这个方案的密码是明文，存在极大的风险</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

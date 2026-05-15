@@ -149,13 +149,119 @@
         
         <span>2022-02-01</span>
         
-        <span>734 阅读</span>
+        <span>735 阅读</span>
         
         <a href="/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>春节前,墨天轮发起了一个新年SQL“祝福”大赛,<a href="https://www.modb.pro/db/241365">https://www.modb.pro/db/241365</a><br/>
+本人有幸获得了最佳创意奖<br/>
+<a href="https://www.modb.pro/db/233603">【恭贺新春】SQL还能这样玩之我用sql写福字</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-2a16e8b827aa40669b0bf83790a14979.png" srcset="/upload/2022/02/image-2a16e8b827aa40669b0bf83790a14979.png?width=1200 1200w, /upload/2022/02/image-2a16e8b827aa40669b0bf83790a14979.png?width=400 400w, /upload/2022/02/image-2a16e8b827aa40669b0bf83790a14979.png?width=1600 1600w, /upload/2022/02/image-2a16e8b827aa40669b0bf83790a14979.png?width=800 800w"/></p>
+<p>文章里使用了各种好玩的方法,比如sql调用python、sql检索汉字点阵字库、递归sql、sql进行base64、sql进行gzip压缩、12c/18c/21c新特性等等。当时为了写这篇文章想了不少内容,其中就有个想法,点阵字转01二进制文本-&gt;转二进制数字-&gt;转十六进制文本-&gt;转二进制数据-&gt;转base64编码,但是当时没想出合适的二进制数值与十六进制数值互转的方法,因此这个想法就没放上去。此事还引发我写了一篇这样的文章<br/>
+<a href="https://www.darkathena.top/archives/binaryclob-to-blob">【ORACLE】对二进制字符串的存储空间占用进行压缩的研究</a></p>
+<p>今天在网上偶然间看到一篇2007年的帖子<br/>
+<a href="http://www.itpub.net/thread-717913-1-1.html">http://www.itpub.net/thread-717913-1-1.html</a></p>
+<p>有个版主回复了一个sql,是十进制转二进制</p>
+<pre><code class="language-sql">select ltrim(translate(ltrim(dump(convert(translate(to_char(235, 'FMXXXXXXXX'),
+                                                    '0123456789ABCDEF',
+                                                    '热壬纫扔扇缮梢捎胰疑乙矣尤由右佑'),
+                                          'zhs16gbk')),
+                             'TypLen =0123456789'),
+                       '123456789, :',
+                       '1'),
+             '0')
+  from dual;
+</code></pre>
+<p>我看后,大感震撼,原来还能这样！利用gbk字符集中这几个特殊位置的汉字,对每个汉字的2个字节,分别转换成十进制(200,201,210,211),再把十进制数值中的2去掉,只剩下1和0,拼起来就是二进制文本了。其实这和把16个十六进制数字用case when去对应二进制数字是类似的逻辑,不过那样写的话,sql就太长了。</p>
+<p>然后我就借用了这16个汉字,用另一种方式来获取对应的字节数据,避免产生大量无用的中间字符,最后用此方式写出的福字sql如下</p>
+<pre><code class="language-sql">WITH R AS
+ (SELECT RAWTOHEX(convert(translate(RAWTOHEX(UTL_ENCODE.base64_decode(UTL_RAW.cast_to_raw('EHAJgABwGZDpMAnAEDw7xFJ0ksQSRBH4EAg='))),
+                                    '0123456789ABCDEF',
+                                    '热壬纫扔扇缮梢捎胰疑乙矣尤由右佑'),
+                          'zhs16gbk')) R
+    FROM DUAL),
+T(H,
+P) AS
+ (SELECT TRANSLATE(TO_NUMBER(SUBSTR(R, 1, 2), 'XX'), '12', '1') H, 1 P
+    FROM R
+  UNION ALL
+  SELECT TRANSLATE(TO_NUMBER(SUBSTR(R, P * 2 + 1, 2), 'XX'), '12', '1'),
+         P + 1
+    FROM T, R
+   WHERE P &lt;= 103),
+B AS
+ (select LISTAGG(H) B from T),
+L(C,
+LINE) AS
+ (SELECT SUBSTR(B.B, 1, 16) C, 1 LINE
+    FROM B
+  UNION ALL
+  SELECT SUBSTR(B.B, LINE * 16 + 1, 16), LINE + 1
+    FROM L, B
+   WHERE LINE &lt;= 12)
+select LISTAGG(TRANSLATE(C, '01', ' ○'), CHR(10)) from L
+
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-1d1a0aa7d0314c72a60add151111e7be.png" srcset="/upload/2022/02/image-1d1a0aa7d0314c72a60add151111e7be.png?width=1200 1200w, /upload/2022/02/image-1d1a0aa7d0314c72a60add151111e7be.png?width=400 400w, /upload/2022/02/image-1d1a0aa7d0314c72a60add151111e7be.png?width=1600 1600w, /upload/2022/02/image-1d1a0aa7d0314c72a60add151111e7be.png?width=800 800w"/></p>
+<p>这个sql中,唯一需要变动的输入参数,只有"EHAJgABwGZDpMAnAEDw7xFJ0ksQSRBH4EAg="这一串base64编码,也就是说,对于任何一个16*16的点阵字,都可以压缩成几十个字符的base64编码文本,如果是笔画少的,估计可以压得更小了(此例中,我去掉了点阵字里没有点的3个空行)。</p>
+<p>还是刚刚那个帖子,我往后翻了一页,发现这个版主又给了一种十进制转二进制的方法:</p>
+<pre><code class="language-sql">select ltrim(translate(asciistr(translate(to_char(185, 'FMXXXXXX'),
+                                          '0123456789ABCDEFG',
+                                          '业丛个丫会伛伪伫帚帛帪師弚弛弪弫')),
+                       '4E1A5F2B\',
+                       '00001111'),
+             '0')
+  from dual;
+</code></pre>
+<p>这脑洞真让人佩服,我也想过用asciistr函数来找"0000","0001"这样的字,但是很明显这些字符中存在不可见字符,有的甚至无法复制,但这个版主想到一个奇葩方案,用其他字符来替代0和1,于是我又有了下面这个sql</p>
+<pre><code class="language-sql">with b as
+ (select translate(asciistr(translate(RAWTOHEX(UTL_ENCODE.base64_decode(UTL_RAW.cast_to_raw('EHAJgABwGZDpMAnAEDw7xFJ0ksQSRBH4EAg='))),
+                                      '0123456789ABCDEFG',
+                                      '业丛个丫会伛伪伫帚帛帪師弚弛弪弫')),
+                   '4E1A5F2B\',
+                   '00001111') b
+    from dual),
+L(C,
+LINE) AS
+ (SELECT SUBSTR(B.B, 1, 16) C, 1 LINE
+    FROM B
+  UNION ALL
+  SELECT SUBSTR(B.B, LINE * 16 + 1, 16), LINE + 1
+    FROM L, B
+   WHERE LINE &lt;= 12)
+select LISTAGG(TRANSLATE(C, '01', ' ○'), CHR(10)) from L
+
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-00cdaaa9e3254b848259d507daa922c5.png" srcset="/upload/2022/02/image-00cdaaa9e3254b848259d507daa922c5.png?width=1200 1200w, /upload/2022/02/image-00cdaaa9e3254b848259d507daa922c5.png?width=400 400w, /upload/2022/02/image-00cdaaa9e3254b848259d507daa922c5.png?width=1600 1600w, /upload/2022/02/image-00cdaaa9e3254b848259d507daa922c5.png?width=800 800w"/></p>
+<p>然后,如果有点阵字了,如何生成这一串base64编码呢？</p>
+<p>首先需要有二进制转十六进制的方法,对于数据比较小的,网上已经有很多方法了,或者也可以使用我这篇文章里最后写的函数binstr_to_hexblob <a href="https://www.darkathena.top/archives/binaryclob-to-blob">【ORACLE】对二进制字符串的存储空间占用进行压缩的研究</a><br/>
+然后将01点阵字复制到下面这个sql里执行即可</p>
+<pre><code class="language-sql">with t as (select replace(
+'0001000001110000
+0000100110000000
+0000000001110000
+0001100110010000
+1110100100110000
+0000100111000000
+0001000000111100
+0011101111000100
+0101001001110100
+1001001011000100
+0001001001000100
+0001000111111000
+0001000000001000'
+,chr(10)) t from dual)
+select utl_raw.cast_to_varchar2( utl_encode.base64_encode(binstr_to_hexblob(t))) from t;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-6418e4448d1c4031940a68738ecb5503.png" srcset="/upload/2022/02/image-6418e4448d1c4031940a68738ecb5503.png?width=1200 1200w, /upload/2022/02/image-6418e4448d1c4031940a68738ecb5503.png?width=400 400w, /upload/2022/02/image-6418e4448d1c4031940a68738ecb5503.png?width=1600 1600w, /upload/2022/02/image-6418e4448d1c4031940a68738ecb5503.png?width=800 800w"/></p>
+<p>注:本篇纯粹是逻辑研究,且某些代码存在效率低下的问题,因此不适用于正式编码场合下使用！</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,181 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>参考官方文档：<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-subprograms.html#GUID-250BDBBB-0CD6-4D56-9DDF-6FCEDC110D00">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-subprograms.html#GUID-250BDBBB-0CD6-4D56-9DDF-6FCEDC110D00</a></p>
+<p>在21c版本之前，oracle已经有了函数结果缓存功能，但这次新增了 语句块列表、PL/SQL 函数历史跟踪、对象块列表以及允许结果缓存到磁盘</p>
+<h2 id="为函数启用结果缓存">为函数启用结果缓存</h2>
+<p>官方给了个例子，但我觉得不够明显，所以稍微改了下</p>
+<pre><code class="language-sql">sqlplus / as sysdba
+alter session set container=xepdb1;
+
+--授权dbms_lock包，下面要用到
+grant execute on dbms_lock to hr;
+
+--切换到hr
+conn hr/hr2021@modb:1521/xepdb1
+
+--创建包含有结果缓存函数的包
+CREATE OR REPLACE PACKAGE department_pkg AUTHID DEFINER IS
+ 
+  TYPE dept_info_record IS RECORD (
+    dept_name  departments.department_name%TYPE,
+    mgr_name   employees.last_name%TYPE,
+    dept_size  PLS_INTEGER
+  );
+ 
+  -- Function declaration
+ 
+  FUNCTION get_dept_info (dept_id NUMBER)
+    RETURN dept_info_record
+    RESULT_CACHE;
+ 
+END department_pkg;
+/
+CREATE OR REPLACE PACKAGE BODY department_pkg IS
+  -- Function definition
+  FUNCTION get_dept_info (dept_id NUMBER)
+    RETURN dept_info_record
+    RESULT_CACHE
+  IS
+    rec  dept_info_record;
+  BEGIN
+    SELECT department_name INTO rec.dept_name
+    FROM departments
+    WHERE department_id = dept_id;
+ 
+    SELECT e.last_name INTO rec.mgr_name
+    FROM departments d, employees e
+    WHERE d.department_id = dept_id
+    AND d.manager_id = e.employee_id;
+ 
+    SELECT COUNT(*) INTO rec.dept_size
+    FROM EMPLOYEES
+    WHERE department_id = dept_id;
+
+    sys.dbms_lock.sleep(5);--延时5秒
+
+    RETURN rec;
+  END get_dept_info;
+END department_pkg;
+/
+</code></pre>
+<p>函数结果缓存的写法就是在函数声明后加上 “RESULT_CACHE”，另外，这个例子中，我加入了一个延时5秒，目的是模拟复杂逻辑下执行代码速度过慢的问题，然后再调用函数看效果</p>
+<pre><code class="language-sql">declare
+rec department_pkg.dept_info_record;
+begin
+   rec:=department_pkg.get_dept_info(10);
+end;
+/
+
+declare
+rec department_pkg.dept_info_record;
+begin
+   rec:=department_pkg.get_dept_info(10);
+end;
+/
+
+declare
+d_name varchar2(100);
+begin
+   d_name:=department_pkg.get_dept_info(10).dept_name;
+end;
+/
+
+</code></pre>
+<p>可以看到，第一次执行第一段，需要5秒钟;<br/>
+然后再执行一次，则马上完成;<br/>
+第三段是获取函数返回type中的一个值，也是马上返回。<br/>
+如果你切换另一个会话，再执行这个函数，也是马上返回。</p>
+<p>用同样的参数多次调用这个函数，则不再需要经过一次重复又复杂的逻辑进行计算，而是直接用第一次缓存的结果进行返回，且不受限于不同会话及内存大小。当数据源中的任意一个数据发生变化，缓存就会失效，所以此功能应该应用于源数据不经常修改的场景。</p>
+<h2 id="结果缓存递归函数">结果缓存递归函数</h2>
+<p>以计算斐波拉契数列中的值为例，这个数列从第3项开始，每一项都等于前两项之和，如下<br/>
+0，1，1，2，3，5，8...<br/>
+假设我们定义第3项为第1项，则可以创建如下函数，用来计算第几项分别是几</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION fibonacci (n NUMBER)
+  RETURN NUMBER
+  RESULT_CACHE
+  AUTHID DEFINER
+IS
+BEGIN
+  IF (n =0) OR (n =1) THEN
+    RETURN 1;
+  ELSE
+    RETURN fibonacci(n - 1) + fibonacci(n - 2);
+  END IF;
+END;
+/
+</code></pre>
+<p>如果计算fibonacci(7),则函数中需要再计算fibonacci(6)和fibonacci(5)，继续迭代进去，计算fibonacci(6)的时候，则函数中需要再计算fibonacci(5)和fibonacci(4)，你会发现fibonacci(5)重复了，此时这个函数结果缓存功能就派上用场了，它可以使用之前计算的值，马上返回对应的结果，大大加快了计算效率。这种特性对于机器学习中大量的重复计算是很有帮助的。</p>
+<h2 id="结果缓存的管理">结果缓存的管理</h2>
+<p>缓存的结果存储在系统全局区域 (SGA) 中。<br/>
+函数结果缓存 与 结果缓存 共享一套管理基础表及管理方式。</p>
+<p>ORACLE提供了两个视图可以查看目前结果缓存使用的情况：</p>
+<pre><code class="language-sql">select * from GV$RESULT_CACHE_OBJECTS;
+select * from GV$RESULT_CACHE_STATISTICS;
+</code></pre>
+<p>RAC模式下，优先访问本地的缓存，如果本地不存在，则可能从另一个节点的本地缓存中读取。数据库会根据V$RESULT_CACHE_OBJECTS.GLOBAL的值和V$RESULT_CACHE_STATISTICS中的"Global Prune Count"、"Global Prune By Self Count"来判断应该如何获取缓存。<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-subprograms.html#GUID-8F7227E9-4388-4A64-9D1C-5F134A3022F2">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-subprograms.html#GUID-8F7227E9-4388-4A64-9D1C-5F134A3022F2</a></p>
+<pre><code class="language-sql">--缓存结果
+ select * from GV$RESULT_CACHE_OBJECT where TYPE='Result' ;
+
+--缓存依赖对象
+ select * from GV$RESULT_CACHE_OBJECT.TYPE='Dependency';
+
+--禁用某个缓存(缓存黑名单)
+select cache_id from 
+    GV$RESULT_CACHE_OBJECT 
+  where type='Result' 
+  and name like '%FIBONACCI%';
+
+begin
+ DBMS_RESULT_CACHE.Black_List_Add (cache_id=&gt;'4hstsfjcfpu3g0b0n4jpsszm48');
+end;
+/
+
+--移除缓存黑名单
+begin
+DBMS_RESULT_CACHE.Black_List_Remove(cache_id=&gt;'4hstsfjcfpu3g0b0n4jpsszm48');
+end;
+/
+
+--清空缓存黑名单
+begin
+DBMS_RESULT_CACHE.Black_List_Clear;
+end;
+/
+
+--查询缓存黑名单
+select * from table (DBMS_RESULT_CACHE.Black_List);
+</code></pre>
+<p>具体参考 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/DBMS_RESULT_CACHE.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/DBMS_RESULT_CACHE.html</a> 以了解更多关于DBMS_RESULT_CACHE的用法</p>
+<h2 id="热修补plsql">热修补PLSQL</h2>
+<p>如果修改了plsql对象，比如某个函数，而且这个函数是结果缓存函数的依赖对象，则函数缓存结果可能不会刷新，需要按如下步骤以避免此种情况的发生</p>
+<ol>
+<li>将结果缓存置于旁路模式并刷新现有结果:</li>
+</ol>
+<pre><code class="language-sql">BEGIN
+  DBMS_RESULT_CACHE.Bypass(TRUE);
+  DBMS_RESULT_CACHE.Flush;
+END;
+/
+--在RAC环境中，这一步每个节点都要执行
+</code></pre>
+<ol start="2">
+<li>打PLSQL补丁.</li>
+<li>继续使用结果缓存:</li>
+</ol>
+<pre><code class="language-sql">BEGIN
+  DBMS_RESULT_CACHE.Bypass(FALSE);
+END;
+/
+--在RAC环境中，这一步每个节点都要执行
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

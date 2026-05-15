@@ -155,7 +155,209 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>最近遇上一条ORACLE里的SQL，以我十多年的复杂SQL编写经验，我竟然一时半会无法用SQL语法解析出这条SQL的语义，而且这个SQL竟然是<strong>可能</strong>可以执行成功的！</p>
+<pre><code class="language-sql">delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id )  ;
+</code></pre>
+<p>这是两个普通的表，不是视图，也没有触发器，也没有其他会话操作这两个表。</p>
+<h2 id="开始实验">开始实验</h2>
+<ol>
+<li>数据准备</li>
+</ol>
+<pre><code class="language-sql">drop table TEST_DELETE_A;
+drop table TEST_DELETE_b;
+
+CREATE TABLE TEST_DELETE_A (ID NUMBER);
+INSERT INTO TEST_DELETE_A VALUES (1);
+INSERT INTO TEST_DELETE_A VALUES (2);
+
+CREATE TABLE TEST_DELETE_B AS select * from TEST_DELETE_A;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            1
+A            2
+B            1
+B            2
+</code></pre>
+<ol start="2">
+<li>删除，报错  ORA-01752: 不能从没有一个键值保存表的视图中删除</li>
+</ol>
+<pre><code class="language-sql">delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id and A.id=1)  ;
+</code></pre>
+<ol start="3">
+<li>在A表增加主键,再执行DELETE，发现B表少了一条数据</li>
+</ol>
+<pre><code class="language-sql">alter table TEST_DELETE_A
+  add constraint pk_TEST_DELETE_A primary key (ID);
+
+delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id and A.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            1
+A            2
+B            2
+
+rollback;
+</code></pre>
+<ol start="4">
+<li>删掉A表主键，给B表增加主键，再执行DELETE，发现A表少了一条数据（与主键有关）</li>
+</ol>
+<pre><code class="language-sql">alter table TEST_DELETE_A
+  DROP constraint pk_TEST_DELETE_A;
+  
+alter table TEST_DELETE_B
+  add constraint pk_TEST_DELETE_B primary key (ID);
+
+delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id and A.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            2
+B            1
+B            2
+
+rollback;
+</code></pre>
+<p><strong>同样的delete语句，由于主键在不同表上，执行后得到了完全不同的结果！</strong><br/>
+5. 那么如果两个表都有主键呢？测试一下，发现删掉的是A表的记录</p>
+<pre><code class="language-sql">alter table TEST_DELETE_A
+  add constraint pk_TEST_DELETE_A primary key (ID);
+
+delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id and A.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            2
+B            1
+B            2
+
+rollback;
+</code></pre>
+<p>6.把条件，A.id=1 改成B.id=1 ,删除的还是A表（与where条件无关）</p>
+<pre><code class="language-sql">delete (select * from TEST_DELETE_A a,TEST_DELETE_B b where a.id=b.id and B.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            2
+B            1
+B            2
+
+rollback;--回滚
+</code></pre>
+<p>7.把from后的表，B表放在A表前面 ,删除的就变成了B表（与顺序有关）</p>
+<pre><code class="language-sql">delete (select * from TEST_DELETE_B b,TEST_DELETE_A a where a.id=b.id and B.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            1
+A            2
+B            2
+
+rollback;--回滚
+</code></pre>
+<ol start="8">
+<li>给A表增加外键 ，删除的又变回了A表（与外键有关，且外键优先级高于表的顺序）</li>
+</ol>
+<pre><code class="language-sql">alter table TEST_DELETE_A
+  add constraint FK_TEST_DELETE_A foreign key (ID)
+  references test_delete_b (ID);
+  
+  delete (select * from TEST_DELETE_B b,TEST_DELETE_A a where a.id=b.id and B.id=1)  ;
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            2
+B            1
+B            2
+
+rollback;
+</code></pre>
+<ol start="9">
+<li>给B表也增加外键，删除报错了，ORA-02292: 违反完整约束条件 (CSLX.FK_TEST_DELETE_A) - 已找到子记录 ，说明它打算删的是B表（B表在前）</li>
+</ol>
+<pre><code class="language-sql">alter table TEST_DELETE_B
+  add constraint FK_TEST_DELETE_B foreign key (ID)
+  references test_delete_a (ID);  
+  
+  delete (select * from TEST_DELETE_B b,TEST_DELETE_A a where a.id=b.id and B.id=1)  ;
+</code></pre>
+<ol start="10">
+<li>把A表的外键删了，再DELETE,果然删的是B表</li>
+</ol>
+<pre><code class="language-sql">alter table TEST_DELETE_A
+  drop constraint FK_TEST_DELETE_A ;
+
+  delete (select * from TEST_DELETE_B b,TEST_DELETE_A a where a.id=b.id and B.id=1)  ;
+  
+
+SELECT 'A' TAB,ID FROM TEST_DELETE_A
+UNION ALL
+SELECT 'B' TAB,ID FROM TEST_DELETE_B;
+
+TAB         ID
+--- ----------
+A            1
+A            2
+B            2
+
+rollback;
+</code></pre>
+<h2 id="汇总测试结果">汇总测试结果</h2>
+<p>对于delete from (subquery)语法的sql,根据不同的主外键情况，会出现如下几种情况</p>
+<table><thead><tr><th>A表有主键</th><th>B表有主键</th><th>A表有外键</th><th>B表有外键</th><th>删除结果</th></tr></thead><tbody><tr><td>N</td><td>N</td><td>N</td><td>N</td><td>报错ORA-01752  ，执行不到删除</td></tr><tr><td>Y</td><td>N</td><td>N</td><td>N</td><td>删B表数据</td></tr><tr><td>N</td><td>Y</td><td>N</td><td>N</td><td>删A表数据</td></tr><tr><td>Y</td><td>Y</td><td>N</td><td>N</td><td>删子查询中前面那个表的数据</td></tr><tr><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>删A表数据</td></tr><tr><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>删B表数据</td></tr><tr><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>删子查询中前面那个表的数据，但删除报错ORA-02292</td></tr></tbody></table>
+<h2 id="查资料">查资料</h2>
+<p>这个问题从传统的搜索方式不知道怎么列关键字，各种组合试了几次，发现用“delete 子查询 外键 oracle”这个，能找到一个百度问答<br/>
+<a href="https://zhidao.baidu.com/question/650803626384942885.html">Oracle中delete主子表关联查询结果时，为什么只会删除子表中的记录？</a></p>
+<table><thead><tr><th>其实在我测试之前，我问过了NEW BING</th></tr></thead><tbody><tr><td>----</td></tr><tr><td>You: DELETE FROM ( SELECT STUDENT.* FROM STUDENT,STUDENT2 WHERE STUDENT.sid = STUDENT2.sid AND STUDENT2.sid = 1 ); 这个sql执行后会产生什么结果？会删除哪张表的数据？</td></tr><tr><td>Bot:你好，这是Bing。我可以帮你解答这个问题。😊<p></p><p>根据网上的资料<a href="https://www.w3resource.com/sql/delete-statement/delete-with-subqueries.php" title="SQL delete records using subqueries - w3resource">^1^</a> <a href="https://stackoverflow.com/questions/4471277/mysql-delete-from-with-subquery-as-condition" title="MySQL DELETE FROM with subquery as condition - Stack Overflow">^2^</a>，这个sql语句的执行结果可能会产生一个错误，因为MySQL不允许在DELETE语句中使&gt;用子查询（subquery）来引用要删除的表。如果你想使用子查询来删除数据，你需要把子查询包裹在另一个子查询中<a href="https://stackoverflow.com/questions/4471277/mysql-delete-from-with-subquery-as-condition" title="MySQL DELETE FROM with subquery as condition - Stack Overflow">^2^</a>，或者使用别名（alias）<a href="https://stackoverflow.com/questions/60350252/delete-from-a-derived-table-in-sql-server" title="subquery - Delete from a derived table in SQL Server? - Stack Overflow">^3^</a>。</p><p>如果你的数据库支持在DELETE语句中使用子查询来引用要删除的表<a href="https://www.ibm.com/docs/en/informix-servers/12.10?topic=statement-subqueries-in-where-clause-delete" title="Subqueries in the WHERE Clause of DELETE - IBM">^4^</a>，那么这个sql语句的执行结果是<strong>删除STUDENT表中sid等于1的记录</strong>，因为你使用了DELETE FROM而没有指定要删除的表名。如果你想删除STUDENT2表中sid等于1的记录，你需要指定表名，例如DELETE FROM STUDENT2。</p></td></tr><tr><td>You: 这个sql是oracle的，我确定这个sql可以执行</td></tr><tr><td>Bot:抱歉，我没有注意到你的sql是oracle的。我之前的回答是基于MySQL的。如果你的sql是oracle的，那么这个sql语句的执行结果是<strong>删除STUDENT表中sid等于1的记录</strong>，因为你使用了DELETE FROM而没有指定要删除的表名。如果你想删除STUDENT2表中sid等于1的记录，你需要指定表名，例如DELETE FROM STUDENT2。</td></tr><tr><td>You: 从哪里看出它是删的STUDENT表中的记录，而不是STUDENT2表的？</td></tr><tr><td>Bot:根据网上的资料<a href="https://stackoverflow.com/questions/6603171/oracle-delete-statement-with-subquery-factoring" title="Oracle DELETE statement with subquery factoring - Stack Overflow">^1^</a> <a href="https://stackoverflow.com/questions/21348159/delete-from-subquery" title="sql - DELETE FROM &lt;subquery&gt; - Stack Overflow">^2^</a>，Oracle会根据子查询中的表是否有主键（primary key）和外键（foreign key）的关系来决定哪个表是可以被删除的。如果子查询中的表有主键和外键的关系，那么有外键的表就是可以被删除的表，也就是<strong>key preserved table</strong><a href="https://stackoverflow.com/questions/6603171/oracle-delete-statement-with-subquery-factoring" title="Oracle DELETE statement with subquery factoring - Stack Overflow">^1^</a>。如果子查询中的表没有主键和外键的关系，那么你需要使用别名（alias）或者显式地指定要删除的&gt;表名<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/DELETE.html" title="DELETE - Oracle Help Center">^3^</a>。<p>在你的例子中，STUDENT表和STUDENT2表之间可能有主键和外键的关系，例如STUDENT.sid是主键，STUDENT2.sid是外键。这样的话，STUDENT2表就是可以被删除的表，而STUDENT表不是。如果你想删除STUDENT表中sid等于1的记录，你需要使用别名或者指定表名。</p></td></tr><tr><td>You: 也就是说，对于这条SQL，如果STUDENT.sid是主键，STUDENT2.sid是外键，那么删的就是STUDENT2表；如果STUDENT.sid是外键，STUDENT2.sid是主键，那么删的就是STUDENT表。这么理解对么？</td></tr><tr><td>Bot:是的，你的理解是对的。如果你想删除另一个表，你需要使用别名或者指定表名。</td></tr></tbody></table>
+<p>可以看到NEW BING一开始是错的，在2次追问之后，能纠正回来，并且给出了相关资料<br/>
+<a href="https://stackoverflow.com/questions/21348159/delete-from-subquery">stackoverflow-DELETE FROM &lt;subquery&gt;</a><br/>
+点赞最多的回答给了一个oracle的文档，把这个现象和对视图的DML操作联系了起来<br/>
+<a href="https://docs.oracle.com/cd/E11882_01/server.112/e25494/views.htm#ADMIN11783">Managing Views, Sequences, and Synonyms</a><br/>
+里面提到了一个概念<br/>
+Key-Preserved Tables<br/>
+直译就是"保留键表"。<br/>
+大概是这么回事，两个表有主外键关系，join后的这个查询结果，主表记录可能会重复，而外表记录不会重复，删除的时候就删有外键的那个表。假设没有外键，用主键去join时，它就认为主键连接的另一个表是外表。<br/>
+这样一来，就好理解了，为什么对于同一个delete语句，可能会删除不同的表，因为这个子查询在执行中，其实就相当于是个视图了。</p>
+<h2 id="后记">后记</h2>
+<p>其实这个问题还可以衍生:<br/>
+我猜想，像MYSQL那种外键可以连主键的前缀部分字段，应该无法支持这种特性，因为不是一对多，而是多对多，关联结果的行不能唯一对应外表的行。<br/>
+也就是说，理论上，如果一个数据库设计成了外键必须连主键的所有字段，从原理上来看，它可以支持类似ORACLE的可更新的多表关联视图；相反，如果一个数据库要兼容MYSQL的外键设计，那么就可能需要舍弃掉可更新的多表关联视图的功能。<br/>
+欢迎拍砖。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

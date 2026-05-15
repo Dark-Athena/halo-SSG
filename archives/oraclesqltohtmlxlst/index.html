@@ -157,7 +157,96 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>之前有篇文章介绍了sql转html的一个方案，<br/>
+<a href="https://www.darkathena.top/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</a><br/>
+此方案存在缺点，即对空值无法处理，后来基于oracle18c添加的多态表函数PTF，解决了此问题(<a href="https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/SQL_TO_HTML_PTF.pkg">https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/SQL_TO_HTML_PTF.pkg</a>)。<br/>
+但是个人感觉代码还是太过复杂，今天在打算优化pljson包的时候，想到它的sql转json是使用的xslt来对xml进行的转换，而且代码很简单，除了模板外，主体代码不到十行，所以就想自己试下。</p>
+<h2 id="分析">分析</h2>
+<ol>
+<li>要准备一个xslt模板，是用来将xml转换成html的，必须要支持任意列，所以模板中不能指定列，网上找了下，这个可能能用上<br/>
+<a href="https://stackoverflow.com/questions/5657549/xml-to-html-table-with-xslt">https://stackoverflow.com/questions/5657549/xml-to-html-table-with-xslt</a></li>
+</ol>
+<pre><code class="language-xml">&lt;xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+    &lt;xsl:template match="/"&gt;
+        &lt;table&gt;
+            &lt;xsl:apply-templates select="rows/row[1]" /&gt;
+        &lt;/table&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="row"&gt;
+        &lt;tr&gt;
+            &lt;xsl:apply-templates mode="th" /&gt;
+        &lt;/tr&gt;
+        &lt;xsl:apply-templates select="../row" mode="td" /&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="row/*" mode="th"&gt;
+        &lt;th&gt;
+            &lt;xsl:value-of select="local-name()" /&gt;
+        &lt;/th&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="row" mode="td"&gt;
+        &lt;tr&gt;
+            &lt;xsl:apply-templates /&gt;
+        &lt;/tr&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="row/*"&gt;
+        &lt;td&gt;
+            &lt;xsl:apply-templates /&gt;
+        &lt;/td&gt;
+    &lt;/xsl:template&gt;
+&lt;/xsl:stylesheet&gt;
+</code></pre>
+<ol start="2">
+<li>使用dbms_xmlgen.newcontext将查询sql转换成xml文档</li>
+<li>查看oracle中转换出来的xml文档格式，发现格式规律</li>
+</ol>
+<pre><code class="language-xml">&lt;ROWSET&gt;
+ &lt;ROW&gt;
+  &lt;EMPLOYEE_ID&gt;102&lt;/EMPLOYEE_ID&gt;
+  &lt;START_DATE&gt;13-1月 -01&lt;/START_DATE&gt;
+  &lt;END_DATE&gt;24-7月 -06&lt;/END_DATE&gt;
+  &lt;JOB_ID&gt;IT_PROG&lt;/JOB_ID&gt;
+  &lt;DEPARTMENT_ID&gt;60&lt;/DEPARTMENT_ID&gt;
+ &lt;/ROW&gt;
+ &lt;ROW&gt;
+  &lt;EMPLOYEE_ID&gt;101&lt;/EMPLOYEE_ID&gt;
+  &lt;START_DATE&gt;21-9月 -97&lt;/START_DATE&gt;
+  &lt;END_DATE&gt;27-10月-01&lt;/END_DATE&gt;
+  &lt;JOB_ID&gt;AC_ACCOUNT&lt;/JOB_ID&gt;
+  &lt;DEPARTMENT_ID&gt;110&lt;/DEPARTMENT_ID&gt;
+ &lt;/ROW&gt;
+&lt;/ROWSET&gt;
+</code></pre>
+<ol start="4">
+<li>匹配搜索到的模板，将模板中对应关键字进行修改，比如模板中的"rows"替换成"ROWSET","row"替换成"ROW"</li>
+<li>主体代码</li>
+</ol>
+<pre><code class="language-sql">  l_ctx := dbms_xmlgen.newcontext(p_sql); --根据sql生成一个xml文档
+  dbms_xmlgen.setnullhandling(l_ctx, dbms_xmlgen.empty_tag);--标记空值的处理方式
+  l_xml := dbms_xmlgen.getxmltype(l_ctx, dbms_xmlgen.none);--获取xml内容
+  l_num_rows := dbms_xmlgen.getnumrowsprocessed(l_ctx);--获取记录数
+  dbms_xmlgen.closecontext(l_ctx);--关闭xml文档
+  if l_num_rows &gt; 0 then --记录数为0时转换会报错
+    l_html := l_xml.transform(xmltype(l_xml_to_html_stylesheet));--根据模板转换成html格式
+    return l_html.getclobval();--获取文本内容并返回
+  end if;
+</code></pre>
+<p>这代码还能继续压缩...</p>
+<h2 id="成品">成品</h2>
+<p>效果：<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png" srcset="/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1200 1200w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=400 400w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1600 1600w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=800 800w"/></p>
+<p>代码见我的github</p>
+<p><a href="https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/sql_to_html_xlst.fnc">https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/sql_to_html_xlst.fnc</a></p>
+<p>另外，我还加入了sqlplus导出html的css样式，如果想用其他样式，可以自行替换</p>
+<h2 id="最后">最后</h2>
+<p>虽然转换速度很快，空值也不会错位，但是空值的表格边框没了，之后看模板还能不能再改下。</p>
+<h2 id="2021-10-28-2151-更新">2021-10-28 21：51 更新</h2>
+<p>空值边框的问题，直接用字符串替换大法解决了，github上的代码已更新</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

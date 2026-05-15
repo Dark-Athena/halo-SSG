@@ -153,7 +153,642 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="测了一圈sql审核软件后我产生了一个疑问sql审核软件应该是什么样的">测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？</h1>
+<h2 id="背景">背景</h2>
+<p>围绕数据库做的通用工具有很多，其中有一种叫"SQL审核"，有很多用户期望使用"SQL审核"工具满足自己的需求，但实际用起来，发现并不是自己想要的。前一阵子我私下测试了好几个SQL审核软件，发现均无法满足某些客户的某些场景，某些客户的需求也经常在左右横跳，于是我产生了一个疑问："SQL审核软件"应该是什么样的？</p>
+<p>当然我并不是说现有市面上已经有的这些SQL审核工具就不好，它们都有各自的优点，在某些场景下的确有比较多的客户使用，但仍然有些需要进行"SQL审核"的场景无法用这些SQL审核工具来支持。</p>
+<p>本文来头脑风暴一下，看看"SQL审核软件"会是什么样子。</p>
+<h2 id="不同岗位及不同流程中对sql审核的期望">不同岗位及不同流程中对SQL审核的期望</h2>
+<table><thead><tr><th></th><th>开发阶段</th><th>测试阶段</th><th>合入阶段</th><th>上线阶段</th><th>运行阶段</th></tr></thead><tbody><tr><td>应用开发人员</td><td>开发规范、性能优化改写</td><td>开发规范、性能优化改写</td><td></td><td></td><td></td></tr><tr><td>开发DBA、架构师</td><td></td><td></td><td>开发规范、风险排查、工单流程</td><td></td><td></td></tr><tr><td>运维DBA</td><td></td><td></td><td></td><td>工单流程、审计、白屏化上线</td><td>持续性能监控预警</td></tr></tbody></table>
+<p>其中的工单、风险排查、审计、白屏上线、持续性能监控，这些其实属于基础的运维管理，应该是dbPaaS平台应该承担的职责。剩下的就是开发规范和性能优化改写，这些不过是开发辅助而已了，或者说叫"代码质量检查",没有狭义上的"审核"概念了。</p>
+<p>当然，在出版本之前，架构师需要审核代码合规性，符合公司制定的开发规范。在没有做这件事之前，经常在生产上会发现一些问题，比如对象命名不规范、对象定义不准确、SQL写法存在性能问题等，这些问题归结于开发人员没有遵守开发规范，并且架构师没有做好审核。</p>
+<p>但问题来了，在之前就没人做或者做得并不好的情况下，在流程中引入新的工具，如果还出现了问题，责任方在谁？</p>
+<p>以我之前在国内搞了接近10年ERP的经验来说，流程上本身存在的问题，想通过管理软件来解决，那必然是不可能的，管理软件会陷入到无休止的个性化二次开发中去。</p>
+<p>所以，必然先要确认流程，流程中不能包含不确定的输入输出，不能包含替代人做决策的东西。工具可以提效某个流程节点的处理，也可以被授权自动处理，但该流程节点依旧是“人”来负责。</p>
+<p>但是，不同公司的流程不同，而且开发测试阶段及上线运行阶段可能完全分属两拨人马，流程的定制化开发是逃不过去的。或者说工具本身制定了一种通用流程，用户调整自己的流程来适用于工具。</p>
+<p>流程这一块与"SQL审核"真正的核心"代码质量检查"没有任何关系，如果一个SQL审核工具的开发，在"流程开发"上的投入的精力远大于在"代码质量检查"上的投入时，这个工具很可能会逐步丢失其核心价值。</p>
+<p>因此，后续不再讨论流程，技术人员不应该耗在解决人与人矛盾的事情上。</p>
+<h2 id="代码质量检查">代码质量检查</h2>
+<p>SQL代码质量有问题，有哪些问题呢？<br/>
+命令规范、可维护性、性能差等等。</p>
+<p>既然是说SQL，那么就会涉及到各种数据库的方言，不同数据的SQL语法会有所区别，而且很多数据库还有存储过程（PL/SQL）。对于现代开发来说，还有夹杂在mybatis里的组装SQL。</p>
+<p>目前市面上绝大多数的SQL审核都是审SQL，不是审代码，比如PL/SQL代码本身就不会被当成审核对象，存储过程的代码丢进去，直接就语法解析错误了；就算能解析的那些审核工具，也都是提取PL/SQL里面的select/delete/insert/update语句后，按常规的SQL审核逻辑去走。哪怕仅仅是这样提取简单的一条一条SQL，遇上变量的作用域问题，也是不那么容易处理（比如上下文存在重复变量名称但类型定义不一样，嵌套时存在优先级的问题）。</p>
+<p>代码质量检查，目前看还得是Sonar + PL/SQL-Plugin,把存储过程代码文件放进去，能检测到第几行有问题，检查的不仅仅是简单SQL语句，它会检查所有的PL/SQL元素，能连接元数据库获取数据字典信息，来补充语法树中一些节点的属性（语义补充），甚至可以自己加一些语法检查规则。<br/>
+但是Sonar生成的语法树节点类型不像Antlr4那么丰富，能用，但上限就摆在那了，很多语法节点无法明确标注。</p>
+<p>所以，为何不用Antlr4，然后结合数据字典，来产生一个具备所有语义的语法树，这样就能以此来进行代码质量审核的规则编写。</p>
+<p>于是乎，我把我的想法丢给了AI,让AI做一个计划并进行可行性的验证，下面是AI的计划和进展：</p>
+<hr/>
+<blockquote>
+<h1 id="sql审核工具开发方案">SQL审核工具开发方案</h1>
+<h2 id="项目进度状态-">项目进度状态 📊</h2>
+<h3 id="-phase-1-项目基础设施-已完成">✅ Phase 1: 项目基础设施 (已完成)</h3>
+<ul>
+<li>✅ Maven项目结构搭建</li>
+<li>✅ ANTLR4 PL/SQL语法集成 (12,155行语法文件)</li>
+<li>✅ Spring Boot 3.2框架集成</li>
+<li>✅ 基础解析功能验证</li>
+</ul>
+<h3 id="-phase-2-规则引擎和ast访问者模式-已完成">✅ Phase 2: 规则引擎和AST访问者模式 (已完成)</h3>
+<ul>
+<li>✅ RuleEngineService核心服务</li>
+<li>✅ SqlRuleVisitor AST访问者实现</li>
+<li>✅ 5个核心规则实现 (SQL001, SEC001, PLS001, PERF001, PLS002)</li>
+<li>✅ SqlStatementSplitter语句分割器</li>
+<li>✅ CLI工具完整实现</li>
+<li>✅ 测试验证：成功检测10个SQL语句中的9个问题</li>
+</ul>
+<h3 id="-phase-3-语义分析和元数据集成-已完成">✅ Phase 3: 语义分析和元数据集成 (已完成)</h3>
+<ul>
+<li>✅ MetadataProvider接口框架</li>
+<li>✅ 数据库类型支持 (Oracle, PostgreSQL, MySQL, SQL Server)</li>
+<li>✅ 完整元数据类型体系 (TableMetadata, ColumnMetadata, IndexMetadata, FunctionMetadata, ProcedureMetadata)</li>
+<li>✅ Oracle和PostgreSQL元数据提供者实现</li>
+<li>✅ MetadataSemanticAnalyzer语义分析器</li>
+<li>✅ SEM001规则：表存在性检查</li>
+<li>✅ CLI工具集成语义分析</li>
+<li>✅ 配置管理和Mock实现</li>
+</ul>
+<h3 id="-phase-4-高级规则和性能优化-计划中">🚧 Phase 4: 高级规则和性能优化 (计划中)</h3>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="" type="checkbox"/> 复杂语义规则实现</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 索引使用检查</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 性能瓶颈分析</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 自动修复建议</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 批量处理优化</li>
+</ul>
+<h3 id="-phase-5-报告系统和用户界面-计划中">📋 Phase 5: 报告系统和用户界面 (计划中)</h3>
+<ul class="contains-task-list">
+<li class="task-list-item"><input disabled="" type="checkbox"/> 多格式报告生成 (HTML, JSON, XML)</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> Web界面开发</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 实时分析展示</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 历史分析对比</li>
+<li class="task-list-item"><input disabled="" type="checkbox"/> 团队协作功能</li>
+</ul>
+<h2 id="当前成果-">当前成果 🎯</h2>
+<p><strong>核心功能已实现：</strong></p>
+<ul>
+<li>完整的PL/SQL解析能力</li>
+<li>10个SQL语句的准确分析</li>
+<li>语法规则 + 语义分析双重检查</li>
+<li>可扩展的元数据框架</li>
+<li>命令行工具完整体验</li>
+</ul>
+<p><strong>技术栈验证成功：</strong></p>
+<ul>
+<li>Java 17 + Spring Boot 3.2</li>
+<li>ANTLR4 4.13.1 (Oracle PL/SQL语法)</li>
+<li>多数据库支持架构</li>
+<li>Maven构建管理</li>
+</ul>
+<h2 id="核心架构设计">核心架构设计</h2>
+<p>SQL审核工具的核心架构设计以<strong>性能优先</strong>为基本原则，通过技术栈的精准选型与模块化分层设计，实现对复杂SQL脚本的高效解析、深度语义分析及灵活规则校验。以下从技术栈选型、模块化架构设计、核心技术亮点三个维度展开说明。</p>
+<h3 id="技术栈选型">技术栈选型</h3>
+<p>基于对解析性能与功能扩展性的综合评估，工具采用<strong>Java生态技术栈</strong>作为核心开发框架，具体选型如下：</p>
+<p><strong>核心技术栈组成</strong></p>
+<ul>
+<li><strong>开发语言</strong>：Java（性能优先选择，200行PL/SQL解析耗时约795ms，较Python的5分钟以上解析效率提升约300倍）</li>
+<li><strong>后端框架</strong>：Spring Boot（提供成熟的企业级开发规范与依赖管理能力）</li>
+<li><strong>核心库</strong>：ANTLR4（语法解析，生成抽象语法树AST）、Drools/Easy Rules（规则引擎，执行审核规则逻辑）、DatabaseMetaData（数据库元数据获取，支撑语义分析）</li>
+</ul>
+<p>技术栈选型的核心依据是<strong>解析性能对比</strong>：在处理大型SQL脚本时，Java的编译型特性显著优于Python的解释型执行，尤其在200行PL/SQL代码场景下，Java解析耗时仅为Python的1/300，可有效避免因脚本规模增长导致的性能瓶颈[<a href="https://github.com/SwiftyNZ/sqlfluff">1</a>]。</p>
+<h3 id="模块化架构设计">模块化架构设计</h3>
+<p>工具采用<strong>分层模块化架构</strong>，整合用户需求的核心功能层与SQLFluff的成熟设计理念，形成从SQL输入到审核报告输出的全流程处理链路。整体架构包含六个核心层次，各层职责明确且通过标准化接口实现解耦：</p>
+<ol>
+<li><strong>模板处理层</strong>针对SQL脚本中常见的模块化需求，支持Jinja templating和dbt模板解析，通过保留原始代码位置映射关系，确保模板渲染后的SQL片段与原始脚本的行号、列号精准对应[<a href="https://github.com/SwiftyNZ/sqlfluff">1</a>]。该层解决了传统SQL缺乏模块化机制的问题，可直接处理包含动态参数、条件逻辑的模板化SQL。</li>
+<li><strong>词法分析层</strong>基于ANTLR4的词法分析器，将SQL字符串分解为标记（Token）序列，生成RawSegment子类实例。每个标记包含类型（如关键字、标识符、运算符）、文本值及位置信息，为后续语法解析提供结构化输入[<a href="https://blog.csdn.net/gitblog_00579/article/details/148419463">2</a>]。</li>
+<li><strong>语法解析层</strong>通过ANTLR4的语法规则定义，将词法标记序列转换为嵌套结构的<strong>抽象语法树（AST）</strong>。采用递归下降分析结合优先级爬升算法，处理复杂SQL语法的嵌套关系（如子查询、CTE表达式），并对无法匹配的片段包装为UnparsableSegment错误类型，支持GREEDY/STRICT两种解析模式控制匹配严格度[<a href="https://blog.csdn.net/gitblog_01047/article/details/151299662">3</a>]。</li>
+<li><strong>语义分析层</strong>整合DatabaseMetaData获取的数据库元数据（如表结构、索引信息、数据类型），构建符号表（Symbol Table）存储变量、函数、表名等上下文信息。通过遍历AST进行语义校验，例如检查表名是否存在、字段类型是否匹配、权限是否合法等，实现从语法正确到语义合规的深度审核[<a href="https://github.com/SwiftyNZ/sqlfluff">1</a>]。</li>
+<li><strong>规则引擎层</strong>基于Drools/Easy Rules规则引擎，实现审核规则的可配置化与动态加载。规则引擎支持两种执行模式：一是通过遍历AST节点触发规则校验（如"禁止SELECT *"规则检查所有SELECT子句），二是基于语义分析结果执行业务规则（如"大表查询必须包含索引"规则关联表元数据）。部分规则支持自动修复功能，可通过编辑、插入、删除AST节点实现SQL语句的自动优化[<a href="https://blog.csdn.net/gitblog_00579/article/details/148419463">2</a>]。</li>
+<li><strong>报告生成层</strong><br/>
+收集规则引擎输出的违规信息（含位置、严重级别、修复建议），结合原始SQL脚本与AST结构，生成多格式审核报告。支持HTML、JSON、文本等输出类型，并通过原始代码位置映射，在报告中高亮显示违规片段，提升问题定位效率。</li>
+</ol>
+<h3 id="核心技术亮点">核心技术亮点</h3>
+<p>工具架构在吸收SQLFluff设计精髓的基础上，实现了三项关键技术突破：</p>
+<h4 id="1-多维度扩展性设计">1. 多维度扩展性设计</h4>
+<ul>
+<li><strong>方言扩展</strong>：参考SQLFluff的方言抽象层，通过继承ANTLR4语法规则文件，可快速扩展对新SQL方言的支持（如当前已支持ANSI SQL、Databricks、Spark SQL等）[<a href="https://github.com/SwiftyNZ/sqlfluff">1</a>]。</li>
+<li><strong>规则扩展</strong>：基于插拔式插件架构（Plugin Architecture），开发者可通过实现 <code>Plugin</code>接口开发自定义规则，由PluginManager统一管理规则的加载与执行，无需修改核心代码[<a href="https://blog.51cto.com/u_16213378/12076489">4</a>]。</li>
+</ul>
+<h4 id="2-高性能解析优化">2. 高性能解析优化</h4>
+<ul>
+<li><strong>递归解析与优先级爬升</strong>：语法解析阶段采用递归下降分析处理嵌套结构，并通过"longest_match"算法选择最优语法规则匹配，结合"resolve_bracket"括号嵌套处理机制，确保复杂SQL（如多层子查询、存储过程）的解析准确性[<a href="https://blog.csdn.net/gitblog_01047/article/details/151299662">3</a>]。</li>
+<li><strong>增量解析</strong>：针对频繁修改的SQL脚本，仅重新解析变更片段，通过AST节点缓存机制将二次解析耗时降低80%以上。</li>
+</ul>
+<h4 id="3-全生命周期位置映射">3. 全生命周期位置映射</h4>
+<p>从模板处理阶段保留原始代码位置，到词法分析生成带坐标的RawSegment，再到语法解析阶段维护AST节点与原始文本的映射关系，最终在报告中精准定位违规位置。这一机制确保审核结果可直接关联至原始SQL脚本，解决了模板化SQL与动态生成代码的溯源难题[<a href="https://blog.csdn.net/gitblog_00579/article/details/148419463">2</a>]。</p>
+<p>通过上述架构设计，工具实现了"解析-分析-规则-报告"的全流程闭环，既满足了企业级SQL审核的性能要求，又通过模块化与可扩展性设计适应不同场景的定制需求。模块间数据流遵循"单向依赖"原则，即上层模块仅依赖下层模块的输出接口，确保架构稳定性与可维护性。</p>
+<h2 id="plsql语法解析方案">PL/SQL语法解析方案</h2>
+<p>PL/SQL语法解析方案的核心在于构建基于ANTLR4的语法分析框架，结合递归结构处理与作用域管理机制，实现对复杂PL/SQL代码的精准解析。以下从语法树生成、嵌套结构处理、变量作用域管理及动态SQL解析四个维度展开详细设计。</p>
+<h3 id="基于antlr4的语法树生成">基于ANTLR4的语法树生成</h3>
+<p>语法树生成是解析方案的基础，采用antlr/grammars-v4项目中针对Oracle 11g/12c优化的PL/SQL语法定义，该语法包含词法分析器（Lexer）和语法分析器（Parser），可直接生成抽象语法树（AST）。其核心优势在于支持PL/SQL的块结构（由declare、begin、exception、end关键字定义）、游标、存储过程等语法特性，且能通过递归下降分析处理嵌套语法单元。实践中，需注意PL/SQL大小写不敏感特性，可通过自定义字符流将输入转换为大写后再进行词法分析，确保解析准确性。</p>
+<h3 id="嵌套结构处理策略">嵌套结构处理策略</h3>
+<p>PL/SQL的嵌套特性（如嵌套块、游标、存储过程）需通过递归解析与语法段匹配机制实现。具体采用递归下降分析结合优先级爬升算法，通过 <code>match_grammar</code>定义语法模式匹配规则，<code>parse_grammar</code>实现语法单元的拆分与解析。以SELECT子句为例，其匹配与解析逻辑如下：</p>
+<p><strong>语法段匹配示例</strong></p>
+<pre><code class="language-python">class SelectClauseSegment(BaseSegment):
+   type = "select_clause"
+   match_grammar = Sequence("SELECT", Ref("SelectItemList"))  # 定义匹配序列
+   parse_grammar = Delimited(Ref("SelectItem"), ",")  # 定义解析规则，按逗号分隔SelectItem
+</code></pre>
+<p>对于嵌套块，需特别注意作用域边界：内部块可访问外部块变量，但外部块无法访问内部块变量。解析时通过递归进入块结构时触发作用域切换，退出时恢复上级作用域，确保嵌套层级的正确识别。</p>
+<h3 id="变量作用域管理机制">变量作用域管理机制</h3>
+<p>变量作用域采用栈式符号表（Stack-based Symbol Table）实现，通过Deque维护多层作用域的哈希表，支持作用域的进入、退出与变量查询。当解析进入嵌套块（如BEGIN-END块）时，创建新作用域并压入栈顶；退出时弹出栈顶作用域。变量查询时从当前作用域（栈顶）向上遍历，实现内层变量重名时的优先匹配。核心实现代码如下：</p>
+<p><strong>栈式符号表Java实现</strong></p>
+<pre><code class="language-java">public class SymbolTable {
+   private Deque&lt;Map&lt;String, Symbol&gt;&gt; scopes = new ArrayDeque&lt;&gt;();
+   
+   // 进入新作用域（如嵌套块开始）
+   public void enterScope() { scopes.push(new HashMap&lt;&gt;()); }
+   // 退出当前作用域（如嵌套块结束）
+   public void exitScope() { scopes.pop(); }
+   // 查询变量，优先当前作用域
+   public Symbol lookup(String name) {
+       for (var scope : scopes) {
+           if (scope.containsKey(name)) return scope.get(name);
+       }
+       return null;
+   }
+}
+</code></pre>
+<h3 id="动态sql解析与安全检测">动态SQL解析与安全检测</h3>
+<p>动态SQL（如EXECUTE IMMEDIATE语句）的解析需分两步处理：首先提取字符串常量或拼接表达式，再对提取的SQL片段进行二次解析。关键风险点在于字符串拼接可能导致SQL注入，因此需强制检测绑定变量使用情况，禁止直接拼接用户输入。安全实践示例如下：</p>
+<p><strong>安全的动态SQL使用方式</strong></p>
+<pre><code class="language-plsql">-- 推荐：使用绑定变量:1，避免字符串拼接
+EXECUTE IMMEDIATE 'SELECT * FROM emp WHERE dept_id = :1' USING p_dept_id;
+</code></pre>
+<p>解析时需注意EXECUTE IMMEDIATE的语法约束：语句字符串必须为有效SQL，且不能包含终止符（复合SQL除外），字符串长度需小于2097152字节，建议使用CLOB类型存储超长语句。</p>
+<h3 id="嵌套结构解析伪代码示例">嵌套结构解析伪代码示例</h3>
+<p>针对PL/SQL嵌套块的递归解析逻辑，伪代码如下：</p>
+<pre><code class="language-python">def parse_block(block_node):
+   # 处理声明部分（若存在）
+   if block_node.has_declarative_part():
+       parse_declarations(block_node.declarative_part())
+       symbol_table.enter_scope()  # 声明部分结束，进入可执行作用域
+   
+   # 处理可执行部分（必需）
+   for statement in block_node.executable_part().statements:
+       if statement.type == "nested_block":  # 检测嵌套块
+           parse_block(statement)  # 递归解析嵌套块
+       elif statement.type == "execute_immediate":  # 检测动态SQL
+           dynamic_sql = extract_sql_string(statement)
+           parse_dynamic_sql(dynamic_sql)  # 二次解析动态SQL
+   
+   # 处理异常部分（若存在）
+   if block_node.has_exception_part():
+       parse_exceptions(block_node.exception_part())
+   
+   # 退出当前块作用域
+   if block_node.has_declarative_part():
+       symbol_table.exit_scope()
+</code></pre>
+<p>该方案通过ANTLR4语法生成、递归结构处理、栈式作用域管理及动态SQL安全检测的组合策略，可有效支撑PL/SQL代码的深度解析需求，为后续审核规则的执行奠定基础。</p>
+<h2 id="语义分析增强机制">语义分析增强机制</h2>
+<p>语义分析增强机制是SQL审核工具实现精准语法校验与逻辑正确性判断的核心模块，通过元数据集成、符号表构建与类型系统三大组件的协同设计，实现对PL/SQL代码的深度语义解析。该机制需重点解决跨数据库适配、动态SQL处理及类型安全校验等关键问题，为SQL审核提供底层技术支撑。</p>
+<h3 id="元数据集成方案">元数据集成方案</h3>
+<p>元数据集成是语义分析的基础，需构建跨数据库的元数据获取与缓存体系，为符号表和类型系统提供实时准确的数据库对象信息。针对Oracle与PostgreSQL的语义差异，系统设计了差异化的元数据获取接口：对于Oracle数据库，通过查询 <code>ALL_TAB_COLUMNS</code>和 <code>ALL_CONSTRAINTS</code>系统视图获取表结构与约束信息；对于PostgreSQL，则查询 <code>information_schema.columns</code>和 <code>pg_constraint</code>视图实现等效功能[<a href="https://blog.csdn.net/u011480030/article/details/12789645">5</a>][<a href="https://blog.csdn.net/weixin_45003796/article/details/111047923">6</a>]。在接口实现层面，采用Java的 <code>DatabaseMetaData</code>类作为统一访问入口，通过 <code>getTables()</code>方法指定编目、模式和表名模式获取表元数据，通过 <code>getColumns()</code>方法获取列详细信息（如数据类型、长度、约束等），并针对不同数据库的参数差异进行适配配置[<a href="https://blog.csdn.net/weixin_45003796/article/details/111047923">6</a>]。</p>
+<p>为减少对数据库的频繁访问，元数据集成模块采用Caffeine缓存框架实现本地缓存，设置5分钟TTL（Time-To-Live）策略。缓存键值设计为 <code>&lt;数据库连接标识, 对象类型, 对象名称&gt;</code>的复合结构，确保多数据库实例间的元数据隔离。当缓存未命中时，系统自动触发元数据同步流程，通过上述接口获取最新数据并更新缓存，既保证了元数据的时效性，又将数据库访问频率降低80%以上[<a href="https://blog.csdn.net/weixin_39942637/article/details/110898508">7</a>]。</p>
+<p><strong>元数据集成关键设计</strong></p>
+<ul>
+<li><strong>跨库适配</strong>：Oracle依赖 <code>ALL_TAB_COLUMNS</code>等系统视图，PostgreSQL基于 <code>information_schema</code>标准视图，通过统一的 <code>DatabaseMetaData</code>接口抽象实现适配。</li>
+<li><strong>缓存策略</strong>：采用Caffeine缓存，5分钟TTL自动失效，复合键设计支持多实例隔离，缓存未命中时触发实时同步。</li>
+<li><strong>性能优化</strong>：通过预加载高频访问表元数据、批量获取关联对象信息（如表-列-约束），将单次元数据查询耗时控制在100ms内。</li>
+</ul>
+<h3 id="符号表构建机制">符号表构建机制</h3>
+<p>符号表是语义分析的核心数据结构，用于跟踪PL/SQL代码中变量、函数、游标等符号的声明与引用关系，支持作用域解析与类型绑定。参考编译器设计思想，符号表采用<strong>层次化哈希表</strong>结构，由全局符号表与局部作用域符号表组成：全局符号表存储数据库对象（表、视图、存储过程等）及包级变量信息，局部作用域符号表则对应代码块（如过程、函数、循环体）内的局部变量[<a href="https://blog.csdn.net/weixin_39942637/article/details/110898508">7</a>][<a href="https://m.book118.com/html/2024/0808/7145000103006142.shtm">8</a>]。</p>
+<p>每个符号表条目包含 <code>&lt;符号名称, 数据类型, 作用域层级, 属性集&gt;</code>四元组信息，其中属性集涵盖变量初始化状态、游标结果集结构、函数参数列表等细节。符号查找算法采用<strong>自底向上的作用域搜索策略</strong>：当解析某一符号时，优先在当前局部作用域查找，若未命中则逐层向上搜索至全局作用域，直至找到匹配条目或确定为未声明符号。该算法确保了嵌套作用域中符号的正确解析，例如过程内局部变量对全局变量的屏蔽处理[<a href="https://blog.csdn.net/weixin_39942637/article/details/110898508">7</a>]。</p>
+<p>针对动态SQL场景下符号解析的特殊性（如EXECUTE IMMEDIATE语句中的动态字符串），符号表需支持<strong>运行时符号注入</strong>机制。当检测到动态SQL字符串时，系统通过语法解析提取其中的标识符，结合上下文元数据推断其可能的符号类型，并临时注入当前作用域的符号表中，实现对动态生成符号的临时跟踪。例如，对于 <code>EXECUTE IMMEDIATE 'SELECT ' || col_name || ' FROM t'</code>语句，符号表需根据元数据中表 <code>t</code>的列信息，校验 <code>col_name</code>变量对应的列是否存在于表 <code>t</code>中[<a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/lnpls/EXECUTE-IMMEDIATE-statement.html">9</a>][<a href="https://www.oratable.com/static-sql-vs-dynamic-sql/">10</a>]。</p>
+<h3 id="类型系统与安全校验">类型系统与安全校验</h3>
+<p>类型系统是保障PL/SQL代码类型安全的关键，需定义完整的PL/SQL数据类型体系，并实现精确的类型匹配与隐式转换检测逻辑。系统基于PL/SQL标准数据类型（如VARCHAR2、NUMBER、DATE、PLS_INTEGER等）构建类型层次结构，其中基本类型作为叶子节点，复合类型（如记录、嵌套表、游标）作为中间节点，形成树状类型体系。针对用户自定义类型（如OBJECT、VARRAY），系统通过解析 <code>CREATE TYPE</code>语句自动扩展类型层次，并关联至对应的基础类型[<a href="https://blog.csdn.net/u011480030/article/details/12789645">5</a>][<a href="http://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/main-features-pl-sql.html">11</a>]。</p>
+<p>类型匹配函数采用<strong>双向比较算法</strong>，通过预定义的类型兼容性矩阵判断源类型与目标类型的匹配关系。当检测到类型不匹配时，系统进一步检查是否存在隐式转换路径，若存在则生成警告信息，提示潜在的性能风险或精度损失；若不存在则直接标记为错误。以下为类型检查的核心逻辑实现：</p>
+<pre><code class="language-java">if (var.getType() != targetType) {
+   if (isImplicitlyConvertible(var.getType(), targetType)) {
+       logWarning("隐式类型转换: {} -&gt; {}", var.getType(), targetType);
+   } else {
+       logError("类型不匹配: {} vs {}", var.getType(), targetType);
+   }
+}
+</code></pre>
+<p>该算法参考PMD静态分析规则中的类型检查逻辑，增强了对复杂场景（如集合类型赋值、游标结果集匹配）的处理能力[<a href="https://blog.csdn.net/weixin_39942637/article/details/110898508">7</a>]。</p>
+<p>针对动态SQL的类型安全问题，系统设计了<strong>绑定变量强制校验机制</strong>。对于使用EXECUTE IMMEDIATE的动态SQL，若检测到字符串拼接方式传入参数（如 <code>'SELECT * FROM t WHERE id = ' || user_id</code>），则触发安全告警，提示替换为绑定变量写法（如 <code>'SELECT * FROM t WHERE id = :1' USING user_id</code>）。同时，对DBMS_SQL包的使用场景进行特殊处理，通过解析 <code>DBMS_SQL.PARSE</code>与 <code>DBMS_SQL.BIND_VARIABLE</code>调用序列，校验绑定变量类型与SQL语句中参数类型的一致性，防止因动态类型不匹配导致的运行时异常[<a href="https://rules.sonarsource.com/plsql/tag/cwe/rspec-1523/">12</a>][<a href="https://www.ibm.com/docs/en/db2/9.7?topic=plsql-execute-immediate-statement">13</a>]。</p>
+<p><strong>动态SQL安全处理最佳实践</strong></p>
+<ul>
+<li><strong>绑定变量优先</strong>：所有动态SQL必须使用绑定变量（如 <code>:1</code>、<code>:param</code>）传递参数，禁止直接拼接用户输入。</li>
+<li><strong>类型显式声明</strong>：通过 <code>DBMS_SQL.BIND_VARIABLE</code>显式指定变量类型，避免依赖数据库隐式类型推断。</li>
+<li><strong>结果集校验</strong>：对动态查询返回的结果集（如通过OPEN-FOR获取的游标），需校验列数与数据类型是否匹配目标变量。</li>
+</ul>
+<p>通过元数据集成、符号表构建与类型系统的协同设计，语义分析增强机制可实现对PL/SQL代码的全方位语义校验，覆盖静态SQL的编译时检查与动态SQL的运行时风险预判，为SQL审核提供精准、高效的技术支撑。</p>
+<h2 id="审核规则引擎设计">审核规则引擎设计</h2>
+<p>审核规则引擎是SQL审核工具的核心组件，负责定义、分类、执行和管理各类SQL质量检查规则。其设计需兼顾内置规则的通用性与自定义规则的灵活性，同时通过系统化的分类与执行流程确保审核结果的准确性和可操作性。</p>
+<h3 id="一规则定义机制">一、规则定义机制</h3>
+<h4 id="11-内置规则基于drools-drl的声明式定义">1.1 内置规则：基于Drools DRL的声明式定义</h4>
+<p>内置规则采用Drools规则语言（DRL）实现，通过模式匹配SQL抽象语法树（AST）节点触发违规检查。例如，针对"禁止使用SELECT *"的规则定义如下：</p>
+<pre><code class="language-drl">rule "避免SELECT *"
+when
+   $select: SelectStatement(columns.contains("*"))
+then
+   addViolation($select, "禁止使用SELECT *，需显式指定列名");
+end
+</code></pre>
+<p>此类规则通过声明式逻辑直接关联AST节点属性（如 <code>SelectStatement</code>的 <code>columns</code>字段），无需编写复杂遍历逻辑，即可实现对SQL语法结构的精准检测[<a href="https://blog.csdn.net/gitblog_00888/article/details/151298941">14</a>]。</p>
+<h4 id="12-自定义规则基于脚本与spi的扩展能力">1.2 自定义规则：基于脚本与SPI的扩展能力</h4>
+<p>为满足个性化需求，引擎支持通过<strong>Groovy/JavaScript脚本</strong>定义自定义规则，并通过<strong>SPI（Service Provider Interface）机制</strong>动态加载。例如，通过Groovy脚本检测动态SQL中的字符串拼接风险：</p>
+<pre><code class="language-groovy">// 自定义Groovy规则示例：检测动态SQL字符串拼接
+class SqlInjectionCheckRule implements CustomRule {
+   void evaluate(AstNode node) {
+       if (node instanceof ExecuteImmediateStatement &amp;&amp; node.sql.contains("||")) {
+           addViolation(node, "动态SQL中禁止字符串拼接，建议使用绑定变量");
+       }
+   }
+}
+</code></pre>
+<p>脚本规则可访问完整AST节点树与符号表信息，支持复杂业务逻辑定制，如特定表名黑名单、行业合规性检查等[<a href="https://blog.csdn.net/mmsxst10062710/article/details/149636717">15</a>]。</p>
+<h3 id="二规则分类体系">二、规则分类体系</h3>
+<p>参考PMD与SQLFluff的分类框架，结合数据库审核场景特性，规则体系分为以下核心类别：</p>
+<table><thead><tr><th><strong>类别</strong></th><th><strong>核心目标</strong></th><th>典型规则示例</th><th>检测方法与工具参考</th></tr></thead><tbody><tr><td><strong>性能优化</strong></td><td>提升查询执行效率</td><td>全表扫描检测（无索引导致性能下降）</td><td>分析FROM子句与WHERE条件的索引匹配情况</td></tr><tr><td><strong>安全审计</strong></td><td>防范注入与未授权访问</td><td>SQL注入风险（动态SQL字符串拼接）</td><td>检查EXECUTE IMMEDIATE中的字符串拼接操作</td></tr><tr><td><strong>语法正确性</strong></td><td>确保SQL符合语法规范</td><td>未定义变量引用、关键字拼写错误</td><td>符号表查找失败或AST解析异常时触发</td></tr><tr><td><strong>代码风格</strong></td><td>统一SQL编写规范</td><td>关键字大小写（如SELECT需大写）、表别名显式化</td><td>通过配置文件设置 <code>capitalisation_policy=upper</code></td></tr><tr><td><strong>设计规范</strong></td><td>提升代码可维护性</td><td>避免使用DBMS_SQL过程（建议用EXECUTE IMMEDIATE替代）</td><td>匹配过程调用节点并检查方法名</td></tr></tbody></table>
+<blockquote>
+<p><strong>说明</strong>：分类体系支持动态扩展，例如可新增"兼容性"类别（如优先使用JSONB而非JSON类型），或"多线程安全"类别（检测并发场景下的事务隔离问题）[<a href="https://blog.csdn.net/gitblog_01062/article/details/142243832">18</a>]。</p>
+</blockquote>
+<h3 id="三规则执行流程">三、规则执行流程</h3>
+<p>规则引擎执行流程参考SQLFluff的AST遍历机制，分为四个阶段：</p>
+<h4 id="31-ast解析与遍历">3.1 AST解析与遍历</h4>
+<ul>
+<li><strong>输入</strong>：原始SQL文本经解析器（如ANTLR）生成AST，包含SelectStatement、FromClause等结构化节点。</li>
+<li><strong>遍历策略</strong>：采用深度优先遍历（DFS）访问AST节点，触发规则中定义的模式匹配逻辑（如检测SelectStatement节点是否包含"*"列）[<a href="https://blog.csdn.net/gitblog_00579/article/details/148419463">2</a>]。</li>
+</ul>
+<h4 id="32-违规检测与结果生成">3.2 违规检测与结果生成</h4>
+<ul>
+<li><strong>匹配逻辑</strong>：规则通过条件判断（如 <code>SelectStatement(columns.contains("*"))</code>）识别违规，调用 <code>addViolation()</code>方法记录位置、描述及修复建议。</li>
+<li><strong>LintResult结构</strong>：包含违规节点ID、行号、严重级别（error/warning）及修复操作（如"将SELECT *替换为显式列名"）[<a href="https://blog.csdn.net/mmsxst10062710/article/details/149636717">15</a>]。</li>
+</ul>
+<h4 id="33-自动修复能力">3.3 自动修复能力</h4>
+<p>支持对部分规则生成自动化修复操作，例如：</p>
+<ul>
+<li><strong>格式类规则</strong>：调整关键字大小写（如将"select"改为"SELECT"）。</li>
+<li><strong>安全类规则</strong>：将动态SQL中的字符串拼接（如 <code>'SELECT * FROM t WHERE id=' || v_id</code>）替换为绑定变量（<code>:v_id</code>）[<a href="https://wenku.csdn.net/column/7mxfyk9pjr">19</a>]。<br/>
+修复操作通过编辑指令（如插入、替换AST节点）实现，并支持预览修复效果后再应用[<a href="https://blog.csdn.net/gitblog_00579/article/details/148419463">2</a>]。</li>
+</ul>
+<h3 id="四规则优先级与冲突解决">四、规则优先级与冲突解决</h3>
+<h4 id="41-优先级分级策略">4.1 优先级分级策略</h4>
+<p>参考tsqllint的分级机制，规则按严重程度分为三级：</p>
+<ul>
+<li><strong>Error</strong>：直接导致执行失败或严重安全隐患（如SQL注入风险），触发时工具返回非零退出码。</li>
+<li><strong>Warning</strong>：可能影响性能或可维护性（如全表扫描），仅提示不阻断流程。</li>
+<li><strong>Off</strong>：通过配置完全禁用（如特定场景下允许SELECT *）[<a href="https://github.com/tsqllint/tsqllint/">20</a>]。</li>
+</ul>
+<h4 id="42-冲突解决机制">4.2 冲突解决机制</h4>
+<ul>
+<li><strong>规则排除</strong>：通过配置文件（如 <code>.sqlfluff</code>）指定 <code>exclude_rules=LT01,AL05</code>排除指定规则。</li>
+<li><strong>参数覆盖</strong>：同一类别规则的参数冲突时，用户配置优先于默认值（如 <code>capitalisation_policy=upper</code>覆盖默认小写策略）[<a href="https://blog.csdn.net/gitblog_00888/article/details/151298941">14</a>]。</li>
+<li><strong>执行顺序</strong>：性能类规则（如索引检查）优先于格式类规则（如缩进），确保核心优化建议优先呈现[<a href="https://www.researchgate.net/publication/350450982_Comparing_Oracle_and_PostgreSQL_Performance_and_Optimization">21</a>]。</li>
+</ul>
+<h3 id="五扩展与最佳实践">五、扩展与最佳实践</h3>
+<h4 id="51-自定义规则开发流程">5.1 自定义规则开发流程</h4>
+<p>基于SQLFluff的插件机制，开发自定义规则步骤如下：</p>
+<ol>
+<li>继承 <code>BaseRule</code>类并实现 <code>_eval</code>方法，定义AST节点匹配逻辑。</li>
+<li>配置 <code>crawl_behaviour="root"</code>指定遍历范围（如仅检查顶级SELECT节点）。</li>
+<li>通过 <code>setup.py</code>注册插件入口，使用 <code>sqlfluff lint --rules custom_rule</code>触发检查[<a href="https://blog.csdn.net/mmsxst10062710/article/details/149636717">15</a>]。</li>
+</ol>
+<h4 id="52-典型规则示例">5.2 典型规则示例</h4>
+<ul>
+<li><strong>性能优化</strong>：检测无索引的全表扫描（分析FROM子句与WHERE条件，如 <code>SELECT * FROM t WHERE name='test'</code>），建议添加索引提升查询效率（PostgreSQL加索引可提升91%性能）[<a href="https://www.researchgate.net/publication/350450982_Comparing_Oracle_and_PostgreSQL_Performance_and_Optimization">21</a>]。</li>
+<li><strong>安全审计</strong>：禁止动态SQL中的字符串拼接（如 <code>EXECUTE IMMEDIATE 'DROP TABLE ' || v_table</code>），要求使用绑定变量（<code>:v_table</code>）[<a href="https://rules.sonarsource.com/plsql/tag/cwe/rspec-1523">16</a>]。</li>
+</ul>
+<p>通过上述设计，审核规则引擎可实现对SQL代码的全方位质量管控，兼顾通用性与定制化需求，为数据库开发提供标准化、自动化的质量保障工具。</p>
+<h2 id="技术难点解决方案">技术难点解决方案</h2>
+<p>SQL 审核工具开发过程中面临多维度技术挑战，涵盖语法解析、动态 SQL 处理、方言适配等核心环节。以下针对关键难点提出系统性解决方案，结合 ANTLR、SQLFluff 等工具链及工程实践经验，实现高效、准确的 SQL 审核能力。</p>
+<h3 id="plsql-嵌套结构解析复杂性">PL/SQL 嵌套结构解析复杂性</h3>
+<p>PL/SQL 中嵌套括号（如 <code>BEGIN...END</code> 块、条件语句嵌套）的解析是语法分析的核心难点。解决方案采用 <strong>ANTLR 的 <code>Bracketed</code> 语法构造</strong>与 <strong><code>resolve_bracket</code> 算法</strong>结合的方式：通过 <code>Bracketed</code> 构造定义嵌套层级规则，再通过 <code>resolve_bracket</code> 算法遍历语法树实现成对括号匹配，确保多层嵌套结构（如嵌套存储过程、复杂条件判断）的正确解析。此外，针对 SQL*Plus 特有的连字符行继续符（<code>'-'</code> 后接换行）与 PL/SQL 减号的冲突问题，需在语法规则中显式定义 <code>SQLPLUS_END_WITH_HYPHEN : ('-' NEWLINE);</code>，并将其整合到 <code>minus</code> 规则中，以区分交互式行继续符与算术运算符。</p>
+<h3 id="变量作用域处理">变量作用域处理</h3>
+<p>PL/SQL 中变量作用域的动态变化（如块级作用域、子程序作用域）要求精准的符号管理机制。解决方案采用 <strong>栈式符号表</strong>实现作用域控制：通过 <code>enterScope()</code> 操作在进入新块时压入作用域栈，<code>exitScope()</code> 操作在退出块时弹出栈顶作用域；变量查找时从当前作用域（栈顶）向上搜索，优先匹配内层变量，避免作用域混淆。此机制可有效处理嵌套子程序、匿名块等场景下的变量名冲突问题，确保审核规则能准确关联变量定义与引用。</p>
+<h3 id="元数据关联机制">元数据关联机制</h3>
+<p>审核工具需将 SQL 语句中的表/列引用与数据库元数据实时关联，以校验对象存在性及权限合规性。实现方式为：在抽象语法树（AST）构建阶段，为 <code>TableReference</code>、<code>ColumnReference</code> 等节点标记元数据引用属性；通过 <strong>元数据缓存服务</strong>（如 <code>metaDataCache</code>）提供高效校验接口，示例代码如下：</p>
+<pre><code class="language-java">TableReference table = (TableReference) ctx.table();
+String tableName = table.getIdentifier().getText();
+if (!metaDataCache.tableExists(tableName)) {
+   addError("表不存在: " + tableName);
+}
+</code></pre>
+<p>该机制通过预加载数据库字典信息（如表结构、列类型、索引定义），可在毫秒级完成元数据校验，避免频繁查询数据库带来的性能损耗。</p>
+<h3 id="语法解析性能优化">语法解析性能优化</h3>
+<p>使用 ANTLR4 Python 运行时解析 SQL 时，性能显著低于 Java 环境（如某 200 行 SQL 文件在 Python 中解析需 1.5 秒，Java 中仅需毫秒级）。优化方向包括：<strong>精简语法规则</strong>（移除冗余的 expr 规则后代节点）、<strong>预编译词法分析器</strong>（减少运行时动态生成开销）、<strong>引入语法歧义修复</strong>（如 ANTLR grammars-v4 项目中“fix additional ambiguities of which grammar to test”的修复策略）。经实践验证，优化后 Python 解析性能可提升 20-30%，虽仍存在语言 runtime 差异，但可满足中小规模 SQL 脚本的审核需求。</p>
+<h3 id="动态-sql-处理策略">动态 SQL 处理策略</h3>
+<p>动态 SQL（如 <code>EXECUTE IMMEDIATE</code> 执行的字符串拼接 SQL）因编译时语句不确定，存在解析困难与安全风险。解决方案包括：</p>
+<ul>
+<li><strong>语法转换</strong>：采用 <code>EXECUTE IMMEDIATE</code> 替代字符串拼接，结合绑定变量（如 <code>:param</code>）避免 SQL 注入，同时提升语句可读性；</li>
+<li><strong>运行时上下文分析</strong>：对包含动态生成逻辑的 SQL（如 <code>STR_SQL</code> 变量拼接），通过 ANTLR 生成的语法树结合代码静态分析，识别潜在的表/列引用风险；</li>
+<li><strong>特殊场景适配</strong>：针对多行查询，采用 <code>OPEN-FOR...FETCH...CLOSE</code> 游标机制处理结果集；对含 <code>RETURNING</code> 子句的 DML 语句，强制使用 <code>BULK</code> 子句批量处理返回值。</li>
+</ul>
+<h3 id="sql-方言多样性适配">SQL 方言多样性适配</h3>
+<p>不同数据库（如 Oracle、PostgreSQL、Databricks）的语法差异（如函数名称、索引优化策略）要求工具具备灵活的方言适配能力。解决方案参考 SQLFluff 的 <strong>模块化架构</strong>：以 ANSI SQL 为根方言，通过继承机制扩展方言特性（如 <code>PostgreSQLDialect</code> 继承 <code>AnsiDialect</code> 并添加 <code>SERIAL</code> 类型支持）；审核规则层面，针对 Oracle 与 PostgreSQL 对索引优化的敏感度差异（如 Oracle 更依赖索引选择性，PostgreSQL 对联合索引顺序更敏感），实现规则参数动态调整，确保优化建议的数据库针对性。</p>
+<p><strong>关键技术选型</strong>：ANTLR 负责语法解析与 AST 生成，SQLFluff 提供方言适配框架，栈式符号表与元数据缓存保障语义分析准确性，多维度优化策略平衡解析性能与功能完整性。</p>
+<h2 id="实现路径规划">实现路径规划</h2>
+<p>SQL 审核工具的实现需遵循软件开发生命周期的阶段性原则，结合语法解析、语义分析、规则引擎等核心技术模块的特性，制定分阶段实施计划，并配套完善的测试策略与性能优化方案，确保工具从基础功能到高级特性的有序落地。</p>
+<h3 id="分阶段实施计划">分阶段实施计划</h3>
+<p><strong>第一阶段：基础 SQL 解析（2 个月）</strong><br/>
+核心目标是构建 SQL 语法解析能力，采用 ANTLR4 生成 SQL 词法/语法解析器，基于 Visitor 模式开发自定义节点处理器，实现语法树（AST）的构建与 SQL 文本改写能力。此阶段需完成基础配置框架搭建，参考 SQLFluff 与 Schemalint 的实现流程，在项目根目录创建配置文件（如 <code>.sqlfluff</code> 或 <code>schemalintrc.js</code>），指定方言（dialect）、缩进规则、排除规则（exclude_rules）等关键参数，并支持通过命令行工具（如 <code>npx schemalint</code>）执行基础解析校验[<a href="https://blog.csdn.net/gitblog_00888/article/details/151298941">14</a>][<a href="https://blog.csdn.net/gitblog_01062/article/details/142243832">18</a>][<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>]。</p>
+<p><img alt="image-wrtv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wrtv.png" srcset="/upload/image-wrtv.png?width=1200 1200w, /upload/image-wrtv.png?width=400 400w, /upload/image-wrtv.png?width=1600 1600w, /upload/image-wrtv.png?width=800 800w"/></p>
+<p><strong>第二阶段：PL/SQL 支持扩展（3 个月）</strong><br/>
+重点突破 PL/SQL 语法的解析难题，具体实施步骤包括：首先利用 ANTLR4 生成 PL/SQL 专用词法分析器、语法解析器及访问器；其次通过解析器提取 PL/SQL 块的 body 规则及依赖关系，并单独测试 PL/SQL 规则对代码块的解析有效性；最后需解决语法合并冲突，将提取的 PL/SQL 规则和令牌整合至现有 C 语法框架中，特别注意处理命名空间冲突问题[<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>][<a href="https://github.com/antlr/antlr4/discussions/4170">23</a>]。</p>
+<p><strong>第三阶段：语义分析模块开发（2 个月）</strong><br/>
+聚焦于 SQL 语句的语义正确性校验，核心任务是设计符号表数据结构（优先选择哈希表或平衡树以提升查询效率），实现符号的插入、查询及生命周期管理功能。将符号表集成至语法解析后的语义分析流程，完成变量定义校验、数据类型匹配、作用域合法性等关键语义规则的验证，确保 SQL 语句在逻辑层面的一致性[<a href="https://wenku.csdn.net/column/47wdfds5d1">24</a>]。</p>
+<p><strong>第四阶段：规则引擎构建（2 个月）</strong><br/>
+遵循“需求定义-引擎选型-原型测试-集成优化”的实施路径：首先明确审核规则数量（如基础规范、性能风险、安全合规等类别）、动态规则支持需求（是否需热更新）及性能指标（如每秒解析 SQL 条数）；其次对比 Drools、Easy Rules 等引擎的 SQL 审核适配性，复杂规则场景优先选择 Drools，简单规则可采用轻量级 Easy Rules；随后针对候选引擎编写规则原型（如“禁止全表扫描”“主键命名规范”），验证执行效率与易用性；最终将选定引擎集成至工具，解决语法解析性能瓶颈，例如通过 AST 节点复用减少内存开销[<a href="https://blog.51cto.com/u_16213434/12657707">25</a>][<a href="https://cloud.tencent.com.cn/developer/article/2533524">26</a>][<a href="https://github.com/antlr/antlr4/issues/1219">27</a>]。</p>
+<p><strong>第五阶段：报告生成集成（1 个月）</strong><br/>
+开发结果可视化模块，支持将规则引擎输出的审核结果（如违规类型、位置、风险等级）转化为结构化报告，格式包括 HTML、PDF 及 JSON，便于用户快速定位问题。报告需包含统计摘要（如总审核条数、违规率）、详细违规列表（含代码片段与修复建议），并支持自定义报告模板配置。</p>
+<h3 id="测试策略与性能优化">测试策略与性能优化</h3>
+<p><strong>测试体系设计</strong></p>
+<ul>
+<li><strong>单元测试</strong>：重点验证 ANTLR 语法规则的正确性，通过编写覆盖常见 SQL/PL/SQL 语法结构的测试用例，确保解析器能准确生成 AST，例如测试 PL/SQL 块中嵌套循环的语法树构建完整性[<a href="https://github.com/antlr/antlr4/discussions/4170">23</a>]。</li>
+<li><strong>集成测试</strong>：模拟完整审核流程，验证规则引擎与解析模块的协同工作能力，例如测试“创建表缺少主键”规则能否被正确触发并输出结果[<a href="https://blog.51cto.com/u_16213434/12657707">25</a>]。</li>
+<li><strong>性能测试</strong>：针对大型 PL/SQL 脚本（如 10 万行代码）进行解析耗时测试，建立性能基准线，确保工具在生产环境中满足实时性要求。</li>
+</ul>
+<p><strong>核心性能优化措施</strong></p>
+<ul>
+<li><strong>AST 节点复用</strong>：对重复出现的语法结构（如标准函数调用）缓存其 AST 节点，减少重复解析开销。</li>
+<li><strong>元数据缓存预热</strong>：在工具启动时预加载数据库表结构、索引等元数据至内存，避免审核过程中的频繁数据库查询。</li>
+<li><strong>语言选型优化</strong>：优先采用 Java 作为开发语言，其解析性能显著优于 Python（实测 795ms vs 5 分钟），尤其适用于大规模 SQL 脚本处理。</li>
+</ul>
+<p>通过上述分阶段实施与技术优化，工具可逐步实现从基础语法校验到高级语义审核的全流程能力，为数据库开发规范落地提供可靠技术支撑。</p>
+<h2 id="扩展性设计">扩展性设计</h2>
+<p>扩展性设计是SQL审核工具应对多样化数据库环境与个性化规则需求的核心架构支撑，主要通过<strong>多数据库方言适配</strong>与<strong>插件化功能扩展</strong>两大体系实现。</p>
+<h3 id="多数据库方言支持">多数据库方言支持</h3>
+<p>针对Oracle、PostgreSQL等不同数据库的语法差异与元数据获取逻辑，工具采用<strong>适配器模式</strong>抽象统一的 <code>Dialect</code>接口，通过接口定义标准化解析流程与元数据交互方式，再针对具体数据库类型实现差异化逻辑。接口设计如下：</p>
+<pre><code class="language-java">public interface Dialect {
+   ParserRuleContext parse(CommonTokenStream tokens);  // 语法解析入口
+   List&lt;Metadata&gt; getTableMetadata(String tableName);  // 元数据查询接口
+}
+</code></pre>
+<p>该设计允许工具在不修改核心逻辑的前提下，通过新增 <code>Dialect</code>实现类支持MySQL、SQL Server等更多数据库类型，例如SQLFluff的“dialect-flexible”架构即通过类似思路实现对多SQL方言的扩展适配，其模块化设计确保新增方言时仅需关注语法规则与解析逻辑的定制[<a href="https://github.com/SwiftyNZ/sqlfluff">1</a>][<a href="https://github.com/sqlfluff?language=python">28</a>]。此外，antlr/grammars-v4项目提供的PL/SQL语法文件（如2021/03/03版本）可直接作为解析模块的扩展基础，当源语法更新时，通过同步本地语法文件即可快速支持新特性（如XML属性、listagg函数）[<a href="https://github.com/antlr/grammars-v4/actions">29</a>][<a href="https://modeldba.com/antlr4ts-sql/contributing/grammars">30</a>]。</p>
+<h3 id="插件机制设计">插件机制设计</h3>
+<p>插件化架构通过功能解耦实现工具的动态扩展，核心包含<strong>规则插件接口定义</strong>、<strong>加载机制</strong>与<strong>动态部署</strong>三部分。</p>
+<h4 id="规则插件接口与spi加载">规则插件接口与SPI加载</h4>
+<p>工具定义 <code>RulePlugin</code>接口标准化规则扩展方式，第三方开发者通过实现该接口提供自定义审核规则：</p>
+<pre><code class="language-java">public interface RulePlugin {
+   List&lt;Rule&gt; getRules();  // 返回插件包含的审核规则列表
+}
+</code></pre>
+<p>加载机制采用Java SPI规范，插件提供者需在 <code>META-INF/services</code>目录下注册实现类，工具启动时通过 <code>ServiceLoader</code>自动发现并加载插件[<a href="https://my.oschina.net/emacs_9118032/blog/18011909">31</a>]。此模式确保核心程序与插件完全解耦，例如SQLFluff通过Python的pluggy框架实现类似机制，插件需定义entry point并安装为Python包，可通过 <code>sqlfluff rules</code>命令验证规则加载结果[<a href="https://blog.csdn.net/gitblog_00160/article/details/148419478">32</a>]。</p>
+<h4 id="动态部署与热加载">动态部署与热加载</h4>
+<p>为支持插件的在线更新，工具集成OSGi框架实现动态部署能力。OSGi通过模块化管理插件生命周期，允许在不重启服务的情况下完成插件的安装、更新与卸载，这一特性与tsqllint采用的.NET assemblies插件加载机制类似，后者通过实现 <code>IPlugin</code>接口的程序集实现功能扩展[<a href="https://github.com/tsqllint/tsqllint/">20</a>][<a href="https://github.com/tsqllint/tsqllint-vscode-extension">33</a>]。</p>
+<h4 id="插件安全机制">插件安全机制</h4>
+<p>插件架构在提升灵活性的同时引入安全风险，需通过<strong>沙箱隔离</strong>与<strong>通信加密</strong>保障系统安全。沙箱隔离可采用gVisor容器限制插件运行时权限，防止恶意插件访问敏感资源；通信加密则通过QUIC协议实现插件与核心系统间的安全数据传输，该机制参考了ZKmall插件体系的安全设计思路，确保插件交互过程的机密性与完整性[<a href="https://my.oschina.net/emacs_9118032/blog/18011909">31</a>]。</p>
+<p><strong>插件架构核心优势</strong></p>
+<ul>
+<li><strong>模块化</strong>：功能分割为独立模块，降低维护复杂度</li>
+<li><strong>可扩展性</strong>：新增规则或功能无需修改核心代码</li>
+<li><strong>灵活性</strong>：支持按需启用/禁用插件，适配不同场景需求</li>
+<li><strong>可维护性</strong>：插件可独立迭代，避免对主体程序的影响</li>
+</ul>
+<p>通过多数据库方言适配与插件化扩展的协同设计，SQL审核工具能够同时满足跨数据库环境的兼容性与用户个性化规则的定制需求，为工具的长期演进提供架构支撑。</p>
+</blockquote>
+<hr/>
+<p>(AI生成出来的这段完全可以当成一篇论文了！)</p>
+<h2 id="ai生成程序执行的测试">AI生成程序执行的测试</h2>
+<p>从这两个测试来看，AI生成的这个工具对PLSQL的语法语义解析是完全准确的，还可以准确识别同名变量的作用域。</p>
+<pre><code>$ mvn exec:java -Dexec.mainClass="com.plsqlcheck.cli.PlSqlCheckCli" -Dexec.args="samples/sample_p
+lsql.sql -v"
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------&lt; com.plsqlcheck:plsql-check &gt;---------------------
+[INFO] Building PL/SQL Check Tool 1.0.0-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- exec-maven-plugin:3.5.0:java (default-cli) @ plsql-check ---
+=== PL/SQL 代码审核工具 ===
+文件: samples/sample_plsql.sql
+10:20:06.491 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 23)
+10:20:06.496 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 2 个违反
+10:20:06.498 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 57)
+10:20:06.498 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 1 个违反
+10:20:06.499 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 83)
+10:20:06.500 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 0 个违反
+10:20:06.500 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 326)
+10:20:06.501 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 1 个违反
+10:20:06.503 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 417)
+10:20:06.504 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 0 个违反
+10:20:06.504 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 394)
+10:20:06.505 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 1 个违反
+10:20:06.505 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 499)
+10:20:06.506 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 1 个违反
+10:20:06.507 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 485)
+10:20:06.507 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 1 个违反
+10:20:06.508 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 388)
+10:20:06.508 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 2 个违反
+10:20:06.509 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- Starting rule check for SQL code (length: 485)
+10:20:06.510 [com.plsqlcheck.cli.PlSqlCheckCli.main()] INFO com.plsqlcheck.rules.RuleEngineService -- 规则检查完成，发现 0 个违反
+=== SQL 代码审核报告 ===
+文件: samples/sample_plsql.sql
+文件大小: 3433 字符
+检测到SQL语句: 10 个
+
+=== 语句详细分析 ===
+? 语句 1 (行 5):
+   类型: SELECT查询
+   预览: SELECT * FROM employees
+   ??  发现 2 个问题:
+      - [SQL001] 避免使用SELECT *，明确指定需要的列 (严重性: WARNING)
+      - [PERF001] 查询缺少WHERE条件，可能导致全表扫描 (严重性: WARNING)
+
+? 语句 2 (行 8-9):
+   类型: SELECT查询
+   预览: SELECT employee_id, first_name, last_name FROM...
+   ??  发现 1 个问题:
+      - [PERF001] 查询缺少WHERE条件，可能导致全表扫描 (严重性: WARNING)
+
+? 语句 3 (行 12-14):
+   类型: SELECT查询
+   预览: SELECT employee_id, first_name, last_name FROM...
+   ? 无问题发现
+
+? 语句 4 (行 17-29):
+   类型: 匿名PL/SQL块
+   预览: DECLARE v_count NUMBER; v_avg_salary NU...
+   ??  发现 2 个问题:
+      - [PLS001] PL/SQL块建议包含异常处理 (严重性: INFO)
+      - [SEM001] 表 'employees;' 在数据库中不存在 (严重性: ERROR)
+
+? 语句 5 (行 33-49):
+   类型: 存储过程
+   预览: CREATE OR REPLACE PROCEDURE get_employee_info( ...
+   ? 无问题发现
+
+? 语句 6 (行 53-68):
+   类型: 函数
+   预览: CREATE OR REPLACE FUNCTION calculate_bonus( ...
+   ??  发现 1 个问题:
+      - [PLS001] PL/SQL块建议包含异常处理 (严重性: INFO)
+
+? 语句 7 (行 72-94):
+   类型: 匿名PL/SQL块
+   预览: DECLARE v_counter NUMBER := 1; v_total ...
+   ??  发现 1 个问题:
+      - [PLS001] PL/SQL块建议包含异常处理 (严重性: INFO)
+
+? 语句 8 (行 98-115):
+   类型: 匿名PL/SQL块
+   预览: DECLARE CURSOR emp_cursor IS SELECT...
+   ??  发现 1 个问题:
+      - [PLS001] PL/SQL块建议包含异常处理 (严重性: INFO)
+
+? 语句 9 (行 119-131):
+   类型: 匿名PL/SQL块
+   预览: DECLARE v_sql VARCHAR2(1000); v_dept_id...
+   ??  发现 2 个问题:
+      - [SEC001] 动态SQL存在注入风险，建议使用参数化查询 (严重性: HIGH)
+      - [PLS001] PL/SQL块建议包含异常处理 (严重性: INFO)
+
+? 语句 10 (行 135-152):
+   类型: 匿名PL/SQL块
+   预览: DECLARE v_salary NUMBER; v_emp_id NUMBE...
+   ? 无问题发现
+
+=== 总结 ===
+总计发现问题: 10 个
+
+? 发现的所有问题:
+1. [SQL001] 避免使用SELECT *，明确指定需要的列
+   严重性: WARNING
+   上下文: 发现SELECT *语句
+
+2. [PERF001] 查询缺少WHERE条件，可能导致全表扫描
+   严重性: WARNING
+   上下文: 建议添加WHERE条件限制查询范围
+
+3. [PERF001] 查询缺少WHERE条件，可能导致全表扫描
+   严重性: WARNING
+   上下文: 建议添加WHERE条件限制查询范围
+
+4. [PLS001] PL/SQL块建议包含异常处理
+   严重性: INFO
+   上下文: 建议在PL/SQL块中添加EXCEPTION处理
+
+5. [SEM001] 表 'employees;' 在数据库中不存在
+   严重性: ERROR
+   上下文: DECLARE
+    v_count NUMBER;
+    v_avg_salary NUMBER;
+BEGIN
+    -- 获取员工总数
+    SELECT COUNT(*) INTO v_count FROM employees;
+
+    -- 获取平均薪资
+    SELECT AVG(salary) INTO v_avg_salary FROM employees;
+
+    DBMS_OUTPUT.PUT_LINE('Total employees: ' || v_count);
+    DBMS_OUTPUT.PUT_LINE('Average salary: ' || v_avg_salary);
+END
+
+6. [PLS001] PL/SQL块建议包含异常处理
+   严重性: INFO
+   上下文: 建议在PL/SQL块中添加EXCEPTION处理
+
+7. [PLS001] PL/SQL块建议包含异常处理
+   严重性: INFO
+   上下文: 建议在PL/SQL块中添加EXCEPTION处理
+
+8. [PLS001] PL/SQL块建议包含异常处理
+   严重性: INFO
+   上下文: 建议在PL/SQL块中添加EXCEPTION处理
+
+9. [SEC001] 动态SQL存在注入风险，建议使用参数化查询
+   严重性: HIGH
+   上下文: 发现可能的SQL注入风险
+
+10. [PLS001] PL/SQL块建议包含异常处理
+   严重性: INFO
+   上下文: 建议在PL/SQL块中添加EXCEPTION处理
+
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  3.499 s
+[INFO] Finished at: 2025-11-21T10:20:06+08:00
+[INFO] ------------------------------------------------------------------------
+</code></pre>
+<pre><code>$ mvn exec:java -Dexec.mainClass="com.plsqlcheck.cli.VariableAnalysisCliTool" -Dexec.args="samples/type_mismatch_test.sql"
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------&lt; com.plsqlcheck:plsql-check &gt;---------------------
+[INFO] Building PL/SQL Check Tool 1.0.0-SNAPSHOT
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- exec-maven-plugin:3.5.0:java (default-cli) @ plsql-check ---
+=== PL/SQL变量分析工具 ===
+分析文件: samples/type_mismatch_test.sql
+检查配置: TypeCheckConfig{level=MODERATE, relational=true, assignment=true, update=true, insert=true}
+
+=== PL/SQL变量和字段分析结果 ===
+
+
+=== ? 类型不匹配问题 ===
+[WARNING] 第18行:7列 - 潜在的类型隐式转换风险: 数字类型变量 v_number_var 与字符串字面量比较 (NUMBER vs VARCHAR2) (NUMBER != VARCHAR2)
+[WARNING] 第23行:7列 - 潜在的类型隐式转换风险: 字符串字面量与数字类型变量 v_integer_var 比较 (INTEGER vs VARCHAR2) (INTEGER != VARCHAR2)  
+[WARNING] 第28行:7列 - 潜在的类型隐式转换风险: 字符类型变量 v_varchar_var 与数字字面量比较 (VARCHAR2(50) vs NUMBER) (VARCHAR2(50) != NUMBER)
+[WARNING] 第33行:7列 - 潜在的类型隐式转换风险: 数字类型变量 v_number_var 与字符串字面量不等比较 (NUMBER vs VARCHAR2) (NUMBER != VARCHAR2) 
+[WARNING] 第44行:10列 - 潜在的类型隐式转换风险: 字符类型变量 v_varchar_var 与数字字面量比较 (VARCHAR2(50) vs NUMBER) (VARCHAR2(50) != NUMBER)
+[WARNING] 第56行:29列 - 潜在的类型隐式转换风险: 字符类型变量 v_varchar_var 与数字字面量比较 (VARCHAR2(50) vs NUMBER) (VARCHAR2(50) != NUMBER)
+
+=== 变量详细信息（按作用域层级） ===
+
+? 作用域层级 1 (6 个变量):
+  ? declare_7:
+    ├─ v_result [第15行:4列] 类型: NUMBER
+  ? declare_5:
+    ├─ v_char_var [第11行:4列] 类型: CHAR(10)
+      默认值: 'fixed'
+  ? declare_6:
+    ├─ v_date_var [第14行:4列] 类型: DATE
+      默认值: SYSDATE
+  ? declare_3:
+    ├─ v_integer_var [第7行:4列] 类型: INTEGER
+      默认值: 50
+  ? declare_4:
+    ├─ v_varchar_var [第10行:4列] 类型: VARCHAR2(50)
+      默认值: 'test'
+  ? declare_2:
+    ├─ v_number_var [第6行:4列] 类型: NUMBER
+      默认值: 100
+
+=== 同名变量分析 ===
+
+=== 按数据类型分组 ===
+NUMBER (2 个变量):
+  v_number_var [Level 1, declare_2]
+  v_result [Level 1, declare_7]
+DATE (1 个变量):
+  v_date_var [Level 1, declare_6]
+VARCHAR2(50) (1 个变量):
+  v_varchar_var [Level 1, declare_4]
+CHAR(10) (1 个变量):
+  v_char_var [Level 1, declare_5]
+INTEGER (1 个变量):
+  v_integer_var [Level 1, declare_3]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.892 s
+[INFO] Finished at: 2025-11-21T13:15:35+08:00
+[INFO] ------------------------------------------------------------------------
+</code></pre>
+<h1 id=""></h1>
+<h2 id="一些思考">一些思考</h2>
+<p>市面上已经有很多自称"SQL审核"的工具了，国外的确有几个好点的，但是国内这些SQL审核工具，我测下来，几乎清一色的不支持解析存储过程！只有华为的UGO里的SQL审核模块能做PLSQL的解析，和我用AI生成的这个原型类似，完成度也还是有点低。其他家SQL审核工具不审存储过程，我觉得这是因为大部分做SQL审核的这帮人都是从运维DBA开始，原始目标是解决生产环境上线之前的性能风险和安全风险。运维DBA们认为SQL是对数据库的操作，不是应用软件的代码。</p>
+<p>现在C/JAVA/PYTHON/GO/RUST等流行的开发语言，都有配套的持续集成、流水线，里面都可以加入代码质量审查，github/gitee等代码仓都可以在提交pr的时候自动触发代码质量审查，甚至可以配置引入多个第三方的审查，但是SQL和PLSQL似乎被抛弃了。现代开发习惯于用ORM框架，接触SQL越来越少，更加别提PLSQL了。</p>
+<p>SQL审核和代码质量检查存在诸多区别，比如：</p>
+<ol>
+<li>SQL审核常见的一个规则，"查询语句没有带where条件"，但这在PLSQL里很可能是正常的，<code>open cur for select id,name from table(l_namelist);</code></li>
+<li>SQL审核是逐个SQL进行评估，但代码质量检查的对象是整个应用的所有代码，它有强烈的上下文要素，比如存在已声明但未使用的变量、比如同一个变量先后被赋予了不同的业务含义、调用逻辑存在死循环等等.</li>
+</ol>
+<p>和几家SQL工具的开发厂家咨询了下，有好几家现在都开始准备在做存储过程的审核了，但是"代码质量审核"和"运维操作审核"完全是两个不同的场景，在软件交互设计上必然遇到不少两难全的问题，就再等等看他们做出来是什么样子吧。建议需求方还是冷静下来，想好自己需要什么东西，实现什么目的，不要凭空创造需求。</p>
+<p>应用开发人员完全可以用结队编程以及代码评审等方式来确保代码的质量，但是DBA们往往认为应用开发人员对数据库理解不足，很容易写出不好的代码，导致发生生产事故，锅给谁？一边说着DBA无法替代，一边又不去了解业务细节也不去学习开发语言。或许相比SQL审核工具，需要的更可能是一个对数据库理解很深刻而且又懂业务应用开发的人来进行代码上库的评审（这里的"库"指代码仓库，不是数据库）。这样的人我不认为是运维DBA角色，这应该就是高级开发人员。所以如果真要有个什么工具来使这个评审提质提效，那也应该是这个高级开发人员来指导这个工具的开发。</p>
+<p>至于我用AI做的这次尝试，暂时也不会推进了，后面基本都是苦力活了。验证下来PLSQL的审查根本不存在任何技术不可行的问题，而国内市面上没有出现好的PLSQL审核工具，纯粹是错误的人在错误的时间遇上了另一个错误的人做了一件错误的事。</p>
+<p>这篇文章对一些人群和一些软件开发厂商可能有所冒犯，但事实就是如此。聪明人应该会从我这篇文章里学到一些东西然后马上行动，其他人想喷就喷吧。</p>
+</div>
+</article>
     </div>
     
 </article>

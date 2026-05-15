@@ -153,7 +153,1223 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>测试 ubuntu server 22.04 LTS 安装mogdb 5.0.11<br/>
+使用的操作系统镜像是<br/>
+<a href="https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso">https://releases.ubuntu.com/22.04/ubuntu-22.04.5-live-server-amd64.iso</a></p>
+<p>装好操作系统后，把root登录打开了，方便后续操作。</p>
+<h2 id="测试过程">测试过程</h2>
+<p>使用官方命令在线安装ptk</p>
+<pre><code class="language-shell">root@ubuntu22:~# curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+Downloading ptk package...
+Detected shell: bash
+Shell profile:  /root/.bashrc
+ptk has been added to PATH in /root/.bashrc
+open a new terminal or source /root/.bashrc to active it
+Installed path: /root/.ptk/bin/ptk
+root@ubuntu22:~# source /root/.bashrc
+</code></pre>
+<p>生成本地单机安装模板</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk template --local &gt; config.yaml
+</code></pre>
+<p>检查环境</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk checkos -f config.yaml
+INFO[2025-05-08T05:16:25.920] prechecking dependent tools...
+ERRO[2025-05-08T05:16:25.949] [192.168.163.120][omm] not found tool: bzip2
+ERRO[2025-05-08T05:16:25.950] please install the above missing packages first before do other operations
+INFO[2025-05-08T05:16:25.950] write fix os script to root_fix_os.0508.051625.sh success
+INFO[2025-05-08T05:16:25.950] time elapsed: 0s
+[PTK-4010] system does not satisfy checkos requirement
+</code></pre>
+<p>报错，执行修复</p>
+<pre><code class="language-shell">root@ubuntu22:~# ./root_fix_os.0508.051625.sh
+++ ip addr
+++ grep inet
+++ grep -v 'inet6\|127.0.0.1\|grep'
+++ awk '{print $2}'
+++ awk -F / '{print $1}'
++ local_ips=192.168.163.120
++ for ip in ${local_ips}
++ [[ 192.168.163.120 == \1\9\2\.\1\6\8\.\1\6\3\.\1\2\0 ]]
++ sudo apt install -y bzip2
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Suggested packages:
+  bzip2-doc
+The following NEW packages will be installed:
+  bzip2
+0 upgraded, 1 newly installed, 0 to remove and 54 not upgraded.
+Need to get 34.8 kB of archives.
+After this operation, 117 kB of additional disk space will be used.
+Get:1 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 bzip2 amd64 1.0.8-5build1 [34.8 kB]
+Fetched 34.8 kB in 1s (38.4 kB/s)
+Selecting previously unselected package bzip2.
+(Reading database ... 74805 files and directories currently installed.)
+Preparing to unpack .../bzip2_1.0.8-5build1_amd64.deb ...
+Unpacking bzip2 (1.0.8-5build1) ...
+Setting up bzip2 (1.0.8-5build1) ...
+Processing triggers for man-db (2.10.2-1) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+</code></pre>
+<p>再执行检查</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk checkos -f config.yaml
+INFO[2025-05-08T05:16:44.551] prechecking dependent tools...
+WARN[2025-05-08T05:16:44.592] [192.168.163.120][omm] device(sda) 'IO Request'=254, expect 256
+INFO[2025-05-08T05:16:44.601] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+WARN[2025-05-08T05:16:44.607] [192.168.163.120][omm] net.ipv4.tcp_retries1=3, expect 5
+WARN[2025-05-08T05:16:44.618] [192.168.163.120][omm] net.ipv4.tcp_max_syn_backlog=256, expect 65535
+WARN[2025-05-08T05:16:44.624] [192.168.163.120][omm] net.ipv4.tcp_tw_reuse=2, expect 1
+WARN[2025-05-08T05:16:44.627] [192.168.163.120][omm] net.ipv4.tcp_retries2=15, expect 12
+ERRO[2025-05-08T05:16:44.630] [192.168.163.120][omm] net.core.wmem_max=212992, expect 1048576
+WARN[2025-05-08T05:16:44.635] [192.168.163.120][omm] net.ipv4.tcp_keepalive_time=7200, expect 30
+WARN[2025-05-08T05:16:44.644] [192.168.163.120][omm] net.ipv4.tcp_wmem=4096     16384   4194304, expect 8192 250000 16777216
+WARN[2025-05-08T05:16:44.649] [192.168.163.120][omm] net.core.netdev_max_backlog=1000, expect 65535
+ERRO[2025-05-08T05:16:44.652] [192.168.163.120][omm] kernel.sem=32000   1024000000      500     32000, expect 250 6400000 1000 25600
+WARN[2025-05-08T05:16:44.659] [192.168.163.120][omm] vm.min_free_kbytes=67584, expect 200265
+WARN[2025-05-08T05:16:44.662] [192.168.163.120][omm] net.ipv4.tcp_rmem=4096     131072  6291456, expect 8192 250000 16777216
+WARN[2025-05-08T05:16:44.664] [192.168.163.120][omm] net.ipv4.tcp_syn_retries=6, expect 5
+ERRO[2025-05-08T05:16:44.667] [192.168.163.120][omm] net.core.rmem_max=212992, expect 1048576
+ERRO[2025-05-08T05:16:44.670] [192.168.163.120][omm] net.core.wmem_default=212992, expect 262144
+WARN[2025-05-08T05:16:44.676] [192.168.163.120][omm] net.ipv4.tcp_keepalive_intvl=75, expect 30
+WARN[2025-05-08T05:16:44.681] [192.168.163.120][omm] net.core.somaxconn=4096, expect 65535
+ERRO[2025-05-08T05:16:44.684] [192.168.163.120][omm] net.core.rmem_default=212992, expect 262144
+INFO[2025-05-08T05:16:44.687] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:16:44.692] [192.168.163.120][omm] check RemoveIPC value
+INFO[2025-05-08T05:16:44.700] [192.168.163.120][omm] check KillUserProcesses value
+ERRO[2025-05-08T05:16:46.778] [192.168.163.120][omm] not found package: libaio1
+ERRO[2025-05-08T05:16:46.778] [192.168.163.120][omm] not found package: numactl
+WARN[2025-05-08T05:16:46.789] [192.168.163.120][omm] device(/dev/sda) readahead value=256, expect 16384.
+INFO[2025-05-08T05:16:46.799] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+INFO[2025-05-08T05:16:46.802] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+INFO[2025-05-08T05:16:46.883] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:16:46.894] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:16:46.909] [192.168.163.120][omm] timezone: +0000
+WARN[2025-05-08T05:16:46.917] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:16:46.933] all checkers finished
+INFO[2025-05-08T05:16:46.934] write fix os script to root_fix_os.0508.051646.sh success
+INFO[2025-05-08T05:16:46.934] time elapsed: 2s
+# Check Results
+                Item                |  Level
+------------------------------------+-----------
+  A1.Check_OS_Version               | OK
+  A2.Check_Kernel_Version           | OK
+  A3.Check_Unicode                  | OK
+  A4.Check_TimeZone                 | OK
+  A5.Check_Swap_Memory_Configure    | OK
+  A6.Check_SysCtl_Parameter         | Abnormal
+  A7.Check_FileSystem_Configure     | OK
+  A8.Check_Disk_Configure           | OK
+  A9.Check_BlockDev_Configure       | Warning
+  A9.Check_Logical_Block            | OK
+  A10.Check_NR_Request              | Warning
+  A10.Check_Asynchronous_IO_Request | OK
+  A10.Check_IO_Configure            | OK
+  A11.Check_Network_Configure       | OK
+  A12.Check_Time_Consistency        | OK
+  A13.Check_Firewall_Status         | OK
+  A14.Check_THP_Status              | OK
+  A15.Check_Dependent_Package       | Abnormal
+  A16.Check_CPU_Instruction_Set     | OK
+  A17.Check_Port                    | OK
+  A18.Check_Selinux                 | OK
+  A19.Check_User_Ulimit             | OK
+  A20.Check_Directory               | OK
+Total count 23, abnormal count 2, warning count 2
+Failed to check os, can’t perform installation unless fix all the abnormal items.
+You can use 'ptk checkos -i ITEM --detail' to get detail message
+Please check root_fix_os.0508.051646.sh for commands to resolve.
+</code></pre>
+<p>存在 Abnormal 项，继续修复</p>
+<pre><code class="language-shell">root@ubuntu22:~# ./root_fix_os.0508.051646.sh
+++ ip addr
+++ grep inet
+++ grep -v 'inet6\|127.0.0.1\|grep'
+++ awk '{print $2}'
+++ awk -F / '{print $1}'
++ local_ips=192.168.163.120
++ for ip in ${local_ips}
++ [[ 192.168.163.120 == \1\9\2\.\1\6\8\.\1\6\3\.\1\2\0 ]]
++ sed -i /net.core.wmem_max/d /etc/sysctl.conf
++ echo net.core.wmem_max = 1048576
++ sed -i /kernel.sem/d /etc/sysctl.conf
++ echo kernel.sem = 250 6400000 1000 25600
++ sed -i /net.core.rmem_max/d /etc/sysctl.conf
++ echo net.core.rmem_max = 1048576
++ sed -i /net.core.wmem_default/d /etc/sysctl.conf
++ echo net.core.wmem_default = 262144
++ sed -i /net.core.rmem_default/d /etc/sysctl.conf
++ echo net.core.rmem_default = 262144
++ sed -i /RemoveIPC/d /etc/systemd/logind.conf
++ echo RemoveIPC=no
++ systemctl restart systemd-logind
++ sysctl -p
+net.core.wmem_max = 1048576
+kernel.sem = 250 6400000 1000 25600
+net.core.rmem_max = 1048576
+net.core.wmem_default = 262144
+net.core.rmem_default = 262144
++ sudo apt install -y libaio-dev
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following NEW packages will be installed:
+  libaio-dev
+0 upgraded, 1 newly installed, 0 to remove and 54 not upgraded.
+Need to get 21.2 kB of archives.
+After this operation, 71.7 kB of additional disk space will be used.
+Get:1 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libaio-dev amd64 0.3.112-13build1 [21.2 kB]
+Fetched 21.2 kB in 2s (8,758 B/s)
+Selecting previously unselected package libaio-dev:amd64.
+(Reading database ... 74832 files and directories currently installed.)
+Preparing to unpack .../libaio-dev_0.3.112-13build1_amd64.deb ...
+Unpacking libaio-dev:amd64 (0.3.112-13build1) ...
+Setting up libaio-dev:amd64 (0.3.112-13build1) ...
+Processing triggers for man-db (2.10.2-1) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
++ sudo apt install -y numactl
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following NEW packages will be installed:
+  numactl
+0 upgraded, 1 newly installed, 0 to remove and 54 not upgraded.
+Need to get 36.8 kB of archives.
+After this operation, 140 kB of additional disk space will be used.
+Get:1 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 numactl amd64 2.0.14-3ubuntu2 [36.8 kB]
+Fetched 36.8 kB in 2s (16.3 kB/s)
+Selecting previously unselected package numactl.
+(Reading database ... 74851 files and directories currently installed.)
+Preparing to unpack .../numactl_2.0.14-3ubuntu2_amd64.deb ...
+Unpacking numactl (2.0.14-3ubuntu2) ...
+Setting up numactl (2.0.14-3ubuntu2) ...
+Processing triggers for man-db (2.10.2-1) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+
+</code></pre>
+<p>再检查</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk checkos -f config.yaml
+INFO[2025-05-08T05:17:12.034] prechecking dependent tools...
+INFO[2025-05-08T05:17:12.067] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+WARN[2025-05-08T05:17:12.082] [192.168.163.120][omm] device(sda) 'IO Request'=254, expect 256
+INFO[2025-05-08T05:17:12.093] [192.168.163.120][omm] timezone: +0000
+INFO[2025-05-08T05:17:12.097] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+WARN[2025-05-08T05:17:12.111] [192.168.163.120][omm] net.ipv4.tcp_rmem=4096     131072  6291456, expect 8192 250000 16777216
+WARN[2025-05-08T05:17:12.117] [192.168.163.120][omm] net.core.netdev_max_backlog=1000, expect 65535
+WARN[2025-05-08T05:17:12.120] [192.168.163.120][omm] net.core.somaxconn=4096, expect 65535
+WARN[2025-05-08T05:17:12.126] [192.168.163.120][omm] net.ipv4.tcp_keepalive_intvl=75, expect 30
+WARN[2025-05-08T05:17:12.145] [192.168.163.120][omm] net.ipv4.tcp_retries1=3, expect 5
+WARN[2025-05-08T05:17:12.153] [192.168.163.120][omm] net.ipv4.tcp_tw_reuse=2, expect 1
+WARN[2025-05-08T05:17:12.158] [192.168.163.120][omm] net.ipv4.tcp_keepalive_time=7200, expect 30
+WARN[2025-05-08T05:17:12.164] [192.168.163.120][omm] net.ipv4.tcp_syn_retries=6, expect 5
+WARN[2025-05-08T05:17:12.171] [192.168.163.120][omm] vm.min_free_kbytes=67584, expect 200265
+WARN[2025-05-08T05:17:12.179] [192.168.163.120][omm] net.ipv4.tcp_retries2=15, expect 12
+WARN[2025-05-08T05:17:12.191] [192.168.163.120][omm] net.ipv4.tcp_wmem=4096     16384   4194304, expect 8192 250000 16777216
+WARN[2025-05-08T05:17:12.193] [192.168.163.120][omm] net.ipv4.tcp_max_syn_backlog=256, expect 65535
+INFO[2025-05-08T05:17:12.193] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:17:12.199] [192.168.163.120][omm] check RemoveIPC value
+INFO[2025-05-08T05:17:12.203] [192.168.163.120][omm] check KillUserProcesses value
+WARN[2025-05-08T05:17:12.214] [192.168.163.120][omm] device(/dev/sda) readahead value=256, expect 16384.
+INFO[2025-05-08T05:17:12.218] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+WARN[2025-05-08T05:17:12.229] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:17:14.388] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:17:14.393] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:17:14.393] all checkers finished
+INFO[2025-05-08T05:17:14.393] time elapsed: 2s
+# Check Results
+                Item                |  Level
+------------------------------------+----------
+  A1.Check_OS_Version               | OK
+  A2.Check_Kernel_Version           | OK
+  A3.Check_Unicode                  | OK
+  A4.Check_TimeZone                 | OK
+  A5.Check_Swap_Memory_Configure    | OK
+  A6.Check_SysCtl_Parameter         | Warning
+  A7.Check_FileSystem_Configure     | OK
+  A8.Check_Disk_Configure           | OK
+  A9.Check_BlockDev_Configure       | Warning
+  A9.Check_Logical_Block            | OK
+  A10.Check_IO_Configure            | OK
+  A10.Check_NR_Request              | Warning
+  A10.Check_Asynchronous_IO_Request | OK
+  A11.Check_Network_Configure       | OK
+  A12.Check_Time_Consistency        | OK
+  A13.Check_Firewall_Status         | OK
+  A14.Check_THP_Status              | OK
+  A15.Check_Dependent_Package       | Warning
+  A16.Check_CPU_Instruction_Set     | OK
+  A17.Check_Port                    | OK
+  A18.Check_Selinux                 | OK
+  A19.Check_User_Ulimit             | OK
+  A20.Check_Directory               | OK
+Total count 23, abnormal count 0, warning count 4
+</code></pre>
+<p>检查通过，在线安装MogDB</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk install -f config.yaml
+INFO[2025-05-08T05:17:22.022] PTK Version: 1.7.5 release
+INFO[2025-05-08T05:17:22.022] load config from config.yaml
+If you continue to install the software,
+you are accepting the license agreement of the software.
+
+  [Y]: Accept and continue
+  [C]: Show content of licence agreement
+  [N]: Abort installation and exit
+
+✔ Please enter (default: Y): y
+Cluster Name: "pike"
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| az(priority) |       ip        | user(group) | port  |  role   |    data dir     | upstream |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| AZ1(1)       | 192.168.163.120 | omm(omm)    | 26000 | primary | /opt/mogdb/data | -        |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+✔ Is cluster config correct (default=n) [y/n]: y
+INFO[2025-05-08T05:17:25.063] start check hostname ...
+INFO[2025-05-08T05:17:25.066] check hostname success
+INFO[2025-05-08T05:17:25.066] start check os ...
+INFO[2025-05-08T05:17:25.066] prechecking dependent tools...
+INFO[2025-05-08T05:17:25.163] [192.168.163.120][omm] timezone: +0000
+WARN[2025-05-08T05:17:25.175] [192.168.163.120][omm] net.ipv4.tcp_tw_reuse=2, expect 1
+WARN[2025-05-08T05:17:25.179] [192.168.163.120][omm] net.ipv4.tcp_wmem=4096     16384   4194304, expect 8192 250000 16777216
+WARN[2025-05-08T05:17:25.187] [192.168.163.120][omm] net.core.somaxconn=4096, expect 65535
+WARN[2025-05-08T05:17:25.193] [192.168.163.120][omm] net.ipv4.tcp_keepalive_time=7200, expect 30
+WARN[2025-05-08T05:17:25.196] [192.168.163.120][omm] net.ipv4.tcp_keepalive_intvl=75, expect 30
+WARN[2025-05-08T05:17:25.202] [192.168.163.120][omm] net.core.netdev_max_backlog=1000, expect 65535
+WARN[2025-05-08T05:17:25.205] [192.168.163.120][omm] net.ipv4.tcp_max_syn_backlog=256, expect 65535
+WARN[2025-05-08T05:17:25.214] [192.168.163.120][omm] vm.min_free_kbytes=67584, expect 200265
+WARN[2025-05-08T05:17:25.219] [192.168.163.120][omm] net.ipv4.tcp_retries1=3, expect 5
+WARN[2025-05-08T05:17:25.223] [192.168.163.120][omm] net.ipv4.tcp_retries2=15, expect 12
+WARN[2025-05-08T05:17:25.225] [192.168.163.120][omm] net.ipv4.tcp_rmem=4096     131072  6291456, expect 8192 250000 16777216
+WARN[2025-05-08T05:17:25.237] [192.168.163.120][omm] net.ipv4.tcp_syn_retries=6, expect 5
+INFO[2025-05-08T05:17:25.251] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:17:25.257] [192.168.163.120][omm] check KillUserProcesses value
+INFO[2025-05-08T05:17:25.266] [192.168.163.120][omm] check RemoveIPC value
+WARN[2025-05-08T05:17:25.279] [192.168.163.120][omm] device(sda) 'IO Request'=254, expect 256
+WARN[2025-05-08T05:17:25.293] [192.168.163.120][omm] device(/dev/sda) readahead value=256, expect 16384.
+INFO[2025-05-08T05:17:25.297] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:17:25.302] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:17:25.306] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+INFO[2025-05-08T05:17:25.309] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+INFO[2025-05-08T05:17:27.422] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+WARN[2025-05-08T05:17:27.429] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:17:27.444] all checkers finished
+INFO[2025-05-08T05:17:27.445] time elapsed: 2s
+INFO[2025-05-08T05:17:27.445] check os success
+INFO[2025-05-08T05:17:27.445] start check distro ...
+INFO[2025-05-08T05:17:27.445] check distro success
+INFO[2025-05-08T05:17:27.445] start check user ...
+INFO[2025-05-08T05:17:27.449] check user success
+INFO[2025-05-08T05:17:27.449] start check port ...
+INFO[2025-05-08T05:17:27.449] checking port 26000 on host 192.168.163.120 (db listen port) ...
+INFO[2025-05-08T05:17:27.453] checking port 26001 on host 192.168.163.120 (db HA port) ...
+INFO[2025-05-08T05:17:27.458] check port success
+INFO[2025-05-08T05:17:27.461] [192.168.163.120][omm] create os user omm, group omm
+INFO[2025-05-08T05:17:27.482] [192.168.163.120][omm] set ulimit configs
+INFO[2025-05-08T05:17:27.485] start prepare installation package ...
+INFO[2025-05-08T05:17:27.485] no package specified, use online package: https://cdn-mogdb.enmotech.com/mogdb-media/5.0.9/CentOS_x86_64/MogDB-5.0.9-CentOS-x86_64-all.tar.gz
+INFO[2025-05-08T05:17:27.485] downloading MogDB-5.0.9-CentOS-x86_64-all.tar.gz ...
+INFO[2025-05-08T05:17:37.094] download successfully
+INFO[2025-05-08T05:17:37.095] installation package is ready
+INFO[2025-05-08T05:17:37.095] parse installation package ...
+INFO[2025-05-08T05:17:44.615] start validate installation package md5...
+INFO[2025-05-08T05:17:44.824] validate installation package md5 success
+INFO[2025-05-08T05:17:44.824] db product: MogDB, version: 5.0.9, number: 92.930, commit_id: 191cef4e
+INFO[2025-05-08T05:17:45.355] extract MogDB-5.0.9-CentOS-64bit.tar.gz to dir /tmp/ptk_tmp_2121412701
+INFO[2025-05-08T05:17:47.460] execute command: mogdb --version
+ERRO[2025-05-08T05:17:47.465] task execute failed
+Address: root@192.168.163.120
+Task: execute command: mogdb --version
+Error: mogdb: error while loading shared libraries: libncurses.so.5: cannot open shared object file: No such file or directory, exit status 127
+ERRO[2025-05-08T05:17:47.584] mogdb: error while loading shared libraries: libncurses.so.5: cannot open shared object file: No such file or directory, exit status 127
+INFO[2025-05-08T05:17:47.584] start rollback ...
+INFO[2025-05-08T05:17:47.609] rollback success
+INFO[2025-05-08T05:17:47.609] clear temp dirs ...
+INFO[2025-05-08T05:17:47.609] clear temp dirs success
+INFO[2025-05-08T05:17:47.609] time elapsed: 24s
+
+  cluste_name |      host       | user | port  |      status      | message
+--------------+-----------------+------+-------+------------------+----------
+  pike        | 192.168.163.120 | omm  | 26000 | precheck_success | success
+mogdb: error while loading shared libraries: libncurses.so.5: cannot open shared object file: No such file or directory, exit status 127
+
+</code></pre>
+<p>安装报错，少了libncurses.so.5 ，带上--gen-warning-fix进行检查</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk checkos -f config.yaml --gen-warning-fix
+INFO[2025-05-08T05:19:24.740] prechecking dependent tools...
+WARN[2025-05-08T05:19:24.784] [192.168.163.120][omm] net.ipv4.tcp_retries1=3, expect 5
+WARN[2025-05-08T05:19:24.792] [192.168.163.120][omm] net.ipv4.tcp_keepalive_intvl=75, expect 30
+WARN[2025-05-08T05:19:24.795] [192.168.163.120][omm] net.ipv4.tcp_wmem=4096     16384   4194304, expect 8192 250000 16777216
+WARN[2025-05-08T05:19:24.799] [192.168.163.120][omm] net.ipv4.tcp_max_syn_backlog=256, expect 65535
+WARN[2025-05-08T05:19:24.810] [192.168.163.120][omm] net.ipv4.tcp_rmem=4096     131072  6291456, expect 8192 250000 16777216
+WARN[2025-05-08T05:19:24.816] [192.168.163.120][omm] net.ipv4.tcp_syn_retries=6, expect 5
+WARN[2025-05-08T05:19:24.829] [192.168.163.120][omm] net.ipv4.tcp_retries2=15, expect 12
+WARN[2025-05-08T05:19:24.835] [192.168.163.120][omm] net.ipv4.tcp_keepalive_time=7200, expect 30
+WARN[2025-05-08T05:19:24.838] [192.168.163.120][omm] net.core.netdev_max_backlog=1000, expect 65535
+WARN[2025-05-08T05:19:24.843] [192.168.163.120][omm] net.core.somaxconn=4096, expect 65535
+WARN[2025-05-08T05:19:24.849] [192.168.163.120][omm] net.ipv4.tcp_tw_reuse=2, expect 1
+WARN[2025-05-08T05:19:24.861] [192.168.163.120][omm] vm.min_free_kbytes=67584, expect 200265
+INFO[2025-05-08T05:19:24.867] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:19:24.873] [192.168.163.120][omm] check RemoveIPC value
+INFO[2025-05-08T05:19:24.877] [192.168.163.120][omm] check KillUserProcesses value
+WARN[2025-05-08T05:19:24.892] [192.168.163.120][omm] device(/dev/sda) readahead value=256, expect 16384.
+WARN[2025-05-08T05:19:24.900] [192.168.163.120][omm] device(sda) 'IO Request'=254, expect 256
+INFO[2025-05-08T05:19:24.910] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+INFO[2025-05-08T05:19:24.914] [192.168.163.120][omm] timezone: +0000
+INFO[2025-05-08T05:19:24.918] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+WARN[2025-05-08T05:19:24.925] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:19:24.943] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+INFO[2025-05-08T05:19:27.074] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:19:27.079] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:19:27.083] all checkers finished
+INFO[2025-05-08T05:19:27.084] write fix os script to root_fix_os.0508.051927.sh success
+INFO[2025-05-08T05:19:27.084] time elapsed: 2s
+# Check Results
+                Item                |  Level
+------------------------------------+----------
+  A1.Check_OS_Version               | OK
+  A2.Check_Kernel_Version           | OK
+  A3.Check_Unicode                  | OK
+  A4.Check_TimeZone                 | OK
+  A5.Check_Swap_Memory_Configure    | OK
+  A6.Check_SysCtl_Parameter         | Warning
+  A7.Check_FileSystem_Configure     | OK
+  A8.Check_Disk_Configure           | OK
+  A9.Check_BlockDev_Configure       | Warning
+  A9.Check_Logical_Block            | OK
+  A10.Check_NR_Request              | Warning
+  A10.Check_Asynchronous_IO_Request | OK
+  A10.Check_IO_Configure            | OK
+  A11.Check_Network_Configure       | OK
+  A12.Check_Time_Consistency        | OK
+  A13.Check_Firewall_Status         | OK
+  A14.Check_THP_Status              | OK
+  A15.Check_Dependent_Package       | Warning
+  A16.Check_CPU_Instruction_Set     | OK
+  A17.Check_Port                    | OK
+  A18.Check_Selinux                 | OK
+  A19.Check_User_Ulimit             | OK
+  A20.Check_Directory               | OK
+Total count 23, abnormal count 0, warning count 4
+</code></pre>
+<p>执行修复</p>
+<pre><code class="language-shell">root@ubuntu22:~# ./root_fix_os.0508.051927.sh
+++ ip addr
+++ grep inet
+++ grep -v 'inet6\|127.0.0.1\|grep'
+++ awk '{print $2}'
+++ awk -F / '{print $1}'
++ local_ips=192.168.163.120
++ for ip in ${local_ips}
++ [[ 192.168.163.120 == \1\9\2\.\1\6\8\.\1\6\3\.\1\2\0 ]]
++ sed -i /net.ipv4.tcp_retries1/d /etc/sysctl.conf
++ echo net.ipv4.tcp_retries1 = 5
++ sed -i /net.ipv4.tcp_keepalive_intvl/d /etc/sysctl.conf
++ echo net.ipv4.tcp_keepalive_intvl = 30
++ sed -i /net.ipv4.tcp_wmem/d /etc/sysctl.conf
++ echo net.ipv4.tcp_wmem = 8192 250000 16777216
++ sed -i /net.ipv4.tcp_max_syn_backlog/d /etc/sysctl.conf
++ echo net.ipv4.tcp_max_syn_backlog = 65535
++ sed -i /net.ipv4.tcp_rmem/d /etc/sysctl.conf
++ echo net.ipv4.tcp_rmem = 8192 250000 16777216
++ sed -i /net.ipv4.tcp_syn_retries/d /etc/sysctl.conf
++ echo net.ipv4.tcp_syn_retries = 5
++ sed -i /net.ipv4.tcp_retries2/d /etc/sysctl.conf
++ echo net.ipv4.tcp_retries2 = 12
++ sed -i /net.ipv4.tcp_keepalive_time/d /etc/sysctl.conf
++ echo net.ipv4.tcp_keepalive_time = 30
++ sed -i /net.core.netdev_max_backlog/d /etc/sysctl.conf
++ echo net.core.netdev_max_backlog = 65535
++ sed -i /net.core.somaxconn/d /etc/sysctl.conf
++ echo net.core.somaxconn = 65535
++ sed -i /net.ipv4.tcp_tw_reuse/d /etc/sysctl.conf
++ echo net.ipv4.tcp_tw_reuse = 1
++ sed -i /vm.min_free_kbytes/d /etc/sysctl.conf
++ echo vm.min_free_kbytes = 200265
++ sysctl -p
+net.core.wmem_max = 1048576
+kernel.sem = 250 6400000 1000 25600
+net.core.rmem_max = 1048576
+net.core.wmem_default = 262144
+net.core.rmem_default = 262144
+net.ipv4.tcp_retries1 = 5
+net.ipv4.tcp_keepalive_intvl = 30
+net.ipv4.tcp_wmem = 8192 250000 16777216
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.tcp_rmem = 8192 250000 16777216
+net.ipv4.tcp_syn_retries = 5
+net.ipv4.tcp_retries2 = 12
+net.ipv4.tcp_keepalive_time = 30
+net.core.netdev_max_backlog = 65535
+net.core.somaxconn = 65535
+net.ipv4.tcp_tw_reuse = 1
+vm.min_free_kbytes = 200265
++ sudo blockdev --setra 16384 /dev/sda
++ echo 256
++ sudo apt install -y flex
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  cpp cpp-11 fontconfig-config fonts-dejavu-core gcc gcc-11 gcc-11-base libasan6 libatomic1 libc-dev-bin libc-devtools libc6-dev libcc1-0 libcrypt-dev libdeflate0
+  libfl-dev libfl2 libfontconfig1 libgcc-11-dev libgd3 libgomp1 libisl23 libitm1 libjbig0 libjpeg-turbo8 libjpeg8 liblsan0 libmpc3 libnsl-dev libquadmath0
+  libtiff5 libtirpc-dev libtsan0 libubsan1 libwebp7 libxpm4 linux-libc-dev m4 manpages-dev rpcsvc-proto
+Suggested packages:
+  cpp-doc gcc-11-locales bison build-essential flex-doc gcc-multilib make autoconf automake libtool gdb gcc-doc gcc-11-multilib gcc-11-doc glibc-doc libgd-tools
+  m4-doc
+The following NEW packages will be installed:
+  cpp cpp-11 flex fontconfig-config fonts-dejavu-core gcc gcc-11 gcc-11-base libasan6 libatomic1 libc-dev-bin libc-devtools libc6-dev libcc1-0 libcrypt-dev
+  libdeflate0 libfl-dev libfl2 libfontconfig1 libgcc-11-dev libgd3 libgomp1 libisl23 libitm1 libjbig0 libjpeg-turbo8 libjpeg8 liblsan0 libmpc3 libnsl-dev
+  libquadmath0 libtiff5 libtirpc-dev libtsan0 libubsan1 libwebp7 libxpm4 linux-libc-dev m4 manpages-dev rpcsvc-proto
+0 upgraded, 41 newly installed, 0 to remove and 54 not upgraded.
+Need to get 49.2 MB of archives.
+After this operation, 154 MB of additional disk space will be used.
+Get:1 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 m4 amd64 1.4.18-5ubuntu2 [199 kB]
+Get:2 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 flex amd64 2.6.4-8build2 [307 kB]
+Get:3 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 gcc-11-base amd64 11.4.0-1ubuntu1~22.04 [20.2 kB]
+Get:4 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libisl23 amd64 0.24-2build1 [727 kB]
+Get:5 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libmpc3 amd64 1.2.1-2build1 [46.9 kB]
+Get:6 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cpp-11 amd64 11.4.0-1ubuntu1~22.04 [10.0 MB]
+Get:7 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 cpp amd64 4:11.2.0-1ubuntu1 [27.7 kB]
+Get:8 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 fonts-dejavu-core all 2.37-2build1 [1,041 kB]
+Get:9 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 fontconfig-config all 2.13.1-4.2ubuntu5 [29.1 kB]
+Get:10 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libcc1-0 amd64 12.3.0-1ubuntu1~22.04 [48.3 kB]
+Get:11 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgomp1 amd64 12.3.0-1ubuntu1~22.04 [126 kB]
+Get:12 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libitm1 amd64 12.3.0-1ubuntu1~22.04 [30.2 kB]
+Get:13 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libatomic1 amd64 12.3.0-1ubuntu1~22.04 [10.4 kB]
+Get:14 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libasan6 amd64 11.4.0-1ubuntu1~22.04 [2,282 kB]
+Get:15 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 liblsan0 amd64 12.3.0-1ubuntu1~22.04 [1,069 kB]
+Get:16 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libtsan0 amd64 11.4.0-1ubuntu1~22.04 [2,260 kB]
+Get:17 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libubsan1 amd64 12.3.0-1ubuntu1~22.04 [976 kB]
+Get:18 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libquadmath0 amd64 12.3.0-1ubuntu1~22.04 [154 kB]
+Get:19 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgcc-11-dev amd64 11.4.0-1ubuntu1~22.04 [2,517 kB]
+Get:20 http://cn.archive.ubuntu.com/ubuntu jammy-updates/main amd64 gcc-11 amd64 11.4.0-1ubuntu1~22.04 [20.1 MB]
+Get:21 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 gcc amd64 4:11.2.0-1ubuntu1 [5,112 B]
+Get:22 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libc-dev-bin amd64 2.35-0ubuntu3.9 [20.3 kB]
+Get:23 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libfontconfig1 amd64 2.13.1-4.2ubuntu5 [131 kB]
+Get:24 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libjpeg-turbo8 amd64 2.1.2-0ubuntu1 [134 kB]
+Get:25 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libjpeg8 amd64 8c-2ubuntu10 [2,264 B]
+Get:26 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libdeflate0 amd64 1.10-2 [70.9 kB]
+Get:27 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libjbig0 amd64 2.1-3.1ubuntu0.22.04.1 [29.2 kB]
+Get:28 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libwebp7 amd64 1.2.2-2ubuntu0.22.04.2 [206 kB]
+Get:29 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libtiff5 amd64 4.3.0-6ubuntu0.10 [185 kB]
+Get:30 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libxpm4 amd64 1:3.5.12-1ubuntu0.22.04.2 [36.7 kB]
+Get:31 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libgd3 amd64 2.3.0-2ubuntu2.3 [129 kB]
+Get:32 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libc-devtools amd64 2.35-0ubuntu3.9 [29.0 kB]
+Get:33 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 linux-libc-dev amd64 5.15.0-139.149 [1,298 kB]
+Get:34 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libcrypt-dev amd64 1:4.4.27-1 [112 kB]
+Get:35 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 rpcsvc-proto amd64 1.4.2-0ubuntu6 [68.5 kB]
+Get:36 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libtirpc-dev amd64 1.3.2-2ubuntu0.1 [192 kB]
+Get:37 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libnsl-dev amd64 1.3.0-2build2 [71.3 kB]
+Get:38 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/main amd64 libc6-dev amd64 2.35-0ubuntu3.9 [2,100 kB]
+Get:39 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libfl2 amd64 2.6.4-8build2 [10.7 kB]
+Get:40 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 libfl-dev amd64 2.6.4-8build2 [6,236 B]
+Get:41 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy/main amd64 manpages-dev all 5.10-1ubuntu1 [2,309 kB]
+Fetched 49.2 MB in 1min 47s (458 kB/s)
+Extracting templates from packages: 100%
+Selecting previously unselected package m4.
+(Reading database ... 74865 files and directories currently installed.)
+Preparing to unpack .../00-m4_1.4.18-5ubuntu2_amd64.deb ...
+Unpacking m4 (1.4.18-5ubuntu2) ...
+Selecting previously unselected package flex.
+Preparing to unpack .../01-flex_2.6.4-8build2_amd64.deb ...
+Unpacking flex (2.6.4-8build2) ...
+Selecting previously unselected package gcc-11-base:amd64.
+Preparing to unpack .../02-gcc-11-base_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking gcc-11-base:amd64 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libisl23:amd64.
+Preparing to unpack .../03-libisl23_0.24-2build1_amd64.deb ...
+Unpacking libisl23:amd64 (0.24-2build1) ...
+Selecting previously unselected package libmpc3:amd64.
+Preparing to unpack .../04-libmpc3_1.2.1-2build1_amd64.deb ...
+Unpacking libmpc3:amd64 (1.2.1-2build1) ...
+Selecting previously unselected package cpp-11.
+Preparing to unpack .../05-cpp-11_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking cpp-11 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../06-cpp_4%3a11.2.0-1ubuntu1_amd64.deb ...
+Unpacking cpp (4:11.2.0-1ubuntu1) ...
+Selecting previously unselected package fonts-dejavu-core.
+Preparing to unpack .../07-fonts-dejavu-core_2.37-2build1_all.deb ...
+Unpacking fonts-dejavu-core (2.37-2build1) ...
+Selecting previously unselected package fontconfig-config.
+Preparing to unpack .../08-fontconfig-config_2.13.1-4.2ubuntu5_all.deb ...
+Unpacking fontconfig-config (2.13.1-4.2ubuntu5) ...
+Selecting previously unselected package libcc1-0:amd64.
+Preparing to unpack .../09-libcc1-0_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libcc1-0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libgomp1:amd64.
+Preparing to unpack .../10-libgomp1_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libgomp1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libitm1:amd64.
+Preparing to unpack .../11-libitm1_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libitm1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libatomic1:amd64.
+Preparing to unpack .../12-libatomic1_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libatomic1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libasan6:amd64.
+Preparing to unpack .../13-libasan6_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libasan6:amd64 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package liblsan0:amd64.
+Preparing to unpack .../14-liblsan0_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking liblsan0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libtsan0:amd64.
+Preparing to unpack .../15-libtsan0_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libtsan0:amd64 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libubsan1:amd64.
+Preparing to unpack .../16-libubsan1_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libubsan1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libquadmath0:amd64.
+Preparing to unpack .../17-libquadmath0_12.3.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libquadmath0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Selecting previously unselected package libgcc-11-dev:amd64.
+Preparing to unpack .../18-libgcc-11-dev_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking libgcc-11-dev:amd64 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package gcc-11.
+Preparing to unpack .../19-gcc-11_11.4.0-1ubuntu1~22.04_amd64.deb ...
+Unpacking gcc-11 (11.4.0-1ubuntu1~22.04) ...
+Selecting previously unselected package gcc.
+Preparing to unpack .../20-gcc_4%3a11.2.0-1ubuntu1_amd64.deb ...
+Unpacking gcc (4:11.2.0-1ubuntu1) ...
+Selecting previously unselected package libc-dev-bin.
+Preparing to unpack .../21-libc-dev-bin_2.35-0ubuntu3.9_amd64.deb ...
+Unpacking libc-dev-bin (2.35-0ubuntu3.9) ...
+Selecting previously unselected package libfontconfig1:amd64.
+Preparing to unpack .../22-libfontconfig1_2.13.1-4.2ubuntu5_amd64.deb ...
+Unpacking libfontconfig1:amd64 (2.13.1-4.2ubuntu5) ...
+Selecting previously unselected package libjpeg-turbo8:amd64.
+Preparing to unpack .../23-libjpeg-turbo8_2.1.2-0ubuntu1_amd64.deb ...
+Unpacking libjpeg-turbo8:amd64 (2.1.2-0ubuntu1) ...
+Selecting previously unselected package libjpeg8:amd64.
+Preparing to unpack .../24-libjpeg8_8c-2ubuntu10_amd64.deb ...
+Unpacking libjpeg8:amd64 (8c-2ubuntu10) ...
+Selecting previously unselected package libdeflate0:amd64.
+Preparing to unpack .../25-libdeflate0_1.10-2_amd64.deb ...
+Unpacking libdeflate0:amd64 (1.10-2) ...
+Selecting previously unselected package libjbig0:amd64.
+Preparing to unpack .../26-libjbig0_2.1-3.1ubuntu0.22.04.1_amd64.deb ...
+Unpacking libjbig0:amd64 (2.1-3.1ubuntu0.22.04.1) ...
+Selecting previously unselected package libwebp7:amd64.
+Preparing to unpack .../27-libwebp7_1.2.2-2ubuntu0.22.04.2_amd64.deb ...
+Unpacking libwebp7:amd64 (1.2.2-2ubuntu0.22.04.2) ...
+Selecting previously unselected package libtiff5:amd64.
+Preparing to unpack .../28-libtiff5_4.3.0-6ubuntu0.10_amd64.deb ...
+Unpacking libtiff5:amd64 (4.3.0-6ubuntu0.10) ...
+Selecting previously unselected package libxpm4:amd64.
+Preparing to unpack .../29-libxpm4_1%3a3.5.12-1ubuntu0.22.04.2_amd64.deb ...
+Unpacking libxpm4:amd64 (1:3.5.12-1ubuntu0.22.04.2) ...
+Selecting previously unselected package libgd3:amd64.
+Preparing to unpack .../30-libgd3_2.3.0-2ubuntu2.3_amd64.deb ...
+Unpacking libgd3:amd64 (2.3.0-2ubuntu2.3) ...
+Selecting previously unselected package libc-devtools.
+Preparing to unpack .../31-libc-devtools_2.35-0ubuntu3.9_amd64.deb ...
+Unpacking libc-devtools (2.35-0ubuntu3.9) ...
+Selecting previously unselected package linux-libc-dev:amd64.
+Preparing to unpack .../32-linux-libc-dev_5.15.0-139.149_amd64.deb ...
+Unpacking linux-libc-dev:amd64 (5.15.0-139.149) ...
+Selecting previously unselected package libcrypt-dev:amd64.
+Preparing to unpack .../33-libcrypt-dev_1%3a4.4.27-1_amd64.deb ...
+Unpacking libcrypt-dev:amd64 (1:4.4.27-1) ...
+Selecting previously unselected package rpcsvc-proto.
+Preparing to unpack .../34-rpcsvc-proto_1.4.2-0ubuntu6_amd64.deb ...
+Unpacking rpcsvc-proto (1.4.2-0ubuntu6) ...
+Selecting previously unselected package libtirpc-dev:amd64.
+Preparing to unpack .../35-libtirpc-dev_1.3.2-2ubuntu0.1_amd64.deb ...
+Unpacking libtirpc-dev:amd64 (1.3.2-2ubuntu0.1) ...
+Selecting previously unselected package libnsl-dev:amd64.
+Preparing to unpack .../36-libnsl-dev_1.3.0-2build2_amd64.deb ...
+Unpacking libnsl-dev:amd64 (1.3.0-2build2) ...
+Selecting previously unselected package libc6-dev:amd64.
+Preparing to unpack .../37-libc6-dev_2.35-0ubuntu3.9_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.35-0ubuntu3.9) ...
+Selecting previously unselected package libfl2:amd64.
+Preparing to unpack .../38-libfl2_2.6.4-8build2_amd64.deb ...
+Unpacking libfl2:amd64 (2.6.4-8build2) ...
+Selecting previously unselected package libfl-dev:amd64.
+Preparing to unpack .../39-libfl-dev_2.6.4-8build2_amd64.deb ...
+Unpacking libfl-dev:amd64 (2.6.4-8build2) ...
+Selecting previously unselected package manpages-dev.
+Preparing to unpack .../40-manpages-dev_5.10-1ubuntu1_all.deb ...
+Unpacking manpages-dev (5.10-1ubuntu1) ...
+Setting up gcc-11-base:amd64 (11.4.0-1ubuntu1~22.04) ...
+Setting up manpages-dev (5.10-1ubuntu1) ...
+Setting up libxpm4:amd64 (1:3.5.12-1ubuntu0.22.04.2) ...
+Setting up libdeflate0:amd64 (1.10-2) ...
+Setting up linux-libc-dev:amd64 (5.15.0-139.149) ...
+Setting up m4 (1.4.18-5ubuntu2) ...
+Setting up libgomp1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up libjbig0:amd64 (2.1-3.1ubuntu0.22.04.1) ...
+Setting up libasan6:amd64 (11.4.0-1ubuntu1~22.04) ...
+Setting up libtirpc-dev:amd64 (1.3.2-2ubuntu0.1) ...
+Setting up rpcsvc-proto (1.4.2-0ubuntu6) ...
+Setting up libquadmath0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up libmpc3:amd64 (1.2.1-2build1) ...
+Setting up libatomic1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up fonts-dejavu-core (2.37-2build1) ...
+Setting up libfl2:amd64 (2.6.4-8build2) ...
+Setting up libjpeg-turbo8:amd64 (2.1.2-0ubuntu1) ...
+Setting up libwebp7:amd64 (1.2.2-2ubuntu0.22.04.2) ...
+Setting up libubsan1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up libnsl-dev:amd64 (1.3.0-2build2) ...
+Setting up libcrypt-dev:amd64 (1:4.4.27-1) ...
+Setting up libisl23:amd64 (0.24-2build1) ...
+Setting up libc-dev-bin (2.35-0ubuntu3.9) ...
+Setting up libcc1-0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up liblsan0:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up libitm1:amd64 (12.3.0-1ubuntu1~22.04) ...
+Setting up libtsan0:amd64 (11.4.0-1ubuntu1~22.04) ...
+Setting up libjpeg8:amd64 (8c-2ubuntu10) ...
+Setting up cpp-11 (11.4.0-1ubuntu1~22.04) ...
+Setting up flex (2.6.4-8build2) ...
+Setting up fontconfig-config (2.13.1-4.2ubuntu5) ...
+Setting up libfl-dev:amd64 (2.6.4-8build2) ...
+Setting up libgcc-11-dev:amd64 (11.4.0-1ubuntu1~22.04) ...
+Setting up gcc-11 (11.4.0-1ubuntu1~22.04) ...
+Setting up cpp (4:11.2.0-1ubuntu1) ...
+Setting up libc6-dev:amd64 (2.35-0ubuntu3.9) ...
+Setting up libtiff5:amd64 (4.3.0-6ubuntu0.10) ...
+Setting up libfontconfig1:amd64 (2.13.1-4.2ubuntu5) ...
+Setting up gcc (4:11.2.0-1ubuntu1) ...
+Setting up libgd3:amd64 (2.3.0-2ubuntu2.3) ...
+Setting up libc-devtools (2.35-0ubuntu3.9) ...
+Processing triggers for man-db (2.10.2-1) ...
+Processing triggers for install-info (6.8-4build1) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.9) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
++ sudo apt install -y bison
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Suggested packages:
+  bison-doc
+The following NEW packages will be installed:
+  bison
+0 upgraded, 1 newly installed, 0 to remove and 54 not upgraded.
+Need to get 748 kB of archives.
+After this operation, 2,519 kB of additional disk space will be used.
+Get:1 http://cn.archive.ubuntu.com/ubuntu jammy/main amd64 bison amd64 2:3.8.2+dfsg-1build1 [748 kB]
+Fetched 748 kB in 1s (569 kB/s)
+Selecting previously unselected package bison.
+(Reading database ... 79324 files and directories currently installed.)
+Preparing to unpack .../bison_2%3a3.8.2+dfsg-1build1_amd64.deb ...
+Unpacking bison (2:3.8.2+dfsg-1build1) ...
+Setting up bison (2:3.8.2+dfsg-1build1) ...
+update-alternatives: using /usr/bin/bison.yacc to provide /usr/bin/yacc (yacc) in auto mode
+Processing triggers for man-db (2.10.2-1) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
++ sudo apt install -y libncurses5
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  libtinfo5
+The following NEW packages will be installed:
+  libncurses5 libtinfo5
+0 upgraded, 2 newly installed, 0 to remove and 54 not upgraded.
+Need to get 207 kB of archives.
+After this operation, 883 kB of additional disk space will be used.
+Get:1 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/universe amd64 libtinfo5 amd64 6.3-2ubuntu0.1 [100 kB]
+Get:2 http://mirrors.tuna.tsinghua.edu.cn/ubuntu jammy-updates/universe amd64 libncurses5 amd64 6.3-2ubuntu0.1 [107 kB]
+Fetched 207 kB in 6s (32.1 kB/s)
+Selecting previously unselected package libtinfo5:amd64.
+(Reading database ... 79441 files and directories currently installed.)
+Preparing to unpack .../libtinfo5_6.3-2ubuntu0.1_amd64.deb ...
+Unpacking libtinfo5:amd64 (6.3-2ubuntu0.1) ...
+Selecting previously unselected package libncurses5:amd64.
+Preparing to unpack .../libncurses5_6.3-2ubuntu0.1_amd64.deb ...
+Unpacking libncurses5:amd64 (6.3-2ubuntu0.1) ...
+Setting up libtinfo5:amd64 (6.3-2ubuntu0.1) ...
+Setting up libncurses5:amd64 (6.3-2ubuntu0.1) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.9) ...
+Scanning processes...
+Scanning linux images...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
++ sudo apt install -y glibc
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+E: Unable to locate package glibc
+
+</code></pre>
+<p>报了个错，没有glibc这个包，先忽略，再次执行安装</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk install -f config.yaml
+INFO[2025-05-08T05:22:36.910] PTK Version: 1.7.5 release
+INFO[2025-05-08T05:22:36.910] load config from config.yaml
+If you continue to install the software,
+you are accepting the license agreement of the software.
+
+  [Y]: Accept and continue
+  [C]: Show content of licence agreement
+  [N]: Abort installation and exit
+
+✔ Please enter (default: Y): y
+Cluster Name: "pike"
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| az(priority) |       ip        | user(group) | port  |  role   |    data dir     | upstream |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| AZ1(1)       | 192.168.163.120 | omm(omm)    | 26000 | primary | /opt/mogdb/data | -        |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+✔ Is cluster config correct (default=n) [y/n]: y
+INFO[2025-05-08T05:22:39.737] start check hostname ...
+INFO[2025-05-08T05:22:39.740] check hostname success
+INFO[2025-05-08T05:22:39.740] start check os ...
+INFO[2025-05-08T05:22:39.741] prechecking dependent tools...
+INFO[2025-05-08T05:22:39.769] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+INFO[2025-05-08T05:22:39.772] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+INFO[2025-05-08T05:22:39.775] [192.168.163.120][omm] timezone: +0000
+INFO[2025-05-08T05:22:39.779] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+INFO[2025-05-08T05:22:39.868] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:22:39.873] [192.168.163.120][omm] check RemoveIPC value
+INFO[2025-05-08T05:22:39.877] [192.168.163.120][omm] check KillUserProcesses value
+WARN[2025-05-08T05:22:39.923] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:22:42.061] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:22:42.066] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:22:42.066] all checkers finished
+INFO[2025-05-08T05:22:42.066] time elapsed: 2s
+INFO[2025-05-08T05:22:42.066] check os success
+INFO[2025-05-08T05:22:42.066] start check distro ...
+INFO[2025-05-08T05:22:42.066] check distro success
+INFO[2025-05-08T05:22:42.067] start check user ...
+INFO[2025-05-08T05:22:42.070] check user success
+INFO[2025-05-08T05:22:42.070] start check port ...
+INFO[2025-05-08T05:22:42.070] checking port 26000 on host 192.168.163.120 (db listen port) ...
+INFO[2025-05-08T05:22:42.075] checking port 26001 on host 192.168.163.120 (db HA port) ...
+INFO[2025-05-08T05:22:42.080] check port success
+INFO[2025-05-08T05:22:42.083] [192.168.163.120][omm] create os user omm, group omm
+INFO[2025-05-08T05:22:42.103] [192.168.163.120][omm] set ulimit configs
+INFO[2025-05-08T05:22:42.105] start prepare installation package ...
+INFO[2025-05-08T05:22:42.105] no package specified, use online package: https://cdn-mogdb.enmotech.com/mogdb-media/5.0.9/CentOS_x86_64/MogDB-5.0.9-CentOS-x86_64-all.tar.gz
+INFO[2025-05-08T05:22:42.105] use cache /root/.ptk/cache/MogDB-5.0.9-CentOS-x86_64-all.tar.gz
+INFO[2025-05-08T05:22:42.105] installation package is ready
+INFO[2025-05-08T05:22:42.105] parse installation package ...
+INFO[2025-05-08T05:22:49.605] start validate installation package md5...
+INFO[2025-05-08T05:22:49.814] validate installation package md5 success
+INFO[2025-05-08T05:22:49.814] db product: MogDB, version: 5.0.9, number: 92.930, commit_id: 191cef4e
+INFO[2025-05-08T05:22:50.354] extract MogDB-5.0.9-CentOS-64bit.tar.gz to dir /tmp/ptk_tmp_453174572
+INFO[2025-05-08T05:22:52.411] execute command: mogdb --version
+ERRO[2025-05-08T05:22:52.417] task execute failed
+Address: root@192.168.163.120
+Task: execute command: mogdb --version
+Error: mogdb: error while loading shared libraries: libssl.so.10: cannot open shared object file: No such file or directory, exit status 127
+ERRO[2025-05-08T05:22:52.528] mogdb: error while loading shared libraries: libssl.so.10: cannot open shared object file: No such file or directory, exit status 127
+INFO[2025-05-08T05:22:52.529] start rollback ...
+INFO[2025-05-08T05:22:52.551] rollback success
+INFO[2025-05-08T05:22:52.551] clear temp dirs ...
+INFO[2025-05-08T05:22:52.551] clear temp dirs success
+INFO[2025-05-08T05:22:52.551] time elapsed: 14s
+
+  cluste_name |      host       | user | port  |      status      | message
+--------------+-----------------+------+-------+------------------+----------
+  pike        | 192.168.163.120 | omm  | 26000 | precheck_success | success
+mogdb: error while loading shared libraries: libssl.so.10: cannot open shared object file: No such file or directory, exit status 127
+</code></pre>
+<p>报错，libssl的版本不对，观察到自动下载的数据库包是centos7版本的，按照官方文档<a href="https://docs.mogdb.io/zh/ptk/v2.0/faq">https://docs.mogdb.io/zh/ptk/v2.0/faq</a> 所说</p>
+<blockquote>
+<p>如果 glibc 版本小于等于 2.17，考虑使用 centos7 x86_64 的安装包，否则考虑使用 openEuler x86_64 的安装包</p>
+</blockquote>
+<p>查看glibc版本</p>
+<pre><code class="language-shell">root@ubuntu22:~# getconf GNU_LIBC_VERSION
+glibc 2.35
+</code></pre>
+<p>是2.35,大于2.17 ，因此不应该使用centos7的包，于是手动指定成kylin的包进行安装</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk install -f config.yaml -p https://cdn-mogdb.enmotech.com/mogdb-media/5.0.11/Kylin_x86_64/MogDB-5.0.11-Kylin-x86_64-all.tar.gz
+INFO[2025-05-08T05:25:21.345] PTK Version: 1.7.5 release
+INFO[2025-05-08T05:25:21.345] load config from config.yaml
+If you continue to install the software,
+you are accepting the license agreement of the software.
+
+  [Y]: Accept and continue
+  [C]: Show content of licence agreement
+  [N]: Abort installation and exit
+
+✔ Please enter (default: Y): y
+Cluster Name: "pike"
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| az(priority) |       ip        | user(group) | port  |  role   |    data dir     | upstream |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+| AZ1(1)       | 192.168.163.120 | omm(omm)    | 26000 | primary | /opt/mogdb/data | -        |
++--------------+-----------------+-------------+-------+---------+-----------------+----------+
+✔ Is cluster config correct (default=n) [y/n]: y
+INFO[2025-05-08T05:25:23.663] start check hostname ...
+INFO[2025-05-08T05:25:23.666] check hostname success
+INFO[2025-05-08T05:25:23.666] start check os ...
+INFO[2025-05-08T05:25:23.666] prechecking dependent tools...
+INFO[2025-05-08T05:25:23.797] [192.168.163.120][omm] check kernel.core_pattern
+INFO[2025-05-08T05:25:23.802] [192.168.163.120][omm] check RemoveIPC value
+INFO[2025-05-08T05:25:23.807] [192.168.163.120][omm] check KillUserProcesses value
+INFO[2025-05-08T05:25:23.822] [192.168.163.120][omm] platform: ubuntu_22.04_64bit
+INFO[2025-05-08T05:25:23.824] [192.168.163.120][omm] kernel version: 5.15.0-139-generic
+INFO[2025-05-08T05:25:23.828] [192.168.163.120][omm] timezone: +0000
+WARN[2025-05-08T05:25:23.845] [192.168.163.120][omm] not found network conf file for ens160 in dir /etc/network, skip check bonding
+INFO[2025-05-08T05:25:25.957] [192.168.163.120][omm] swap memory 4004860kB, total memory 4005312kB
+INFO[2025-05-08T05:25:26.017] [192.168.163.120][omm] check port 26000
+INFO[2025-05-08T05:25:26.023] [192.168.163.120][omm] port 26000 is free
+INFO[2025-05-08T05:25:26.025] all checkers finished
+INFO[2025-05-08T05:25:26.025] time elapsed: 2s
+INFO[2025-05-08T05:25:26.025] check os success
+INFO[2025-05-08T05:25:26.025] start check distro ...
+INFO[2025-05-08T05:25:26.025] check distro success
+INFO[2025-05-08T05:25:26.025] start check user ...
+INFO[2025-05-08T05:25:26.030] check user success
+INFO[2025-05-08T05:25:26.030] start check port ...
+INFO[2025-05-08T05:25:26.030] checking port 26000 on host 192.168.163.120 (db listen port) ...
+INFO[2025-05-08T05:25:26.035] checking port 26001 on host 192.168.163.120 (db HA port) ...
+INFO[2025-05-08T05:25:26.041] check port success
+INFO[2025-05-08T05:25:26.044] [192.168.163.120][omm] create os user omm, group omm
+INFO[2025-05-08T05:25:26.067] [192.168.163.120][omm] set ulimit configs
+INFO[2025-05-08T05:25:26.071] start prepare installation package ...
+INFO[2025-05-08T05:25:26.071] downloading MogDB-5.0.11-Kylin-x86_64-all.tar.gz ...
+INFO[2025-05-08T05:25:28.731] download successfully
+INFO[2025-05-08T05:25:28.732] installation package is ready
+INFO[2025-05-08T05:25:28.732] parse installation package ...
+INFO[2025-05-08T05:25:36.390] db product: MogDB, version: 5.0.11, number: 92.938, commit_id: 01ca8799
+INFO[2025-05-08T05:25:36.816] extract MogDB-5.0.11-Kylin-64bit.tar.gz to dir /tmp/ptk_tmp_2691607829
+INFO[2025-05-08T05:25:38.806] execute command: mogdb --version
+INFO[2025-05-08T05:25:38.951] parse installation package success
+INFO[2025-05-08T05:25:38.951] start complete the configuration ...
+✔ Please enter db password (8~15 characters, 3 classes): ********
+✔ Retype db password: ********
+INFO[2025-05-08T05:25:49.377] complete the configuration success
+INFO[2025-05-08T05:25:49.377] save the topology to metadata
+INFO[2025-05-08T05:25:49.378] start distribute installation package ...
+INFO[2025-05-08T05:25:49.498] distrubite packages success
+INFO[2025-05-08T05:25:49.499] start install logic nodes ...
+INFO[2025-05-08T05:25:49.499] deploy db to omm@192.168.163.120
+INFO[2025-05-08T05:25:49.499] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb
+INFO[2025-05-08T05:25:49.584] [192.168.163.120][omm] clean user omm's ipc resource
+INFO[2025-05-08T05:25:49.753] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/tool,/opt/mogdb/tool/ptk_tool/bin
+INFO[2025-05-08T05:25:52.347] [192.168.163.120][omm] extract MogDB-5.0.11-Kylin-x86_64-all.tar.gz to dir /opt/mogdb/tool
+INFO[2025-05-08T05:25:53.071] [192.168.163.120][omm] extract MogDB-5.0.11-Kylin-64bit-om.tar.gz to dir /opt/mogdb/tool
+INFO[2025-05-08T05:25:53.307] [192.168.163.120][omm] try to fix psutil python lib
+WARN[2025-05-08T05:25:53.320] [192.168.163.120][omm] Not found python3.6 or 3.7, skip fix psutil dynamic lib,
+please install proper python and fix it manually or reinstall by ptk
+if you don't fix this, it will cause that gs_om and cm_ctl cannot run properly, but not ptk and database
+INFO[2025-05-08T05:25:53.320] [192.168.163.120][omm] write file /opt/mogdb/tool/script/py_pstree.py
+INFO[2025-05-08T05:25:53.336] [192.168.163.120][omm] write file /opt/mogdb/tool/ptk_tool/bin/README.md
+INFO[2025-05-08T05:25:53.349] [192.168.163.120][omm] write file /opt/mogdb/tool/ptk_tool/bin/pscp
+INFO[2025-05-08T05:25:53.361] [192.168.163.120][omm] write file /opt/mogdb/tool/ptk_tool/bin/pssh
+INFO[2025-05-08T05:25:53.373] [192.168.163.120][omm] write file /opt/mogdb/tool/ptk_tool/bin/task_pool.py
+INFO[2025-05-08T05:25:53.386] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/app
+INFO[2025-05-08T05:25:53.397] [192.168.163.120][omm] extract MogDB-5.0.11-Kylin-64bit.tar.gz to dir /opt/mogdb/app
+INFO[2025-05-08T05:25:55.388] [192.168.163.120][omm] change mode of /opt/mogdb/app to 700
+INFO[2025-05-08T05:25:55.404] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/app/share/postgresql
+INFO[2025-05-08T05:25:55.421] [192.168.163.120][omm] copy /opt/mogdb/tool/script/gspylib/etc/sql/pmk_schema.sql to /opt/mogdb/app/share/postgresql
+INFO[2025-05-08T05:25:55.426] [192.168.163.120][omm] copy /opt/mogdb/tool/script/gspylib/etc/sql/pmk_schema_single_inst.sql to /opt/mogdb/app/share/postgresql
+INFO[2025-05-08T05:25:55.431] [192.168.163.120][omm] write file /opt/mogdb/app/bin/transfer.py
+INFO[2025-05-08T05:25:55.441] [192.168.163.120][omm] set user omm profiles
+INFO[2025-05-08T05:25:55.551] [192.168.163.120][omm] validate and try to fix ld library for gs_initdb
+INFO[2025-05-08T05:25:55.560] [192.168.163.120][omm] validate and try to fix ld library for mogdb
+INFO[2025-05-08T05:25:55.571] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/log/gs_profile,/opt/mogdb/log/pg_log,/opt/mogdb/log/pg_audit,/opt/mogdb/log/bin,/opt/mogdb/log/pg_log/dn_6001,/opt/mogdb/log/pg_audit/dn_6001
+INFO[2025-05-08T05:25:55.670] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/tmp
+INFO[2025-05-08T05:25:55.682] [192.168.163.120][omm] save version to upgrade_version
+INFO[2025-05-08T05:25:55.709] [192.168.163.120][omm] create file cluster_manual_start
+INFO[2025-05-08T05:25:55.714] [192.168.163.120][omm] generate cluster_static_config file
+INFO[2025-05-08T05:25:55.724] [192.168.163.120][omm] make user omm's dir(s): /opt/mogdb/data
+INFO[2025-05-08T05:25:55.736] [192.168.163.120][omm] write file /opt/mogdb/tool/.ptk_deployer
+INFO[2025-05-08T05:25:55.745] generate certification files
+INFO[2025-05-08T05:25:56.765] download certification files
+INFO[2025-05-08T05:25:56.855] certification files setup success
+INFO[2025-05-08T05:25:56.855] initialize db on omm@192.168.163.120
+INFO[2025-05-08T05:25:56.861] [192.168.163.120][omm] total memory(3GB) is less than 4GB, use default db config
+INFO[2025-05-08T05:25:56.861] [192.168.163.120][omm] the database is initializing, please wait a few minutes
+INFO[2025-05-08T05:26:10.772] [192.168.163.120][omm] config postgresql.conf
+INFO[2025-05-08T05:26:10.791] [192.168.163.120][omm] config pg_hba.conf
+INFO[2025-05-08T05:26:10.800] [192.168.163.120][omm] copy ssl files to data dir
+INFO[2025-05-08T05:26:10.809] logic nodes installed success
+INFO[2025-05-08T05:26:10.809] generating ptkc ...
+INFO[2025-05-08T05:26:10.875] start build ssh trust ...
+INFO[2025-05-08T05:26:10.932] ssh trust build success
+INFO[2025-05-08T05:26:10.932] start launch db ...
+INFO[2025-05-08T05:26:10.932] [192.168.163.120][omm] start db using gs_ctl ...
+INFO[2025-05-08T05:26:10.933] [192.168.163.120][omm] the database is starting, please wait a few minutes
+INFO[2025-05-08T05:26:11.966] [192.168.163.120][omm] start db success
+INFO[2025-05-08T05:26:11.966] launch db success
+INFO[2025-05-08T05:26:11.967] clear temp dirs ...
+INFO[2025-05-08T05:26:11.985] clear temp dirs success
+INFO[2025-05-08T05:26:11.986] time elapsed: 49s
+
+  cluste_name |      host       | user | port  |    status     | message
+--------------+-----------------+------+-------+---------------+----------
+  pike        | 192.168.163.120 | omm  | 26000 | start_success | success
+</code></pre>
+<p>安装成功,检查ptk内置的操作系统对应版本信息</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk  candidate os
+    ID    |                      OS                      | Installation package |    Deploy tested     | Fully compatibility tested
+          |                                              |                      |     (OS Version)     |      (MogDB Version)
+----------+----------------------------------------------+-----------+----------------------+---------------------
+  1007010 | CentOS Linux 7 (Core) (x86_64)               | CentOS    | 7.6.1810             | all versions
+  1008010 | CentOS 8 (x86_64)                            | openEuler | 8.0.1905             |
+  1008020 | CentOS 8 (arm64)                             | openEuler | 8.0.1905             |
+  1120010 | openEuler 20 (x86_64)                        | openEuler | 20.03                | &lt; 5.0.0 || &gt; 5.0.1
+  1120020 | openEuler 20 (arm64)                         | openEuler | 20.03                | &lt; 5.0.0 || &gt; 5.0.1
+  1122010 | openEuler 22 (x86_64)                        | openEuler | 22.03                |
+  1122020 | openEuler 22 (arm64)                         | openEuler | 22.03                |
+  1210010 | Kylin V10 (x86_64)                           | kylin     | V10 (Tercel)         | all versions
+  1210020 | Kylin V10 (arm64)                            | kylin     | V10 (Tercel)         | all versions
+  1320010 | UOS 20 A (x86_64)                            | openEuler | 1050a                |
+  1320020 | UOS 20 A (arm64)                             | openEuler | 1050a                |
+  1420010 | UOS 20 D/E (x86_64)                          | openEuler | 1040d/1050d/1050e    |
+  1420020 | UOS 20 D/E (arm64)                           | openEuler | 1040d/1050d          |
+  1518010 | Ubuntu 18.04.6 LTS (Bionic Beaver) (x86_64)  | CentOS    | 18.04.6              |
+  1518020 | Ubuntu 18.04.6 LTS (Bionic Beaver) (arm64)   | openEuler | 18.04.6              |
+  1520010 | Ubuntu 20 LTS (Focal Fossa) (x86_64)         | CentOS    | 20.04.3              |
+  1520020 | Ubuntu 20 LTS (Focal Fossa) (arm64)          | openEuler | 20.04.5              |
+  1522010 | Ubuntu 22 LTS (Jammy Jellyfish) (x86_64)     | CentOS    | 22.04                |
+  1522020 | Ubuntu 22 LTS (Jammy Jellyfish) (arm64)      | openEuler | 22.04.1              |
+  1607010 | Red Hat Enterprise Linux 7 (x86_64)          | CentOS    | 7.5 (Maipo)          |
+  1608010 | Red Hat Enterprise Linux 8 (Ootpa) (x86_64)  | openEuler | 8.5                  |
+  1608020 | Red Hat Enterprise Linux 8.2 (Ootpa) (arm64) | openEuler | 8.2                  |
+  1609010 | Red Hat Enterprise Linux 9.0 (Plow) (x86_64) | openEuler | 9.0                  |
+  1609020 | Red Hat Enterprise Linux 9.0 (Plow) (arm64)  | openEuler | 9.0                  |
+  1702010 | EulerOS 2 (x86_64)                           | CentOS    | 2.0-SP3              |
+  1702020 | EulerOS 2 (arm64)                            | openEuler | 2.0-SP3              |
+  1812010 | SLES 12SP5 (x86_64)                          | CentOS    | 12SP5                |
+  1815010 | SUSE Linux Enterprise Server 15 SP4 (x86_64) | CentOS    | 15SP4                |
+  1907010 | Oracle Linux 7 (x86_64)                      | CentOS    | 7.9 (Maipo)          |
+  1908010 | Oracle Linux 8 (x86_64)                      | openEuler | 8.6 (Ootpa)          |
+  2008010 | Rocky Linux 8 (Green Obsidian) (x86_64)      | openEuler | 8.5                  |
+  2107010 | NeoKylin V7 (x86_64)                         | CentOS    | V7Update6            |
+  2222010 | FusionOS 22 (x86_64)                         | openEuler | 22.0.2               |
+  2222020 | FusionOS 22 (arm64)                          | openEuler | 22.0.2               |
+  2310010 | Debian GNU/Linux 10 (buster) (x86_64)        | CentOS    | 10 (buster)          |
+  2310020 | Debian GNU/Linux 10 (buster) (arm64)         | openEuler | 10 (buster)          |
+  2311010 | Debian GNU/Linux 11 (bullseye) (x86_64)      | CentOS    | 11 (bullseye)        |
+  2311020 | Debian GNU/Linux 11 (bullseye) (arm64)       | openEuler | 11 (bullseye)        |
+  2407010 | Anolis OS Linux 7 (x86_64)                   | CentOS    | 7.9 GA (kernel:RHCK) |
+  2408010 | Anolis OS 8 (x86_64)                         | openEuler | 8.6 GA (kernel:RHCK) |
+  2408020 | Anolis OS 8 (arm64)                          | openEuler | 8.6 GA (kernel:ANCK) |
+</code></pre>
+<p>检查ptk版本并升级ptk到最新版本</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk -v
+PTK Version:   1.7.5 release
+Go Version:    go1.19.10
+Build Date:    2024-11-11T14:15:18
+Git Hash:      fc269d2a
+OS/Arch:       linux/amd64
+root@ubuntu22:~# ptk self upgrade
+INFO[2025-05-08T05:26:20.936] current version: 1.7.5 release, target version: latest
+INFO[2025-05-08T05:26:20.936] download package from http://cdn-mogdb.enmotech.com/ptk/latest/ptk_linux_x86_64.tar.gz
+INFO[2025-05-08T05:26:20.936] downloading ptk_linux_x86_64.tar.gz ...
+INFO[2025-05-08T05:26:21.250] download successfully
+INFO[2025-05-08T05:26:22.035] upgrade ptk successfully
+root@ubuntu22:~# ptk -v
+PTK Version:   1.7.5 release
+Go Version:    go1.19.10
+Build Date:    2024-11-11T14:15:18
+Git Hash:      fc269d2a
+OS/Arch:       linux/amd64
+</code></pre>
+<p>似乎最新版本的包没更新，尝试手动下载最新的包后进行更新</p>
+<pre><code class="language-shell">root@ubuntu22:~# wget https://cdn-mogdb.enmotech.com/ptk/v1.7.8/ptk_1.7.8_linux_x86_64.tar.gz
+--2025-05-08 05:28:28--  https://cdn-mogdb.enmotech.com/ptk/v1.7.8/ptk_1.7.8_linux_x86_64.tar.gz
+Resolving cdn-mogdb.enmotech.com (cdn-mogdb.enmotech.com)... 240e:c3:2800:9:3::7f7, 121.207.229.250
+Connecting to cdn-mogdb.enmotech.com (cdn-mogdb.enmotech.com)|240e:c3:2800:9:3::7f7|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 22151394 (21M) [application/gzip]
+Saving to: ‘ptk_1.7.8_linux_x86_64.tar.gz’
+
+ptk_1.7.8_linux_x86_64.tar.gz            100%[==================================================================================&gt;]  21.12M  39.1MB/s    in 0.5s
+
+2025-05-08 05:28:28 (39.1 MB/s) - ‘ptk_1.7.8_linux_x86_64.tar.gz’ saved [22151394/22151394]
+
+root@ubuntu22:~# ptk self upgrade -p ptk_1.7.8_linux_x86_64.tar.gz
+INFO[2025-05-08T05:28:36.923] use local package to upgrade: ptk_1.7.8_linux_x86_64.tar.gz
+INFO[2025-05-08T05:28:37.705] upgrade ptk successfully
+root@ubuntu22:~# ptk -v
+PTK Version:   1.7.8 release
+Go Version:    go1.19.10
+Build Date:    2025-04-07T17:31:34
+Git Hash:      4e7c8886
+OS/Arch:       linux/amd64
+</code></pre>
+<p>查看最新的操作系统版本对应信息</p>
+<pre><code class="language-shell">root@ubuntu22:~# ptk  candidate os
+    ID    |                      OS                      | Installation package |    Deploy tested     | Fully compatibility tested
+          |                                              |                      |     (OS Version)     |      (MogDB Version)
+----------+----------------------------------------------+----------------------+----------------------+-----------------------------
+  1007010 | CentOS Linux 7 (Core) (x86_64)               | CentOS               | 7.6.1810             | all versions
+  1008010 | CentOS 8 (x86_64)                            | openEuler            | 8.0.1905             |
+  1008020 | CentOS 8 (arm64)                             | openEuler            | 8.0.1905             |
+  1120010 | openEuler 20 (x86_64)                        | openEuler            | 20.03                | &lt; 5.0.0 || &gt; 5.0.1
+  1120020 | openEuler 20 (arm64)                         | openEuler            | 20.03                | &lt; 5.0.0 || &gt; 5.0.1
+  1122010 | openEuler 22 (x86_64)                        | openEuler            | 22.03                |
+  1122020 | openEuler 22 (arm64)                         | openEuler            | 22.03                |
+  1210010 | Kylin V10 (x86_64)                           | kylin                | V10 (Tercel)         | all versions
+  1210020 | Kylin V10 (arm64)                            | kylin                | V10 (Tercel)         | all versions
+  1320010 | UOS 20 A (x86_64)                            | openEuler            | 1050a                |
+  1320020 | UOS 20 A (arm64)                             | openEuler            | 1050a                |
+  1420010 | UOS 20 D/E (x86_64)                          | openEuler            | 1040d/1050d/1050e    |
+  1420020 | UOS 20 D/E (arm64)                           | openEuler            | 1040d/1050d          |
+  1518010 | Ubuntu 18.04.6 LTS (Bionic Beaver) (x86_64)  | CentOS               | 18.04.6              |
+  1518020 | Ubuntu 18.04.6 LTS (Bionic Beaver) (arm64)   | openEuler            | 18.04.6              |
+  1520010 | Ubuntu 20 LTS (Focal Fossa) (x86_64)         | CentOS               | 20.04.3              |
+  1520020 | Ubuntu 20 LTS (Focal Fossa) (arm64)          | openEuler            | 20.04.5              |
+  1522010 | Ubuntu 22 LTS (Jammy Jellyfish) (x86_64)     | CentOS               | 22.04                |
+  1522020 | Ubuntu 22 LTS (Jammy Jellyfish) (arm64)      | openEuler            | 22.04.1              |
+  1607010 | Red Hat Enterprise Linux 7 (x86_64)          | CentOS               | 7.5 (Maipo)          |
+  1608010 | Red Hat Enterprise Linux 8 (Ootpa) (x86_64)  | openEuler            | 8.5                  |
+  1608020 | Red Hat Enterprise Linux 8.2 (Ootpa) (arm64) | openEuler            | 8.2                  |
+  1609010 | Red Hat Enterprise Linux 9.0 (Plow) (x86_64) | openEuler            | 9.0                  |
+  1609020 | Red Hat Enterprise Linux 9.0 (Plow) (arm64)  | openEuler            | 9.0                  |
+  1702010 | EulerOS 2 (x86_64)                           | CentOS               | 2.0-SP3              |
+  1702020 | EulerOS 2 (arm64)                            | openEuler            | 2.0-SP3              |
+  1812010 | SLES 12SP5 (x86_64)                          | CentOS               | 12SP5                |
+  1815010 | SUSE Linux Enterprise Server 15 SP4 (x86_64) | CentOS               | 15SP4                |
+  1907010 | Oracle Linux 7 (x86_64)                      | CentOS               | 7.9 (Maipo)          |
+  1908010 | Oracle Linux 8 (x86_64)                      | openEuler            | 8.6 (Ootpa)          |
+  2008010 | Rocky Linux 8 (Green Obsidian) (x86_64)      | openEuler            | 8.5                  |
+  2107010 | NeoKylin V7 (x86_64)                         | CentOS               | V7Update6            |
+  2222010 | FusionOS 22 (x86_64)                         | openEuler            | 22.0.2               |
+  2222020 | FusionOS 22 (arm64)                          | openEuler            | 22.0.2               |
+  2310010 | Debian GNU/Linux 10 (buster) (x86_64)        | CentOS               | 10 (buster)          |
+  2310020 | Debian GNU/Linux 10 (buster) (arm64)         | openEuler            | 10 (buster)          |
+  2311010 | Debian GNU/Linux 11 (bullseye) (x86_64)      | CentOS               | 11 (bullseye)        |
+  2311020 | Debian GNU/Linux 11 (bullseye) (arm64)       | openEuler            | 11 (bullseye)        |
+  2407010 | Anolis OS Linux 7 (x86_64)                   | CentOS               | 7.9 GA (kernel:RHCK) |
+  2408010 | Anolis OS 8 (x86_64)                         | openEuler            | 8.6 GA (kernel:RHCK) |
+  2408020 | Anolis OS 8 (arm64)                          | openEuler            | 8.6 GA (kernel:ANCK) |
+</code></pre>
+<p>仍旧没有修复,已报告研发处理，后续版本进行修复。</p>
+<p>另外，还需要处理gs_om的python兼容性问题<br/>
+由于ubuntu的python是3.10版本，比kylin默认的python3.7.9版本要高，因此需要手动处理下gs_om的python依赖库版本，否则会出现下面这样的报错</p>
+<pre><code class="language-shell">root@ubuntu22:~# su - omm
+omm@ubuntu22:~$ gs_om -t status --detail
+Failed to execute cmd: rm -rf '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_linux.so' &amp;&amp; cp -r '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_linux.so_3.10' '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_linux.so'  &amp;&amp; rm -rf '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_posix.so' &amp;&amp; cp -r '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_posix.so_3.10' '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_posix.so' . Error:
+cp: cannot stat '/opt/mogdb/tool/script/gspylib/common/./../../../lib/psutil/_psutil_linux.so_3.10': No such file or directory
+</code></pre>
+<p>1.安装python依赖库</p>
+<pre><code class="language-shell">root@ubuntu22:~# pip3 install psutil netifaces cffi pycparser cryptography pynacl bcrypt paramiko -i  http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+Looking in indexes: http://mirrors.aliyun.com/pypi/simple/
+DEPRECATION: The HTML index page being used (http://mirrors.aliyun.com/pypi/simple/psutil/) is not a proper HTML 5 document. This is in violation of PEP 503 which requires these pages to be well-formed HTML 5 documents. Please reach out to the owners of this index page, and ask them to update this index page to a valid HTML 5 document. pip 22.2 will enforce this behaviour change. Discussion can be found at https://github.com/pypa/pip/issues/10825
+Collecting psutil
+  Downloading http://mirrors.aliyun.com/pypi/packages/bf/b9/b0eb3f3cbcb734d930fdf839431606844a825b23eaf9a6ab371edac8162c/psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (277 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 278.0/278.0 KB 9.4 MB/s eta 0:00:00
+Requirement already satisfied: netifaces in /usr/lib/python3/dist-packages (0.11.0)
+DEPRECATION: The HTML index page being used (http://mirrors.aliyun.com/pypi/simple/cffi/) is not a proper HTML 5 document. This is in violation of PEP 503 which requires these pages to be well-formed HTML 5 documents. Please reach out to the owners of this index page, and ask them to update this index page to a valid HTML 5 document. pip 22.2 will enforce this behaviour change. Discussion can be found at https://github.com/pypa/pip/issues/10825
+Collecting cffi
+  Downloading http://mirrors.aliyun.com/pypi/packages/8d/fb/4da72871d177d63649ac449aec2e8a29efe0274035880c7af59101ca2232/cffi-1.17.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (446 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 446.2/446.2 KB 16.5 MB/s eta 0:00:00
+DEPRECATION: The HTML index page being used (http://mirrors.aliyun.com/pypi/simple/pycparser/) is not a proper HTML 5 document. This is in violation of PEP 503 which requires these pages to be well-formed HTML 5 documents. Please reach out to the owners of this index page, and ask them to update this index page to a valid HTML 5 document. pip 22.2 will enforce this behaviour change. Discussion can be found at https://github.com/pypa/pip/issues/10825
+Collecting pycparser
+  Downloading http://mirrors.aliyun.com/pypi/packages/13/a3/a812df4e2dd5696d1f351d58b8fe16a405b234ad2886a0dab9183fb78109/pycparser-2.22-py3-none-any.whl (117 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.6/117.6 KB 30.9 MB/s eta 0:00:00
+Requirement already satisfied: cryptography in /usr/lib/python3/dist-packages (3.4.8)
+DEPRECATION: The HTML index page being used (http://mirrors.aliyun.com/pypi/simple/pynacl/) is not a proper HTML 5 document. This is in violation of PEP 503 which requires these pages to be well-formed HTML 5 documents. Please reach out to the owners of this index page, and ask them to update this index page to a valid HTML 5 document. pip 22.2 will enforce this behaviour change. Discussion can be found at https://github.com/pypa/pip/issues/10825
+Collecting pynacl
+  Downloading http://mirrors.aliyun.com/pypi/packages/ee/87/f1bb6a595f14a327e8285b9eb54d41fef76c585a0edef0a45f6fc95de125/PyNaCl-1.5.0-cp36-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (856 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 856.7/856.7 KB 4.3 MB/s eta 0:00:00
+Requirement already satisfied: bcrypt in /usr/lib/python3/dist-packages (3.2.0)
+DEPRECATION: The HTML index page being used (http://mirrors.aliyun.com/pypi/simple/paramiko/) is not a proper HTML 5 document. This is in violation of PEP 503 which requires these pages to be well-formed HTML 5 documents. Please reach out to the owners of this index page, and ask them to update this index page to a valid HTML 5 document. pip 22.2 will enforce this behaviour change. Discussion can be found at https://github.com/pypa/pip/issues/10825
+Collecting paramiko
+  Downloading http://mirrors.aliyun.com/pypi/packages/15/f8/c7bd0ef12954a81a1d3cea60a13946bd9a49a0036a5927770c461eade7ae/paramiko-3.5.1-py3-none-any.whl (227 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 227.3/227.3 KB 12.6 MB/s eta 0:00:00
+Installing collected packages: pycparser, psutil, cffi, pynacl, paramiko
+Successfully installed cffi-1.17.1 paramiko-3.5.1 psutil-7.0.0 pycparser-2.22 pynacl-1.5.0
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+</code></pre>
+<p>2.移除gs_om自带的python依赖库</p>
+<pre><code class="language-shell">root@ubuntu22:~# su - omm
+omm@ubuntu22:~$ mv $GPHOME/lib $GPHOME/lib_bak
+</code></pre>
+<p>3.测试gs_om</p>
+<pre><code class="language-shell">omm@ubuntu22:~$ gs_om -t status --detail
+[   Cluster State   ]
+
+cluster_state   : Normal
+redistributing  : No
+current_az      : AZ_ALL
+
+[  Datanode State   ]
+
+    node    node_ip         port      instance                state
+-----------------------------------------------------------------------------------
+1  ubuntu22 192.168.163.120 26000      6001 /opt/mogdb/data   P Primary Normal
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>在UBUNTU SERVER 22.04上安装MogDB的步骤（root用户执行)</p>
+<pre><code class="language-shell">curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+ptk template --local &gt; config.yaml
+ptk checkos -f config.yaml --gen-warning-fix -o root_fix1.sh
+sh root_fix1.sh
+ptk checkos -f config.yaml --gen-warning-fix -o root_fix2.sh
+sh root_fix2.sh
+ptk install -f config.yaml -p https://cdn-mogdb.enmotech.com/mogdb-media/5.0.11/Kylin_x86_64/MogDB-5.0.11-Kylin-x86_64-all.tar.gz
+</code></pre>
+<p>如果要使用gs_om，则再执行以下步骤</p>
+<pre><code class="language-shell">apt install python3-pip
+pip3 install psutil netifaces cffi pycparser cryptography pynacl bcrypt paramiko -i  http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+su - omm
+mv $GPHOME/lib $GPHOME/lib_bak
+</code></pre>
+<blockquote>
+<p>很不喜欢记这种流水账</p>
+</blockquote>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

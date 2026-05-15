@@ -155,7 +155,178 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h3 id="前言">前言</h3>
+<p>这本是一个挺简单的升级，不过这次是升级我的玩具库，当时为了快点体验19c，下载后就直接解压配置了个数据库，导致ORACLE_HOME目录长成了这样，“H:\BaiduNetdiskDownload\WINDOWS.X64_193000_db_home\”，</p>
+<p>最近发现19.9版本是有添加一些新的组件的，比如"DBMS_CLOUD",就打算打补丁升个级。</p>
+<h3 id="步骤">步骤</h3>
+<ol>
+<li>
+<p>先把Opatch工具给升个级，直接替换文件夹就行了，路径为 ORACLE_HOME\opatch；</p>
+</li>
+<li>
+<p>然后把“Bundle Patch”下载下来，解压，里面有个数字文件夹“32832237”，随便放哪里，里面还有个readme文档，有安装步骤、卸载步骤、报错说明等</p>
+</li>
+<li>
+<p>关闭oracle数据库、监听、作业，还有plsql developer等等可能所有可能占用到了oracle文件的程序，建议把杀毒什么的都关了</p>
+</li>
+<li>
+<p>关闭微软的msdtc服务,<br/>
+net stop msdtc</p>
+</li>
+<li>
+<p>设置环境变量<br/>
+set PATH=%ORACLE_HOME%\perl\bin;%PATH%</p>
+</li>
+<li>
+<p>确认PERL5LIB没有环境变量<br/>
+set PERL5LIB=</p>
+</li>
+<li>
+<p>cmd进入ORACLE_HOME\opatch文件夹，按官方文档说的，直接执行 opatch apply<br/>
+会报错，提示参数错误，</p>
+</li>
+</ol>
+<blockquote>
+<p>ZOP-51: The patch location is not valid for apply, because it doesn't have correct metadata, or it points to a patch directory.<br/>
+参数错误... Patch location is not valid for apply<br/>
+Please check the arguments and try again.<br/>
+OPatch failed with error code = 135</p>
+</blockquote>
+<p>这是因为没有指定补丁路径，所以执行<br/>
+opatch apply -local h:\32832237</p>
+<p>但还是报错</p>
+<blockquote>
+<p>Illegal Argument: Illegal char &lt;"&gt; at index 0: "H:\BaiduNetdiskDownload\WINDOWS.X64_193000_db_home".patch_storage<br/>
+OPatch failed with error code = 255</p>
+</blockquote>
+<p>说这个双引号是违法字符串，但命令中并没有使用双引号，官方升级文档中没有此种错误的解决方法。<br/>
+这个双引号是windows下特有的，当目录过长或者包含特殊字符时，会自动带上双引号以避免歧义，但是这种方式OPatch不识别。所以我换到powershell下再试，还是执行<br/>
+opatch apply -local h:\32832237<br/>
+报错</p>
+<blockquote>
+<p>opatch : 无法将“opatch”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，请确保路径<br/>
+正确，然后再试一次。<br/>
+所在位置 行:1 字符: 1</p>
+<ul>
+<li>opatch apply H:\32832237</li>
+<li>
+<pre><code> + CategoryInfo          : ObjectNotFound: (opatch:String) [], CommandNotFoundException
+ + FullyQualifiedErrorId : CommandNotFoundException
+</code></pre>
+</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>Suggestion [3,General]: 找不到命令 opatch，但它确实存在于当前位置。默认情况下，Windows PowerShell 不会从当前位置加载命令。如果信任此命令，请改为键入“.\opatch”。有关详细信息，请参阅 "get-help about_Command_Precedence"。</p>
+</blockquote>
+<p>原因嘛，这个报错提示已经说得很清楚了，也给了解决方式，执行<br/>
+.\opatch apply -local h:\32832237</p>
+<blockquote>
+<p>Verifying environment and performing prerequisite checks...<br/>
+OPatch continues with these patches:   32832237</p>
+</blockquote>
+<blockquote>
+<p>是否继续? [y|n]<br/>
+y<br/>
+User Responded with: Y<br/>
+All checks passed.</p>
+</blockquote>
+<blockquote>
+<p>请关闭本地系统上在此 ORACLE_HOME 之外运行的 Oracle 实例。<br/>
+(Oracle 主目录 = 'H:\BaiduNetdiskDownload\WINDOWS.X64_193000_db_home')</p>
+</blockquote>
+<blockquote>
+<p>本地系统是否已准备打补丁? [y|n]<br/>
+y<br/>
+User Responded with: Y<br/>
+Backing up files...<br/>
+正在将临时补丁程序 '32832237' 应用于 OH 'H:\BaiduNetdiskDownload\WINDOWS.X64_193000_db_home'<br/>
+ApplySession: Oracle 主目录中不存在可选组件 [ oracle.assistants.usm, 19.0.0.0.0 ] , [ oracle.rdbms.ic, 19.0.0.0.0 ] , [ oracle.rdbms.tg4ifmx, 19.0.0.0.0 ] , [ oracle.has.deconfig, 19.0.0.0.0 ] , [ oracle.swd.oui, 19.0.0.0.0 ] , [ oracle.has.cfs, 19.0.0.0.0 ] , [ oracle.rdbms.tg4tera, 19.0.0.0.0 ] , [ oracle.network.gsm, 19.0.0.0.0 ] , [ oracle.network.cman, 19.0.0.0.0 ] , [ oracle.rdbms.tg4msql, 19.0.0.0.0 ] , [ oracle.ons.daemon, 19.0.0.0.0 ] , [ oracle.options.olap.awm, 19.0.0.0.0 ] , [ oracle.rdbms.tg4db2, 19.0.0.0.0 ] , [ oracle.assistants.asm, 19.0.0.0.0 ] , [ oracle.usm, 19.0.0.0.0 ] , [ oracle.swd.oui.core.min, 19.0.0.0.0 ] , [ oracle.tomcat.crs, 19.0.0.0.0 ] , [ oracle.options.olap, 19.0.0.0.0 ] , [ oracle.has.crs, 19.0.0.0.0 ] , [ oracle.tfa, 19.0.0.0.0 ] , [ oracle.has.cvu, 19.0.0.0.0 ] , [ oracle.rdbms.tg4sybs, 19.0.0.0.0 ] , 或找到更高版本。</p>
+</blockquote>
+<blockquote>
+<p>正在为组件 oracle.sdo, 19.0.0.0.0 打补丁...</p>
+</blockquote>
+<blockquote>
+<p>正在为组件 oracle.rdbms.rman, 19.0.0.0.0 打补丁...</p>
+</blockquote>
+<blockquote>
+<p>....<br/>
+正在为组件 oracle.sqlplus, 19.0.0.0.0 打补丁...</p>
+</blockquote>
+<blockquote>
+<p>正在为组件 oracle.has.common.cvu, 19.0.0.0.0 打补丁...<br/>
+Patch 32832237 successfully applied.<br/>
+Log file location: H:\BaiduNetdiskDownload\WINDOWS.X64_193000_db_home\cfgtoollogs\opatch\opatch2021-10-20_18-01-38下午_1.log</p>
+</blockquote>
+<blockquote>
+<p>OPatch succeeded.</p>
+</blockquote>
+<p>补丁就打完了，</p>
+<ol start="8">
+<li>然后启动数据库，给数据库打sql<br/>
+.\datapatch -verbose</li>
+</ol>
+<blockquote>
+<p>Log file for this invocation: F:\oracle\cfgtoollogs\sqlpatch\sqlpatch_16528_2021_10_20_18_53_35\sqlpatch_invocation.log</p>
+</blockquote>
+<blockquote>
+<p>Connecting to database...OK<br/>
+Gathering database info...done<br/>
+Bootstrapping registry and package to current versions...done<br/>
+Determining current state...done</p>
+</blockquote>
+<blockquote>
+<p>Current state of interim SQL patches:<br/>
+No interim patches found</p>
+</blockquote>
+<blockquote>
+<p>Current state of release update SQL patches:<br/>
+Binary registry:<br/>
+19.12.0.0.0 Release_Update 210721181205: Installed<br/>
+SQL registry:<br/>
+No release update patches installed</p>
+</blockquote>
+<blockquote>
+<p>Adding patches to installation queue and performing prereq checks...done<br/>
+Installation queue:<br/>
+No interim patches need to be rolled back<br/>
+Patch 32832237 (Windows Database Bundle Patch : 19.12.0.0.210720 (32832237)):<br/>
+Apply from 19.1.0.0.0 Feature Release to 19.12.0.0.0 Release_Update 210721181205<br/>
+No interim patches need to be applied</p>
+</blockquote>
+<blockquote>
+<p>Installing patches...<br/>
+Patch installation complete.  Total patches installed: 1</p>
+</blockquote>
+<blockquote>
+<p>Validating logfiles...done<br/>
+Patch 32832237 apply: SUCCESS<br/>
+logfile: F:\oracle\cfgtoollogs\sqlpatch\32832237\24292339/32832237_apply_ORCL_2021Oct20_18_55_01.log (no errors)<br/>
+SQL Patching tool complete on Wed Oct 20 19:04:04 2021</p>
+</blockquote>
+<ol start="9">
+<li>检查版本<br/>
+select * from product_component_version;</li>
+</ol>
+<table>
+<thead>
+<tr><th>PRODUCT</th><th>VERSION</th><th>VERSION_FULL</th><th>STATUS</th></tr>
+</thead>
+<tbody>
+<tr><td>Oracle Database 19c Enterprise Edition</td><td>19.0.0.0.0</td><td>19.12.0.0.0</td><td>Production</td></tr>
+</tbody>
+</table>
+<ol start="10">
+<li>编译无效对象<br/>
+@utlrp.sql</li>
+</ol>
+<h3 id="后记">后记</h3>
+<p>这次升级只遇到个路径名的小问题，基本全程顺利，dbms_cloud.sql文件也有了，接下来可能会弄点与这个包有关的一些玩意</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

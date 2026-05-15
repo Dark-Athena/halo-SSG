@@ -155,7 +155,499 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>最近有客户反馈兼容的dba_triggers视图中，同一个触发器的trigger_event被拆成了多行，和ORACLE中表现不一致，于是我进行了一些分析，发现是在其引用的information_schema.triggers视图中就已经拆开成了INSERT/DELETE/UPDATE，但是这些属性都是通过tgtype这一个int2整型的字段获取的，甚至连before/after/instead of/row/statement 等都是通过这一个字段。一个值存多种信息，这在ORACLE的数据字典视图里很常见，无非就是按二进制位来判断，于是我尝试自己猜一猜，看能不能从这个数字中识别出规律。</p>
+<h2 id="测试和分析">测试和分析</h2>
+<p>先建一堆测试触发器</p>
+<pre><code class="prism language-sql">create schema test1;
+create schema test2;
+
+CREATE TABLE test1.test_trigger_src_tbl(id1 INT, id2 INT, id3 INT);
+
+CREATE OR REPLACE FUNCTION test1.tri_test_func() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--before insert/update row
+CREATE TRIGGER test_trigger
+           BEFORE insert or update ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func();
+           
+CREATE TABLE test2.test_trigger_src_tbl(id1 INT, id2 INT, id3 INT);
+
+CREATE OR REPLACE FUNCTION test2.tri_test_func() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+           
+--不同schema下的同名触发器
+CREATE TRIGGER test_trigger
+           BEFORE insert or update ON test2.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test2.tri_test_func();
+           
+CREATE OR REPLACE FUNCTION test1.tri_test_func1() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+-- before insert row
+CREATE TRIGGER test_trigger1
+           BEFORE insert  ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func1();
+
+CREATE OR REPLACE FUNCTION test1.tri_test_func2() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--before insert/delete row
+CREATE TRIGGER test_trigger2
+           BEFORE insert or DELETE ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func2();
+          
+CREATE OR REPLACE FUNCTION test1.tri_test_func3() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--after insert/delete/update row
+CREATE TRIGGER test_trigger3
+           AFTER insert or delete or UPDATE ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func3();
+          
+CREATE OR REPLACE FUNCTION test1.tri_test_func4() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+           
+create view test1.test_trigger_src_tbl_V as select * from test1.test_trigger_src_tbl;
+
+--instead delete row
+CREATE TRIGGER test_trigger4
+           instead OF DELETE ON test1.test_trigger_src_tbl_V
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func4();
+
+CREATE OR REPLACE FUNCTION test1.tri_test_func5() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--before truncate statement
+CREATE TRIGGER test_trigger5
+           before truncate ON test1.test_trigger_src_tbl
+           FOR EACH STATEMENT 
+           EXECUTE PROCEDURE test1.tri_test_func5();
+           
+          
+CREATE OR REPLACE FUNCTION test1.tri_test_func6() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--after delete row
+CREATE TRIGGER test_trigger6
+           AFTER delete  ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func6();
+           
+CREATE OR REPLACE FUNCTION test1.tri_test_func7() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--after truncate statement
+CREATE TRIGGER test_trigger7
+           AFTER truncate ON test1.test_trigger_src_tbl
+           FOR EACH STATEMENT 
+           EXECUTE PROCEDURE test1.tri_test_func7();
+
+ CREATE OR REPLACE FUNCTION test1.tri_test_func8() RETURNS TRIGGER AS
+           $$
+           DECLARE
+           BEGIN
+                   INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                   RETURN NEW;
+           END
+           $$ LANGUAGE PLPGSQL;
+
+--after update/delete row
+CREATE TRIGGER test_trigger8
+           AFTER update or delete  ON test1.test_trigger_src_tbl
+           FOR EACH ROW
+           EXECUTE PROCEDURE test1.tri_test_func8();
+</code></pre>
+<p>然后查询pg_trigger表，并将tgtype转换成二进制数值显示（注意这里int2无法直接转换成bit类型)</p>
+<pre><code>select tgname,tgtype,tgtype::int4::bit(8) from pg_trigger;
+</code></pre>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>tgname</th>
+<th>tgtype</th>
+<th>tgtype</th>
+<th>实际类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>test_trigger</td>
+<td>23</td>
+<td>00010111</td>
+<td>before insert update row</td>
+</tr>
+<tr>
+<td>test_trigger</td>
+<td>23</td>
+<td>00010111</td>
+<td>before insert update</td>
+</tr>
+<tr>
+<td>test_trigger1</td>
+<td>7</td>
+<td>00000111</td>
+<td>before insert row</td>
+</tr>
+<tr>
+<td>test_trigger2</td>
+<td>15</td>
+<td>00001111</td>
+<td>before insert/delete row</td>
+</tr>
+<tr>
+<td>test_trigger3</td>
+<td>29</td>
+<td>00011101</td>
+<td>after insert/delete/update row</td>
+</tr>
+<tr>
+<td>test_trigger4</td>
+<td>73</td>
+<td>01001001</td>
+<td>instead delete row</td>
+</tr>
+<tr>
+<td>test_trigger5</td>
+<td>34</td>
+<td>00100010</td>
+<td>before truncate statement</td>
+</tr>
+<tr>
+<td>test_trigger6</td>
+<td>9</td>
+<td>00001001</td>
+<td>after delete row</td>
+</tr>
+<tr>
+<td>test_trigger7</td>
+<td>32</td>
+<td>00100000</td>
+<td>after truncate statement</td>
+</tr>
+<tr>
+<td>test_trigger8</td>
+<td>25</td>
+<td>00011001</td>
+<td>after update/delete row</td>
+</tr>
+</tbody>
+</table>
+</div><p>得到这个信息，小学二年级都能看出规律。我们在表格中转置一下看看</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>tgname</th>
+<th>test_trigger</th>
+<th>test_trigger</th>
+<th>test_trigger1</th>
+<th>test_trigger2</th>
+<th>test_trigger3</th>
+<th>test_trigger4</th>
+<th>test_trigger5</th>
+<th>test_trigger6</th>
+<th>test_trigger7</th>
+<th>test_trigger8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tgtype</td>
+<td>23</td>
+<td>23</td>
+<td>7</td>
+<td>15</td>
+<td>29</td>
+<td>73</td>
+<td>34</td>
+<td>9</td>
+<td>32</td>
+<td>25</td>
+</tr>
+<tr>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>实际类型</td>
+<td>before insert update row</td>
+<td>before insert update</td>
+<td>before insert row</td>
+<td>before insert/delete row</td>
+<td>after insert/delete/update row</td>
+<td>instead delete row</td>
+<td>before truncate statement</td>
+<td>after delete row</td>
+<td>after truncate statement</td>
+<td>after update/delete row</td>
+</tr>
+</tbody>
+</table>
+</div><p>然后很容易就能对比得到每个二进制位所表示的含义</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>第几位</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7</td>
+<td>无用位</td>
+</tr>
+<tr>
+<td>6</td>
+<td>是否insead of</td>
+</tr>
+<tr>
+<td>5</td>
+<td>是否truncate</td>
+</tr>
+<tr>
+<td>4</td>
+<td>是否update</td>
+</tr>
+<tr>
+<td>3</td>
+<td>是否delete</td>
+</tr>
+<tr>
+<td>2</td>
+<td>是否insert</td>
+</tr>
+<tr>
+<td>1</td>
+<td>是否before（不是before就是after)</td>
+</tr>
+<tr>
+<td>0</td>
+<td>是否row（不是row就是statement）</td>
+</tr>
+</tbody>
+</table>
+</div><p>以上都是纯用SQL查询比较猜出来的，虽然过程也比较简单，但还是有点费时间。但实际上，如果能看懂C语言源码，一眼就能知道应该怎么去解析tgtype<br/>
+<a href="https://gitee.com/opengauss/openGauss-server/blob/master/src/include/catalog/pg_trigger.h">openGauss-server\src\include\catalog\pg_trigger.h</a></p>
+<pre><code class="prism language-cpp">/* Bits within tgtype */
+#define TRIGGER_TYPE_ROW                (1 &lt;&lt; 0)
+#define TRIGGER_TYPE_BEFORE             (1 &lt;&lt; 1)
+#define TRIGGER_TYPE_INSERT             (1 &lt;&lt; 2)
+#define TRIGGER_TYPE_DELETE             (1 &lt;&lt; 3)
+#define TRIGGER_TYPE_UPDATE             (1 &lt;&lt; 4)
+#define TRIGGER_TYPE_TRUNCATE           (1 &lt;&lt; 5)
+#define TRIGGER_TYPE_INSTEAD            (1 &lt;&lt; 6)
+</code></pre>
+<p>另外，为什么明明有INSERT/DELETE/UPDATE/TRUNCATE四种，但information_schema.triggers里为什么没有truncate的呢？其实在视图里，明确有写</p>
+<pre><code class="prism language-sql">         -- hard-wired refs to TRIGGER_TYPE_INSERT, TRIGGER_TYPE_DELETE,
+         -- TRIGGER_TYPE_UPDATE; we intentionally omit TRIGGER_TYPE_TRUNCATE
+         (VALUES (4, 'INSERT'),
+                 (8, 'DELETE'),
+                 (16, 'UPDATE')) AS em (num, text)
+</code></pre>
+<blockquote>
+<p>我们故意省略TRIGGER_TYPE_TRUNCATE</p>
+</blockquote>
+<p>至于原作者为什么故意省略，这个就猜不到了。<br/>
+知道以上规则后，我们可以尝试自己写一个dba_trigger视图，这里对event提供两种写法</p>
+<pre><code class="prism language-sql">case when tgtype&amp;32&lt;&gt;0 then 'TRUNCATE'
+     when tgtype&amp;6&lt;&gt;0 and tgtype&amp;16&lt;&gt;0 and tgtype&amp;8&lt;&gt;0 then 'INSERT OR UPDATE OR DELETE'
+     when tgtype&amp;6&lt;&gt;0 and tgtype&amp;16&lt;&gt;0 and tgtype&amp;8=0 then 'INSERT OR UPDATE'
+     when tgtype&amp;6&lt;&gt;0 and tgtype&amp;16=0 and tgtype&amp;8=0 then 'INSERT'
+     when tgtype&amp;6=0 and tgtype&amp;16&lt;&gt;0 and tgtype&amp;8&lt;&gt;0 then 'UPDATE OR DELETE'
+     when tgtype&amp;6=0 and tgtype&amp;16&lt;&gt;0 and tgtype&amp;8=0 then 'UPDATE'
+     when tgtype&amp;6=0 and tgtype&amp;16=0 and tgtype&amp;8&lt;&gt;0 then 'DELETE'
+     when tgtype&amp;6&lt;&gt;0 and tgtype&amp;16=0 and tgtype&amp;8&lt;&gt;0 then 'INSERT OR DELETE'
+end
+</code></pre>
+<pre><code class="prism language-sql">case substring(tgtype::int4::bit(8) from 3 for 4)
+      when B'0111' then 'INSERT OR UPDATE OR DELETE'
+      when B'0101' then 'INSERT OR UPDATE'
+      when B'0001' then 'INSERT'
+      when B'0110' then 'UPDATE OR DELETE'
+      when B'0010' then 'DELETE'
+      when B'0011' then 'INSERT OR DELETE'
+      when B'1000' then 'TRUNCATE'
+end
+</code></pre>
+<h2 id="视图代码地址：">视图代码地址：</h2>
+<p><a href="https://gitee.com/enmotech/cmpat-tools/blob/master/Oracle_Views.sql">https://gitee.com/enmotech/cmpat-tools/blob/master/Oracle_Views.sql</a></p>
+<h2 id="结尾">结尾</h2>
+<p>开头有提到，在ORACLE中也经常这样处理属性值，比如以下就是一个oracle的user_triggers视图的一段节选，用这一个property字段表示了很多种属性</p>
+<pre><code>decode(bitand(t.property, 8192),
+       8192, decode(bitand(t.property, 131072),
+                    131072, 'REVERSE', 'FORWARD'), 'NO'),
+decode(bitand(t.property, 16384),
+             16384, 'YES', 'NO'),
+decode(bitand(t.property, 32768),
+             32768, 'YES', 'NO'),
+</code></pre>
+<p>好的设计都是相通的，虽然这种方式不利于直接用SQL从数据字典基表中查询明确的属性值，但是能节省很多存储空间，并且在内存中直接判断二进制会更快比字符串更快。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

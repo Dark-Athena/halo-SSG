@@ -155,7 +155,358 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>先看一个比较有意思的案例<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png" srcset="/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1200 1200w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=400 400w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1600 1600w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=800 800w"/><br/>
+上面这个sql,查询了a和b两个字段,均为"张三"两个汉字,并且使用length函数检查,长度均为2。<br/>
+但是,当你看到下面这几个sql的输出结果时,很有可能第一反应是:</p>
+<p><font size="5"><strong>"这特喵的怎么可能？"</strong></font></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png" srcset="/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1200 1200w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=400 400w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1600 1600w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png" srcset="/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1200 1200w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=400 400w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1600 1600w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png" srcset="/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1200 1200w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=400 400w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1600 1600w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png" srcset="/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1200 1200w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=400 400w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1600 1600w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=800 800w"/></p>
+<p>其实,你所看到的两个"张三",的确长得是一模一样,用显微镜去看也不可能看到区别。<br/>
+但为什么a和b不相等呢？<br/>
+这是因为组成他们的成分不一样,这个成分就是 <font color="red" size="6">字符集</font></p>
+<h2 id="二什么是字符集">二、什么是字符集？</h2>
+<p><a href="https://baike.baidu.com/item/%E5%AD%97%E7%AC%A6%E9%9B%86">百度百科</a><br/>
+简单来说,</p>
+<blockquote>
+<p>字符（Character）是各种文字和符号的总称，包括各国家文字、标点符号、图形符号、数字等。<br/>
+字符集（Character set）是多个字符的集合</p>
+</blockquote>
+<p>众所周知,计算机系统底层是由二进制1和0组成的,而且这个1和0也不过是表示电信号的"通"和"断",根本就不存在任何字符。字符集其实可以理解为一个有索引的字典,根据指定的二进制数据,去查这个字典对应位置的字符是什么,然后从字符集里把这个字以选定的字体显示出来。</p>
+<p>比如二进制数据"1011000010100001"(十六进制为"B0A1"),在GB2312字符集中,对应汉字"啊"。</p>
+<p>就算是英文字母和数字,也同样也必须依赖字符集,比如二进制数据"1100001"(十六进制为"61"),表示小写字母"a",当然,目前几乎所有的字符集里,这个二进制数据都表示a。</p>
+<p>所以,对于我们目前所有在用的计算机系统,如果要识别字符,必须使用这个字符的二进制数据去查某一个特定字符集,寻找对应的字符,如果找错了字符集,找到的可能就是乱码了。</p>
+<h2 id="三oracle数据库的字符集">三、ORACLE数据库的字符集</h2>
+<p>oracle数据库在安装时,会有个选项,选择数据库的字符集,这个大多数DBA都知道,也不用多说。<br/>
+但是目前很多人在通过网络上的文章去了解oracle字符集的时候,经常会被弄得一头雾水:</p>
+<blockquote>
+<p>AL32UTF8是什么？为什么不是UTF8?<br/>
+环境变量里设置的SIMPLIFIED CHINESE_CHINA.ZHS16GBK是什么？为什么不直接设GBK？<br/>
+在数据库里的各个视图里查到的字符集究竟是客户端的还是数据库的？</p>
+</blockquote>
+<h3 id="i字符集代码">I.字符集代码</h3>
+<p>ORACLE中的字符集代码,并不等于目前通用的字符集名称。先来看看官方提供的<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/appendix-A-locale-data.html#GUID-9529D1B5-7366-4195-94B5-0F90F3B472E1">ORACLE字符集与通用字符集对照表</a><br/>
+其实根据这个表格中的"Description"可以了解到,目前这些通用的字符集名称都太长了,且毫无规则,不能作为代码使用;并且还存在一些特殊情况,比如"JA16EUCTILDE"和"JA16EUC"两种字符集,实际上都是"EUC 24-bit Japanese",只有波浪线不一样,就分成了两个字符集。<br/>
+所以oracle必须自己再对这些字符集进行一次统一命名,因此有了"AL32UTF8"以及"ZHS16GBK"这样的字符集代码</p>
+<h3 id="iinls-lang">II.NLS_LANG</h3>
+<p>在系统环境变量(或注册表)"NLS_LANG"中,经常会配置类似下面这样的值</p>
+<blockquote>
+<p>SIMPLIFIED CHINESE_CHINA.ZHS16GBK<br/>
+AMERICAN_AMERICA.AL32UTF8</p>
+</blockquote>
+<p>其实这个环境变量由3个部分组成</p>
+<pre><code>&lt;Language&gt;_&lt;territory&gt;.&lt;character&gt;
+</code></pre>
+<p>即</p>
+<blockquote>
+<p>语言_地区.字符集</p>
+</blockquote>
+<p>只有最后一截才是真正表示字符集</p>
+<p>所以"SIMPLIFIED CHINESE_CHINA.ZHS16GBK"表示:"简体中文"_"中国地区"."16位GBK简体中文"</p>
+<p>同理,"AMERICAN_AMERICA.AL32UTF8"表示:"美式英语"_"美国地区"."Unicode12.1通用字符集UTF-8编码方案"。</p>
+<p>当然,在环境变量中,这3个并非全部必填,你甚至可以用 "_.AL32UTF8"表示使用数据库默认的语言和地区,但客户端使用你指定的字符集；用 "_AMERICA."只指定客户端地区,语言使用该地区的默认语言,字符集使用该地区默认语言对应的字符集。</p>
+<pre><code class="language-sql">---查询比利时地区的语言
+DECLARE
+   retval UTL_I18N.STRING_ARRAY;
+   cnt    INTEGER;
+BEGIN
+   retval   :=  UTL_I18N.GET_LOCAL_LANGUAGES('BELGIUM');
+   for i in  0..retval.count-1 loop
+   DBMS_OUTPUT.PUT_LINE(retval(i));
+   END LOOP;
+END;
+/
+---查询法语的默认字符集
+select UTL_I18N.GET_DEFAULT_CHARSET('French') from dual;
+
+---从ISO标准语言代码转换成ORACLE中的语言 和 地区
+select UTL_I18N.MAP_LANGUAGE_FROM_ISO('en_US') ,
+       UTL_I18N.MAP_TERRITORY_FROM_ISO('en_US') from dual;
+
+---将ORACLE语言 和 地区转换成标准ISO标准语言代码
+select UTL_I18N.MAP_LOCALE_TO_ISO('American','America') from dual;
+</code></pre>
+<p>实际用户场景中,一个地区可以不止有一种语言,一种字符集也可以表示多种语言文字。通过灵活配置这个环境变量,可以让数据库对各个地区的时区、语言、货币、文字等的兼容性更好。</p>
+<p>但是,你可能又会问了:<br/>
+不是都说要让数据库的环境变量和客户端的环境变量保持一致么？</p>
+<p>对,没错,的确建议保持一致,但这并非绝对。目前多国家多语言的公司多得去了，在使用同一个数据库时，肯定会有不同的需要。</p>
+<p>分三部分</p>
+<h4 id="a语言">A.语言</h4>
+<p>首先,对于语言,我们做个这样的测试：</p>
+<ol>
+<li>数据库安装时,语言选择了"AMERICAN",然后客户端环境变量的"NLS_LANG"设置成"SIMPLIFIED CHINESE_CHINA.AL32UTF8",打开客户端软件，连接数据库后执行一段错误的sql<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png" srcset="/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1200 1200w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=400 400w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1600 1600w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=800 800w"/></li>
+<li>然后把客户端环境变量的"NLS_LANG"改成"AMERICAN_CHINA.AL32UTF8",并重新打开客户端软件，连接数据库后执行同样的sql<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png" srcset="/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1200 1200w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=400 400w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1600 1600w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=800 800w"/></li>
+</ol>
+<p>对，客户端环境变量的这个语言就是用来干这个的，用于在客户端显示不同语言的报错或者提示信息，你甚至可以设置成日语或者法语，这些系统提示信息在数据库内部本就是有记录多种语言的。另外，也可以通过数据库自带plsql包"UTL_LMS"将对应的系统提示信息转换成非客户端设置的语言。</p>
+<pre><code class="language-sql">DECLARE
+   s varchar2(200);
+   i  pls_integer;
+BEGIN
+   i:= utl_lms.get_message(26052, 'rdbms', 'ora', 'french', s);
+   dbms_output.put_line('法语 : '||s);
+   i:= utl_lms.get_message(26052, 'rdbms', 'ora', 'AMERICAN', s);
+   dbms_output.put_line('美式英语 is: '||s);
+   i:= utl_lms.get_message(26052, 'rdbms', 'ora', 'SIMPLIFIED CHINESE', s);
+   dbms_output.put_line('简体中文 is: '||s);
+END;
+/
+</code></pre>
+<p>输出为：</p>
+<blockquote>
+<p>法语 : Type %d non pris en charge pour l'expression SQL sur la colonne %s.<br/>
+美式英语 : Unsupported type %d for SQL expression on column %s.<br/>
+简体中文 : 不支持 SQL 表达式类型 %d (位于 %s 列)。</p>
+</blockquote>
+<p>当然，我们也得看目前的字符集是否支持当前语言，可参考官方文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/nlspg/appendix-A-locale-data.html#GUID-20E0601E-18D9-474C-868D-1DA9A29A1D26">ORACLE语言和支持的字符集对照表</a></p>
+<h4 id="b地区">B.地区</h4>
+<p>对于地区，除了上面说过的，在没有设置语言的时候取地区的默认语言这个功能外，还影响时区、货币、日期格式，这个与本篇关系不大，就略过了。</p>
+<h4 id="c字符集">C.字符集</h4>
+<p>接下来就是最后一个参数，字符集</p>
+<p>我通过网络上的文章，以及自己在数据库中的摸索，得到以下这些sql，可以查询语言、地区、字符集</p>
+<pre><code class="language-sql">select * from nls_database_parameters where parameter in ('NLS_TERRITORY','NLS_LANGUAGE','NLS_CHARACTERSET');
+select * from nls_instance_parameters where parameter in ('NLS_TERRITORY','NLS_LANGUAGE','NLS_CHARACTERSET');
+select * from nls_session_parameters where parameter in ('NLS_TERRITORY','NLS_LANGUAGE','NLS_CHARACTERSET');
+select * from v$parameter;
+select * from v$nls_parameters;
+select * from v$system_parameter where name like 'nls%';
+select name,substr(value$, 1, 64) from x$props where name like 'NLS%';
+select userenv('language') from dual;
+select sys_context('USERENV','LANGUAGE') from dual;
+</code></pre>
+<p>但是，发现一个问题，这些sql分别可以让我们知道数据库和客户端中使用的语言及地区，但是对于字符集，要么没有，要么显示为数据库字符集，而客户端环境变量中设置的字符集通过任何一个sql都查不到！<br/>
+这在Oracle官方文档中也有对应的说明<br/>
+<a href="https://www.oracle.com/database/technologies/faq-nls-lang.html">FAQ-NLS-LANG</a></p>
+<blockquote>
+<p>SELECT USERENV ('language') FROM DUAL; gives the session's <language>_<territory> but the DATABASE character set not the client, so the value returned is not the client's complete NLS_LANG setting!</territory></language></p>
+</blockquote>
+<blockquote>
+<p>SELECT USERENV ('language') FROM DUAL;得到当前会话的 语言_地区 以及 数据库字符集,不是客户端的字符集,所以它返回的值不是完整的客户端NLS_LANG设置!</p>
+</blockquote>
+<p>先不讨论为什么ORACLE不提供客户端字符集在数据库中的查询方式，我们重点来看看，字符集不一样到底会产生哪些问题。</p>
+<p>我创建了一张表，有两个字段，分别为行号、值。然后编写了4个文本文件，都是执行insert into 一条记录到这个表，行号分别为1、2、3、4，值都为"张三"。测试场景及结果整理如下</p>
+<p><strong>插入数据</strong></p>
+<table>
+<thead>
+<tr><th>行号</th><th>数据库语言</th><th>数据库字符集</th><th>客户端语言</th><th>客户端字符集</th><th>插入sql的文件编码</th><th>数据库内的十六进制数据</th><th>在plsql developer中的可见字符</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>AMERICAN</td><td>AL32UTF8</td><td>SIMPLIFIED CHINESE</td><td>ZHS16GBK</td><td>UTF-8</td><td>E5AFAEE78AB1E7AC81</td><td>寮犱笁</td></tr>
+<tr><td>2</td><td>AMERICAN</td><td>AL32UTF8</td><td>SIMPLIFIED CHINESE</td><td>ZHS16GBK</td><td>ANSI</td><td>E5BCA0E4B889</td><td>张三</td></tr>
+<tr><td>3</td><td>AMERICAN</td><td>AL32UTF8</td><td>SIMPLIFIED CHINESE</td><td>AL32UTF8</td><td>UTF-8</td><td>E5BCA0E4B889</td><td>张三</td></tr>
+<tr><td>4</td><td>AMERICAN</td><td>AL32UTF8</td><td>SIMPLIFIED CHINESE</td><td>AL32UTF8</td><td>ANSI</td><td>D5C5C8FD</td><td>张三</td></tr>
+</tbody>
+</table>
+<p>(实测,在plsql developer选项中启用了unicode时,客户端字符集不影响其数据显示)</p>
+<p><strong>用sqlplus查询数据</strong></p>
+<table>
+<thead>
+<tr><th>客户端字符集</th><th>行号</th><th>可见字符(chcp 936)</th><th>可见字符(chcp 65001)</th></tr>
+</thead>
+<tbody>
+<tr><td>AL32UTF8</td><td>1</td><td>瀵姳绗</td><td>寮犱笁</td></tr>
+<tr><td>AL32UTF8</td><td>2</td><td>寮犱笁</td><td>张三</td></tr>
+<tr><td>AL32UTF8</td><td>3</td><td>寮犱笁</td><td>张三</td></tr>
+<tr><td>AL32UTF8</td><td>4</td><td>张三</td><td>张三</td></tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr><th>客户端字符集</th><th>行号</th><th>可见字符(chcp 936)</th><th>可见字符(chcp 65001)</th></tr>
+</thead>
+<tbody>
+<tr><td>ZHS16GBK</td><td>1</td><td>寮犱笁</td><td>张三</td></tr>
+<tr><td>ZHS16GBK</td><td>2</td><td>张三</td><td></td></tr>
+<tr><td>ZHS16GBK</td><td>3</td><td>张三</td><td></td></tr>
+<tr><td>ZHS16GBK</td><td>4</td><td>？？</td><td></td></tr>
+</tbody>
+</table>
+<p>根据上述测试，可以得到以下几点</p>
+<ol>
+<li>在插入数据时,数据文件的字符集要保证和客户端字符集一致,可避免乱码(需要对应的文字在两个字符集中都存在),就算和数据库字符集不一致也没关系(比如第2行和第3行均正确且一致)</li>
+<li>在插入数据时,客户端字符集和数据文件字符集不一致时,可能会造成乱码（第1行）,也可能不乱码（第4行）,但是否乱码只是"显示效果",它的值在某种意义上是错的</li>
+<li>查询时,客户端字符集和数据库字符集保持一致,能提高正确显示文字的概率</li>
+<li>查询时,代码页(chcp)和客户端字符集保持一致,能提高正确显示文字的概率</li>
+<li>代码页(chcp)和数据文件编码是一种东西,也就是说,这个测试涉及到的只有3个变量,数据库字符集、客户端字符集、数据编码(受代码页或文件编码影响)</li>
+<li>要想在最大程度上减少"乱码"概率的发生,需要数据库字符集、客户端字符集、数据编码三者都保持一致</li>
+<li>如果无法保持三者一致,比如数据库字符集不可控时,也应该尽量让客户端字符集及数据编码保持一致</li>
+<li>数据库字符集和客户端字符集不一致的情况下,比如数据库字符集为ZHS16GBK,但客户端字符集为AL32UTF8,那么客户端插入数据时,可能部分文字无法进行转换(UTF-8的字比GBK多),但反过来问题不大,只要确保访问同一个数据的所有客户端的字符集统一</li>
+</ol>
+<h2 id="三在oracle中还原乱码">三、在Oracle中还原乱码</h2>
+<p>事前要确保字符集一致，可避免乱码，但如果事前没有保证字符集一致，导致产生了乱码，事后该如何挽救这批乱码的数据？</p>
+<p>部分乱码可以通过以下方式进行还原</p>
+<pre><code class="language-sql">select utl_i18n.raw_to_char(UTL_I18N.string_to_raw('寮犱笁', 'ZHS16GBK'),
+                            'AL32UTF8')
+  from dual;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png" srcset="/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1200 1200w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=400 400w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1600 1600w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=800 800w"/><br/>
+但以上仅仅是只以ZHS16GBK及AL32UTF8来进行举例，实际场景不乏有日语、韩语、法语等等，要判断一个乱码到底是哪个字符集转哪个字符集出了问题，其实很难。</p>
+<p>所以我开发了一个plsql包，穷举转换，输出一个表格，用户可肉眼排查乱码是怎么产生的(为减少数据输出条数，仅针对某一方有亚洲语言字符集参与的乱码)</p>
+<pre><code class="language-sql">create or replace package charset_util_pkg is
+  type convert_any_charset_type is RECORD(
+    original_str varchar2(4000),
+    original_HEX RAW(32767),
+    to_str       varchar2(4000),
+    to_hex       raw(32767),
+    from_charset varchar2(50),
+    to_charset   varchar2(50),
+    sql_text     varchar2(200));
+  type convert_any_charset_table is table of convert_any_charset_type;
+
+  function convert_any_charset(original_str varchar2)
+    return convert_any_charset_table
+    PIPELINED;
+end charset_util_pkg;
+/
+create or replace package body charset_util_pkg is
+  charsetlist ora_mining_varchar2_nt := ora_mining_varchar2_nt('JA16EUC',
+                                                               --'JA16EUCTILDE',
+                                                               'JA16SJIS',
+                                                               --'JA16SJISTILDE',
+                                                               'KO16MSWIN949',
+                                                               'TH8TISASCII',
+                                                               'VN8MSWIN1258',
+                                                               'ZHS16GBK',
+                                                               'ZHT16HKSCS',
+                                                               --'ZHT16MSWIN950',
+                                                               'ZHT32EUC',
+                                                               'BLT8ISO8859P13',
+                                                               'BLT8MSWIN1257',
+                                                               'CL8ISO8859P5',
+                                                               'CL8MSWIN1251',
+                                                               'EE8ISO8859P2',
+                                                               'EL8ISO8859P7',
+                                                               'EL8MSWIN1253',
+                                                               'EE8MSWIN1250',
+                                                               'NE8ISO8859P10',
+                                                               'NEE8ISO8859P4',
+                                                               'WE8ISO8859P15',
+                                                               'WE8MSWIN1252',
+                                                               'AR8ISO8859P6',
+                                                               'AR8MSWIN1256',
+                                                               'IW8ISO8859P8',
+                                                               'IW8MSWIN1255',
+                                                               'TR8MSWIN1254',
+                                                               'WE8ISO8859P9',
+                                                               'AL32UTF8');
+
+  ASIA_charsetlist ora_mining_varchar2_nt := ora_mining_varchar2_nt('JA16EUC',
+                                                                   -- 'JA16EUCTILDE',
+                                                                    'JA16SJIS',
+                                                                   -- 'JA16SJISTILDE',
+                                                                    'KO16MSWIN949',
+                                                                    'TH8TISASCII',
+                                                                    'VN8MSWIN1258',
+                                                                    'ZHS16GBK',
+                                                                    'ZHT16HKSCS',
+                                                                    --'ZHT16MSWIN950',
+                                                                    'ZHT32EUC');
+
+  function convert_any_charset(original_str varchar2)
+    return convert_any_charset_table
+    PIPELINED is
+    to_str varchar2(4000);
+  begin
+    for rec in (select f.column_value from_charset,
+                       t.column_value to_charset
+                  from table(charsetlist) f, table(charsetlist) t
+                 where f.column_value &lt;&gt; t.column_value
+                   AND (F.column_value IN
+                       (SELECT column_value FROM TABLE(ASIA_charsetlist)) OR
+                       T.column_value IN
+                       (SELECT column_value FROM TABLE(ASIA_charsetlist)))) loop
+    
+      begin
+        to_str := utl_i18n.raw_to_char(UTL_I18N.string_to_raw(original_str,
+                                                              rec.from_charset),
+                                       rec.to_charset);
+      exception
+        when others then
+          begin
+            to_str := utl_i18n.raw_to_char(UTL_I18N.string_to_raw(original_str ||
+                                                                  chr(0),
+                                                                  rec.from_charset),
+                                           rec.to_charset);
+          exception
+            when others then
+              to_str := 'convert error!';
+          end;
+      end;
+      if to_str in (rpad(chr(63), length(original_str), chr(63)),
+                    rpad(UTL_RAW.cast_to_varchar2('C2BF'),
+                         length(original_str),
+                         UTL_RAW.cast_to_varchar2('C2BF'))) then
+        CONTINUE;
+      end if;
+      PIPE ROW(convert_any_charset_type(original_str,
+                                        UTL_RAW.cast_to_raw(original_str),
+                                        to_str,
+                                        UTL_RAW.cast_to_raw(to_str),
+                                        rec.to_charset,
+                                        rec.from_charset,
+                                        'utl_i18n.raw_to_char(UTL_I18N.string_to_raw(%s,''' ||
+                                        rec.from_charset || '''),''' ||
+                                        rec.to_charset || ''')'));
+    end loop;
+  end;
+
+end charset_util_pkg;
+/
+</code></pre>
+<pre><code class="language-sql">select A.* from charset_util_pkg.convert_any_charset('寮犱笁') A;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png" srcset="/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1200 1200w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=400 400w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1600 1600w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=800 800w"/></p>
+<p>或者限定当前数据库字符集以减少条目</p>
+<pre><code class="language-sql">select A.*
+  from charset_util_pkg.convert_any_charset('寮犱笁') A
+ where from_charset =
+       (select value
+          from nls_database_parameters
+         where parameter = 'NLS_CHARACTERSET');
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png" srcset="/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1200 1200w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=400 400w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1600 1600w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=800 800w"/></p>
+<p>或者使用列作为传入参数</p>
+<pre><code class="language-sql">select A.*
+  from test_20220122_1 b,charset_util_pkg.convert_any_charset(b.b) A
+ where b.b='寮犱笁' and  from_charset =
+       (select value
+          from nls_database_parameters
+         where parameter = 'NLS_CHARACTERSET');
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png" srcset="/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1200 1200w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=400 400w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1600 1600w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=800 800w"/></p>
+<p>另外，还可以从结果中复制其对应的sql_text以快速获得正确的转换代码。</p>
+<h2 id="总结">总结</h2>
+<p>经过以上研究可以得知，如果开发的应用项目乱码,其应用开发人员应该占首要责任,因为客户端字符集及数据编码都是由开发人员指定的，在一个只有应用输入数据的数据库中，乱码与数据库字符集的关系并不大（除非数据库安装时指定了一个偏门的字符集）。</p>
+<p>如果在应用项目开发时不注意字符集的统一，就会出现各种奇怪的问题，比如不带条件能查到数据，复制那个值作为条件去查又查不到；还有各种奇怪的乱码。</p>
+<p>回到开头的那个案例，其实a和b两个值就是上面这个测试中的第3行和第4行的值，虽然显示一样，但实际一个是UTF8编码，一个是GBK编码。</p>
+<p>附开头的测试数据及sql：</p>
+<pre><code class="language-sql">create table test_20220122_1 as          
+select utl_raw.cast_to_varchar2('E5BCA0E4B889') a,
+       utl_raw.cast_to_varchar2('D5C5C8FD') b 
+from dual;
+
+select a,
+       b,
+       length(a),
+       length(b),
+       lengthb(a),
+       lengthb(b),
+       UTL_RAW.cast_to_raw(a),
+       UTL_RAW.cast_to_raw(B)
+  from test_20220122_1;
+</code></pre>
+<p>注：以上仅针对ORACLE数据库，其他数据库的情况会有所区别</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

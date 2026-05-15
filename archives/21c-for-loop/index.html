@@ -155,7 +155,370 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>接上篇<br/>
+<a href="/archives/18c-21c-qualified-expressions">【ORACLE】18c版本的限定表达式及其在21c版本的增强</a></p>
+<p>上篇最后说到了迭代器，由于内容太多，所以和本篇放一起了。</p>
+<p>在迭代器中，除了上篇说的三种迭代器（基本、索引、序列）外，还支持多种关键词组合使用。</p>
+<p>类似"for i in 1..10" 这种，被称之为迭代器（iterator），既可以用于限定表达式，也可以用于for loop循环，是共用的语法，所以本篇不会对每种用法都分别写两种例子，读者可自行尝试修改成限定表达式的写法或者for loop的写法。</p>
+<p>老规矩，先上官方文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-control-statements.html#GUID-C4BC9960-5945-4646-BBDE-DC00346F8702">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-control-statements.html#GUID-C4BC9960-5945-4646-BBDE-DC00346F8702</a></p>
+<h2 id="for-loop语法">for loop语法</h2>
+<pre><code>[ label ] for_loop_header 
+  statements
+END LOOP [ label ];
+
+for_loop_header ::= FOR iterator LOOP
+
+iterator ::= iterand_decl [, iterand_decl] IN iteration_ctl_seq 
+
+iterand_decl  ::= pls_identifier [ MUTABLE | IMMUTABLE ] [ constrained_type ]          
+
+iteration_ctl_seq ::= qual_iteration_ctl [,]...
+
+qual_iteration_ctl ::= [ REVERSE ] iteration_control  pred_clause_seq
+
+iteration_control ::= stepped_control 
+                      | single_expression_control 
+                      | values_of_control 
+                      | indices_of_control 
+                      | pairs_of_control  
+                      | cursor_control 
+
+pred_clause_seq ::= [ stopping_pred ] [ skipping_pred ]
+
+stopping_pred ::= WHILE boolean_expression  
+
+skipping_pred ::= WHEN boolean_expression 
+
+stepped_control ::= lower_bound .. upper_bound [ BY step ]
+
+single_expression_control ::= [ REPEAT ] expr
+</code></pre>
+<p>下面这段官方可能是写错了，“cursor_iteration__control”其实对应上面的“cursor_control”，而且还存在两个明显的输入错误 "_"重复了,"cursor _object"多了一个空格</p>
+<pre><code>cursor_iteration__control ::=  { cursor _object
+                    | sql_statement
+                    | cursor_variable
+                    | dynamic_sql }
+</code></pre>
+<h1 id="qual-iteration-ctl">qual_iteration_ctl</h1>
+<h2 id="reverse">REVERSE</h2>
+<p>"REVERSE"（不是21c添加的），为对后面的元素进行倒序排列</p>
+<pre><code class="language-sql">begin
+  for i in REVERSE 1 .. 5  loop
+    dbms_output.put_line ( i );
+  end loop;
+end;
+/
+---
+5
+4
+3
+2
+1
+</code></pre>
+<h2 id="iteration-control">iteration_control</h2>
+<h3 id="by-stepped-control">BY （stepped_control）</h3>
+<p>先看例子</p>
+<pre><code class="language-sql">SET SERVEROUTPUT ON;
+
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(for i in 1..10 by 2  sequence =&gt; i);
+BEGIN
+  FOR I IN 1 .. l_tab.COUNT LOOP
+    DBMS_OUTPUT.put_line(i||':'|| l_tab(I));
+  END LOOP;
+END;
+/
+
+---
+1:1
+2:3
+3:5
+4:7
+5:9
+</code></pre>
+<p>"by" 在 for loop 中的使用</p>
+<pre><code class="language-sql">begin
+  for i in 1 .. 10 by 2 loop
+    dbms_output.put_line ( i );
+  end loop;
+end;
+/
+
+---
+1
+3
+5
+7
+9
+</code></pre>
+<p>"by"表示对 in 的元素进行间隔选择（Step(步长)），比如上例中的2，就是每次选择向后第2个元素，所以依次是第1、3、5、7、9个元素。</p>
+<h2 id="single-expression-control">single_expression_control</h2>
+<h3 id="repeat">REPEAT</h3>
+<p>"REPEAT",按照后面的表达式循环产生元素</p>
+<pre><code class="language-sql">BEGIN
+   FOR i IN 1, REPEAT i*2 WHILE i &lt; 100 LOOP
+      DBMS_OUTPUT.PUT_LINE(i);
+   END LOOP;
+END;
+/
+---
+1
+2
+4
+8
+16
+32
+64
+
+</code></pre>
+<h3 id="values-of-values-of-control">VALUES OF (values_of_control）</h3>
+<p>取出数组中的值</p>
+<pre><code class="language-sql">DECLARE
+   TYPE intvec_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+   vec intvec_t := intvec_t(3 =&gt; 10, 1 =&gt; 11, 100 =&gt; 34);
+BEGIN
+   FOR i IN VALUES OF vec LOOP
+      DBMS_OUTPUT.PUT_LINE(i);
+   END LOOP;
+END;
+/
+---
+11
+10
+34
+</code></pre>
+<h3 id="indices-of-indices-of-control-">INDICES OF （indices_of_control ）</h3>
+<p>取出数组中的索引（键）</p>
+<pre><code class="language-sql">DECLARE
+   TYPE intvec_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+   vec intvec_t := intvec_t(3 =&gt; 10, 1 =&gt; 11, 100 =&gt; 34);
+BEGIN
+   FOR i IN INDICES OF vec LOOP 
+       DBMS_OUTPUT.PUT_LINE(i);  
+   END LOOP;
+END;
+/
+---
+1
+3
+100
+</code></pre>
+<h3 id="pairs-ofpairs-of-control--">PAIRS OF（pairs_of_control  ）</h3>
+<p>取出 索引和值 的对（键值对）</p>
+<pre><code class="language-sql">DECLARE
+   TYPE intvec_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+   vec  intvec_t := intvec_t(3 =&gt; 10, 1 =&gt; 11, 100 =&gt; 34);
+BEGIN
+   FOR i,j IN PAIRS OF vec LOOP
+      DBMS_OUTPUT.PUT_LINE(i || '=&gt;'|| j);
+   END LOOP;
+END;
+/
+---
+1=&gt;11
+3=&gt;10
+100=&gt;34
+
+</code></pre>
+<h3 id="cursor-control">cursor_control</h3>
+<h4 id="sql-statement">sql_statement</h4>
+<p>直接用一个查询sql（不是21c添加的）</p>
+<pre><code class="language-sql">begin
+  for rec in (select a.region_id, a.region_name from hr.regions a) loop
+    dbms_output.put_line(rec.region_id || '-' || rec.region_name);
+  end loop;
+end;
+/
+</code></pre>
+<h4 id="cursor--object">cursor _object</h4>
+<p>先用一个查询sql定义一个游标对象，然后直接使用这个对象（不是21c添加的）</p>
+<pre><code class="language-sql">declare
+  cursor c is
+    select a.region_id, a.region_name from hr.regions a;
+begin
+  for rec in c loop
+    dbms_output.put_line(rec.region_id || '-' || rec.region_name);
+  end loop;
+end;
+/
+</code></pre>
+<h4 id="cursor-variable">cursor_variable</h4>
+<p>即 ref cursor动态游标（不是21c添加的）</p>
+<pre><code class="language-sql">declare
+  l_sql varchar2(4000):='select * from hr.regions';
+  l_row hr.regions%rowtype;
+  type cur is ref cursor;
+  curs cur;
+begin
+  open curs for l_sql;
+  loop
+    fetch curs into l_row;
+    exit when curs%notfound;
+    dbms_output.put_line(l_row.region_name);
+    end loop;
+    close curs;
+end;
+/
+
+</code></pre>
+<h4 id="dynamic-sql">dynamic_sql</h4>
+<p>即动态sql，且支持绑定变量</p>
+<pre><code class="language-sql">declare
+  l_sql varchar2(4000) := 'select * from hr.regions where REGION_ID&lt;=:1';
+begin
+  for r hr.regions%rowtype in (execute immediate l_sql using 3) loop
+    dbms_output.put_line(r.region_name);
+  end loop;
+end;
+/
+</code></pre>
+<p>动态sql是最能让人发挥想象力之一的了,可惜的是被这个限定type（constrained_type）限制住了。上例中，如果不定义r的type，或者用非限定type，像下面这样，会报错</p>
+<pre><code class="language-sql">declare
+  l_sql varchar2(4000) := 'select * from hr.regions where REGION_ID&lt;=:1';
+begin
+  for r in (execute immediate l_sql using 3) loop
+    null;
+  end loop;
+end;
+/
+</code></pre>
+<blockquote>
+<p>ORA-06550: 第 4 行, 第 13 列:<br/>
+PLS-00858: 没有为 EXECUTE IMMEDIATE 迭代控制指定 iterand 类型。<br/>
+ORA-06550: 第 4 行, 第 3 列:<br/>
+PL/SQL: Statement ignored</p>
+</blockquote>
+<p>另外要注意的是，动态sql的这种方式不能用于限定表达式定义的默认值，只能在begin后再进行赋值。</p>
+<h2 id="pred-clause-seq">pred_clause_seq</h2>
+<h3 id="when-skipping-pred-">WHEN （skipping_pred ）</h3>
+<p>"WHEN" 为只选择出满足后面表达式的元素</p>
+<pre><code class="language-sql">BEGIN
+   FOR i IN 1..10 when mod(i,2) =0 LOOP
+      DBMS_OUTPUT.PUT_LINE(i);
+   END LOOP;
+END;
+/
+
+---
+2
+4
+6
+8
+10
+</code></pre>
+<h3 id="while-stopping-pred-">WHILE （stopping_pred ）</h3>
+<p>"WHILE"为直到不满足后面条件则停止选择元素</p>
+<pre><code class="language-sql">BEGIN
+   FOR i IN 1..10  WHILE i&lt;=5 LOOP
+      DBMS_OUTPUT.PUT_LINE(i);
+   END LOOP;
+END;
+/
+
+---
+1
+2
+3
+4
+5
+
+</code></pre>
+<h1 id="iteration-ctl-seq--qual-iteration-ctl-">iteration_ctl_seq ::= qual_iteration_ctl [,]...</h1>
+<p>这语法其实表示，我们可以把多个qual_iteration_ctl用逗号隔开组合成一个iteration_ctl_seq，比如</p>
+<pre><code class="language-sql">DECLARE
+   TYPE intvec_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+   vec intvec_t := intvec_t(3 =&gt; 10, 1 =&gt; 11, 100 =&gt; 34);
+   l_sql varchar2(4000):='select a.region_id from hr.regions a';
+BEGIN
+   FOR i IN 1..6 by 2, 
+            REVERSE i+1..i+5,
+            repeat i*2 while i&lt;20,
+            1..30 when mod(i,9)=0 , 
+            values of vec,
+            INDICES OF vec,
+            vec.first,
+            vec.last-1,
+            values of (execute immediate l_sql) LOOP
+      DBMS_OUTPUT.PUT_LINE(i);
+   END LOOP;
+END;
+/
+---
+1
+3
+5
+10
+9
+8
+7
+6
+12
+9
+18
+27
+11
+10
+34
+1
+3
+100
+1
+99
+1
+2
+3
+4
+
+</code></pre>
+<p>或者改成限定表达式的形式</p>
+<pre><code class="language-sql">DECLARE
+   TYPE intvec_t IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+   vec intvec_t := intvec_t(3 =&gt; 10, 1 =&gt; 11, 100 =&gt; 34);
+   vec2 intvec_t;
+   l_sql varchar2(4000):='select a.region_id from hr.regions a';
+BEGIN
+  vec2 :=intvec_t(FOR i IN  1..6 by 2, 
+                            REVERSE i+1..i+5,
+                            repeat i*2 while i&lt;20,
+                            1..30 when mod(i,9)=0 ,
+                            values of vec,
+                            INDICES OF vec,
+                            vec.first,
+                            vec.last-1,
+                            values of (execute immediate l_sql)
+                            sequence=&gt;i);
+   for i in 1..vec2.count loop
+     DBMS_OUTPUT.PUT_LINE(vec2(i));
+     end loop;
+END;
+/
+</code></pre>
+<p>这个例子的iterand_decl其实就是由下面这九个qual_iteration_ctl共同组成</p>
+<ul>
+<li>"1..6 by 2",</li>
+<li>"REVERSE i+1..i+5",</li>
+<li>"repeat i*2 while i&lt;20",</li>
+<li>"1..30 when mod(i,9)=0 ",</li>
+<li>"values of vec",</li>
+<li>"INDICES OF vec"</li>
+<li>"vec.first"</li>
+<li>"vec.last-1"</li>
+<li>"values of (execute immediate l_sql)"</li>
+</ul>
+<p>可以看到这里用了前文没提到的first和last，其实这是collection对象的函数，与之类似的还有count、limit、prior、next等。由于不涉及本篇主要内容，就不继续扩展了，关于集合的更多函数请参考官方文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-collections-and-records.html#GUID-0452FBDC-D9C1-486E-B432-49AF84743A9F">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-collections-and-records.html#GUID-0452FBDC-D9C1-486E-B432-49AF84743A9F</a></p>
+<h1 id="总结">总结</h1>
+<p>从18c到21c各种限定表达式及for...loop循环的增强,再配合集合的各种操作，使得plsql编程语法变得更宽松，可以大大提高编程效率。</p>
+<p>更多例子可参考下面这篇文章<br/>
+<a href="https://blogs.oracle.com/sql/post/better-loops-and-qualified-expressions-array-constructors-in-plsql">Better loops and qualified expressions (array constructors) in PL/SQL</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

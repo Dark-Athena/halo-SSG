@@ -153,13 +153,160 @@ SQL> select 123木头人">
         
         <span>2025-08-20</span>
         
-        <span>132 阅读</span>
+        <span>133 阅读</span>
         
         <a href="/categories/oracledb">ORACLE数据库</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="oracle对oracle说123木头人它会正常run么">【ORACLE】对ORACLE说"123木头人",它会正常run么？</h1>
+<pre><code class="language-sql">连接到:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; select 123木头人 from dual;
+
+    木头人
+----------
+       123
+</code></pre>
+<h2 id="背景">背景</h2>
+<p>我有次在调试某国产数据库，特意制造一些错误来看堆栈情况时，输入了 <code>select 123t;</code>执行，发现竟然没有报错，我一开始还以为是这个国产库太垃圾，连这种错都没判断出来。但是当我去ORACLE里执行 <code>select 123t from dual</code>时，发现ORACLE里竟然也没报错！特写本文来记录这种现象。</p>
+<pre><code>连接到:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+SQL&gt; select 123t from dual;
+
+         T
+----------
+       123
+</code></pre>
+<h2 id="分析">分析</h2>
+<p>从上面这个查询结果来看，初步判断ORACLE是把 <code>123t</code>中从左往右的数字提取出来作为列值，后面的作为列的别名。</p>
+<p>一般情况下，分词需要用空格、回车、换行、括号、逗号等等符号来进行切分，比如 <code>select*</code> 中间不加空格，也是可以认为是两个不同的token的。但是 <code>123t</code>中间没有任何符号，ORACLE也对其进行了切分，我们模拟想象一下这个分词过程</p>
+<p>首先，不带双引号的 <code>123t</code> 肯定不能作为表里的字段名，因为标识符不能以数字开头；<br/>
+不是标识符，就也不是函数表达式的开头，那么它就是字面值常量；<br/>
+然后这个字面值常量没带单引号，那么它就是数字类型的字面值常量；<br/>
+数字只能识别到 <code>123</code>，词法规则分词，<code>t</code>被分开了 ，<br/>
+所以最后的token流就是</p>
+<pre><code>0,'select'
+1,' '
+2,'123'
+3,'t'
+4,' '
+5,'from'
+6,' '
+7,'dual'
+8,';'
+</code></pre>
+<blockquote>
+<p>参考： <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Database-Object-Names-and-Qualifiers.html#GUID-75337742-67FD-4EC0-985F-741C93D918DA">https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Database-Object-Names-and-Qualifiers.html#GUID-75337742-67FD-4EC0-985F-741C93D918DA</a></p>
+</blockquote>
+<blockquote>
+<ol start="6">
+<li>Nonquoted identifiers must begin with an alphabetic character from your database character set. Quoted identifiers can begin with any character.未加引号的标识符必须以数据库字符集中的字母字符开头。加引号的标识符可以以任何字符开头。</li>
+<li>Nonquoted identifiers can only contain alphanumeric characters from your database character set and the underscore (_), dollar sign ($), and pound sign (#). Database links can also contain periods (.) and "at" signs (@). Oracle strongly discourages you from using $ and # in nonquoted identifiers.<br/>
+未加引号的标识符只能包含数据库字符集中的字母数字字符以及下划线（_）、美元符号（$）和井号（#）。数据库链接还可以包含句点（.）和"at"符号（@）。Oracle 强烈建议你不要在未加引号的标识符中使用$和#。<br/>
+Quoted identifiers can contain any characters and punctuations marks as well as spaces. However, neither quoted nor nonquoted identifiers can contain double quotation marks or the null character (<code>\0</code>).<br/>
+加引号的标识符可以包含任何字符、标点符号以及空格。然而，无论是加引号的还是未加引号的标识符都不能包含双引号或空字符（ \0 ）。<br/>
+在语法解析过程中，空格、回车、换行这样的token是会被忽略掉的，所以这里 <code>123t</code>中间加不加空格并没有区别。</li>
+</ol>
+</blockquote>
+<p>后面我又使用了antlr4解析了一下这个SQL，发现解析的结果和ORACLE是一样的</p>
+<pre><code>select 123t from dual;
+^Z
+[@0,0:5='select',&lt;'SELECT'&gt;,1:0]
+[@1,6:6=' ',&lt;SPACES&gt;,channel=1,1:6]
+[@2,7:9='123',&lt;UNSIGNED_INTEGER&gt;,1:7]
+[@3,10:10='t',&lt;'T'&gt;,1:10]
+[@4,11:11=' ',&lt;SPACES&gt;,channel=1,1:11]
+[@5,12:15='from',&lt;'FROM'&gt;,1:12]
+[@6,16:16=' ',&lt;SPACES&gt;,channel=1,1:16]
+[@7,17:20='dual',&lt;REGULAR_ID&gt;,1:17]
+[@8,21:21=';',&lt;';'&gt;,1:21]
+[@8,22:23='\r\n',&lt;SPACES&gt;,channel=1,1:22] 
+[@9,24:23='&lt;EOF&gt;',&lt;EOF&gt;,2:0]
+</code></pre>
+<pre><code>select 123d from dual;
+^Z
+[@0,0:5='select',&lt;'SELECT'&gt;,1:0]
+[@1,6:6=' ',&lt;SPACES&gt;,channel=1,1:6]     
+[@2,7:10='123d',&lt;APPROXIMATE_NUM_LIT&gt;,1:7]
+[@3,11:11=' ',&lt;SPACES&gt;,channel=1,1:11]  
+[@4,12:15='from',&lt;'FROM'&gt;,1:12]
+[@5,16:16=' ',&lt;SPACES&gt;,channel=1,1:16]  
+[@6,17:20='dual',&lt;REGULAR_ID&gt;,1:17]     
+[@7,21:21=';',&lt;';'&gt;,1:21]
+[@8,22:23='\r\n',&lt;SPACES&gt;,channel=1,1:22] 
+[@9,24:23='&lt;EOF&gt;',&lt;EOF&gt;,2:0]
+</code></pre>
+<p>但数字字面量的格式不仅有纯数字，根据Oracle官方文档所说，还有以下几种情况</p>
+<blockquote>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Literals.html#GUID-083FEFEA-B33F-436B-AEBF-9101A49EF189">https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Literals.html#GUID-083FEFEA-B33F-436B-AEBF-9101A49EF189</a><br/>
+Here are some valid <code>NUMBER</code> literals:这里是一些有效的 NUMBER 字面量：</p>
+</blockquote>
+<pre><code>25
++6.34
+0.5
+25e-03
+-1
+</code></pre>
+<blockquote>
+<p>Here are some valid floating-point number literals:这里是一些有效的浮点数字面量：</p>
+</blockquote>
+<pre><code>25f
++6.34F
+0.5d
+-1D
+</code></pre>
+<p>这里的 25f 和0.5d，也是数字后面接了非数字的字符，难道表现会不一样?</p>
+<pre><code class="language-sql">SQL&gt; select 123c,123d,123cd,123dc from dual;
+
+         C       123D         CD          C
+---------- ---------- ---------- ----------
+       123        123        123        123
+</code></pre>
+<p>炸裂吧，都是字母，表现真不一样：</p>
+<p>第一列 123c, 字段值为numbe类型的123，列别名c</p>
+<p>第二列 123d ,字段值为双精度浮点型的123，无列别名</p>
+<p>第三列 123cd,字段值为numbe类型的123，列别名cd</p>
+<p>第四列 123dc,字段值为双精度浮点型的123，列别名c</p>
+<p>科学计数法也是一样的情况，数值后面紧接d或f时，表示变为浮点类型，如果是接其他非数字和符号的字符，则作为别名</p>
+<pre><code class="language-sql">SQL&gt; select 25e-03e,25e-03d from dual;
+
+         E    25E-03D
+---------- ----------
+     0.025      0.025
+</code></pre>
+<p>这样就会有下面这种有趣的现象：</p>
+<pre><code class="language-sql">SQL&gt; select 36d-36d from dual;
+
+   36D-36D
+----------
+         0
+SQL&gt; select 36e-36e from dual;
+
+         E
+----------
+   3.6E-35
+</code></pre>
+<p>两个SQL看似形式一样，但是完全是两个不同的处理逻辑：</p>
+<p>第一个SQL发生了一次减法计算，减数和被减数相等，差为0；<br/>
+第二个SQL则是一个字面值常量，用科学计数法表示了 "36乘以10的负36次方"，即"3.6乘以10的负35次方"，然后使用字母<code>E</code>作为列别名</p>
+<h2 id="国产数据库表现">国产数据库表现</h2>
+<p>对于ORACLE这种处理方式是否合理，我目前持中性态度。<br/>
+但既然ORACLE是这么玩的，那么其他宣称高度兼容ORACLE的国产数据库又是什么表现呢？</p>
+<p>各个数据库测试情况</p>
+<table><thead><tr><th>数据库</th><th>123dc</th><th>是否和ORACLE一致</th><th>123cd</th><th>是否和ORACLE一致</th></tr></thead><tbody><tr><td>YASHAN 23</td><td>报错[1:11]YAS-04105 invalid number character d</td><td>N</td><td>报错[1:11]YAS-04105 invalid number character c</td><td>N</td></tr><tr><td>GaussDB 506.0</td><td>值：123，字段名：dc</td><td>N</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>openGauss 5.0.0</td><td>值：123，字段名：dc</td><td>N</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>Gbase 8c</td><td>值：123，字段名：dc</td><td>N</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>VastBase v2.2. build 16</td><td>值：123，字段名：dc</td><td>N</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>highgo 6</td><td>值：123，字段名：dc</td><td>N</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>ivorysql 3.4</td><td>值：123，字段名：c</td><td>Y</td><td>ERROR:  trailing junk after numeric literal at or near "123c"</td><td>N</td></tr><tr><td>kingbase 9</td><td>值：123，字段名：c</td><td>Y</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>DM 8</td><td>值：123，字段名：c</td><td>Y</td><td>值：123，字段名：cd</td><td>Y</td></tr><tr><td>OceanBase 4</td><td>值：123，字段名：c</td><td>Y</td><td>值：123，字段名：cd</td><td>Y</td></tr></tbody></table>
+<p>看上去只有3款产品做全了，另外的几款都没做全，甚至有一款宣传完全参考Oracle进行开发的产品在两个测试场景都没通过，这也出乎意料了。</p>
+<p>这种特殊的分词规则在Oracle官方文档中是没有提及的，国产数据库把这个规则做进去，我猜要么是在客户处遇到了这种场景，要么就是研究了开源的词法规则（比如antlr4的PlSql），否则谁会想到在字面量这么基础简单的使用上，Oracle还埋了特殊规则。</p>
+<h2 id="总结">总结</h2>
+<p>回到本文标题， <code>select 123木头人 from dual</code> 在ORACLE里真能run起来，返回列名为"木头人"，值为"123",看似没有报错，但这种特殊分词规则隐藏了巨大的隐患，实际开发过程中不建议使用，使用列别名的场景还是加<code>as</code>为好，比如 <code>select 123 as 木头人 from dual</code>。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

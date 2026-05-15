@@ -153,7 +153,229 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb使用mysql客户端连接到gaussdb的m-compatibility数据库">【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库</h1>
+<h2 id="概述">概述</h2>
+<p>GaussDB 从内核 <strong>505.1</strong> 版本（2024年4月发布）起，新增了一种新的兼容模式 <strong>M-Compatibility</strong>，这是一种整体上比之前的B模式对MySQL兼容性更高的模式。这种M模式在建库时会自动使用模板库 <strong>templatem</strong>。</p>
+<p>之所以需要再新增一种M模式，我猜测是因为GaussDB发现有些MySQL兼容性已经完全违背了内核的SQL及存储逻辑，无法通过参数调整进行兼容，为了不影响原有B模式的用户，必须新增一种兼容模式来隔离之前的逻辑。</p>
+<p>新的这个M兼容模式，可以用MySQL客户端进行连接，但是实际使用过程中，可能会有一些坑在文档中并未详细说明，本文就来介绍一下"使用MySQL客户端连接到GaussDB的M-Compatibility数据库"的正确姿势。</p>
+<blockquote>
+<p><strong>测试环境</strong>：本文使用的GaussDB内核版本为 <strong>506.0 SPC0100</strong></p>
+</blockquote>
+<hr/>
+<h2 id="建库操作">建库操作</h2>
+<p>指定M兼容模式建库：</p>
+<pre><code class="language-sql">CREATE DATABASE mysql DBCOMPATIBILITY='M';
+</code></pre>
+<hr/>
+<h2 id="修改参数">修改参数</h2>
+<h3 id="参考文档">参考文档</h3>
+<ul>
+<li><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/m_comp_devg-cent/gaussdb-81-0034.html">《基于MySQL JDBC开发-开发步骤-环境准备》</a></li>
+</ul>
+<h3 id="添加客户端ip到数据库白名单">添加客户端IP到数据库白名单</h3>
+<blockquote>
+<p>将客户端IP添加到数据库白名单，具体操作请联系管理员处理。</p>
+</blockquote>
+<h3 id="设置兼容性参数">设置兼容性参数</h3>
+<blockquote>
+<p>请参见《管理员指南》中的"配置运行参数"章节，配置相关GUC参数并重启数据库。</p>
+</blockquote>
+<p><strong>参数配置：</strong></p>
+<ol>
+<li>配置协议监听的TCP端口号，设置GUC参数 <code>plat_compat_server_port</code> 为合理端口</li>
+<li><strong>如果</strong>使用到RSA，需要设置GUC参数 <code>plat_compat_allow_public_key_retrieval</code> 为 <code>on</code></li>
+<li>将GUC参数 <code>m_format_dev_version</code> 设置为 <code>"s2"</code></li>
+</ol>
+<p><strong>执行命令：</strong></p>
+<pre><code class="language-bash">gs_guc reload -I all -N all -c "plat_compat_server_port=3306"
+gs_guc reload -I all -N all -c "plat_compat_allow_public_key_retrieval=on"
+gs_guc reload -I all -N all -c "m_format_dev_version='s2'"
+</code></pre>
+<hr/>
+<h2 id="创建连接用户可选">创建连接用户（可选）</h2>
+<pre><code class="language-sql">CREATE USER mysql_user PASSWORD 'Gaussdb@123' SYSADMIN MONADMIN;
+</code></pre>
+<hr/>
+<h2 id="连接测试">连接测试</h2>
+<h3 id="初始连接问题">初始连接问题</h3>
+<p><img alt="image-grwl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-grwl.png" srcset="/upload/image-grwl.png?width=1200 1200w, /upload/image-grwl.png?width=400 400w, /upload/image-grwl.png?width=1600 1600w, /upload/image-grwl.png?width=800 800w"/><br/>
+使用MySQL客户端连接时出现报错：</p>
+<blockquote>
+<p><strong>错误信息：</strong> <code>plat_compat_b_conn_handshake, handshake error.</code></p>
+</blockquote>
+<h3 id="java代码连接测试">Java代码连接测试</h3>
+<p>尝试手写一段Java代码进行连接：</p>
+<pre><code class="language-java">import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+
+public class MySQLCreateTable {
+    public static void main(String[] args) {
+        String url = "jdbc:mysql://192.168.163.119:3306/mysql";
+        String user = "mysql_user";
+        String password = "Gaussdb@123";
+
+        try (Connection conn = DriverManager.getConnection(url, user, password);
+             Statement stmt = conn.createStatement()) {
+
+            String sql = "CREATE TABLE IF NOT EXISTS users2 (" +
+                         "id INT PRIMARY KEY AUTO_INCREMENT," +
+                         "name VARCHAR(100) NOT NULL," +
+                         "email VARCHAR(100) NOT NULL UNIQUE" +
+                         ")";
+            stmt.executeUpdate(sql);
+            System.out.println("Table created successfully.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+</code></pre>
+<p><strong>运行结果：</strong> 也报错了</p>
+<pre><code class="language-java">com.mysql.cj.jdbc.exceptions.CommunicationsException: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+        at com.mysql.cj.jdbc.exceptions.SQLError.createCommunicationsException(SQLError.java:174)
+        at com.mysql.cj.jdbc.exceptions.SQLExceptionsMapping.translateException(SQLExceptionsMapping.java:64)
+        at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:827)
+        at com.mysql.cj.jdbc.ConnectionImpl.&lt;init&gt;(ConnectionImpl.java:447)
+        at com.mysql.cj.jdbc.ConnectionImpl.getInstance(ConnectionImpl.java:237)
+        at com.mysql.cj.jdbc.NonRegisteringDriver.connect(NonRegisteringDriver.java:199)
+        at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:681)
+        at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:229)
+        at MySQLCreateTable.main(MySQLCreateTable.java:11)
+Caused by: com.mysql.cj.exceptions.CJCommunicationsException: Communications link failure
+
+The last packet sent successfully to the server was 0 milliseconds ago. The driver has not received any packets from the server.
+        at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+        at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+        at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+        at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+        at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:480)
+        at com.mysql.cj.exceptions.ExceptionFactory.createException(ExceptionFactory.java:61)
+        at com.mysql.cj.exceptions.ExceptionFactory.createException(ExceptionFactory.java:105)
+        at com.mysql.cj.exceptions.ExceptionFactory.createException(ExceptionFactory.java:151)
+        at com.mysql.cj.exceptions.ExceptionFactory.createCommunicationsException(ExceptionFactory.java:167)
+        at com.mysql.cj.protocol.a.NativeProtocol.negotiateSSLConnection(NativeProtocol.java:340)
+        at com.mysql.cj.protocol.a.NativeAuthenticationProvider.negotiateSSLConnection(NativeAuthenticationProvider.java:777)
+        at com.mysql.cj.protocol.a.NativeAuthenticationProvider.proceedHandshakeWithPluggableAuthentication(NativeAuthenticationProvider.java:486)
+        at com.mysql.cj.protocol.a.NativeAuthenticationProvider.connect(NativeAuthenticationProvider.java:202)
+        at com.mysql.cj.protocol.a.NativeProtocol.connect(NativeProtocol.java:1348)
+        at com.mysql.cj.NativeSession.connect(NativeSession.java:163)
+        at com.mysql.cj.jdbc.ConnectionImpl.connectOneTryOnly(ConnectionImpl.java:947)
+        at com.mysql.cj.jdbc.ConnectionImpl.createNewIO(ConnectionImpl.java:817)
+        ... 6 more
+Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protocol is disabled or cipher suites are inappropriate)
+        at java.base/sun.security.ssl.HandshakeContext.&lt;init&gt;(HandshakeContext.java:172)
+        at java.base/sun.security.ssl.ClientHandshakeContext.&lt;init&gt;(ClientHandshakeContext.java:103)
+        at java.base/sun.security.ssl.TransportContext.kickstart(TransportContext.java:240)
+        at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:448)
+        at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426)
+        at com.mysql.cj.protocol.ExportControlled.performTlsHandshake(ExportControlled.java:316)
+        at com.mysql.cj.protocol.StandardSocketFactory.performTlsHandshake(StandardSocketFactory.java:188)
+        at com.mysql.cj.protocol.a.NativeSocketConnection.performTlsHandshake(NativeSocketConnection.java:99)
+        at com.mysql.cj.protocol.a.NativeProtocol.negotiateSSLConnection(NativeProtocol.java:331)
+        ... 13 more
+</code></pre>
+<h3 id="解决方案">解决方案</h3>
+<p>查看官方文档<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/m_comp_devg-cent/gaussdb-81-0038.html">《基于MySQL JDBC开发-开发步骤-连接数据库-以常规方式连接》</a>，发现文档中的连接串是：</p>
+<pre><code class="language-java">String sourceURL = "jdbc:mysql://$ip:$port/database?useSSL=false&amp;allowPublicKeyRetrieval=true";
+</code></pre>
+<p>多了两个参数，逐步测试：</p>
+<h4 id="步骤1添加-usesslfalse">步骤1：添加 useSSL=false</h4>
+<p>先加一个 <code>useSSL=false</code> 参数测试。<br/>
+<img alt="image-kjpz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kjpz.png" srcset="/upload/image-kjpz.png?width=1200 1200w, /upload/image-kjpz.png?width=400 400w, /upload/image-kjpz.png?width=1600 1600w, /upload/image-kjpz.png?width=800 800w"/><br/>
+<strong>结果：</strong> 出现了和mogeaver一样的报错。</p>
+<h4 id="步骤2添加-allowpublickeyretrievaltrue">步骤2：添加 allowPublicKeyRetrieval=true</h4>
+<p>再把另一个参数也加上去 <code>allowPublicKeyRetrieval=true</code>。<br/>
+<img alt="image-mrai.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mrai.png" srcset="/upload/image-mrai.png?width=1200 1200w, /upload/image-mrai.png?width=400 400w, /upload/image-mrai.png?width=1600 1600w, /upload/image-mrai.png?width=800 800w"/><br/>
+<strong>结果：</strong> ✅ 执行成功了！</p>
+<h4 id="验证其他客户端">验证其他客户端</h4>
+<p>在mogeaver里也加上这个参数 <code>allowPublicKeyRetrieval=true</code>。<br/>
+<img alt="image-jlyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jlyz.png" srcset="/upload/image-jlyz.png?width=1200 1200w, /upload/image-jlyz.png?width=400 400w, /upload/image-jlyz.png?width=1600 1600w, /upload/image-jlyz.png?width=800 800w"/><br/>
+<strong>结果：</strong> ✅ 也连接成功了！</p>
+<blockquote>
+<p><strong>说明：</strong> 但是mogeaver里的useSSL为true，之所以没有报错，是因为mogeaver里还自动加上了<code>enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></p>
+</blockquote>
+<h3 id="连接参数总结">连接参数总结</h3>
+<p>根据测试，自己写的Java代码，连接时必须加上：</p>
+<ul>
+<li><strong>方案一：</strong> <code>useSSL=false&amp;allowPublicKeyRetrieval=true</code></li>
+<li><strong>方案二：</strong> <code>useSSL=true&amp;enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></li>
+</ul>
+<hr/>
+<h2 id="常见问题及解决">常见问题及解决</h2>
+<p>如果是普通的测试人员，测到这里，就会认为连接测试这一项已经测试通过了，但是换几个不同的环境里的GaussDB去测，还可能会出现这样的报错：</p>
+<h3 id="问题access-denied-for-user">问题：Access denied for user</h3>
+<p><img alt="image-itil.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-itil.png" srcset="/upload/image-itil.png?width=1200 1200w, /upload/image-itil.png?width=400 400w, /upload/image-itil.png?width=1600 1600w, /upload/image-itil.png?width=800 800w"/></p>
+<blockquote>
+<p><strong>错误信息：</strong> <code>Access denied for user</code></p>
+</blockquote>
+<p><strong>注意：</strong> 如果是用户名密码错误，也会报这个错，所以先要用gsql测试一下用户名密码是否正确，确认用户名密码没有写错后，那么问题就可能发生在密码加密方式上。</p>
+<h4 id="原因分析">原因分析</h4>
+<p>在官方文档[《配置客户端接入认证》]（<a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00e%EF%BC%89%E8%BF%99%E4%B8%AA%E7%AB%A0%E8%8A%82%E9%87%8C%E5%86%99%E7%9D%80%EF%BC%9A">https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00e）这个章节里写着：</a></p>
+<blockquote>
+<p>外部客户端使用M-Compatibility兼容协议远程连接M-Compatibility数据库时，只支持 <strong>sha256认证方式</strong></p>
+</blockquote>
+<p>于是去检查gs_hba.conf，发现无论是配置成md5还是sha256，<code>Access denied for user</code>这个问题都依然存在。</p>
+<p>然后继续翻官方文档，发现在<a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00b">《设置密码安全策略》</a>这个章节里写着：</p>
+<blockquote>
+<p>使用M-Compatibility兼容协议连接数据库时，仅支持sha256加密模式，即 <code>password_encryption_type = 2</code></p>
+</blockquote>
+<p>也就是说，必须确保数据库用户的密码存储时，必须是仅存储sha256密文，不能支持其他方式。</p>
+<h4 id="解决步骤">解决步骤</h4>
+<ol>
+<li><strong>修改密码加密参数：</strong></li>
+</ol>
+<pre><code class="language-bash">gs_guc reload -I all -N all -c "password_encryption_type=2"
+</code></pre>
+<ol start="2">
+<li><strong>重新设置用户密码：</strong></li>
+</ol>
+<pre><code class="language-sql">ALTER USER mysql_user PASSWORD 'mysql_123';
+</code></pre>
+<p>到此，使用MySQL客户端连接GaussDB就顺利了...吗？</p>
+<hr/>
+<h2 id="进阶配置rsa加密支持">进阶配置：RSA加密支持</h2>
+<p>搜索官方文档，发现还有这么一个章节：<a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00e">《使用RSA加密登录密码》</a></p>
+<blockquote>
+<p><strong>RSA加密登录配置要求：</strong></p>
+<ol>
+<li>设置 <code>plat_compat_allow_public_key_retrieval</code> 参数值为 <code>on</code></li>
+<li>设置 <code>require_ssl</code> 参数值为 <code>off</code></li>
+<li>设置 hba type 参数值为 <code>host</code> 或 <code>hostnossl</code></li>
+</ol>
+</blockquote>
+<p>也就是说，如果 <code>require_ssl</code> 为 <code>on</code>，那么本文的配置方式也会连接不上去了。</p>
+<h3 id="连接方式总结">连接方式总结</h3>
+<p>综合分散在文档各个地方的信息来看，连接应该是可以用RSA或者不用RSA：</p>
+<table><thead><tr><th>服务端配置</th><th>客户端配置</th><th>说明</th></tr></thead><tbody><tr><td><code>plat_compat_allow_public_key_retrieval=off</code></td><td><code>useSSL=true&amp;enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></td><td>禁用RSA，使用SSL</td></tr><tr><td><code>plat_compat_allow_public_key_retrieval=on</code></td><td><code>useSSL=false&amp;allowPublicKeyRetrieval=true</code></td><td>使用RSA，不使用SSL</td></tr><tr><td><code>plat_compat_allow_public_key_retrieval=on</code></td><td><code>useSSL=true&amp;enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></td><td>允许使用RSA，但仍然使用SSL</td></tr></tbody></table>
+<p>实测也的确如此。</p>
+<hr/>
+<h2 id="补充说明">补充说明</h2>
+<p>另外，数据库里还有个参数 <code>plat_compat_default_database</code>，可以配置MySQL协议连过来需要连接哪个库。</p>
+<ul>
+<li><strong>在没有设置这个参数时：</strong> JDBC连接串里的dbname就真的是GaussDB里面的数据库名称</li>
+<li><strong>如果设置了这个参数：</strong> JDBC连接串里的dbname就是 <code>plat_compat_default_database</code> 指定的库下的schema名称</li>
+</ul>
+<hr/>
+<h2 id="重要声明">重要声明</h2>
+<blockquote>
+<p>⚠️ <strong>版本说明</strong>：本文这里的这些内容，仅为在 <strong>506.0 SPC0100</strong> 集中式版本上测试的结果，不代表新版本的表现（目前已知有些东西在新版本改了）。</p>
+</blockquote>
+<hr/>
+<h2 id="相关文档">相关文档</h2>
+<ul>
+<li><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/m_comp_devg-cent/gaussdb-81-0034.html">《基于MySQL JDBC开发-开发步骤-环境准备》</a></li>
+<li><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/m_comp_devg-cent/gaussdb-81-0038.html">《基于MySQL JDBC开发-开发步骤-连接数据库-以常规方式连接》</a></li>
+<li><a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00b">《设置密码安全策略》</a></li>
+<li><a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00e">《使用RSA加密登录密码》</a></li>
+</ul>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

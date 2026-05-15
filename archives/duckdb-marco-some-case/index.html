@@ -153,7 +153,151 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【DuckDB】活用marco以兼容GaussDB的SQL执行</p>
+<h2 id="前言">前言</h2>
+<p>前文有提到，有些复杂的分析型SQL在DuckDB上执行会比GaussDB上快，但实际应用场景中，GaussDB有些函数在DuckDB上并不支持，因此有时候会需要修改GaussDB的SQL,但如果一个某些函数用得非常多，入参还不一样，无法简单替换，那么修改原SQL就会具有一些工作量。<br/>
+所以就会想到，我能不能在不修改DuckDB源码的情况下，给DuckDB添加这些函数支持呢？<br/>
+答案是的确可以,DuckDB虽然不具备创建复杂的PLSQL函数的能力，但是支持创建宏(macro)</p>
+<p>官网文档：<a href="https://duckdb.org/docs/stable/sql/statements/create_macro">https://duckdb.org/docs/stable/sql/statements/create_macro</a></p>
+<h2 id="宏macro的语法">宏(macro)的语法</h2>
+<p><img alt="image-trea.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-trea.png" srcset="/upload/image-trea.png?width=1200 1200w, /upload/image-trea.png?width=400 400w, /upload/image-trea.png?width=1600 1600w, /upload/image-trea.png?width=800 800w"/><br/>
+官网的语法图有点粗糙了，语法路径没有写全，需要看后面的例子才知道支持哪些用法，所以我重新画了个完整的语法图。</p>
+<pre><code>CreateMacro
+ ::=
+CREATE ( 'OR REPLACE' )? ( TEMPORARY | TEMP )? ( 'IF NOT EXISTS' )?
+(MACRO|FUNCTION) ( schema-name. )? macro-name as ( '(' (param-name (param-datatype)? (':= default-value')?)? (','  (param-name (param-datatype)? (':= default-value')?)?)* ')' ) AS ( TABLE query | expr)
+(','  ( '(' (param-name (param-datatype)? (':= default-value')?)? (','  (param-name (param-datatype)? (':= default-value')?)?)* ')' ) AS ( TABLE query | expr)  )* ';'
+</code></pre>
+<p>这里是用 <a href="https://www.bottlecaps.de/rr/ui">https://www.bottlecaps.de/rr/ui</a> 在线生成的效果</p>
+<p><img alt="image-ggfz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ggfz.png" srcset="/upload/image-ggfz.png?width=1200 1200w, /upload/image-ggfz.png?width=400 400w, /upload/image-ggfz.png?width=1600 1600w, /upload/image-ggfz.png?width=800 800w"/></p>
+<p>接下来解读一下这个语法</p>
+<ol>
+<li>最简单的主干是 <code>create macro macro_name () as expr;</code> 和 <code>create macro macro_name () as table query;</code> 这两种形式，其实这就意味着它是有两种宏：标量宏和表宏。<br/>
+标量宏返回一个标量表达式，表宏返回一个表（或者说查询，即具有多行多列的的一个结果集）。也就是说，宏内部定义并不支持常规的开发语言的循环判断结构，它只能是一个标量表达式或者一个查询。表宏的用法类似视图，但是是带参数的视图。</li>
+<li><code>or replace</code> 意味着可以替换已存在的宏。</li>
+<li><code>temp``temporary</code> 意味着可以临时创建宏，不进行持久化存储，连接结束时即删除。</li>
+<li><code>if not exists</code>意味着它支持在create不带replace时，如果已存在则跳过；不存在则创建。</li>
+<li>在这个语法中，关键字 <code>MACRO</code>和 <code>FUNCTION</code>是等价的,所以也可以理解为这里的宏就是一种自定义函数。</li>
+<li><code>schema-name.</code>创建的宏支持指定一个schema进行存放。</li>
+<li><code>param-name</code> 支持0个、1个或多个参数。</li>
+<li><code>param-datatype</code> 参数的数据类型是可选的，也就是说可以不指定数据类型。</li>
+<li><code>:= default-value</code> 参数的默认值也是可选的，不过需要注意，这里只支持用 <code>:=</code>的方式给默认值。</li>
+<li><code>as</code> 后面的整个定义可以重复多个，这是宏的重载用法，DuckDB可以在 <code>create macro</code>语句中直接重载多个定义。</li>
+</ol>
+<h2 id="兼容oracle的decode函数">兼容ORACLE的decode函数</h2>
+<p>GaussDB支持ORACLE中的 <code>decode</code>函数，这里的 <code>decode</code>和PG/DUCKDB中自带的 <code>decode</code>不一样，ORACLE的 <code>decode</code>类似于 <code>case when</code>，而PG/DUCKDB的则是根据指定的规则"解码"，具有两个参数，比如将一串BASE64还原成字符串，或者将二进制数据以十六进制字符串展示等等。<br/>
+ORACLE中的 <code>decode</code>，参数个数是可变的，最少3个参数，不会和duckdb中的 <code>decode</code>产生冲突，因此我们可以直接创建一个名为 <code>decode</code>的宏，将其转换为 <code>case when</code>语句。<br/>
+但正是由于参数个数可变，而duckdb中目前似乎并不支持进行这种宏的定义，所以我们只能通过重载的方式，来使其参数个数足够自己使用的场景。</p>
+<p>比如如果最多有10个参数，需要4个判断分支，则可以创建如下的重载宏：</p>
+<pre><code class="language-sql">CREATE MACRO decode
+    (case_value, when1, then1, default_value := null ) AS case case_value when when1 then then1 else default_value end,
+    (case_value, when1, then1,when2, then2, default_value := null) AS case case_value when when1 then then1 when when2 then then2 else default_value end,
+    (case_value, when1, then1,when2, then2,when3, then3, default_value := null) AS case case_value when when1 then then1 when when2 then then2 when when3 then then3  else default_value end,
+    (case_value, when1, then1,when2, then2,when3, then3,when4, then4, default_value := null) AS case case_value when when1 then then1 when when2 then then2 when when3 then then3 when when4 then then4 else default_value end
+;
+</code></pre>
+<p>当然，这里并没有考虑数据类型转换的问题，不严谨的SQL在 <code>decode</code>里胡乱传参，有可能引发预料之外的报错或数据结果不一致的问题。因此最好确保case_value和所有的when保持类型一致、所有的then和default_value保持类型一致。<br/>
+另外，别用 <code>char</code>类型，除非你真正理解你在干什么。ORACLE里 <code>char</code>类型在 <code>decode</code>和 <code>case when</code>的表现是不一致的;<code>char</code>类型在不同数据库的表现也是有差异的。</p>
+<h2 id="聚合函数也可以用宏">聚合函数也可以用宏</h2>
+<p>在官方文档中，有一个这样的例子</p>
+<pre><code class="language-sql">CREATE FUNCTION main.my_avg(x) AS sum(x) / count(x);
+</code></pre>
+<p>创建了名叫"my_avg"的一个自定义的宏 ，然后定义内是一个表达式 <code>sum(x) / count(x)</code> ，这明显无法是一个单行函数，这更贴近"宏"的概念，可以想象为，如果执行的SQL语句中，出现了 <code>my_avg(x)</code> ，则自动替换为 <code>sum(x) / count(x)</code>去执行，这个灵活度就比传统意义上的函数要强多了。</p>
+<p>引用官方文档：</p>
+<blockquote>
+<p>When macros are used, they are expanded (i.e., replaced with the original expression), and the parameters within the expanded expression are replaced with the supplied arguments.<br/>
+当使用宏时，它们会被展开（即替换为原始表达式），并且展开表达式中的参数会被提供的参数替换。</p>
+</blockquote>
+<p>比如经常遇到的 <code>wm_concat</code>，虽然有string_agg/listagg等函数可以替代，但是如果不想修改原SQL，就可以创建一个这样的宏</p>
+<pre><code class="language-sql">CREATE MACRO wm_concat(i) as string_agg(i,',');
+</code></pre>
+<p>再比如下面这个例子</p>
+<pre><code class="language-sql">create table order_Detail(order_no varchar,product_no varchar,qty numeric,unit_price numeric);
+--原SQL
+select sum(trunc(qty*unit_price,2)) from order_Detail;
+--创建宏
+create macro sum_amt(q,p) as sum(trunc(q*p,2));
+--使用宏的SQL
+select sum_amt(qty,unit_price) from order_Detail;
+</code></pre>
+<p>这个原表达式中使用了两个函数和一个乘操作符，还引入了一个常量，可能很多地方需要使用到类似的求和算法，每次都有大段大段的重复，相当不简洁。如果直接把常用表达式创建成宏，之后SQL里用宏就干净多了，而且这几乎没有什么性能损耗，因为它的执行计划和改用宏之前的SQL是完全一样的。</p>
+<pre><code>┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+explain analyze select sum_amt(qty,unit_price) from order_Detail
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0005s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│           0 rows          │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│    Aggregates: sum(#0)    │
+│                           │
+│           1 row           │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│ trunc((qty * unit_price), │
+│             2)            │
+│                           │
+│           0 rows          │
+│          (0.00s)          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│    Table: order_Detail    │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│            qty            │
+│         unit_price        │
+│                           │
+│           0 rows          │
+│          (0.00s)          │
+└───────────────────────────┘
+</code></pre>
+<p>灵活使用宏，不仅可以增强SQL的兼容性，还可以让冗长的SQL更简洁。</p>
+<h2 id="持久化的prepare">持久化的prepare?</h2>
+<p>PBE(PREPARE+BIND+EXECUTE)是一种常用的SQL执行方式，在一个连接中，可以PREPARE（预备SQL语句）一次，然后进行多次的BIND(绑定参数)+EXECUTE（执行），SQL不需要重复发送。但是每个连接必须先做一次这个SQL语句的PREPARE语句，</p>
+<h2 id="看看其他数据库里的macro">看看其他数据库里的macro</h2>
+<p>没错，marco并不是DuckDB独有，我之前就有写过ORACLE 21c的宏的介绍<br/>
+<a href="https://www.darkathena.top/archives/about-21c-sql-macros">【ORACLE】21版本新特性之SQL宏(SQL MACROS)的分析</a><br/>
+可以看到duckdb和oracle对于宏的设计和用法非常相似，同样都是分为标量宏和表宏；而最大的区别在于duckdb可以重载，oracle不支持重载，我当时在ORACLE这篇文章中提到的这个缺陷，在duckdb上解决了！</p>
+<p>但这两家的宏，是谁先做的呢？<br/>
+ORACLE 21c是于 2020 年 12 月 8 日发布，而duckdb的宏最早可以追溯到 2020年10月29号，但当时还没有实现功能，我找了几个关于宏相关代码的关键提交</p>
+<ol>
+<li><a href="https://github.com/duckdb/duckdb/commit/6e7c16f228469a2c7375c46718f8bee9ac2bca05">https://github.com/duckdb/duckdb/commit/6e7c16f228469a2c7375c46718f8bee9ac2bca05</a>  20201029 - 这个只加了 <code>CreateFunctionStmt:</code>没有实现里面的内容</li>
+<li><a href="https://github.com/duckdb/duckdb/commit/bcfb3e31b1392a8abaefde72cfb0f8716f167484">https://github.com/duckdb/duckdb/commit/bcfb3e31b1392a8abaefde72cfb0f8716f167484</a> 20201030- 简单写了语法结构</li>
+<li><a href="https://github.com/duckdb/duckdb/commit/623f300d939ccbeedfb70de7b86f3b13b26e83dc">https://github.com/duckdb/duckdb/commit/623f300d939ccbeedfb70de7b86f3b13b26e83dc</a> 20201109- 正式引入了宏的概念，原本的function变成了marco的别名</li>
+<li><a href="https://github.com/duckdb/duckdb/commit/b0bafe71b0886de4a4e094136ccc60e2edf80241">https://github.com/duckdb/duckdb/commit/b0bafe71b0886de4a4e094136ccc60e2edf80241</a> 20220322- 开始区分标量宏和表宏，宏的基本用法开始成形</li>
+<li><a href="https://github.com/duckdb/duckdb/commit/1e7a8190a1026447ae284e7207d2fb2dc337e713">https://github.com/duckdb/duckdb/commit/1e7a8190a1026447ae284e7207d2fb2dc337e713</a> 20240717- 开始支持宏的重载</li>
+</ol>
+<p>所以这看上去，ORACLE真正支持宏是要早于duckdb的，但ORACLE就是最早的么？</p>
+<p>粗略找了下资料，发现在teradata中也支持宏，甚至功能还更多，竟然还支持在宏里放dml语句 <a href="https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Macro-Statements/CREATE-MACRO-and-REPLACE-MACRO/CREATE-MACRO-and-REPLACE-MACRO-Examples">teradata-CREATE-MACRO-and-REPLACE-MACRO-Examples</a>。由于这个数据库的版本资料太少，目前我找到了在 teradata 12版本（2007年发布 <a href="https://manualzz.com/doc/47532881/teradata-12.0-manager-user-guide">Teradata Manager User Guide</a>） 中是有宏的，再往前的版本找起来很麻烦了。不过这至少说明，macro既不是ORACLE也不是duckdb首创，而且从时间线和宏所解决的场景上看，ORACLE和duckdb引入宏，很大可能还是参考了teradata。</p>
+<p>另外，<code>create macro</code>目前并不属于ANSI sql,在《ISO/IEC 9075-2:2023(E)》中搜不到“macro”。</p>
+<h2 id="总结">总结</h2>
+<p>duckdb的宏能做一些简单的自定义函数，虽然不支持pl/sql，但是由于其是真正的宏，灵活度非常高，能支持重载，还可以支持聚合，能大大减少其他数据库SQL放到duckdb上执行的改造成本。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

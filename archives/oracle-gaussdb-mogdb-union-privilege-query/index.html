@@ -155,7 +155,329 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【Oracle/GaussDB/MogDB】统一权限查询</p>
+<h1 id="背景">背景</h1>
+<p>客户在系统下线流程中，有一步操作是锁定该系统对各个数据库登录的账号，但由于历史原因，没有完整记录每个数据库账号有哪些权限，导致有时关闭账号后，部分生产业务出现异常。现客户提出需求，期望从各个数据库中捞出所有用户的所有权限，以便后续关闭账号前确认账号和各个系统之间的相关性。<br/>
+数据库类型要求包括ORACLE/MogDB/GaussDB,查询出来的字段保持一致以便于各系统汇总。</p>
+<p>各数据库版本:</p>
+<ul>
+<li>ORACLE 19C</li>
+<li>GaussDB 506.0</li>
+<li>MogDB 5.0.1</li>
+</ul>
+<h1 id="分析">分析</h1>
+<h2 id="oracle权限">ORACLE权限</h2>
+<ol>
+<li>dba_tab_privs<br/>
+对象权限</li>
+<li>dba_role_privs<br/>
+角色权限</li>
+<li>dba_sys_privs<br/>
+系统权限</li>
+</ol>
+<h2 id="mogdb和gaussdb权限">MogDB和GaussDB权限</h2>
+<p>MogDB/GaussDB的权限视图和ORACLE差异较大，且随着版本迭代，部分对象权限并未加入到权限视图中，存在遗漏，因此考虑从各个基表中直接获取相关权限</p>
+<ol>
+<li>pg_roles<br/>
+该视图记录各个用户拥有的系统角色，比如是否为sysadmin/monadmin。不使用基表pg_auhid的原因是防止某些场景下出现查询无权限的报错</li>
+<li>gs_db_privilege<br/>
+该表记录any权限，如create any table</li>
+<li>pg_auth_members<br/>
+该表记录role的继承关系，如grant user1 to user2;</li>
+<li>所有包含*acl字段的对象表</li>
+</ol>
+<pre><code class="language-sql">select attrelid::regclass from pg_catalog.pg_attribute where attname like '%acl';
+</code></pre>
+<table><thead><tr><th>表名</th><th>描述</th><th>GaussDB和MogDB是否都有</th></tr></thead><tbody><tr><td>pg_default_acl</td><td>新建对象的默认权限</td><td>Y</td></tr><tr><td>pg_pltemplate</td><td>过程语言的“模板”信息</td><td>Y</td></tr><tr><td>pg_tablespace</td><td>表空间</td><td>Y</td></tr><tr><td>pg_type</td><td>数据类型</td><td>Y</td></tr><tr><td>pg_attribute</td><td>字段</td><td>Y</td></tr><tr><td>pg_proc</td><td>存储过程</td><td>Y</td></tr><tr><td>pg_class</td><td>表、索引、序列</td><td>Y</td></tr><tr><td>pg_database</td><td>数据库</td><td>Y</td></tr><tr><td>pg_foreign_server</td><td>外部服务器</td><td>Y</td></tr><tr><td>pg_foreign_data_wrapper</td><td>外部数据封装器</td><td>Y</td></tr><tr><td>pg_language</td><td>编程语言</td><td>Y</td></tr><tr><td>pg_namespace</td><td>命名空间(schema)</td><td>Y</td></tr><tr><td>pg_largeobject_metadata</td><td>大对象元数据</td><td>Y</td></tr><tr><td>pg_extension_data_source</td><td>外部数据源对象的信息（已废弃）</td><td>Y</td></tr><tr><td>pg_directory</td><td>目录</td><td>Y</td></tr><tr><td>gs_package</td><td>包</td><td>Y</td></tr><tr><td>pgxc_group</td><td>节点组信息（仅分布式使用）</td><td>Y</td></tr><tr><td>gs_client_global_keys</td><td>密态等值特性中客户端加密主密钥相关信息</td><td>Y</td></tr><tr><td>gs_column_keys</td><td>密态等值特性中列加密密钥相关信息</td><td>Y</td></tr><tr><td>gs_database_link</td><td>dblink</td><td>N</td></tr><tr><td>gs_pdb</td><td>pdb</td><td>N</td></tr><tr><td>gs_database_details</td><td>显示pg_database中各个数据库的开启关闭状态(pdb)</td><td>N</td></tr><tr><td>dbe_perf.pdb_info</td><td>查询gs_pdb的视图</td><td>N</td></tr><tr><td>snapshot.snap_pdb_info</td><td>dbe_perf.pdb_info的快照</td><td>N</td></tr></tbody></table>
+<p>从上表可以看到该版本GaussDB和MogDB中，差异为DBLINK和PDB，MogDB没有这两个功能，考虑到当前客户的开发规范中禁止使用这两个功能，因此可以不用区分GaussDB和MogDB的权限查询SQL。</p>
+<h2 id="系统用户过滤">系统用户过滤</h2>
+<p>查询时需要剔除授权给系统用户/角色的权限，因此grantee的oid需要大于<code>select datlastsysoid  from pg_database where datname=current_database()</code>，<code>datlastsysoid</code>表示预留的最大系统oid，超过这个值的都表示在数据库初始化之后创建的oid。</p>
+<p>对于ORACLE，也需要剔除系统用户。<br/>
+一种较为通用的过滤方式为(11g~23C):</p>
+<pre><code class="language-sql">select username from dba_users where created &gt;(
+ select max(created)/*+1/24*/ from dba_users
+  where default_tablespace in ('SYSAUX','SYSTEM','APEX') and account_status like '%LOCKED')
+  and nvl(password,'x') not in ('EXTERNAL')
+  AND  default_tablespace NOT in ('SYSAUX','SYSTEM','APEX');
+</code></pre>
+<p>注意上面这种方式不适用于按 装库、创建业务用户、安装ORACLE组件用户这样的顺序执行的库。</p>
+<p>但在当前客户的标准环境中，所有自建用户都会指定自定义表空间，表空间的命名为"TBS"开头，因此在该客户环境中以默认表空间名作为过滤条件比较简单。</p>
+<pre><code class="language-sql">select username from dba_users where default_tablespace like 'TBS%';
+</code></pre>
+<h1 id="整合sql">整合SQL</h1>
+<h2 id="对象权限">对象权限</h2>
+<pre><code class="language-sql">--对象权限 for GaussDB/MogDB
+select grantee ,owner,name as OBJECT_NAME,grantor,privilege ,grantable, type  as OBJECT_TYPE from (
+ SELECT /*+no nestloop*/ t.oid, t.oid_class, t.type
+                 , r.rolname as owner, n.nspname as schema
+                 , t.name, t.column_name
+                 , case grantor when 0 then 'public' else  ro.rolname end as grantor
+                 , case grantee when 0 then 'public' else re.rolname end as grantee
+                 , t.privilege, t.is_grantable as grantable
+              FROM (select oid, 'pg_default_acl' as oid_class
+                         , CONCAT('DEFAULT PRIVILEGES (',(case defaclobjtype when 'r' then 'RELATION' when 'S' then 'SEQUENCE' when 'f' then 'FUNCTION' when 'T' then 'TYPE' when 'K' then 'CLIENT_GLOBAL_KEYS' when 'k' then 'COLUMN_KEYS' else defaclobjtype::text end),')') as type
+                         , defaclrole as owner
+                         , defaclnamespace as schema
+                         , null as NAME
+                         , NULL as column_name
+                         , (aclexplode(defaclacl)).grantor AS grantor
+                         , (aclexplode(defaclacl)).grantee AS grantee
+                         , (aclexplode(defaclacl)).privilege_type AS privilege
+                         , (aclexplode(defaclacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_default_acl
+                     where defaclacl is not null
+                     union all
+                    select oid, 'pg_class' as oid_class
+                         , case relkind WHEN 'r' ::"char" THEN 'TABLE' ::text
+                                        WHEN 'v' ::"char" THEN 'VIEW' ::text
+                                        WHEN 'm' ::"char" THEN 'MATERIALIZED VIEW' ::text
+                                        WHEN 'i' ::"char" THEN 'INDEX' ::text
+                                        WHEN 'I' ::"char" THEN 'GLOBAL INDEX' ::text
+                                        WHEN 'S' ::"char" THEN 'SEQUENCE' ::text
+                                        WHEN 'f' ::"char" THEN 'FOREIGN TABLE' ::text
+                                        WHEN 'c' ::"char" THEN 'COMPOSITE TYPE' ::text
+                                        WHEN 't' ::"char" THEN 'TOAST' ::text
+                                        when 'L' ::"char" then 'LARGE SEQUENCE' ::text
+                                        ELSE  relkind ::text END as type
+                         , relowner as owner
+                         , relnamespace as schema
+                         , relname::text as NAME
+                         , NULL as column_name
+                         , (aclexplode(relacl)).grantor AS grantor
+                         , (aclexplode(relacl)).grantee AS grantee
+                         , (aclexplode(relacl)).privilege_type AS privilege
+                         , (aclexplode(relacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_class
+                     where relacl is not null
+                     union all
+                    select c.oid, 'pg_class' as oid_class
+                         , 'COLUMN' as type
+                         , c.relowner as owner
+                         , c.relnamespace as schema
+                         , c.relname::text as name
+                         , a.attname::text as column_name
+                         , (aclexplode(a.attacl)).grantor AS grantor
+                         , (aclexplode(a.attacl)).grantee AS grantee
+                         , (aclexplode(a.attacl)).privilege_type AS privilege
+                         , (aclexplode(a.attacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_attribute as a
+                      join pg_catalog.pg_class as c on a.attrelid = c.oid
+                     where a.attacl is not null
+                     union all
+                    select oid, 'pg_database' as oid_class
+                         , 'DATABASE' as type
+                         , datdba as owner
+                         , null as schema
+                         , datname::text as name
+                         , null as column_name
+                         , (aclexplode(datacl)).grantor AS grantor
+                         , (aclexplode(datacl)).grantee AS grantee
+                         , (aclexplode(datacl)).privilege_type AS privilege
+                         , (aclexplode(datacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_database
+                     where datacl is not null
+                     union all
+                    select oid, 'pg_foreign_data_wrapper' as oid_class
+                         , 'FOREIGN DATA WRAPPER' as type
+                         , fdwowner as owner
+                         , null as schema
+                         , fdwname::text as name
+                         , null as column_name
+                         , (aclexplode(fdwacl)).grantor AS grantor
+                         , (aclexplode(fdwacl)).grantee AS grantee
+                         , (aclexplode(fdwacl)).privilege_type AS privilege
+                         , (aclexplode(fdwacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_foreign_data_wrapper
+                     where fdwacl is not null
+                     union all
+                    select oid, 'pg_foreign_server' as oid_class
+                         , 'FOREIGN SERVER' as type
+                         , srvowner as owner
+                         , null as schema
+                         , srvname::text as name
+                         , null as column_name
+                         , (aclexplode(srvacl)).grantor AS grantor
+                         , (aclexplode(srvacl)).grantee AS grantee
+                         , (aclexplode(srvacl)).privilege_type AS privilege
+                         , (aclexplode(srvacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_foreign_server
+                     where srvacl is not null
+                     union all
+                    select oid, 'pg_type' as oid_class
+                         , 'TYPE' as type
+                         , typowner as owner
+                         , typnamespace as schema
+                         , typname::text as name
+                         , null as column_name
+                         , (aclexplode(typacl)).grantor AS grantor
+                         , (aclexplode(typacl)).grantee AS grantee
+                         , (aclexplode(typacl)).privilege_type AS privilege
+                         , (aclexplode(typacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_type
+                     where typacl is not null
+                     union all 
+                     select oid,'gs_package' as oid_class
+                     ,'PACKAGE' as type 
+                     ,pkgowner as owner
+                     ,pkgnamespace as schema
+                     ,pkgname as name
+                     ,null as column_name
+                       , (aclexplode(pkgacl)).grantor AS grantor
+                         , (aclexplode(pkgacl)).grantee AS grantee
+                         , (aclexplode(pkgacl)).privilege_type AS privilege
+                         , (aclexplode(pkgacl)).is_grantable AS is_grantable
+                 from pg_catalog.gs_package 
+                     union all
+                    select oid, 'pg_proc' as oid_class
+                         , case prokind  when 'p' then  'PROCEDURE'  else  'FUNCTION'  end as type
+                         , proowner as owner
+                         , pronamespace as schema
+                         , proname::text as name
+                         , null as column_name
+                         , (aclexplode(proacl)).grantor AS grantor
+                         , (aclexplode(proacl)).grantee AS grantee
+                         , (aclexplode(proacl)).privilege_type AS privilege
+                         , (aclexplode(proacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_proc
+                     where proacl is not null and propackageid=0
+                     union all
+                    select oid, 'pg_language' as oid_class
+                         , 'LANGUAGE' as type
+                         , lanowner as owner
+                         , null as schema
+                         , lanname::text as name
+                         , null as column_name
+                         , (aclexplode(lanacl)).grantor AS grantor
+                         , (aclexplode(lanacl)).grantee AS grantee
+                         , (aclexplode(lanacl)).privilege_type AS privilege
+                         , (aclexplode(lanacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_language
+                     where lanacl is not null
+                     union all
+                    select oid, 'pg_largeobject_metadata' as oid_class
+                         , 'LARGE OBJECT' as type
+                         , lomowner as owner
+                         , null as schema
+                         , oid::text as name
+                         , null as column_name
+                         , (aclexplode(lomacl)).grantor AS grantor
+                         , (aclexplode(lomacl)).grantee AS grantee
+                         , (aclexplode(lomacl)).privilege_type AS privilege
+                         , (aclexplode(lomacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_largeobject_metadata
+                     where lomacl is not null
+                     union all
+                    select oid, 'pg_namespace' as oid_class
+                         , 'SCHEMA' as type
+                         , nspowner as owner
+                         , null as schema
+                         , nspname::text as name
+                         , null as column_name
+                         , (aclexplode(nspacl)).grantor AS grantor
+                         , (aclexplode(nspacl)).grantee AS grantee
+                         , (aclexplode(nspacl)).privilege_type AS privilege
+                         , (aclexplode(nspacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_namespace
+                     where nspacl is not null
+                     union all
+                    select oid, 'pg_tablespace' as oid_class
+                         , 'TABLESPACE' as type
+                         , spcowner as owner
+                         , null as schema
+                         , spcname::text as name
+                         , null as column_name
+                         , (aclexplode(spcacl)).grantor AS grantor
+                         , (aclexplode(spcacl)).grantee AS grantee
+                         , (aclexplode(spcacl)).privilege_type AS privilege
+                         , (aclexplode(spcacl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_tablespace
+                     where spcacl is not null
+                     union all 
+                     select null, 'pg_directory' as oid_class
+                         , 'DIRECTORY' as type
+                         , owner as owner
+                         , owner as schema
+                         , dirname::text as name
+                         , null as column_name
+                         , (aclexplode(diracl)).grantor AS grantor
+                         , (aclexplode(diracl)).grantee AS grantee
+                         , (aclexplode(diracl)).privilege_type AS privilege
+                         , (aclexplode(diracl)).is_grantable AS is_grantable
+                      from pg_catalog.pg_directory
+                     where diracl is not null
+                      union all 
+                     select null, 'gs_client_global_keys' as oid_class
+                         , 'CLIENT_GLOBAL_KEYS' as type
+                         , key_owner as owner
+                         , key_namespace as schema
+                         , global_key_name::text as name
+                         , null as column_name
+                         , (aclexplode(key_acl)).grantor AS grantor
+                         , (aclexplode(key_acl)).grantee AS grantee
+                         , (aclexplode(key_acl)).privilege_type AS privilege
+                         , (aclexplode(key_acl)).is_grantable AS is_grantable
+                      from pg_catalog.gs_client_global_keys
+                     where key_acl is not null
+                      union all 
+                     select null, 'gs_column_keys' as oid_class
+                         , 'COLUMN_KEYS' as type
+                         , key_owner as owner
+                         , key_namespace as schema
+                         , column_key_name::text as name
+                         , null as column_name
+                         , (aclexplode(key_acl)).grantor AS grantor
+                         , (aclexplode(key_acl)).grantee AS grantee
+                         , (aclexplode(key_acl)).privilege_type AS privilege
+                         , (aclexplode(key_acl)).is_grantable AS is_grantable
+                      from pg_catalog.gs_column_keys
+                     where key_acl is not null
+                 ) t
+              join pg_catalog.pg_roles r on t.owner = r.oid
+              join pg_catalog.pg_namespace n on t.schema = n.oid
+              left join pg_catalog.pg_roles ro on t.grantor = ro.oid
+              left join pg_catalog.pg_roles re on t.grantee = re.oid
+             where t.grantor &lt;&gt; t.grantee
+           and (t.grantee&gt;(select datlastsysoid  from pg_database where datname=current_database()) 
+           --or t.grantee=0 --GRANT XXX TO PUBLIC
+           )
+       );
+
+--对象权限 for oracle
+select P.GRANTEE, P.OWNER, P.TABLE_NAME AS OBJECT_NAME, P.GRANTOR, P.PRIVILEGE, P.GRANTABLE,O.OBJECT_TYPE from dba_tab_privs P,DBA_OBJECTS O
+ where P.owner=O.OWNER AND P.table_name=O.OBJECT_NAME AND OBJECT_TYPE NOT IN ('PACKAGE BODY','TYPE BODY')
+ AND grantee in (select username from dba_users where default_tablespace like 'TBS%') and grantee&lt;&gt;grantor;
+</code></pre>
+<p>GaussDB的SQL套了子查询，是考虑到之后这个SQL可以在其他场景下复用。</p>
+<p><code>--or t.grantee=0</code>该条件表示将对象授权给public，和客户沟通，该场景下无法确认待关闭的用户是否会访问该对象，暂不考虑，因此注释了这个条件。</p>
+<p>ORACLE中这个关联方式其实是不严谨的，但至少数据不会遗漏。</p>
+<h2 id="sysrole权限">SYS+ROLE权限</h2>
+<p>考虑到sys权限和role权限在ORACLE和GaussDB/MogDB中的分类存在互相交叉的情况，因此直接合并sys权限和role权限的查询结果:</p>
+<pre><code class="language-sql">--sys+role权限 for GaussDB/MogDB
+select rolname grantee,
+       case when key like 'rol%' then substr(key,4) else key end as  PRIVILEGE
+ from (
+select rolname,
+   (json_each_text(row_to_json(pg_roles))).key ,
+   (json_each_text(row_to_json(pg_roles))).value
+ from pg_roles where oid&gt;(select datlastsysoid  from pg_database where datname=current_database()))
+where  value ='true'
+union all 
+select rolname ,privilege_type from gs_db_privilege p,pg_roles r 
+where r.oid=p.roleid and r.oid&gt;(select datlastsysoid  from pg_database where datname=current_database())
+union all 
+select r2.rolname,r1.rolname from pg_auth_members m,pg_roles r1,pg_roles r2 where m.roleid=r1.oid and m.member=r2.oid
+;
+
+--SYS+ROLE权限 for oracle
+select grantee,privilege from dba_sys_privs where grantee in (select username from dba_users where default_tablespace like 'TBS%')
+union all
+select GRANTEE, GRANTED_ROLE from dba_role_privs where grantee in (select username from dba_users where default_tablespace like 'TBS%');
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

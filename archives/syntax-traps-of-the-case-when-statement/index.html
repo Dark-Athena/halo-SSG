@@ -155,7 +155,214 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【ORACLE】case when的语法陷阱</p>
+<h2 id="前言">前言</h2>
+<p>前一段时间在迁移Oracle到一个openGauss系数据 库时，发现存储过程里有一条SQL报错，简化后如下</p>
+<pre><code class="prism language-sql">gaussdb=# select
+gaussdb-# case when 1=1 then 1 end case
+gaussdb-# from dual;
+ERROR:  syntax error at or near "case"
+LINE 2: case when 1=1 then 1 end case
+                                 ^
+gaussdb=# 
+</code></pre>
+<p>这里似乎只要把<code>end case</code>改成<code>end</code>即可正常执行，于是就写了这么一条语法替换规则。但按这个规则改了一批存储过程后，就发现已经迈入了ORACLE的<code>case when</code> 语法陷阱。下面这个语句，原本用<code>end case</code>不报错，改成<code>end</code>后反而报错了</p>
+<pre><code class="prism language-sql">gaussdb=# begin
+gaussdb$# case when 1=1 
+gaussdb$# then null;
+gaussdb$# end case;
+gaussdb$# end;
+gaussdb$# /
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# begin
+gaussdb$# case when 1=1 
+gaussdb$# then null;
+gaussdb$# end ;
+gaussdb$# end;
+gaussdb$# /
+ERROR:  syntax error at end of input
+LINE 5: end 
+            ^
+QUERY:  DECLARE 
+BEGIN 
+case when 1=1 
+then null;
+end 
+gaussdb=# 
+</code></pre>
+<h2 id="分析">分析</h2>
+<p>先来看看这两个包含case when语法的语句是什么含义</p>
+<h3 id="case-expression">1. case expression</h3>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CASE-Expressions.html">https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CASE-Expressions.html</a><br/>
+在ORACLE官方文档中，case表达式的语法如下</p>
+<pre><code>CASE { simple_case_expression
+     | searched_case_expression
+     }
+     [ else_clause ]
+     END
+
+simple_case_expression::=
+expr
+  { WHEN comparison_expr THEN return_expr }...
+  
+searched_case_expression::=
+{ WHEN condition THEN return_expr }... 
+      
+else_clause::=
+ELSE else_expr
+</code></pre>
+<p>在case关键字之后，可以是简单case表达式或者查找case表达式。<br/>
+使用了简单case表达式的例子为</p>
+<pre><code class="prism language-sql">case col when 1 then 'yes' when 0 then 'no' else 'others' end
+</code></pre>
+<p>使用了查找case表达式的例子为</p>
+<pre><code class="prism language-sql">case when col=1 then 'yes' when col=0 then 'no' else 'others' end
+</code></pre>
+<p>表达式(expression)常见的使用位置为 变量赋值、select 列表、where列表、order by列表、group by列表、函数参数等等一切需要表达一个值的地方。<br/>
+表达式的目的不是执行什么指令，因此，词法语法内也不会出现分号。</p>
+<p>本文开头的例子中，<code>case when 1=1 then 1 end case</code> ，其中的<code>case when 1=1 then 1 end</code> 就属于使用了查找case表达式的case表达式，而最后的这个case，在语法上属于select 列表中的列别名，也就是说这段的完整表达形式应该为<code>case when 1=1 then 1 end as case</code> 。不带as使用关键字作为别名会报错，这正是很多openGauss系数据库常见的一个问题。</p>
+<h3 id="case-statement">2. case statement</h3>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CASE-statement.html">https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CASE-statement.html</a><br/>
+在ORACLE官方文档中，case 语句的语法如下</p>
+<pre><code>simple_case_statement ::=
+CASE selector WHEN (selector_value | dangling_predicate) 
+  [, selector_value | dangling_predicate]... THEN statement[statement]...; 
+    [WHEN (selector_value | dangling_predicate) 
+      [, selector_value | dangling_predicate]... THEN statement[statement]...;]...
+  [ELSE statement[statement]...] END CASE [label] ;
+
+searched_case_statement ::=
+[ &lt;&lt;label&gt;&gt; ] CASE
+  WHEN boolean_expression THEN statement [ statement ]... ;
+    [ WHEN boolean_expression THEN statement [ statement ]... ; ]...
+      [ ELSE statement [ statement ]... ;
+        END CASE [ label ];
+</code></pre>
+<p>case语句有两种，简单case语句和查找case语句。<br/>
+简单case语句的例子:</p>
+<pre><code class="prism language-sql">declare
+v1 number;
+v2 varchar2(20);
+begin
+case v1 
+when 1 then
+v2:='yes'
+when 0 then
+v2:='no'
+else
+v2:='others'
+end case;
+end;
+</code></pre>
+<p>查找case语句的例子:</p>
+<pre><code class="prism language-sql">declare
+v1 number;
+begin
+case when v1=1 then
+v2:='yes'
+when v1=1 then
+v2:='no'
+else
+v2:='others'
+end case;
+end;
+</code></pre>
+<p>对比case表达式，case语句中最显著的差异就是，一定会有<code>END CASE</code>，并且一定会有分号，因为CASE语句的目的是执行一个指令，而不是表示一个值。<br/>
+这里可以把case语句理解成和if语句完全等价，if语句一定会以end if结尾，那么case语句也一定要以end case结尾，去掉end后的case就会语法错误。</p>
+<h2 id="antlr4的问题">antlr4的问题</h2>
+<p>antlr4的grammars-v4的PlSql语法里，只有case_statement，没有case_expression,并且把case_statement放到了表达式unary_expression下面，这样就会导致无法正确解析出是case表达式还是case语句，也就无法识别case表达式的end后的case是否为别名。</p>
+<pre><code>case_statement /*TODO [boolean isStatementParameter]
+TODO scope    {
+    boolean isStatement;
+}
+@init    {$case_statement::isStatement = $isStatementParameter;}*/
+    : searched_case_statement
+    | simple_case_statement
+    ;
+
+// CASE
+
+simple_case_statement
+    : label_declaration? ck1 = CASE expression simple_case_when_part+ case_else_part? END CASE? label_name?
+    ;
+
+simple_case_when_part
+    : WHEN expression THEN (/*TODO{$case_statement::isStatement}?*/ seq_of_statements | expression)
+    ;
+
+searched_case_statement
+    : label_declaration? ck1 = CASE searched_case_when_part+ case_else_part? END CASE? label_name?
+    ;
+
+searched_case_when_part
+    : WHEN condition THEN (/*TODO{$case_statement::isStatement}?*/ seq_of_statements | expression)
+    ;
+
+case_else_part
+    : ELSE (/*{$case_statement::isStatement}?*/ seq_of_statements | expression)
+    ;
+</code></pre>
+<pre><code>unary_expression
+    : ('-' | '+') unary_expression
+    | PRIOR unary_expression
+    | CONNECT_BY_ROOT unary_expression
+    | /*TODO {input.LT(1).getText().equalsIgnoreCase("new") &amp;&amp; !input.LT(2).getText().equals(".")}?*/ NEW unary_expression
+    | DISTINCT unary_expression
+    | ALL unary_expression
+    | /*TODO{(input.LA(1) == CASE || input.LA(2) == CASE)}?*/ case_statement /*[false]*/
+    | unary_expression '.' (
+        (COUNT | FIRST | LAST | LIMIT)
+        | (EXISTS | NEXT | PRIOR) '(' index += expression ')'
+    )
+    | quantified_expression
+    | standard_function
+    | atom
+    | implicit_cursor_expression
+    ;
+</code></pre>
+<p>他在END CASE的CASE这里加了个问号，表示这里CASE可以有也可以没有，明显不符合ORACLE的语法规则。<br/>
+当然，原开发者可能知道这里有问题，写了注释 <code>/*TODO{$case_statement::isStatement}?*/</code>，不过这一todo，几十年过去了也没do出来。</p>
+<p>于是我加了个case_expression语法规则，并且将表达式节点中的case_statement换成了case_expression。<br/>
+<a href="https://github.com/antlr/grammars-v4/commit/04096e42803e91f99eedeaf86b0c31821075f7ab">https://github.com/antlr/grammars-v4/commit/04096e42803e91f99eedeaf86b0c31821075f7ab</a></p>
+<pre><code>case_expression
+    : searched_case_expression
+    | simple_case_expression
+    ;
+
+simple_case_expression
+    : CASE expression simple_case_when_part+ case_else_part? END
+    ;
+
+searched_case_expression
+    : CASE searched_case_when_part+ case_else_part? END
+    ;
+</code></pre>
+<p>其实完全可以按ORACLE的语法组成来加，但是我这里偷懒了，因为之前的这几段part节点里，写了<code>seq_of_statements | expression</code>，我就直接复用了原本的这几个part，真要1:1做成和ORACLE一样的话，这里都得完全拆开。</p>
+<h2 id="语法转换程序">语法转换程序</h2>
+<p>修改了语法解析规则后，文章开头的那个问题其实就与case没有关系了，这里正常的解决方式就是识别到别名是关键字，加as就好了</p>
+<pre><code class="prism language-java">// 非保留关键字作为字段名自动加as
+            @Override 
+            public Void visitColumn_alias(PlSqlParser.Column_aliasContext ctx) {
+                // 检查是否使用了非保留关键字且没有带 AS
+                if (ctx.identifier().id_expression().regular_id() != null &amp;&amp; ctx.AS() == null) {
+                    if (ctx.identifier().id_expression().regular_id().non_reserved_keywords_in_gaussdb() != null ||
+                        ctx.identifier().id_expression().regular_id().non_reserved_keywords_pre12c() != null ||
+                        ctx.identifier().id_expression().regular_id().non_reserved_keywords_in_12c() != null ||
+                        ctx.identifier().id_expression().regular_id().non_reserved_keywords_in_18c() != null ) {
+                        // 自动补充 AS
+                        rewriter.insertBefore(ctx.identifier().getStart(), "AS ");
+                    }
+                }
+                return visitChildren(ctx);
+            }
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>本次通过研究case when 语法发现了case表达式和case语句的差异，顺便修正了antlr4中的bug，让语法转换程序可以识别到这种语法来自动转换成目标库兼容的语法。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

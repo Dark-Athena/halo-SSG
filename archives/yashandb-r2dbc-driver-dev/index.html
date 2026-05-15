@@ -149,11 +149,490 @@
         
         <span>2026-03-28</span>
         
-        <span>75 阅读</span>
+        <span>76 阅读</span>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="-YaShanDB-使用AI给YaShanDB开发R2DBC驱动">【YaShanDB】使用AI给YaShanDB开发R2DBC驱动</h1>
+<h2 id="背景">背景</h2>
+<p>崖山数据库作为一款发布没多少年的纯自研数据库，在内核设计上非常亮眼，而且也通过了国测，但是周边的应用生态还有不少欠缺。最近打算让HALO博客的后台支持崖山数据库，但是却发现崖山数据库官方竟然没有R2DBC驱动，就想着看能不能给崖山做一个。</p>
+<h2 id="AI-CODING---CodeBuddy">AI CODING - CodeBuddy</h2>
+<p>前几天在CodeBuddy领了免费的1000 credits，正好用来试试看，毕竟也算稍微大一点的工程，我可不舍得烧copilot。<br/>
+使用PLAN模式，模型Default，CodeBuddy会自动分析需求，获取所有必须的知识，然后起草计划，问我是否按这个计划开始执行</p>
+<blockquote>
+<p>我打算开发yashandb的r2dbc驱动，但我手上只有yashandb的jdbc驱动，你排个计划，看怎么做。jdbc驱动jar文件我已经放到当前目录了</p>
+</blockquote>
+<p><img alt="image-VqoY.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VqoY.png" srcset="/upload/image-VqoY.png?width=1200 1200w, /upload/image-VqoY.png?width=400 400w, /upload/image-VqoY.png?width=1600 1600w, /upload/image-VqoY.png?width=800 800w"/></p>
+<p><img alt="image-RUKZ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-RUKZ.png" srcset="/upload/image-RUKZ.png?width=1200 1200w, /upload/image-RUKZ.png?width=400 400w, /upload/image-RUKZ.png?width=1600 1600w, /upload/image-RUKZ.png?width=800 800w"/></p>
+<blockquote>
+<hr/>
+<p>name: r2dbc-yashandb-driver<br/>
+overview: 从零开发 YashanDB 的 R2DBC 驱动，复用已有 JDBC jar 包中的协议层，实现完整的 R2DBC SPI 接口，支持响应式非阻塞数据库访问。<br/>
+todos:</p>
+<ul>
+<li>id: setup-project<br/>
+content: 创建 Maven 项目骨架：配置 pom.xml，引入 r2dbc-spi、reactor-core、本地 JDBC jar 依赖，设置 Java 17 编译目标<br/>
+status: completed</li>
+<li>id: config-factory-provider<br/>
+content: 实现配置与服务发现层：YashanDbConnectionConfiguration（Builder 模式）、YashanDbConnectionFactory、YashanDbConnectionFactoryProvider、YashanDbConnectionFactoryMetadata 及 SPI 注册文件<br/>
+status: completed<br/>
+dependencies:
+<ul>
+<li>setup-project</li>
+</ul>
+</li>
+<li>id: connection-statement<br/>
+content: 使用 [subagent:code-explorer] 探查协议层 API，实现 YashanDbConnection（事务状态机、连接生命周期）和 YashanDbStatement（参数绑定、SQL 执行，boundedElastic 调度）<br/>
+status: completed<br/>
+dependencies:
+<ul>
+<li>config-factory-provider</li>
+</ul>
+</li>
+<li>id: result-row-metadata<br/>
+content: 实现结果集层：YashanDbResult、YashanDbRow、YashanDbRowMetadata、YashanDbColumnMetadata，完成行数据按列名/索引读取与元数据暴露<br/>
+status: completed<br/>
+dependencies:
+<ul>
+<li>connection-statement</li>
+</ul>
+</li>
+<li>id: codecs<br/>
+content: 实现 codec 子包：Codec 接口、DefaultCodecs 注册表及全部类型编解码器（String/Integer/Long/Double/BigDecimal/Date/Timestamp/Blob/Clob/ByteArray），集成 ExceptionFactory 异常映射<br/>
+status: completed<br/>
+dependencies:
+<ul>
+<li>result-row-metadata</li>
+</ul>
+</li>
+<li>id: tests<br/>
+content: 编写单元测试：覆盖 ConnectionFactory URL 解析、事务状态机、参数绑定流、结果集映射及各编解码器正确性<br/>
+status: completed<br/>
+dependencies:
+<ul>
+<li>codecs</li>
+</ul>
+</li>
+</ul>
+<hr/>
+<h2 id="用户需求">用户需求</h2>
+<p>基于已有的 <code>yashandb-jdbc-1.10.2.jar</code>，开发 YashanDB 数据库的 R2DBC 响应式驱动，使 YashanDB 能够在 Spring WebFlux 等响应式框架中使用。</p>
+<h2 id="产品概述">产品概述</h2>
+<p>R2DBC（Reactive Relational Database Connectivity）驱动将 YashanDB 的数据库访问能力暴露给响应式编程生态。驱动复用 JDBC jar 中已有的 <code>com.yashandb.protocol.*</code> 底层协议层和 <code>com.yashandb.conf.*</code> 配置解析层，在其上实现完整的 R2DBC SPI 接口，对外提供符合 R2DBC 规范的响应式 API。</p>
+<h2 id="核心功能">核心功能</h2>
+<ul>
+<li><strong>连接管理</strong>：实现 <code>ConnectionFactory</code> 和 <code>Connection</code> SPI，支持 <code>r2dbc:yashandb://</code> URL 格式，连接池友好</li>
+<li><strong>SQL 执行</strong>：实现 <code>Statement</code> SPI，支持带参数绑定的 DML/DDL/DQL 语句执行</li>
+<li><strong>结果集处理</strong>：实现 <code>Result</code> 和 <code>Row</code>/<code>RowMetadata</code> SPI，支持 30+ 数据类型的 Java 类型映射</li>
+<li><strong>事务控制</strong>：实现 <code>beginTransaction</code>/<code>commitTransaction</code>/<code>rollbackTransaction</code>，支持隔离级别设置</li>
+<li><strong>非阻塞包装</strong>：通过 Reactor <code>Schedulers.boundedElastic()</code> 将同步 JDBC/Protocol 调用包装为响应式流</li>
+<li><strong>连接配置</strong>：支持主机、端口、数据库名、用户名、密码、SSL 等连接属性</li>
+<li><strong>服务发现</strong>：通过 <code>META-INF/services/io.r2dbc.spi.ConnectionFactoryProvider</code> 注册驱动，支持 <code>ConnectionFactories.get()</code> 自动发现</li>
+</ul>
+<h2 id="技术栈">技术栈</h2>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>技术选型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>语言</td>
+<td>Java 17</td>
+</tr>
+<tr>
+<td>构建工具</td>
+<td>Maven 3.8+</td>
+</tr>
+<tr>
+<td>R2DBC SPI</td>
+<td><code>io.r2dbc:r2dbc-spi:1.0.0.RELEASE</code></td>
+</tr>
+<tr>
+<td>响应式框架</td>
+<td>Project Reactor (<code>reactor-core:3.6.x</code>)</td>
+</tr>
+<tr>
+<td>本地依赖</td>
+<td><code>yashandb-jdbc-1.10.2.jar</code>（system scope / local Maven repo）</td>
+</tr>
+<tr>
+<td>测试</td>
+<td>JUnit 5 +<code>io.r2dbc:r2dbc-spi-test</code> + Testcontainers（可选）</td>
+</tr>
+<tr>
+<td>代码简化</td>
+<td>Lombok（可选）</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="实现策略">实现策略</h2>
+<h3 id="策略选择-策略-A-协议层直接复用---阻塞调度包装-">策略选择：策略 A（协议层直接复用 + 阻塞调度包装）</h3>
+<p>JDBC jar 包含独立的 <code>com.yashandb.protocol.*</code> 协议层，不依赖 <code>java.sql</code>，可直接复用。整体思路：</p>
+<ol>
+<li><strong>复用协议层</strong>：直接使用 <code>NativeProtocol</code>、<code>YasSocketConnection</code>、<code>Packet</code>、<code>ExecuteResult</code> 等底层类进行网络通信与结果读取，避免重复实现协议解析。</li>
+<li><strong>复用配置层</strong>：使用 <code>com.yashandb.conf.ConnectionUrl</code> 解析 R2DBC URL，<code>YasProperty</code> 读取连接属性。</li>
+<li><strong>复用类型层</strong>：使用 <code>com.yashandb.protocol.accessor.*</code> 30+ 类型访问器 + <code>com.yashandb.core.DataType</code> 枚举完成 SQL 类型到 Java 类型的双向映射。</li>
+<li><strong>异步调度</strong>：由于 YashanDB 底层 Socket IO 是同步阻塞的，所有阻塞调用统一通过 <code>Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())</code> 包装，确保不阻塞 Reactor 事件循环线程。</li>
+<li><strong>背压支持</strong>：<code>Result.map()</code> 返回 <code>Flux&lt;T&gt;</code>，逐行发射，支持 Reactor 背压。</li>
+</ol>
+<h3 id="关键技术决策">关键技术决策</h3>
+<ul>
+<li><strong>本地 jar 引入</strong>：通过 Maven <code>system</code> scope 或安装到本地 <code>.m2</code> 仓库（推荐后者，避免路径耦合），<code>pom.xml</code> 配置 <code>&lt;scope&gt;compile&lt;/scope&gt;</code>。</li>
+<li><strong>R2DBC URL 格式</strong>：<code>r2dbc:yashandb://user:password@host:port/database</code>，<code>YashanDbConnectionFactoryProvider</code> 负责解析并委托给 <code>ConnectionUrl</code>。</li>
+<li><strong>连接状态机</strong>：<code>YashanDbConnection</code> 维护 <code>autoCommit</code>、<code>transactionStatus</code> 枚举状态，事务操作返回 <code>Mono&lt;Void&gt;</code>。</li>
+<li><strong>线程安全</strong>：Protocol 层连接对象不保证线程安全，通过 <code>AtomicBoolean closed</code> + <code>Mono.defer</code> 串行化操作，避免并发问题。</li>
+<li><strong>错误转换</strong>：将 <code>com.yashandb.*</code> 异常统一转换为 <code>R2dbcException</code> 子类（<code>R2dbcBadGrammarException</code>、<code>R2dbcNonTransientResourceException</code> 等）。</li>
+</ul>
+<hr/>
+<h2 id="架构设计">架构设计</h2>
+<div class="language-mermaid">graph TD
+   A[应用层&lt;br/&gt;Spring Data R2DBC / R2DBC Client] --&gt;|r2dbc-spi| B[ConnectionFactory SPI]
+   B --&gt; C[YashanDbConnectionFactory]
+   C --&gt; D[YashanDbConnection]
+   D --&gt; E[YashanDbStatement]
+   E --&gt; F[YashanDbResult]
+   F --&gt; G[YashanDbRow / YashanDbRowMetadata]
+
+   subgraph r2dbc-yashandb 驱动内部
+       C
+       D
+       E
+       F
+       G
+       H[YashanDbConnectionConfiguration]
+       I[YashanDbConnectionFactoryProvider]
+       J[YashanDbExceptionFactory]
+       K[ColumnDecoder / TypeMapping]
+   end
+
+   subgraph yashandb-jdbc-1.10.2.jar 复用层
+       L[com.yashandb.protocol.*&lt;br/&gt;NativeProtocol / YasSocketConnection]
+       M[com.yashandb.conf.*&lt;br/&gt;ConnectionUrl / YasProperty]
+       N[com.yashandb.protocol.accessor.*&lt;br/&gt;类型访问器]
+       O[com.yashandb.core.DataType]
+       P[com.yashandb.parameter.*]
+   end
+
+   C --&gt; H
+   C --&gt; L
+   D --&gt; L
+   E --&gt; L
+   E --&gt; P
+   G --&gt; N
+   G --&gt; O
+   I --&gt; M
+   D --&gt; J
+   G --&gt; K
+</div>
+<hr/>
+<h2 id="目录结构">目录结构</h2>
+<pre><code>r2dbc-yashandb/
+├── pom.xml                                          # [NEW] Maven 项目配置，引入 r2dbc-spi、reactor-core、本地 JDBC jar
+├── yashandb-jdbc-1.10.2.jar                         # [EXISTING] 本地 JDBC 依赖
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── io/r2dbc/yashandb/
+│       │       ├── YashanDbConnectionFactory.java       # [NEW] 实现 ConnectionFactory SPI；负责创建连接、持有 Configuration、实现 create() 返回 Mono&lt;Connection&gt;
+│       │       ├── YashanDbConnectionFactoryProvider.java # [NEW] 实现 ConnectionFactoryProvider SPI；解析 r2dbc:yashandb:// URL，构建 Configuration 并委托 Factory
+│       │       ├── YashanDbConnectionFactoryMetadata.java # [NEW] 实现 ConnectionFactoryMetadata，返回驱动名称 "YashanDB"
+│       │       ├── YashanDbConnectionConfiguration.java  # [NEW] 不可变配置对象；持有 host/port/database/username/password/connectTimeout 等；提供 Builder 模式
+│       │       ├── YashanDbConnection.java               # [NEW] 实现 Connection SPI；封装 NativeProtocol 实例；实现 createStatement/beginTransaction/commitTransaction/rollbackTransaction/close；维护 autoCommit/事务状态
+│       │       ├── YashanDbStatement.java                # [NEW] 实现 Statement SPI；支持 bind()/bindNull()；execute() 返回 Flux&lt;Result&gt;；内部通过 Mono.fromCallable 调度到 boundedElastic
+│       │       ├── YashanDbResult.java                   # [NEW] 实现 Result SPI；封装协议层 ExecuteResult；getRowsUpdated() 返回 Mono&lt;Long&gt;；map() 返回 Flux&lt;T&gt;，逐行发射
+│       │       ├── YashanDbRow.java                      # [NEW] 实现 Row SPI；委托类型访问器完成列值解码；支持按列名和列索引取值
+│       │       ├── YashanDbRowMetadata.java              # [NEW] 实现 RowMetadata SPI；暴露列名、数据类型、可空性等元数据
+│       │       ├── YashanDbColumnMetadata.java           # [NEW] 实现 ColumnMetadata SPI；封装单列元数据（名称、R2DBC 类型、原生类型、精度/标度）
+│       │       ├── codec/
+│       │       │   ├── Codec.java                        # [NEW] 编解码器接口；定义 canDecode/decode/canEncode/encode 方法签名
+│       │       │   ├── DefaultCodecs.java                # [NEW] 编解码器注册表；管理所有 Codec 实例；提供 decode(columnValue, targetType) 和 encode(value) 统一入口
+│       │       │   ├── StringCodec.java                  # [NEW] String/Char/Varchar 类型编解码
+│       │       │   ├── IntegerCodec.java                 # [NEW] INT/SMALLINT/TINYINT 编解码
+│       │       │   ├── LongCodec.java                    # [NEW] BIGINT 编解码
+│       │       │   ├── DoubleCodec.java                  # [NEW] FLOAT/DOUBLE 编解码
+│       │       │   ├── BigDecimalCodec.java              # [NEW] NUMBER/DECIMAL 编解码
+│       │       │   ├── LocalDateCodec.java               # [NEW] DATE 类型编解码
+│       │       │   ├── LocalDateTimeCodec.java           # [NEW] TIMESTAMP 类型编解码
+│       │       │   ├── BlobCodec.java                    # [NEW] BLOB 类型编解码，返回 io.r2dbc.spi.Blob
+│       │       │   ├── ClobCodec.java                    # [NEW] CLOB 类型编解码，返回 io.r2dbc.spi.Clob
+│       │       │   └── ByteArrayCodec.java               # [NEW] RAW/BINARY 字节数组编解码
+│       │       └── util/
+│       │           ├── Assert.java                       # [NEW] 参数断言工具，避免引入额外依赖
+│       │           └── ExceptionFactory.java             # [NEW] 统一异常转换工厂；将 yashandb 异常映射到 R2dbcException 子类
+│       └── resources/
+│           └── META-INF/services/
+│               └── io.r2dbc.spi.ConnectionFactoryProvider # [NEW] SPI 注册文件，内容为 io.r2dbc.yashandb.YashanDbConnectionFactoryProvider
+│
+└── src/
+   └── test/
+       └── java/
+           └── io/r2dbc/yashandb/
+               ├── YashanDbConnectionFactoryTest.java    # [NEW] 单元测试：ConnectionFactory 构建、URL 解析
+               ├── YashanDbConnectionTest.java           # [NEW] 单元测试：事务状态机、连接生命周期
+               ├── YashanDbStatementTest.java            # [NEW] 单元测试：参数绑定、SQL 执行流
+               ├── YashanDbResultTest.java               # [NEW] 单元测试：结果集映射、行读取
+               └── codec/
+                   └── CodecTest.java                    # [NEW] 单元测试：各类型编解码正确性
+</code></pre>
+<hr/>
+<h2 id="关键代码结构">关键代码结构</h2>
+<h3 id="-Builder"><code>YashanDbConnectionConfiguration</code> Builder</h3>
+<pre><code class="language-java">public final class YashanDbConnectionConfiguration {
+   private final String host;
+   private final int port;
+   private final String database;
+   private final String username;
+   private final CharSequence password;
+   private final Duration connectTimeout;
+   // getters ...
+
+   public static Builder builder() { return new Builder(); }
+
+   public static final class Builder {
+       public Builder host(String host) { ... }
+       public Builder port(int port) { ... }
+       public Builder database(String database) { ... }
+       public Builder username(String username) { ... }
+       public Builder password(CharSequence password) { ... }
+       public Builder connectTimeout(Duration connectTimeout) { ... }
+       public YashanDbConnectionConfiguration build() { ... }
+   }
+}
+</code></pre>
+<h3 id="-接口"><code>Codec&lt;T&gt;</code> 接口</h3>
+<pre><code class="language-java">public interface Codec&lt;T&gt; {
+   boolean canDecode(int nativeType, Class&lt;?&gt; targetType);
+   T decode(Object value, int nativeType, Class&lt;? extends T&gt; targetType);
+   boolean canEncode(Object value);
+   Parameter encode(Object value);
+}
+</code></pre>
+<h3 id="-核心结构"><code>YashanDbResult</code> 核心结构</h3>
+<pre><code class="language-java">public final class YashanDbResult implements Result {
+   // 覆盖 getRowsUpdated() -&gt; Mono&lt;Long&gt;
+   // 覆盖 map(BiFunction&lt;Row, RowMetadata, T&gt;) -&gt; Flux&lt;T&gt;
+   // 内部通过 Flux.fromIterable(rows).map(...) 发射行数据
+}
+</code></pre>
+<h2 id="使用的-Agent-扩展">使用的 Agent 扩展</h2>
+<h3 id="SubAgent">SubAgent</h3>
+<ul>
+<li><strong>code-explorer</strong></li>
+<li>用途：探索 <code>yashandb-jdbc-1.10.2.jar</code> 内部 class 文件结构，精确定位 <code>NativeProtocol</code>、<code>YasSocketConnection</code>、<code>ExecuteResult</code>、<code>ConnectionUrl</code>、<code>YasProperty</code> 等关键类的方法签名，为驱动实现提供准确的 API 调用依据。</li>
+<li>预期产出：获得协议层关键类的构造方法、核心方法签名，确保驱动实现代码能正确调用 JDBC jar 中的 internal API，避免编译错误。错误。</li>
+</ul>
+</blockquote>
+<p>后面他就啪啪啪自己在干了，我也去干其他活了，没管，烧了大概250 Credits后就开发完了，他自己编写的测试用例也通过了。</p>
+<p>不过由于没有提前给他可用的崖山数据库服务端环境，因此他的测试没有真实连库，于是我给了个环境给他，然后他又自己去干了，测了不对他就自己改，直到他认为本次任务已完成</p>
+<p><img alt="image-ifow.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ifow.png" srcset="/upload/image-ifow.png?width=1200 1200w, /upload/image-ifow.png?width=400 400w, /upload/image-ifow.png?width=1600 1600w, /upload/image-ifow.png?width=800 800w"/></p>
+<p><img alt="image-GjfA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GjfA.png" srcset="/upload/image-GjfA.png?width=1200 1200w, /upload/image-GjfA.png?width=400 400w, /upload/image-GjfA.png?width=1600 1600w, /upload/image-GjfA.png?width=800 800w"/></p>
+<p>但是吧，r2dbc其实有一套标准测试，用于验证各个数据库提供的r2dbc驱动是否符合规范，于是我也让他去测测</p>
+<p><img alt="image-XQjz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-XQjz.png" srcset="/upload/image-XQjz.png?width=1200 1200w, /upload/image-XQjz.png?width=400 400w, /upload/image-XQjz.png?width=1600 1600w, /upload/image-XQjz.png?width=800 800w"/></p>
+<p>测完后他发现他自己写的r2dbc驱动的确有问题，就自己修复了，都没找我确认。</p>
+<p><img alt="image-BXqV.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-BXqV.png" srcset="/upload/image-BXqV.png?width=1200 1200w, /upload/image-BXqV.png?width=400 400w, /upload/image-BXqV.png?width=1600 1600w, /upload/image-BXqV.png?width=800 800w"/></p>
+<p>很明显这里列名大小写他幻觉了。肯定有很多开发人员没搞懂数据库字段名大小写的原理，因此把AI给训错了。</p>
+<blockquote>
+<p>列名大小写那里再确认一下执行的完整用例，YASHANDB 应该是按别名大小写返回的，但是要求别名上用双引号包裹，如果没有双引号，数据库服务端会转成大写，和ORACLE的表现一致，所以我不觉得应该在r2dbc驱动里强制转小写</p>
+</blockquote>
+<p><img alt="image-rOSM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rOSM.png" srcset="/upload/image-rOSM.png?width=1200 1200w, /upload/image-rOSM.png?width=400 400w, /upload/image-rOSM.png?width=1600 1600w, /upload/image-rOSM.png?width=800 800w"/></p>
+<p>然后他就去自己分析自己把这个问题修好了。</p>
+<p>readme没有自动生成，让他生成一下，然后我发现了一个值得注意的地方</p>
+<pre><code>&gt; 其中 2 个用例因 YashanDB 不支持的特性被 `@Disabled`：
+&gt; - `compoundStatement`：YashanDB 不支持在单条 `createStatement()` 中执行 `;` 分隔的多条语句。开启`allowMultiStmt=true`后也只能返回第一条语句的结果。
+&gt; - `returnGeneratedValues`：YashanDB JDBC 驱动对非 IDENTITY 列不支持 `RETURN_GENERATED_KEYS`
+</code></pre>
+<p>这就没办法了，崖山的细节还是有欠缺，当然ORACLE的R2DBC也不支持一次性执行多条语句哈，只是崖山通过开参数能支持允许，但只返回第一条语句的结果也是做得有些粗糙了。<br/>
+至于 <code>RETURN_GENERATED_KEYS</code>，后来我让AI测了旧的JDBC驱动，竟然是可以跑通的，暂时不想管了，还是保持屏蔽吧。<br/>
+另外有个对未来版本崖山有兼容性问题的一个点，目前崖山数据库的所有官方连接驱动里，对于数据库名称都是忽略的，一旦未来崖山支持了多个库（其实最新版内核已经支持多个库了，只是连接驱动都还没支持），驱动都得改（虽然改动量应该不大）</p>
+<h2 id="CI-CD-workflow---github-copilot">CI/CD workflow - github copilot</h2>
+<p>到此也算开发完了，我就让copilot cli把这个项目推到github了，然后直接在网页的agents里让copilot去弄CI（毕竟是github自己的能力，就让github自己干了）。另外，我前面用的jdbc包在网上没有下载，我就另外给了个旧版本可以下载地址</p>
+<p><img alt="image-xKQK.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xKQK.png" srcset="/upload/image-xKQK.png?width=1200 1200w, /upload/image-xKQK.png?width=400 400w, /upload/image-xKQK.png?width=1600 1600w, /upload/image-xKQK.png?width=800 800w"/></p>
+<p><img alt="image-VUvu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VUvu.png" srcset="/upload/image-VUvu.png?width=1200 1200w, /upload/image-VUvu.png?width=400 400w, /upload/image-VUvu.png?width=1600 1600w, /upload/image-VUvu.png?width=800 800w"/></p>
+<p>后来我又发现崖山刚刚把jdbc驱动上传到maven了，就又改了下</p>
+<p><img alt="image-ALrM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ALrM.png" srcset="/upload/image-ALrM.png?width=1200 1200w, /upload/image-ALrM.png?width=400 400w, /upload/image-ALrM.png?width=1600 1600w, /upload/image-ALrM.png?width=800 800w"/></p>
+<p>action里直接跑release,也自动帮我打包发布了</p>
+<p><img alt="image-NJrz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-NJrz.png" srcset="/upload/image-NJrz.png?width=1200 1200w, /upload/image-NJrz.png?width=400 400w, /upload/image-NJrz.png?width=1600 1600w, /upload/image-NJrz.png?width=800 800w"/></p>
+<h2 id="性能测试---Qoder">性能测试 - Qoder</h2>
+<p>开发完了，自然要做下性能对比测试，我看了下我qoder还没用完，就让qoder写了个测试</p>
+<p><img alt="image-imff.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-imff.png" srcset="/upload/image-imff.png?width=1200 1200w, /upload/image-imff.png?width=400 400w, /upload/image-imff.png?width=1600 1600w, /upload/image-imff.png?width=800 800w"/></p>
+<p>的确有发现性能问题，其他场景性能表现正常，但批量插入的性能慢了几十倍</p>
+<p><img alt="image-ZSIT.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ZSIT.png" srcset="/upload/image-ZSIT.png?width=1200 1200w, /upload/image-ZSIT.png?width=400 400w, /upload/image-ZSIT.png?width=1600 1600w, /upload/image-ZSIT.png?width=800 800w"/></p>
+<p>于是就让qoder去克隆了这个项目找问题</p>
+<p><img alt="image-bEXO.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bEXO.png" srcset="/upload/image-bEXO.png?width=1200 1200w, /upload/image-bEXO.png?width=400 400w, /upload/image-bEXO.png?width=1600 1600w, /upload/image-bEXO.png?width=800 800w"/></p>
+<p>Qoder说找到了BUG，我就转给了copilot，自动修去了</p>
+<p><img alt="image-rSXy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rSXy.png" srcset="/upload/image-rSXy.png?width=1200 1200w, /upload/image-rSXy.png?width=400 400w, /upload/image-rSXy.png?width=1600 1600w, /upload/image-rSXy.png?width=800 800w"/></p>
+<p>修完再测</p>
+<h3 id="性能对比结果">性能对比结果</h3>
+<blockquote>
+<p>测试环境: YashanDB 23.2, JDK 17, 10 轮迭代</p>
+</blockquote>
+<h4 id="吞吐量对比--ops-sec-">吞吐量对比 (ops/sec)</h4>
+<table>
+<thead>
+<tr>
+<th>测试场景</th>
+<th align="right">JDBC</th>
+<th align="right">R2DBC</th>
+<th align="center">胜者</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple Query</td>
+<td align="right">1127.96</td>
+<td align="right">1146.50</td>
+<td align="center">R2DBC</td>
+</tr>
+<tr>
+<td>Batch Query (1K rows)</td>
+<td align="right">-</td>
+<td align="right">-</td>
+<td align="center">平局</td>
+</tr>
+<tr>
+<td>Batch Query (10K rows)</td>
+<td align="right">-</td>
+<td align="right">-</td>
+<td align="center">平局</td>
+</tr>
+<tr>
+<td>Simple Insert</td>
+<td align="right">1109.88</td>
+<td align="right">1139.64</td>
+<td align="center">R2DBC</td>
+</tr>
+<tr>
+<td><strong>Batch Insert (100 rows)</strong></td>
+<td align="right"><strong>53.15</strong></td>
+<td align="right"><strong>84.83</strong></td>
+<td align="center"><strong>R2DBC</strong></td>
+</tr>
+<tr>
+<td>Concurrent Query (10 threads)</td>
+<td align="right">1109.88</td>
+<td align="right">1109.16</td>
+<td align="center">平局</td>
+</tr>
+<tr>
+<td>Concurrent Query (50 threads)</td>
+<td align="right">2548.80</td>
+<td align="right">2588.96</td>
+<td align="center">R2DBC</td>
+</tr>
+<tr>
+<td>Concurrent Insert (10 threads)</td>
+<td align="right">95.97</td>
+<td align="right">92.86</td>
+<td align="center">JDBC</td>
+</tr>
+<tr>
+<td><strong>Concurrent Insert (50 threads)</strong></td>
+<td align="right"><strong>124.25</strong></td>
+<td align="right"><strong>170.00</strong></td>
+<td align="center"><strong>R2DBC</strong></td>
+</tr>
+<tr>
+<td>Transaction</td>
+<td align="right">3.25</td>
+<td align="right">3.23</td>
+<td align="center">平局</td>
+</tr>
+</tbody>
+</table>
+<h4 id="延迟对比--ms-">延迟对比 (ms)</h4>
+<table>
+<thead>
+<tr>
+<th>测试场景</th>
+<th align="right">JDBC Avg</th>
+<th align="right">R2DBC Avg</th>
+<th align="right">JDBC P95</th>
+<th align="right">R2DBC P95</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple Query</td>
+<td align="right">88.67</td>
+<td align="right">87.22</td>
+<td align="right">93.48</td>
+<td align="right">92.41</td>
+</tr>
+<tr>
+<td>Batch Query (1K)</td>
+<td align="right">201.60</td>
+<td align="right">194.81</td>
+<td align="right">213.05</td>
+<td align="right">206.93</td>
+</tr>
+<tr>
+<td>Batch Query (10K)</td>
+<td align="right">878.61</td>
+<td align="right">863.48</td>
+<td align="right">920.68</td>
+<td align="right">912.70</td>
+</tr>
+<tr>
+<td>Simple Insert</td>
+<td align="right">89.98</td>
+<td align="right">87.67</td>
+<td align="right">96.69</td>
+<td align="right">96.74</td>
+</tr>
+<tr>
+<td>Batch Insert (100)</td>
+<td align="right">188.15</td>
+<td align="right">117.88</td>
+<td align="right">194.55</td>
+<td align="right">141.93</td>
+</tr>
+<tr>
+<td>Concurrent Insert (50)</td>
+<td align="right">313.68</td>
+<td align="right">224.35</td>
+<td align="right">568.77</td>
+<td align="right">285.07</td>
+</tr>
+</tbody>
+</table>
+<h4 id="结论">结论</h4>
+<table>
+<thead>
+<tr>
+<th>统计</th>
+<th align="right">数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JDBC 胜出</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td>R2DBC 胜出</td>
+<td align="right">4</td>
+</tr>
+<tr>
+<td>平局</td>
+<td align="right">5</td>
+</tr>
+</tbody>
+</table>
+<p>测试程序源码：<a href="https://github.com/Dark-Athena/yashandb-r2dbc-vs-jdbc-test">https://github.com/Dark-Athena/yashandb-r2dbc-vs-jdbc-test</a></p>
+<h2 id="总结">总结</h2>
+<p>这体验简直是飞起来了，全程我一行代码没看，一行代码没写，甚至连git命令都没敲，就开发出来了能跑通R2DBC的官方测试的崖山数据库R2DBC驱动，CI/CD也齐活了。按以往，这种项目是要一个团队去维护的（当然，高级工程师自己一个人也能搞定）</p>
+<p>项目开源地址 https://github.com/Dark-Athena/r2dbc-yashandb</p>
+<p>本次开销 CodeBuddy 600 Credits, copilot使用都不到$0.5, Qoder用了 710 Credits(这玩意烧得贼快...)。重点是，我发布任务后不需要盯着看，自己可以去干其他活，隔一段时间回来看看就行（其实也不用，现在很多AI CODING工具，任务完成了会有音效提醒的），也就是说时间成本几乎可以忽略不计了。这意味着真的可以一个人同时替代多个团队了！</p>
+<p>下一篇就是使用这个新开发的R2DBC驱动，来连接HALO博客和崖山数据库了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

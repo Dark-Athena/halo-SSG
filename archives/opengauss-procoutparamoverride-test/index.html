@@ -155,7 +155,632 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E8%83%8C%E6%99%AF" tabindex="-1">背景</h2>
+<p>先说下数据库里说的函数重载是什么。比如我们知道数据库可能会有同名的函数，但是函数的参数声明不一样</p>
+<pre><code class="language-sql">select to_char(sysdate,'yyyymmdd') from dual;
+select to_char(0.1,'fm9990.00') from dual;
+</code></pre>
+<p>上面这种情况就叫函数的重载，虽然函数名一致，但实际在数据库中对应的是不同的函数。</p>
+<p>在ORACLE中，本身并不支持同名对象，ORACLE中的函数重载，基本都是在PACKAGE中实现的，比如上面的to_char函数，其实是在一个名为"STANDARD"的PACKAGE中。<br/>
+然后在ORACLE中，对于是否重载的判断，会同时考虑出入参的个数和类型，因此支持这样的重载</p>
+<pre><code class="language-sql">procedure proc1(p1 number,p2 varchar2,p3 out number);
+procedure proc1(p1 number,p2 varchar2);
+</code></pre>
+<p>而在openGauss中，支持在非package中重载存储过程，默认情况是只考虑存储过程名称以及入参的匹配，即上述两个同名存储过程由于都是有两个入参，且类型一致，会被识别为同一个存储过程，即不能重载。<br/>
+不过，在openGauss中，有参数来控制是否支持重载</p>
+<h2 id="%E7%9B%B8%E5%85%B3%E5%8F%82%E6%95%B0" tabindex="-1">相关参数</h2>
+<p><a href="https://docs.opengauss.org/zh/docs/5.0.0/docs/DatabaseReference/%E5%B9%B3%E5%8F%B0%E5%92%8C%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%85%BC%E5%AE%B9%E6%80%A7.html" target="_blank">官方文档</a></p>
+<pre><code class="language-sql">set behavior_compat_options='proc_outparam_override';
+</code></pre>
+<p>官方文档中，对此参数的说明为</p>
+<blockquote>
+<p>控制存储过程出参的重载行为，打开该参数后，对于存储过程只有out出参部分不同的情况下，也可以正常调用。</p>
+</blockquote>
+<p>结合我上面提到的那个重载的例子，这段话就好理解了。</p>
+<p>但是，实际上<strong>proc_outparam_override</strong>这个选项不仅如此</p>
+<h1 id="%E6%B5%8B%E8%AF%95" tabindex="-1">测试</h1>
+<h2 id="%E4%B8%80%E3%80%81%E5%88%9B%E5%BB%BA" tabindex="-1">一、创建</h2>
+<h3 id="a%E3%80%81package%E5%A4%96%E7%9A%84procedure" tabindex="-1">A、package外的procedure</h3>
+<p>1.关闭选项，创建in参数一致但out参数不一致的同名procedure，报错</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# show behavior_compat_options;
+ behavior_compat_options
+-------------------------
+
+(1 row)
+
+testdb=# create procedure test_outparam_1(p1 int,p2 out int) is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_1(p1 int,p2 out int)';
+testdb$# end;
+testdb$# /
+CREATE PROCEDURE
+testdb=# create procedure test_outparam_1(p1 int,p2 out int,p3 out int) is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_1(p1 int,p2 out int,p3 out int)';
+testdb$# end;
+testdb$# /
+ERROR:  function "test_outparam_1" already exists with same argument types
+testdb=#
+</code></pre>
+<p>2.用create or replace procedure，会直接覆盖同名procedure</p>
+<pre><code class="language-sql">testdb=# create or replace procedure test_outparam_1(p1 int,p2 out int,p3 out int) is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_1(p1 int,p2 out int,p3 out int)';
+testdb$# end;
+testdb$# /
+CREATE PROCEDURE
+testdb=# declare
+testdb-# x int;
+testdb-# begin
+testdb$# test_outparam_1(1,x);
+testdb$# end;
+testdb$# /
+ERROR:  function "test_outparam_1" with 2 parameters doesn't exist
+CONTEXT:  SQL statement "CALL test_outparam_1(1,x)"
+PL/pgSQL function inline_code_block line 4 at SQL statement
+testdb=# declare
+testdb-# x int;
+testdb-# y int;
+testdb-# begin
+testdb$# test_outparam_1(1,x,y);
+testdb$# end;
+testdb$# /
+NOTICE:  this is test_outparam_1(p1 int,p2 out int,p3 out int)
+ANONYMOUS BLOCK EXECUTE
+testdb=#
+</code></pre>
+<p>3.创建同名，但in参数类型不一致的procedure,发现也会将之前同名的procedure覆盖掉</p>
+<pre><code class="language-sql">testdb=# create or replace procedure test_outparam_1(p1 text,p2 out int,p3 out int) is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_1(p1 text,p2 out int,p3 out int)';
+testdb$# end;
+testdb$# /
+CREATE PROCEDURE
+testdb=# declare
+testdb-# x int;
+testdb-# y int;
+testdb-# begin
+testdb$# test_outparam_1(1,x,y);
+testdb$# end;
+testdb$# /
+NOTICE:  this is test_outparam_1(p1 text,p2 out int,p3 out int)
+ANONYMOUS BLOCK EXECUTE
+testdb=# \df test_outparam_1
+                                                         List of functions
+ Schema |      Name       | Result data type |           Argument data types           |  Type  | fencedmode | propackage | prokind
+--------+-----------------+------------------+-----------------------------------------+--------+------------+------------+---------
+ public | test_outparam_1 | record           | p1 text, OUT p2 integer, OUT p3 integer | normal | f          | f          | p
+(1 row)
+
+testdb=#
+</code></pre>
+<p>4.打开选项后，上述测试结果不会发生变化</p>
+<h3 id="b%E3%80%81package%E5%A4%96%E7%9A%84function(oracle%E8%AF%AD%E6%B3%95%E9%A3%8E%E6%A0%BC)" tabindex="-1">B、package外的function(ORACLE语法风格)</h3>
+<p>1.关闭选项，创建in参数一致但out参数不一致的同名function，报错</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create function test_outparam_2(p1 int,p2 out int) return int is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_2(p1 int,p2 out int)';
+testdb$# return 1;
+testdb$# end;
+testdb$# /
+CREATE FUNCTION
+testdb=# create function test_outparam_2(p1 int,p2 out int,p3 out int) return int is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_2(p1 int,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;
+testdb$# /
+ERROR:  function "test_outparam_2" already exists with same argument types
+testdb=#
+</code></pre>
+<p>2.用create or replace function ,会直接覆盖同名function</p>
+<pre><code class="language-sql">testdb=# create or replace function test_outparam_2(p1 int,p2 out int,p3 out int) return int is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_2(p1 int,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;
+testdb$# /
+CREATE FUNCTION
+testdb=# \df test_outparam_2
+                                                           List of functions
+ Schema |      Name       | Result data type |            Argument data types             |  Type  | fencedmode | propackage | prokind
+--------+-----------------+------------------+--------------------------------------------+--------+------------+------------+---------
+ public | test_outparam_2 | integer          | p1 integer, OUT p2 integer, OUT p3 integer | normal | f          | f          | f
+(1 row)
+
+testdb=#
+</code></pre>
+<p>3.创建同名，但in参数类型不一致的function,发现也会将之前同名的function覆盖掉</p>
+<pre><code class="language-sql">testdb=# create or replace function test_outparam_2(p1 text,p2 out int,p3 out int) return int is
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_2(p1 text,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;
+testdb$# /
+CREATE FUNCTION
+testdb=# \df test_outparam_2
+                                                         List of functions
+ Schema |      Name       | Result data type |           Argument data types           |  Type  | fencedmode | propackage | prokind
+--------+-----------------+------------------+-----------------------------------------+--------+------------+------------+---------
+ public | test_outparam_2 | integer          | p1 text, OUT p2 integer, OUT p3 integer | normal | f          | f          | f
+(1 row)
+
+testdb=#
+</code></pre>
+<p>4.打开选项后，上述测试结果不会发生变化</p>
+<h3 id="c%E3%80%81package%E5%A4%96%E7%9A%84function(pg%E8%AF%AD%E6%B3%95%E9%A3%8E%E6%A0%BC)" tabindex="-1">C、package外的function(PG语法风格)</h3>
+<p>1.关闭选项，创建in参数一致但out参数不一致的同名function,报错</p>
+<pre><code class="language-sql">testdb=# create function test_outparam_3(p1 int,p2 out int) returns int as $$
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_3(p1 int,p2 out int)';
+testdb$# return 1;
+testdb$# end;$$language plpgsql;
+CREATE FUNCTION
+testdb=# create function test_outparam_3(p1 int,p2 out int,p3 out int) returns int as $$
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_3(p1 int,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;$$language plpgsql;
+ERROR:  function "test_outparam_3" already exists with same argument types
+testdb=#
+</code></pre>
+<p>2.用create or replace function ,会直接覆盖同名function</p>
+<pre><code class="language-sql">testdb=# create or replace function test_outparam_3(p1 int,p2 out int,p3 out int) returns int as $$
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_3(p1 int,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;$$language plpgsql;
+CREATE FUNCTION
+testdb=# \df test_outparam_3
+                                                           List of functions
+ Schema |      Name       | Result data type |            Argument data types             |  Type  | fencedmode | propackage | prokind
+--------+-----------------+------------------+--------------------------------------------+--------+------------+------------+---------
+ public | test_outparam_3 | integer          | p1 integer, OUT p2 integer, OUT p3 integer | normal | f          | f          | f
+(1 row)
+
+testdb=#
+</code></pre>
+<p>3.创建同名，但in参数类型不一致的function,<strong>此时不会覆盖原有同名函数</strong></p>
+<pre><code class="language-sql">testdb=# create or replace function test_outparam_3(p1 text,p2 out int,p3 out int) returns int as $$
+testdb$# begin
+testdb$# raise notice 'this is test_outparam_3(p1 text,p2 out int,p3 out int)';
+testdb$# return 1;
+testdb$# end;$$language plpgsql;
+CREATE FUNCTION
+testdb=# \df test_outparam_3
+                                                           List of functions
+ Schema |      Name       | Result data type |            Argument data types             |  Type  | fencedmode | propackage | prokind
+--------+-----------------+------------------+--------------------------------------------+--------+------------+------------+---------
+ public | test_outparam_3 | integer          | p1 integer, OUT p2 integer, OUT p3 integer | normal | f          | f          | f
+ public | test_outparam_3 | integer          | p1 text, OUT p2 integer, OUT p3 integer    | normal | f          | f          | f
+(2 rows)
+
+testdb=#
+</code></pre>
+<p>4.打开选项后，上述测试结果不会发生变化</p>
+<h3 id="d%E3%80%81package%E5%86%85%E7%9A%84procedure" tabindex="-1">D、PACKAGE内的procedure</h3>
+<p>1.关闭选项，入参一致，出参不一致的同名procedure,创建报错</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create package test_outparam_4 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# procedure a(p1 int,p2 out int,p3 out int);
+testdb$# end test_outparam_4;
+testdb$# /
+ERROR:  can not override out param:a
+LINE 2: procedure a(p1 int,p2 out int);
+</code></pre>
+<p>2.打开选项，再次创建，不报错</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create package test_outparam_4 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# procedure a(p1 int,p2 out int,p3 out int);
+testdb$# end test_outparam_4;
+testdb$# /
+CREATE PACKAGE
+testdb=#
+</code></pre>
+<p>3.关闭选项，入参类型不一致，出参一致，创建成功(打开参数时，情况一样)</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_4 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# procedure a(p1 text,p2 out int);
+testdb$# end test_outparam_4;
+testdb$# /
+CREATE PACKAGE
+testdb=#
+testdb=# create type int_table is table of int;
+CREATE TYPE
+testdb=# create or replace  package test_outparam_4 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# procedure a(p1 int_table,p2 out int);
+testdb$# end test_outparam_4;
+testdb$# /
+CREATE PACKAGE
+testdb=#
+</code></pre>
+<p>4.特殊情况1,procedure的名称和入参的自定义复合类型中的一个属性名一致时，会报错（此处与重载无关）</p>
+<pre><code class="language-sql">openGauss=# create type test_ttyy as (a int,b int);
+CREATE TYPE
+openGauss=# create or replace  package test_outparam_4 is
+openGauss$# procedure a(p1 test_ttyy,p2 out int);
+openGauss$# end test_outparam_4;
+openGauss$# /
+ERROR:  "a" is already an attribute of type test_ttyy
+openGauss=#
+</code></pre>
+<p>5.特殊情况2，带inout的参数，在关闭重载选项时，只会判断in的参数个数，不会判断参数的数据类型，一个inout参数相当于一个in参数和一个out参数，下例两个procedure都只有一个in参数，因此创建报错；但打开重载选项后，可以创建成功，此时inout视为一个参数，判断重复的规则变成了 “存储过程名称+总参数个数+按相同顺序的参数inout类型+按相同顺序参数数据类型”</p>
+<pre><code class="language-sql">testdb=# create package test_out is
+testdb$# procedure p1(a date,b out text);
+testdb$# procedure p1(a inout int);
+testdb$# end test_out;
+testdb$# /
+ERROR:  can not override out param:p1
+LINE 2: procedure p1(a date,b out text);
+testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace package test_out is
+testdb$# procedure p1(a date,b out text);
+testdb$# procedure p1(a inout int);
+testdb$# end test_out;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package test_out is
+testdb$# procedure p1(a int,b out int);
+testdb$# procedure p1(a inout int);
+testdb$# end test_out;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package test_out is
+testdb$# procedure p1(a int,b out int);
+testdb$# procedure p1(a inout int,b out int);
+testdb$# end test_out;
+testdb$# /
+CREATE PACKAGE
+</code></pre>
+<h3 id="e%E3%80%81package%E5%86%85%E7%9A%84function" tabindex="-1">E、PACKAGE内的function</h3>
+<p>1.关闭选项，入参一致，出参不一致的同名function,创建报错</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_5 is
+testdb$# function f1(p1 int,p2 out int) return int;
+testdb$# function f1(p1 int,p2 out text) return int;
+testdb$# end test_outparam_5;
+testdb$# /
+ERROR:  function declared duplicate: f1
+</code></pre>
+<p>2.打开选项，再次创建，报错发生变化</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace  package test_outparam_5 is
+testdb$# function f1(p1 int,p2 out int) return int;
+testdb$# function f1(p1 int,p2 out text) return int;
+testdb$# end test_outparam_5;
+testdb$# /
+ERROR:  "f1" functions with plpgsql language and out params are not supported Overloaded.
+DETAIL:  N/A.
+testdb=#
+</code></pre>
+<p>3.关闭选项，入参类型不一致，出参一致，创建成功(打开选项时，情况一样)</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_5 is
+testdb$# function f1(p1 int,p2 out int) return int;
+testdb$# function f1(p1 text,p2 out int) return int;
+testdb$# end test_outparam_5;
+testdb$# /
+CREATE PACKAGE
+testdb=#
+</code></pre>
+<h2 id="%E4%BA%8C%E3%80%81%E4%BD%BF%E7%94%A8" tabindex="-1">二、使用</h2>
+<h3 id="plsql-block%E4%B8%AD%E4%BD%BF%E7%94%A8" tabindex="-1">PLSQL block中使用</h3>
+<p>1.开启重载选项，调用package中的procedure,重载的procedure均可正常获取出参</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace  package test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# procedure a(p1 int,p2 out int,p3 out int);
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace  package body test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int) is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# end;
+testdb$# procedure a(p1 int,p2 out int,p3 out int) is
+testdb$# begin
+testdb$# p2:=p1*10;
+testdb$# p3:=p1*10;
+testdb$# end;
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# declare
+testdb-# x1 int:=1;
+testdb-# x2 int;
+testdb-# y1 int:=2;
+testdb-# y2 int;
+testdb-# y3 int;
+testdb-# begin
+testdb$# test_outparam_6.a(x1,x2);
+testdb$# test_outparam_6.a(y1,y2,y3);
+testdb$# raise notice '%,%',x1,x2;
+testdb$# raise notice '%,%,%',y1,y2,y3;
+testdb$# end;
+testdb$# /
+NOTICE:  1,1
+NOTICE:  2,20,20
+ANONYMOUS BLOCK EXECUTE
+testdb=#
+</code></pre>
+<p>2.关闭选项，调用包内带出参的procedure (无重载的情况)，可正常获取出参</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace  package body test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int) is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# end;
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# declare
+testdb-# x1 int:=1;
+testdb-# x2 int;
+testdb-# begin
+testdb$# test_outparam_6.a(x1,x2);
+testdb$# raise notice '%,%',x1,x2;
+testdb$# end;
+testdb$# /
+NOTICE:  1,1
+ANONYMOUS BLOCK EXECUTE
+testdb=#
+</code></pre>
+<p>3.开启选项，调用包内带出参的函数，出参可正常获取</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace package test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package body test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# return p1+p2;
+testdb$# end;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# declare
+testdb-# x1 int:=1;
+testdb-# x2 int;
+testdb-# r int;
+testdb-# begin
+testdb$# r:=test_outparam_8.a(x1,x2);
+testdb$# raise notice '%,%,%',x1,x2,r;
+testdb$# end;
+testdb$# /
+NOTICE:  1,1,2
+ANONYMOUS BLOCK EXECUTE
+testdb=#
+</code></pre>
+<p>4.关闭选项，调用包内带出参的函数,<strong>无法获得out参数的值</strong></p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace package test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package body test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# return p1+p2;
+testdb$# end;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# declare
+testdb-# x1 int:=1;
+testdb-# x2 int;
+testdb-# r int;
+testdb-# begin
+testdb$# r:=test_outparam_8.a(x1,x2);
+testdb$# raise notice '%,%,%',x1,x2,r;
+testdb$# end;
+testdb$# /
+NOTICE:  1,&lt;NULL&gt;,2
+ANONYMOUS BLOCK EXECUTE
+testdb=#
+</code></pre>
+<h3 id="sql%E4%B8%AD%E4%BD%BF%E7%94%A8" tabindex="-1">SQL中使用</h3>
+<p>1.关闭重载选项，使用select 方式调用package中的procedure，传参只能传in参数，不能传out参数（带默认值的in参数可以不传）</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace  package body test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int) is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# end;
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# select test_outparam_6.a(1);
+ a
+---
+ 1
+(1 row)
+
+testdb=# select test_outparam_6.a(1,1);
+ERROR:  function test_outparam_6.a(integer, integer) does not exist
+LINE 1: select test_outparam_6.a(1,1);
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+CONTEXT:  referenced column: a
+testdb=#
+</code></pre>
+<p>2.打开重载选项，使用select 方式调用package中的procedure，必须传满in和out参数,out参数只需要传对类型，值无实际意义（带默认值的in参数可以不传）</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace  package test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int);
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace  package body test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int) is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# end;
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# select test_outparam_6.a(1);
+ERROR:  function test_outparam_6.a(integer) does not exist
+LINE 1: select test_outparam_6.a(1);
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+CONTEXT:  referenced column: a
+testdb=# select test_outparam_6.a(1,1);
+ a
+---
+ 1
+(1 row)
+</code></pre>
+<p>3.获取多个out参数的方法</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace  package test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int,p3 out int);
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace  package body test_outparam_6 is
+testdb$# procedure a(p1 int,p2 out int,p3 out int) is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# p3:=p1*10;
+testdb$# end;
+testdb$# end test_outparam_6;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# select * from test_outparam_6.a(1);
+ p2 | p3
+----+----
+  1 | 10
+(1 row)
+
+testdb=# set behavior_compat_options='proc_outparam_override';--打开重载
+SET
+testdb=# select * from test_outparam_6.a(1);
+ERROR:  function test_outparam_6.a(integer) does not exist
+LINE 1: select * from test_outparam_6.a(1);
+                      ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+testdb=# select * from test_outparam_6.a(1,2,3);
+ p2 | p3
+----+----
+  1 | 10
+(1 row)
+
+testdb=#
+</code></pre>
+<p>4.关闭重载选项，使用select 方式调用带出参的package内function</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='';
+SET
+testdb=# create or replace package test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package body test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# return p1+p2;
+testdb$# end;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# select test_outparam_8.a(1);
+ a
+---
+ 2
+(1 row)
+
+testdb=# select test_outparam_8.a(1,1);
+ERROR:  function test_outparam_8.a(integer, integer) does not exist
+LINE 1: select test_outparam_8.a(1,1);
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+CONTEXT:  referenced column: a
+testdb=#
+</code></pre>
+<p>5.打开重载选项，使用select 方式调用带出参的package内function</p>
+<pre><code class="language-sql">testdb=# set behavior_compat_options='proc_outparam_override';
+SET
+testdb=# create or replace package test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE
+testdb=# create or replace package body test_outparam_8 is
+testdb$# function a(p1 int,p2 out int) return int is
+testdb$# begin
+testdb$# p2:=p1;
+testdb$# return p1+p2;
+testdb$# end;
+testdb$# end test_outparam_8;
+testdb$# /
+CREATE PACKAGE BODY
+testdb=# select test_outparam_8.a(1);
+ERROR:  function test_outparam_8.a(integer) does not exist
+LINE 1: select test_outparam_8.a(1);
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+CONTEXT:  referenced column: a
+testdb=# select test_outparam_8.a(1,1);
+ a
+---
+ 2
+(1 row)
+
+testdb=#
+</code></pre>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>对于openGauss<br/>
+一、以下两条不会由于重载选项的差异发生行为改变<br/>
+1.使用ORACLE风格语法的procedure和function，创建规则和ORACLE一致，同名对象直接覆盖<br/>
+2.使用PG风格的FUNCTION，支持入参不一致的重载创建；对于入参一致，仅出参有差异的，会直接覆盖（如果return类型变化，创建会报错）<br/>
+二、重载选项会控制package中的procedure能否创建仅出参不一致的重载，关闭选项时，重载规则为仅入参不匹配；开启选项时，重载规则为任意参数不匹配。<br/>
+三、当有inout参数时，关闭重载选项，视为一个in参数和一个out参数，并且不再判断参数类型差异，重载必须要求入参个数不一致；开启重载选项时按上一条规则，即任意参数不匹配即可重载。<br/>
+四、打开重载选项时，PLSQL中调用PROCEDURE和FUNCTION方法和ORACLE一致，均可正常获取出参的值；关闭重载选项时，调用FUNCTION无法获得出参的值<br/>
+五、打开重载选项时，使用SQL查询procedure和function，需要传满参数，包括所有的in和out参数；关闭重载选项时，只需要传in和inout参数。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

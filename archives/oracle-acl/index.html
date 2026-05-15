@@ -155,7 +155,66 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>ORACLE数据库内可以通过调用内置的一些包对外部发起TCP通讯，比如UTL_HTTP/UTL_SMTP/UTL_TCP/UTL_INADDR等,但是为了保证安全，ORACLE数据库有ACL（Access Control List 访问控制列表）的配置，只有进行过对应正确的配置，才能成功向外发起TCP通讯；如果配置不对，在访问的时候肯能会报错“ORA-24247 网络访问被访问控制列表 (ACL) 拒绝”。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png" srcset="/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1200 1200w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=400 400w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1600 1600w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=800 800w"/><br/>
+上图为通常情况下，使用dbms_network_acl_admin包配置ACL规则的步骤，其实在这个包还可以配置wallet证书，不需要在PL/SQL代码中再去指定wallet路径了。另外还可以配置ACE访问控制条目，但不在本篇的讨论范围内，也就不说了。<br/>
+在配置前，先查询一下两个视图</p>
+<pre><code class="language-sql">select * from dba_network_acls;
+Select * From dba_network_acl_privileges ;
+</code></pre>
+<p>dba_network_acls为assign_acl维护进去的<br/>
+dba_network_acl_privileges为create_acl和add_privilege维护进去的</p>
+<p>如果dba_network_acl_privileges中有可用的记录，那么我们可以跳过create_acl这一步，直接使用存在的xml文件来新增权限；如果没有，那么我们就先创建一个acl</p>
+<h3 id="一创建acl">一、创建ACL</h3>
+<pre><code class="language-plsql">begin
+  dbms_network_acl_admin.create_acl(  
+                                    acl         =&gt; 'utl_http.xml', -- 自定义文件名称   
+                                    description =&gt; 'HTTP Access', -- 自定义描述    
+                                    principal   =&gt; 'DBUSER', -- 要配置的数据库账号，大小写敏感     
+                                    is_grant    =&gt; TRUE, -- 授权还是取消授权     
+                                    privilege   =&gt; 'connect', -- 连接权限    
+                                    start_date  =&gt; null, -- 起始日期，不维护则为不限制，下同   
+                                    end_date    =&gt; null -- 结束日期  
+                                    );
+end;
+/
+</code></pre>
+<h3 id="二然后再在这个acl中给这个用户增加一个resolve的权限">二、然后再在这个acl中给这个用户增加一个resolve的权限</h3>
+<pre><code class="language-plsql">begin
+  dbms_network_acl_admin.add_privilege( acl        =&gt; 'utl_http.xml', -- 刚才创建的acl名称     
+                                       principal  =&gt; 'DBUSER', -- 与上同   
+                                       is_grant   =&gt; TRUE, -- 与上同     
+                                       privilege  =&gt; 'resolve', -- resolve权限   
+                                       start_date =&gt; null,
+                                       end_date   =&gt; null);
+end;
+/
+</code></pre>
+<h3 id="三最后在acl中添加要访问的目标网址ip和域名均可可以指定端口范围">三、最后在acl中添加要访问的目标网址（ip和域名均可），可以指定端口范围</h3>
+<pre><code class="language-plsql">begin
+  dbms_network_acl_admin.assign_acl(    
+                                    acl  =&gt; 'utl_http.xml',
+                                    host =&gt; 'openo2o.jd.com',   
+                                    lower_port =&gt; null, -- 允许访问的起始端口号    
+                                    upper_port =&gt; Null -- 允许访问的截止端口号  
+                                    );
+  commit;
+end;
+/
+
+</code></pre>
+<p>配置完成后，查询一下前面说的两个视图，可以找到刚刚维护的规则信息。</p>
+<p>如果以后要对已维护的ACL新增用户，单独执行第二步即可；<br/>
+如果是要对已维护的ACL增加要访问的网址，单独执行第三步即可；<br/>
+如果是要不同的用户允许访问不同的网址，则要再另外创建ACL了</p>
+<p>即，一个ACL规则配置的就是 多个用户访问多个网址</p>
+<p>想了解更多，请参考oracle官方文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/DBMS_NETWORK_ACL_ADMIN.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/DBMS_NETWORK_ACL_ADMIN.html</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

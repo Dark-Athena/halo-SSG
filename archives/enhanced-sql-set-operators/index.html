@@ -155,7 +155,137 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>SQL集运算符,比较常见的有"UNION" 、"UNION ALL"、"MINUS"，而ORACLE在21c版本新增了多个SQL集运算符，至此已支持ANSI SQL中定义的所有SQL集运算关键字，方便各类数据库移植。</p>
+<h2 id="exceptexcept-all">EXCEPT/EXCEPT ALL</h2>
+<p>EXCEPT意思为排除，其实和MINUS是等效的，即对于上方数据集的元素，只要下方数据集中存在，就剔除，只返回下方数据集中不存在的元素，但需要注意的是，如果上方数据集中存在重复元素，它会去重只返回其一。</p>
+<pre><code class="language-sql">with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T1 
+  EXCEPT
+SELECT C1 FROM T2;
+
+C1
+---
+D
+Z
+
+
+with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T2 
+  EXCEPT
+SELECT C1 FROM T1;
+
+C1
+---
+E
+F
+
+</code></pre>
+<p>EXCEPT ALL和EXCEPT类似，区别只在于，如果上方数据集中存在相同元素，它是逐个剔除，重复元素分开算。</p>
+<pre><code class="language-sql">with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T1 
+  EXCEPT ALL
+SELECT C1 FROM T2;
+
+C1
+---
+C
+D
+Z
+--注意：虽然上下都有C，但还是返回了一个C
+
+with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T2 
+  EXCEPT ALL
+SELECT C1 FROM T1;
+
+C1
+---
+E
+F
+F
+
+</code></pre>
+<h2 id="intersectintersect-all">INTERSECT/INTERSECT ALL</h2>
+<p>INTERSECT是交集，即返回上下两个数据集中相同的部分，对于数据集中相同的元素，去重只返回其一。</p>
+<pre><code class="language-sql">with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T1 
+  INTERSECT
+SELECT C1 FROM T2;
+
+C1
+---
+A
+B
+C
+
+</code></pre>
+<p>INTERSECT ALL和INTERSECT类似，区别只在于，如果数据集中存在相同元素，它返回的数据不会去重。</p>
+<pre><code class="language-sql">with t1 as
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'C', 'D', 'Z'))),
+T2 AS
+ (select COLUMN_VALUE C1
+    from table(ora_mining_varchar2_nt('A', 'B', 'B', 'C', 'E', 'F', 'F')))
+SELECT C1 FROM T1 
+  INTERSECT ALL
+SELECT C1 FROM T2;
+
+C1
+---
+A
+B
+B
+C
+
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>其实可以发现，新增的这些用法，和之前的UNION/UNION ALL具有相同的特征，归纳整理如下</p>
+<table>
+<thead>
+<tr><th>运算符</th><th>含义</th><th>结果是否去重</th><th>备注</th></tr>
+</thead>
+<tbody>
+<tr><td>UNION</td><td>并集</td><td>是</td><td></td></tr>
+<tr><td>UNION ALL</td><td>并集</td><td>否</td><td></td></tr>
+<tr><td>MINUS</td><td>差集</td><td>是</td><td></td></tr>
+<tr><td>MINUS ALL</td><td>差集</td><td>否</td><td></td></tr>
+<tr><td>EXCEPT</td><td>差集</td><td>是</td><td>等效于MINUS</td></tr>
+<tr><td>EXCEPT ALL</td><td>差集</td><td>否</td><td>等效于MINUS ALL</td></tr>
+<tr><td>INTERSECT</td><td>交集</td><td>是</td><td></td></tr>
+<tr><td>INTERSECT ALL</td><td>交集</td><td>否</td><td></td></tr>
+</tbody>
+</table>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

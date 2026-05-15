@@ -159,7 +159,201 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>先上成果预览图吧<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png" srcset="/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1200 1200w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=400 400w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1600 1600w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=800 800w"/></p>
+<p>作为一个数据库sql开发者，肯定有很多人和我一样，想要有一个工具，能传入任意sql，解析出sql中的所有表。<br/>
+我之前有一篇文章<a href="/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql</a> 中就提到了，使用纯文本硬解析会存在很多不确定因素，比如oracle新版本就添加了新的sql语法，有些场景太难处理，而解析器则只需要配置好规则，并且标准化规则的语法，那么扩展性就很强了。</p>
+<p>antlr4 <a href="https://github.com/antlr/antlr4">https://github.com/antlr/antlr4</a></p>
+<p>Antlr这个老早就有了，如今已经比较成熟，像代码高亮插件prism就是用的这个。<br/>
+但是，我找了好久，竟然在网上没找到一份有关“识别sql中的表名”的现成完整代码或者程序！解析其他语言的倒是有，但最后解析出来一个树就啥也不提了。<br/>
+另外也找了很多问答，都是说Antlr4再加grammars-v4就可以解析sql了，但是就是不给代码。<br/>
+无奈之下，我只能抱着github啃作者的文档，这作者只给了个使用Antlr4解析器最简单的例子，没给个实际开发语言解析的例子，我就只能靠着自己的理解加上看源码来看到底是怎么回事了。</p>
+<p>首先，翻了很多文章，了解了Antlr4本身是个java程序，定义为解析器生成程序，而不是解析器本身。<br/>
+可以编写符合规范的解析文档，文件名后缀为"*.g4"，然后使用antlr4对这个g4文件生成其对应的解析器程序，在生成之前，可以指定好要生成哪种开发语言的能用的解析器，比如你想在python用，就传个python的参数进去，它就会生成对应的py文件；想生成java的，它就给你生成java文件。Antlr4支持的目标开发语言(不是指要解析的代码)目前多达9种</p>
+<blockquote>
+<p>Cpp<br/>
+CSharp<br/>
+Dart<br/>
+Go<br/>
+Java<br/>
+JavaScript<br/>
+Python2<br/>
+Python3<br/>
+Swift</p>
+</blockquote>
+<p>而理论上，Antlr4能解析的语法是无穷的，因为它本身并不带解析规则，解析规则完全依靠g4文件。</p>
+<p>所以为了配合Antlr4，这个作者开了个项目，让大家都来写各种语言的g4文件<br/>
+grammars-v4<br/>
+<a href="https://github.com/antlr/grammars-v4">https://github.com/antlr/grammars-v4</a><br/>
+好家伙，打开这个项目一看，目前（2021-10-08）有多达240种语言的g4文件！</p>
+<p>管他三七二十一，先把这两个项目的代码都下载下来。<br/>
+然后对着Antlr4的文档，开干<br/>
+<a href="https://github.com/antlr/antlr4/blob/master/doc/getting-started.md">https://github.com/antlr/antlr4/blob/master/doc/getting-started.md</a></p>
+<h2 id="操作步骤windows">操作步骤（windows）</h2>
+<h4 id="第1步安装java-jdk">第1步，安装java jdk</h4>
+<p>1.7版本以上，已安装请略过，前面说过了，Antlr4是java编写的解析器程序的生成程序，要运行java就得安装java，官方地址<br/>
+<a href="https://www.oracle.com/java/technologies/downloads">https://www.oracle.com/java/technologies/downloads</a></p>
+<h4 id="第2步下载antlr4">第2步，下载Antlr4</h4>
+<p>地址 <a href="https://www.antlr.org/download/">https://www.antlr.org/download/</a><br/>
+找最新版的，文件名是这个格式的 antlr-4.9.2-complete.jar</p>
+<p>建一个项目文件夹，我这里命名为 d:\sql_table,<br/>
+把下载好的antlr-4.9.2-complete.jar文件，放入sql_table文件夹</p>
+<h4 id="第3步设置环境变量">第3步，设置环境变量</h4>
+<p>在系统环境变量中，添加 CLASSPATH 指向 d:\sql_table\antlr-4.9.2-complete.jar</p>
+<h4 id="第4步下载并安装antlr4的runtime">第4步，下载并安装Antlr4的runtime</h4>
+<p>下载Antlr4的整个库<br/>
+<a href="https://github.com/antlr/antlr4">https://github.com/antlr/antlr4</a><br/>
+打开压缩包，解压 \runtime\python3 文件夹至任意目录，<br/>
+然后打开cmd，进入这个解压后的文件夹，<br/>
+在cmd中运行</p>
+<pre><code class="language-bat">python setup.py install
+</code></pre>
+<h4 id="第5步获得plsql的语法文件">第5步，获得plsql的语法文件</h4>
+<p>下载grammars-v4的整个库<br/>
+<a href="https://github.com/antlr/grammars-v4">https://github.com/antlr/grammars-v4</a><br/>
+下载后，解压压缩包中以下几个文件，放到我们的项目目录d:\sql_table中去</p>
+<ol>
+<li>sql\plsql\PlSqlLexer.g4</li>
+<li>sql\plsql\PlSqlParser.g4</li>
+<li>sql\plsql\Python3\PlSqlLexerBase.py</li>
+<li>sql\plsql\Python3\PlSqlParserBase.py</li>
+</ol>
+<h4 id="第6步生成解析器程序">第6步，生成解析器程序</h4>
+<p>打开cmd，定位到我们的项目目录 d:\sql_table<br/>
+在cmd窗口中依次运行以下三条命令</p>
+<pre><code class="language-bat">doskey antlr4vpy3=java org.antlr.v4.Tool -Dlanguage=Python3 -no-listener -visitor $*
+
+antlr4vpy3 PlSqlLexer.g4
+
+antlr4vpy3 PlSqlParser.g4
+</code></pre>
+<p>运行后，目录内会生成以下几个文件</p>
+<blockquote>
+<p>PlSqlLexer.py<br/>
+PlSqlParserVisitor.py<br/>
+PlSqlParser.py<br/>
+PlSqlLexer.tokens<br/>
+PlSqlLexer.interp<br/>
+PlSqlParser.interp<br/>
+PlSqlParser.tokens</p>
+</blockquote>
+<p>至此，原材料才算准备齐全,接下来开始使用这个东西</p>
+<h4 id="第7步测试">第7步，测试</h4>
+<p>在刚刚解压的Antlr4\runtime\python3\bin目录下，有个pygrun文件，是用python语言编写的，把这个文件复制到我们的项目目录 d:\sql_table ，<br/>
+然后打开cmd窗口，定位这里，在cmd'中执行，注意区分大小写</p>
+<pre><code class="language-bat">python pygrun -t PlSql sql_script
+</code></pre>
+<p>然后再输入一个sql，注意必须都大写， 比如</p>
+<pre><code class="language-bat">SELECT A FROM B
+</code></pre>
+<p>再 ctrl+z,回车<br/>
+稍等一会儿，程序就会返回<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png" srcset="/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1200 1200w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=400 400w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1600 1600w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=800 800w"/><br/>
+有一说一，这个性能真的有点差。</p>
+<p>这里提几点，</p>
+<ol>
+<li>pygrun 后面的参数中 -t表示生成树显示出来，不加就只解析语法是否正确。</li>
+<li>必填的两个参数为 语法名称 和 开始规则</li>
+<li>语法名称即为PlSqlLexer.py这个文件中， Lexer.py之前的几个字符，如果不匹配就会说找不到</li>
+<li>传入SQL必须大写，作者说是希望规范化，但是实际上大小写混用真的很难识别</li>
+</ol>
+<p>这个开始规则传什么，我研究了不少时间，它来源于PlSqlParser.g4文件中，一开始我想的是我要找from后面的表，就传了个from_clause，结果没识别出来，然后我又换成query_block，才识别出来，中间还被sql的大小写坑了，但是我换了个例子，用WITH开头的sql，又识别不出来了。仔细看这个PlSqlParser.g4文件的内容，是分一段一段的，其中有一段这个</p>
+<pre><code>
+subquery_basic_elements
+    : query_block
+    | '(' subquery ')'
+    ;
+
+subquery_operation_part
+    : (UNION ALL? | INTERSECT | MINUS) subquery_basic_elements
+    ;
+
+query_block
+    : SELECT (DISTINCT | UNIQUE | ALL)? selected_list
+      into_clause? from_clause where_clause? hierarchical_query_clause? group_by_clause? model_clause? order_by_clause? fetch_clause?
+    ;
+
+</code></pre>
+<p>query_block作为一个开始规则，同时出现在了subquery_basic_elements下面，是不是代表这个是包含关系？<br/>
+所以我一路找，找到了最顶层的，就是</p>
+<pre><code>sql_script
+    : ((unit_statement | sql_plus_command) SEMICOLON?)* EOF
+    ;
+</code></pre>
+<p>把sql_script带进去，没错了，只是速度会比之前用query_block更慢，但这样兼容性更高</p>
+<p>另外，这个pygrun有更新版本，支持界面显示树，加上 -g 参数即可，下载在这里<br/>
+<a href="https://github.com/jszheng/py3antlr4book/tree/master/bin">https://github.com/jszheng/py3antlr4book/tree/master/bin</a><br/>
+效果如下<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png" srcset="/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1200 1200w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=400 400w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1600 1600w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=800 800w"/></p>
+<p>有了这个例子，我们就要看怎么把我们要的东西挑出来了</p>
+<h4 id="第8步编写获取表名的程序">第8步，编写获取表名的程序</h4>
+<p>这里提一个名词 ，叫 面向对象编程， 之前看python教程的时候不觉得咋样，这次是真被折磨了，如果懂java的估计早就习惯了，但我纯自己写java实在太少，属于那种能查问题但不会写的。这个解析器里面用了好多自定义类，进去是啥知道，要不是开了源，压根就不知道出来的是啥，也不知道它有哪些方法（虽然用命令可查，但是我习惯了“记事本编程”，没有一边查定义一边编程的习惯），所以参考它这个带界面的那段程序，是一行一行写进去的，我们不需要界面，只需要知道怎样循环它，怎样拿它的值就行了，说这些，我肯定被java大佬鄙视了吧，这里python的逻辑和java太像了。。。</p>
+<p>根据这个界面分析，拿着原始sql，一个个位置数，看哪些关键字用得上。<br/>
+最后经过多种sql的验证，找出了Tableview_name这一层对应的start和stop中，包含有这个表名的开始位置和结束位置。<br/>
+因为表名 可能由 “用户名.表名@DBLINK 别名” 这一长串组成，这个解析器会把这些词分成很多截，我需要的是个完整的，但不包含别名的部分，只有Tableview_name中的几个数字才能凑出准确的位置<br/>
+即start中 第一个 逗号和第一个冒号之间的数字为开始位置，<br/>
+stop中 ，第一个冒号和第一个等于号之间的数字加1为结束位置</p>
+<p>分析到这里，<br/>
+程序来了</p>
+<pre><code class="language-python">import os
+import re
+from antlr4 import *
+#file_name=r'test.sql'
+tb_list=[]
+
+def get_table_position( node):
+    if isinstance(node, ParserRuleContext):
+        class_name = str(type(node))
+        if str(class_name)=="&lt;class 'PlSqlParser.PlSqlParser.Tableview_nameContext'&gt;":
+            tb_list.append([re.split(r'[,:]',str(node.start))[1],re.split(r'[:=]',str(node.stop))[1]])
+    if hasattr(node, 'children'):
+        for child in getattr(node, 'children'):
+            get_table_position(child)
+    return tb_list
+
+def get_table(l_sql):
+    lexerName = grammar + 'Lexer'
+    parserName = grammar + 'Parser'
+    module_lexer = __import__(lexerName, globals(), locals(), lexerName)
+    class_lexer = getattr(module_lexer, lexerName)
+    module_parser = __import__(parserName, globals(), locals(), parserName)
+    class_parser = getattr(module_parser, parserName)
+    #input_stream = FileStream(file_name)
+    input_stream = InputStream(l_sql.upper())
+    lexer = class_lexer(input_stream)
+    token_stream = CommonTokenStream(lexer)
+    token_stream.fill()
+    parser = class_parser(token_stream)
+    parser.buildParseTrees = True
+    func_start_rule = getattr(parser, start_rule)
+    parser_ret = func_start_rule()
+    tb_p=get_table_position(parser_ret)
+    return tb_p
+    
+grammar='PlSql'
+start_rule='sql_script'
+l_sql='''select COLA C1 FROM U.TAB1 
+X,TAB2 WHERE X.COL2=4'''
+tb_p=get_table(l_sql)
+print('该SQL中含有的表如下')
+for i in tb_p:
+    print(str(l_sql)[int(i[0]):int(i[1])+1])
+</code></pre>
+<p>直接运行，就得到了本文最开始的那个效果。</p>
+<p>有两行注释掉了，可以切换传入文件名</p>
+<h2 id="完整程序包">完整程序包</h2>
+<p>已完成新建文件夹，最近天气不好，有点累，休息一下，以后再弄</p>
+<p>我打算把整个过程需要用到的文件，包括安装命令，封一个包出来，然后程序也封装成一个函数，输入文件或者字符串返回结果，另外加上那个自动转换成dblink的功能，再让这个程序兼容在oracle中使用，就完美了。</p>
+<p>另外java版本的制作方式也极其类似，只多了一步，在生成解析器程序后，要用javac命令编译生成的解析器程序，我本地已测试成功，大佬们应该比我会玩，就不多说了</p>
+<h2 id="2021-10-15-更新">2021-10-15 更新</h2>
+<p>项目已上传github<br/>
+<a href="https://github.com/Dark-Athena/list_table_sql-py">https://github.com/Dark-Athena/list_table_sql-py</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

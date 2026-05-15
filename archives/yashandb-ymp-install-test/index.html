@@ -153,7 +153,178 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【YashanDB】数据迁移工具YMP安装测试</p>
+<h2 id="安装准备说明">安装准备说明</h2>
+<p>安装时需要提前准备好ymp的包、yashan数据库的包、ORACLE客户端的包。<br/>
+无论是使用内置库安装还是外置库安装，yashan数据库内核包都是需要的，因为就算使用外置库，ymp也需要内核包里的yasldr和exp</p>
+<h2 id="不按照文档来是失败的">不按照文档来是失败的</h2>
+<pre><code>CREATE USER YMP_DEFAULT IDENTIFIED BY Ymppw602. DEFAULT TABLESPACE users;
+ GRANT ALL PRIVILEGES TO YMP_DEFAULT;
+ GRANT DBA TO YMP_DEFAULT;
+</code></pre>
+<p>我这里第一次执行时，没有按照官方文档新建操作系统用户，而是直接使用root操作，后面是无法启动的</p>
+<pre><code>sh bin/ymp.sh connection --url 192.168.163.134:1688 --username YMP_DEFAULT --password Ymppw602.
+</code></pre>
+<p>使用外置库安装</p>
+<pre><code>sh bin/ymp.sh installnodb --db yashandb-23.4.1.102-linux-x86_64.tar.gz --path instantclient_19_23
+</code></pre>
+<p>注意这里ORACLE客户端是需要解压的</p>
+<p>外置库方式启动</p>
+<pre><code>sh bin/ymp.sh startnodb
+</code></pre>
+<p>启动失败</p>
+<p>状态查看</p>
+<pre><code>sh bin/ymp.sh status
+</code></pre>
+<p>没在运行</p>
+<pre><code>cd logs
+vi YMP-ERROR-2025-08-25-0.log
+ERROR org.springframework.boot.SpringApplication - Application run failed
+java.lang.RuntimeException: com.yashandb.tool.ymp.common.migrate.exception.YMPException: Password decryption failed: Last encoded character (before the paddings if
+ any) is a valid base 64 alphabet but not a possible value. Expected the discarded bits to be zero.
+</code></pre>
+<p>有报错，密码解密错误</p>
+<p>测试连接是正常的</p>
+<pre><code>cd tools/yasql/bin
+export LD_LIBRARY_PATH=../../../tools/yasldr/lib
+./yasql YMP_DEFAULT/Ymppw602.@localhost:1688
+</code></pre>
+<p>尝试改个密码</p>
+<pre><code> alter user YMP_DEFAULT IDENTIFIED by Yashan@123;
+sh bin/ymp.sh connection --url 192.168.163.134:1688 --username YMP_DEFAULT --password Yashan@123
+</code></pre>
+<p>再启动，情况一样</p>
+<p>卸载，然后改用内置库，日志输出可以看到已经连上数据库创建了一些对象了，但是最后还是start failed，查看错误日志文件，错误原因还是和之前一样，解析配置文件里的密码失败</p>
+<p>再卸载，然后新建ymp用户，全程在ymp用户下操作，成功了<br/>
+所以别在root下操作，老老实实按文档来吧</p>
+<h2 id="按文档安装一次性成功">按文档安装，一次性成功</h2>
+<pre><code>sh bin/ymp.sh install --db ../yashandb-23.4.1.102-linux-x86_64.tar.gz --path ../instantclient_19_23
+</code></pre>
+<pre><code>[ymp@kylinv10sp3-node1 yashan-migrate-platform]$ sh bin/ymp.sh install --db ../yashandb-23.4.2.104-linux-x86_64.tar.gz --path ../instantclient_19_23
+14:15:13.909 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.CheckServiceImpl - Check for env before install is successfully!
+14:15:19.917 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.PackageServiceImpl - Db package unpackage successfully!
+14:15:19.927 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.CheckServiceImpl - OCI version is 19.23.0.0.0!
+14:15:25.952 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.PackageServiceImpl - Install yasldr successfully!
+14:15:31.999 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.PackageServiceImpl - Install exp successfully!
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +--------------------------------------------------------------------------------------------------------------------------------------+
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | hostid   | group | node_type | node_name | listen_addr  | replication_addr | data_path                                               |
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +--------------------------------------------------------------------------------------------------------------------------------------+
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | host0001 | dbg1  | db        | 1-1       | 0.0.0.0:8091 | 127.0.0.1:8092   | /opt/software/ymp/yashan-migrate-platform/db/yasdb_data |
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------+-------+-----------+-----------+--------------+------------------+---------------------------------------------------------+
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:33.272 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - Generate config completed
+14:15:47.125 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - checking install profile.toml...
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - install version: yashandb 23.4.2.104
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - 我们信任您已经从系统管理员那里了解了日常注意事项。
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - 总结起来无外乎这三点：
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -     #1) 尊重别人的隐私。
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -     #2) 输入前要先考虑(后果和风险)。
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -     #3) 权力越大，责任越大。
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.126 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - 对不起，请重试。
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - 对不起，请重试。
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - sudo: 3 次错误密码尝试
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:47.127 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - update host to yasom...
+14:15:47.204 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +---------------------------------------------------------------------------------------------------------+
+14:15:47.205 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name               | hostid | index | status  | return_code | progress | cost |
+14:15:47.205 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +---------------------------------------------------------------------------------------------------------+
+14:15:49.206 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name               | hostid | index | status  | return_code | progress | cost |
+14:15:49.206 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +---------------------------------------------------------------------------------------------------------+
+14:15:51.207 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name               | hostid | index | status  | return_code | progress | cost |
+14:15:51.207 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +---------------------------------------------------------------------------------------------------------+
+14:15:53.208 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name               | hostid | index | status  | return_code | progress | cost |
+14:15:53.208 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +---------------------------------------------------------------------------------------------------------+
+14:15:55.209 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name               | hostid | index | status  | return_code | progress | cost |
+14:15:55.210 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +---------------------------------------------------------------------------------------------------------+] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.210 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | task | 2d3b9cac67d353f5 | DeployYasdbCluster | -      | ymp   | SUCCESS | 0           | 100      | 7    |
+14:15:55.210 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +------+------------------+--------------------+--------+-------+---------+-------------+----------+------+
+14:15:55.210 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - task completed, status: SUCCESS
+14:15:55.226 [main] INFO com.yashandb.tool.ymp.command.serviceimpl.InnerDbYasqlServiceImpl - Create user:
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - YashanDB SQL Enterprise Edition Release 23.4.2.104 x86_64
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - Connected to:
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - YashanDB Server Enterprise Edition Release 23.4.2.104 x86_64 - Linux
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - SQL&gt;
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - Succeed.
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - SQL&gt;
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - Succeed.
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - SQL&gt;
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - Succeed.
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:55.239 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - SQL&gt;
+14:15:55.301 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +-------------------------------------------------------------------------------------------------------+
+14:15:55.301 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name             | hostid | index | status  | return_code | progress | cost |
+14:15:55.301 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +-------------------------------------------------------------------------------------------------------+
+14:15:57.303 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name             | hostid | index | status  | return_code | progress | cost |
+14:15:57.303 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +-------------------------------------------------------------------------------------------------------+
+14:15:59.304 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name             | hostid | index | status  | return_code | progress | cost |
+14:15:59.304 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +-------------------------------------------------------------------------------------------------------+in] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:15:59.304 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | task | 23d16b8b36f046fd | StopYasdbCluster | -      | ymp   | SUCCESS | 0           | 100      | 3    |
+14:15:59.304 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +------+------------------+------------------+--------+-------+---------+-------------+----------+------+
+14:15:59.304 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - task completed, status: SUCCESS
+14:15:59.336 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +--------------------------------------------------------------------------------------------------------+
+14:15:59.336 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name              | hostid | index | status  | return_code | progress | cost |
+14:15:59.336 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +--------------------------------------------------------------------------------------------------------+
+14:16:01.338 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name              | hostid | index | status  | return_code | progress | cost |
+14:16:01.338 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +----------------------------------------------------------------------------------------                                                                          +--------------------------------------------------------------------------------------------------------+
+14:16:03.340 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | type | uuid             | name              | hostid | index | status  | return_code | progress | cost |
+14:16:03.340 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +--------------------------------------------------------------------------------------------------------+n] INFO com.yashandb.tool.ymp.command.util.CommandUtil -
+14:16:03.340 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - | task | 591302933d61397c | StartYasdbCluster | -      | ymp   | SUCCESS | 0           | 100      | 2    |
+14:16:03.340 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - +------+------------------+-------------------+--------+-------+---------+-------------+----------+------+
+14:16:03.340 [main] INFO com.yashandb.tool.ymp.command.util.CommandUtil - task completed, status: SUCCESS
+YMP install successfully!
+</code></pre>
+<h2 id="一些注意点">一些注意点</h2>
+<p>评估是真实在数据库中进行创建，可以选择在内置库或者目标库进行创建。</p>
+<p>该版本兼容性报告里的PL/SQL代码统计，是按解析通过的代码行数作为分母来计算百分比，就算所有package都不兼容，兼容率也可能会显示为99.9% ，因为分母里就没包含这些package的代码行。如果这个时候，修改了一个package使其兼容，总体兼容率其实反而会下降。</p>
+<p>自动改写的时候会去掉注释，不知是有意为之还是技术能力问题。</p>
+<h2 id="ycp的小插曲">YCP的小插曲</h2>
+<p>在YCP群里，有人问为什么考试版本的ymp服务器重启了，ymp就启动不了，</p>
+<pre><code class="language-bash">[ymp@centos79 yashan-migrate-platform]$ sh bin/ymp.sh restart
+2025-11-12 00:21:41 INFO    --- [main] com.sics.command.YmpCommandMain : 指令入参：["--operation","restart","--memory","4G"]
+2025-11-12 00:21:41 INFO    --- [main] com.sics.command.serviceimpl.YmpServiceImpl : YMP has not been started!
+2025-11-12 00:21:41 ERROR   --- [main] com.sics.command.util.CommandUtil : dial tcp 127.0.0.1:8093: connect: connection refused
+YMP restart failed!
+[ymp@centos79 yashan-migrate-platform]$ sh bin/ymp.sh stop
+2025-11-12 00:23:34 INFO    --- [main] com.sics.command.YmpCommandMain : 指令入参：["--operation","stop"]
+2025-11-12 00:23:34 ERROR   --- [main] com.sics.command.util.CommandUtil : dial tcp 127.0.0.1:8093: connect: connection refused
+YMP stop failed!
+</code></pre>
+<p>看上去似乎是连不上内置数据库就直接退出了。服务器重启，内置数据库当然是没启动的状态，得手动先启动数据库了。</p>
+<p>然后这里又有坑，ymp没加sudo权限，就没有成功配置用户组做免密登录（从前面的安装日志中也可以发现），而且环境变量也没自动加载，yasboot启动数据库会遇到好几个问题，我就整理了下操作步骤可以解决ymp启动不了的问题。</p>
+<pre><code class="language-bash"># root下执行
+groupadd YASDBA
+usermod -a -G YASDBA ymp
+# 切换用户
+su - ymp
+cd yashan-migrate-platform
+# 加载环境变量
+source db/conf/ymp.bashrc
+source db/conf/ymp_migrate.bashrc
+# 启动内置数据库
+yasboot process yasom start -c ymp
+yasboot process yasagent start -c ymp
+yasboot cluster start -c ymp
+# 启动ymp
+bin/ymp.sh start
+</code></pre>
+<p>据说官网的最新版本ymp已经解决了启动ymp时没有启动内置库的这个问题，我暂时就懒得去验证了，这个不是什么大不了的问题。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

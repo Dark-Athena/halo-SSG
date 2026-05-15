@@ -155,7 +155,323 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>从ORACLE 18C开始，ORACLE添加了PTF功能，目前在关系型数据库中，只有ORACLE支持此功能，简单来说，这个功能就是传入一个表作为参数，返回一个查询结果，而返回的这个表可以进行各种各样的定义或者修改，比如让返回的结果中自动屏蔽某些字段、自动对所有字段进行TRIM、自动对所有字段进行NVL、自动对所有number字段保留4位小数、自动添加一些字段、自动将所有date类型的字段修改为VARCHAR2类型，而且值得一提的是，一旦创建一个这样的函数，那么这个函数对所有的例子都通用，下面举几个例子来说明这个函数怎么使用。</p>
+<hr/>
+<h3 id="1将要查询的表中的所有date类型格式化成varchar2类型输出其他字段保持不变">1.将要查询的表中的所有date类型格式化成VARCHAR2类型输出，其他字段保持不变</h3>
+<p>众所周知，oracle中的date类型是个让人又爱又恨的类型，计算日期超方便，既可以表示年月日又可以表示年月日时分秒，麻烦的是，查询date类型默认输出的值是根据会话环境变量自动格式化的，经常会出现 “23-APR-21”或者“23-四月-21”这样的内容，在与其他系统进行数据交换时，经常会忘记使用"to_char"函数对日期进行格式化，导致其他系统接收失败，而且一个查询sql中date类型的字段多了，也要写好多个“to_char”，那么，有没有一种方式可以通用的，将所有要查询的数据中的date类型自动的进行to_char呢？</p>
+<pre><code class="language-plsql">--先创建一个包说明 
+CREATE OR REPLACE PACKAGE ptf_date_to_char AS
+  FUNCTION describe(tab IN OUT dbms_tf.table_t)RETURN dbms_tf.describe_t;      
+  PROCEDURE FETCH_ROWS;
+END ptf_date_to_char; 
+/
+--然后创建一个包体
+CREATE OR REPLACE PACKAGE BODY ptf_date_to_char AS
+  FUNCTION describe(tab IN OUT dbms_tf.table_t) RETURN dbms_tf.describe_t AS
+    new_cols DBMS_TF.COLUMNS_NEW_T;
+  BEGIN
+    FOR i IN 1 .. tab.column.count LOOP --对所有字段循环
+      IF tab.column(i).description.type IN (dbms_tf.type_date) THEN --如果字段是日期类型
+        tab.column(i).pass_through := FALSE; 
+        tab.column(i).for_read := TRUE; --是否多态表的列
+        NEW_COLS(i) := DBMS_TF.COLUMN_METADATA_T(name =&gt; tab.column(i).description.name, --字段名不变
+                                                 type =&gt; DBMS_TF.TYPE_VARCHAR2 --字段类型改成varchar2
+);
+      END IF;
+    END LOOP;
+    RETURN DBMS_TF.describe_t(new_columns     =&gt; new_cols,
+                              row_replication =&gt; true);
+  END;
+
+  PROCEDURE FETCH_ROWS AS
+    inp_rs DBMS_TF.row_set_t;
+    out_rs DBMS_TF.row_set_t;
+    rows   PLS_INTEGER;
+  BEGIN
+--只有上面进入了NEW_COLS的字段才会执行下面这段，其他字段保持不变
+--inp_rs 表示原始数据
+--out_rs 表示要输出的数据，默认情况下为空
+    DBMS_TF.get_row_set(inp_rs, rows); --获取原始数据
+    FOR c IN 1 .. inp_rs.count() LOOP --对列进行循环
+      FOR r IN 1 .. rows LOOP --对行进行循环
+        if inp_rs(c).tab_date(r) = trunc(inp_rs(c).tab_date(r)) then 
+               --这里做了个特殊处理，兼容年月日和年月日时分秒两种
+          out_rs(c).tab_varchar2(r) := to_char((inp_rs(c).tab_date(r)),
+                                               'yyyy-mm-dd');
+        else
+          out_rs(c).tab_varchar2(r) := to_char((inp_rs(c).tab_date(r)),
+                                               'yyyy-mm-dd hh24:mi:ss');
+        end if;
+      END LOOP;
+    END LOOP;
+    DBMS_TF.put_row_set(out_rs, replication_factor =&gt; 1);
+  END;
+END ptf_date_to_char;
+
+/
+--再创建个供直接调用的函数
+CREATE OR REPLACE FUNCTION ptf_date_to_char_F(tab TABLE)
+RETURN TABLE pipelined row polymorphic USING ptf_date_to_char;
+/
+
+
+</code></pre>
+<p>以上准备工作就做好了，让我们来测试一下</p>
+<pre><code class="language-sql">select * from ptf_date_to_char_F(hr.job_history);
+
+</code></pre>
+<table>
+<thead>
+<tr><th>EMPLOYEE_ID</th><th>JOB_ID</th><th>DEPARTMENT_ID</th><th>START_DATE</th><th>END_DATE</th></tr>
+</thead>
+<tbody>
+<tr><td>102</td><td>IT_PROG</td><td>60</td><td>2001-01-13</td><td>2006-07-24</td></tr>
+<tr><td>101</td><td>AC_ACCOUNT</td><td>110</td><td>1997-09-21</td><td>2001-10-27</td></tr>
+<tr><td>101</td><td>AC_MGR</td><td>110</td><td>2001-10-28</td><td>2005-03-15</td></tr>
+<tr><td>201</td><td>MK_REP</td><td>20</td><td>2004-02-17</td><td>2007-12-19</td></tr>
+<tr><td>114</td><td>ST_CLERK</td><td>50</td><td>2006-03-24</td><td>2007-12-31</td></tr>
+<tr><td>122</td><td>ST_CLERK</td><td>50</td><td>2007-01-01</td><td>2007-12-31</td></tr>
+<tr><td>200</td><td>AD_ASST</td><td>90</td><td>1995-09-17</td><td>2001-06-17</td></tr>
+<tr><td>176</td><td>SA_REP</td><td>80</td><td>2006-03-24</td><td>2006-12-31</td></tr>
+<tr><td>176</td><td>SA_MAN</td><td>80</td><td>2007-01-01</td><td>2007-12-31</td></tr>
+<tr><td>200</td><td>AC_ACCOUNT</td><td>90</td><td>2002-07-01</td><td>2006-12-31</td></tr>
+</tbody>
+</table>
+<p>这样好像看不出字段类型，没关系，我们用这个sql创建一个表就知道了</p>
+<pre><code class="language-sql">create table temp_test as 
+select * from ptf_date_to_char_F(hr.job_history);
+select TABLE_NAME, COLUMN_NAME, DATA_TYPE,DATA_LENGTH,COLUMN_ID 
+from DBA_TAB_COLS WHERE TABLE_NAME = 'TEMP_TEST';
+</code></pre>
+<table>
+<thead>
+<tr><th>TABLE_NAME</th><th>COLUMN_NAME</th><th>DATA_TYPE</th><th>DATA_LENGTH</th><th>COLUMN_ID</th></tr>
+</thead>
+<tbody>
+<tr><td>TEMP_TEST</td><td>EMPLOYEE_ID</td><td>NUMBER</td><td>22</td><td>1</td></tr>
+<tr><td>TEMP_TEST</td><td>JOB_ID</td><td>VARCHAR2</td><td>10</td><td>2</td></tr>
+<tr><td>TEMP_TEST</td><td>DEPARTMENT_ID</td><td>NUMBER</td><td>22</td><td>3</td></tr>
+<tr><td>TEMP_TEST</td><td>START_DATE</td><td>VARCHAR2</td><td>4000</td><td>4</td></tr>
+<tr><td>TEMP_TEST</td><td>END_DATE</td><td>VARCHAR2</td><td>4000</td><td>5</td></tr>
+</tbody>
+</table>
+<p>对比下原表</p>
+<pre><code class="language-sql">select TABLE_NAME, COLUMN_NAME, DATA_TYPE,DATA_LENGTH,COLUMN_ID 
+from DBA_TAB_COLS WHERE TABLE_NAME = 'JOB_HISTORY';
+
+</code></pre>
+<table>
+<thead>
+<tr><th>TABLE_NAME</th><th>COLUMN_NAME</th><th>DATA_TYPE</th><th>DATA_LENGTH</th><th>COLUMN_ID</th></tr>
+</thead>
+<tbody>
+<tr><td>JOB_HISTORY</td><td>EMPLOYEE_ID</td><td>NUMBER</td><td>22</td><td>1</td></tr>
+<tr><td>JOB_HISTORY</td><td>START_DATE</td><td>DATE</td><td>7</td><td>2</td></tr>
+<tr><td>JOB_HISTORY</td><td>END_DATE</td><td>DATE</td><td>7</td><td>3</td></tr>
+<tr><td>JOB_HISTORY</td><td>JOB_ID</td><td>VARCHAR2</td><td>10</td><td>4</td></tr>
+<tr><td>JOB_HISTORY</td><td>DEPARTMENT_ID</td><td>NUMBER</td><td>22</td><td>5</td></tr>
+</tbody>
+</table>
+<p>我们可以发现字段类型的确由DATE类型变成了VARCHAR2类型，说明我们方案是可行的，以后只要使用这个函数，任何查询sql或者表都可以自动进行此类转换了。这里要注意的一点，修改后的字段，顺序都排到最后面去了，而且varchar2类型，默认是给的最长的4000,这个可以通过如下方式进行定义</p>
+<pre><code class="language-plsql">NEW_COLS(i) := DBMS_TF.COLUMN_METADATA_T(name =&gt; tab.column(i).description.name, --字段名不变
+                                         type =&gt; DBMS_TF.TYPE_VARCHAR2 --字段类型改成varchar2,
+                                         max_len =&gt;20
+                                         );
+</code></pre>
+<p>同理，number类型的有效位数和小数点精确度也可以通过precision，scale这两个参数来定义。</p>
+<p>另外，上述创建了两个数据库对象，这对某些“代码洁癖”的开发者是很不爽的，其实这个函数和包可以合并成一个包，把这个函数单独放到包说明中即可，如下</p>
+<pre><code class="language-sql">CREATE OR REPLACE PACKAGE ptf_date_to_char AS
+  FUNCTION input(tab TABLE)
+     RETURN TABLE pipelined row polymorphic USING ptf_date_to_char;
+  FUNCTION describe(tab IN OUT dbms_tf.table_t)RETURN dbms_tf.describe_t;      
+  PROCEDURE FETCH_ROWS;
+END ptf_date_to_char; 
+/
+
+CREATE OR REPLACE PACKAGE BODY ptf_date_to_char AS
+  FUNCTION describe(tab IN OUT dbms_tf.table_t) RETURN dbms_tf.describe_t AS
+    new_cols DBMS_TF.COLUMNS_NEW_T;
+  BEGIN
+    FOR i IN 1 .. tab.column.count LOOP --对所有字段循环
+      IF tab.column(i).description.type IN (dbms_tf.type_date) THEN --如果字段是日期类型
+        tab.column(i).pass_through := FALSE; 
+        tab.column(i).for_read := TRUE; --是否多态表的列
+        NEW_COLS(i) := DBMS_TF.COLUMN_METADATA_T(name =&gt; tab.column(i).description.name, --字段名不变
+                                                 type =&gt; DBMS_TF.TYPE_VARCHAR2 --字段类型改成varchar2
+);
+      END IF;
+    END LOOP;
+    RETURN DBMS_TF.describe_t(new_columns     =&gt; new_cols,
+                              row_replication =&gt; true);
+  END;
+
+  PROCEDURE FETCH_ROWS AS
+    inp_rs DBMS_TF.row_set_t;
+    out_rs DBMS_TF.row_set_t;
+    rows   PLS_INTEGER;
+  BEGIN
+--只有上面进入了NEW_COLS的字段才会执行下面这段，其他字段保持不变
+--inp_rs 表示原始数据
+--out_rs 表示要输出的数据，默认情况下为空
+    DBMS_TF.get_row_set(inp_rs, rows); --获取原始数据
+    FOR c IN 1 .. inp_rs.count() LOOP --对列进行循环
+      FOR r IN 1 .. rows LOOP --对行进行循环
+        if inp_rs(c).tab_date(r) = trunc(inp_rs(c).tab_date(r)) then --这里做了个特殊处理，兼容年月日和年月日时分秒两种
+          out_rs(c).tab_varchar2(r) := to_char((inp_rs(c).tab_date(r)),
+                                               'yyyy-mm-dd');
+        else
+          out_rs(c).tab_varchar2(r) := to_char((inp_rs(c).tab_date(r)),
+                                               'yyyy-mm-dd hh24:mi:ss');
+        end if;
+      END LOOP;
+    END LOOP;
+    DBMS_TF.put_row_set(out_rs, replication_factor =&gt; 1);
+  END;
+END ptf_date_to_char;
+
+/
+
+select * from ptf_date_to_char.input(hr.job_history);
+</code></pre>
+<p>我们稍微分析一下这个功能结构，<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png" srcset="/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1200 1200w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=400 400w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1600 1600w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=800 800w"/></p>
+<p>了解这个处理顺序后，我们就可以发挥想象来做一些其他PTF功能了，比如对所有字段进行nvl处理或者对所有字段进行trim处理等。</p>
+<hr/>
+<h3 id="2自动屏蔽指定字段">2.自动屏蔽指定字段</h3>
+<p>假设我们有一张表，有100多个字段（别问字段为什么这么多，siebel系统里就有一个），我们想要得到一个查询结果，这个查询结果中显示98个字段，有2个指定的字段不要显示，我们要如何写这个sql查询？<br/>
+98个字段名都要列出来，想想都疯了吧，虽然我们可以用listagg加dba_tab_cols视图来拼接字符串，或者用pl/sql developer工具的自动完成来输入，但是，这个98个字段要放在程序里，也太长了，阅读和修改极为不便。这个时候我们就想要有一个函数，我们只要指定表名和不要的列名，就能查询出结果</p>
+<pre><code class="language-plsql">CREATE OR REPLACE PACKAGE poly_pkg AS
+
+  FUNCTION my_ptf(tab IN TABLE,
+                  col IN COLUMNS)
+  RETURN TABLE PIPELINED
+  ROW POLYMORPHIC USING poly_pkg;
+
+  FUNCTION describe (tab IN OUT DBMS_TF.table_t,
+                     col IN     dbms_tf.columns_t)
+    RETURN DBMS_TF.describe_t;
+
+END poly_pkg;
+/
+
+
+CREATE OR REPLACE PACKAGE BODY poly_pkg AS
+
+  FUNCTION describe (tab IN OUT DBMS_TF.table_t,
+                     col IN     dbms_tf.columns_t)
+    RETURN DBMS_TF.describe_t
+  AS
+  BEGIN
+    -- Loop through all the table columns.
+    FOR i IN 1 .. tab.column.count() LOOP
+      -- Loop through all the columns listed in the second parameter.
+      FOR j IN 1 .. col.count() LOOP
+        -- Set pass_through to true for any columns not in the exclude list.
+        tab.column(i).pass_through := (tab.column(i).description.name != col(j));
+        -- Exit inner loop if you find a column that shouldn't be included.
+        EXIT WHEN NOT tab.column(i).pass_through;
+      END LOOP;
+    END LOOP;
+
+    RETURN NULL;
+  END;
+
+END poly_pkg;
+/
+
+SELECT * FROM poly_pkg.my_ptf(emp, COLUMNS(hiredate, sal, mgr, comm));
+</code></pre>
+<p><font size="1">此代码来自 Tim Hall的文章 <a href="https://oracle-base.com/articles/18c/polymorphic-table-functions-18c">https://oracle-base.com/articles/18c/polymorphic-table-functions-18c</a></font></p>
+<p>这个查询表示，从emp表中输出列名不是hiredate/sal/mgr/comm这四个的所有字段。另外，这个sql后面是可以加where条件的，和普通的用法完全一样。<br/>
+而且我们可以看到，由于不需要对每行的数据进行处理，这个包中没有使用FETCH_ROWS过程。</p>
+<hr/>
+<h3 id="3自动增加字段">3.自动增加字段</h3>
+<p>有时候，我们想要基于原表的某些字段或者所有字段，生成几个新的字段，比如针对所有日期时间字段新增一个0时区日期时间字段，针对所有文本字段生成对应unicode值的字段，或者是根据所有字段生成一个json串，这些在做跨系统交互时，能带来极大的帮助，以下以新增一个包含所有字段的json字段为例</p>
+<pre><code class="language-plsql">CREATE OR REPLACE PACKAGE poly_pkg AS
+
+  FUNCTION my_ptf(tab IN TABLE)
+  RETURN TABLE PIPELINED
+    ROW POLYMORPHIC USING poly_pkg;
+
+  FUNCTION describe (tab IN OUT DBMS_TF.table_t)
+    RETURN DBMS_TF.describe_t;
+
+  PROCEDURE fetch_rows;
+END poly_pkg;
+/
+
+
+CREATE OR REPLACE PACKAGE BODY poly_pkg AS
+
+  FUNCTION describe (tab IN OUT DBMS_TF.table_t)
+    RETURN DBMS_TF.describe_t
+  AS
+  BEGIN
+    -- Make sure the for_read flag for each real column
+    -- is set, or get_row_set has no values.
+    FOR i IN 1 .. tab.column.count LOOP 
+      CONTINUE WHEN NOT DBMS_TF.supported_type(tab.column(i).description.TYPE);
+      tab.column(i).for_read := TRUE;
+    END LOOP;
+
+    -- Add the new JSON_DOC column.
+    RETURN DBMS_TF.describe_t(
+             new_columns =&gt; DBMS_TF.columns_new_t(1 =&gt; DBMS_TF.column_metadata_t(name =&gt;'JSON_DOC'))
+           );   
+  END;
+
+  PROCEDURE fetch_rows AS 
+    l_row_set    DBMS_TF.row_set_t;
+    l_new_col    DBMS_TF.tab_varchar2_t;
+    l_row_count  PLS_INTEGER;
+  BEGIN
+    DBMS_TF.get_row_set(l_row_set, row_count =&gt; l_row_count);
+    --DBMS_TF.trace(l_row_set);
+
+    -- Populate the new column with a JSON doc of the associated row.
+    FOR row_num IN 1 .. l_row_count LOOP
+      l_new_col(row_num) := DBMS_TF.row_to_char(l_row_set, row_num); 
+    END LOOP;
+
+    -- Associate the new values with the new column.
+    DBMS_TF.put_col(1, l_new_col);
+  END; 
+
+END poly_pkg;
+/
+
+SELECT * FROM poly_pkg.my_ptf(dept);
+</code></pre>
+<p><font size="1">此代码来自 Tim Hall的文章 <a href="https://oracle-base.com/articles/18c/polymorphic-table-functions-18c">https://oracle-base.com/articles/18c/polymorphic-table-functions-18c</a></font></p>
+<table>
+<thead>
+<tr><th>DEPTNO</th><th>DNAME</th><th>LOC</th><th>JSON_DOC</th></tr>
+</thead>
+<tbody>
+<tr><td>10</td><td>ACCOUNTING</td><td>NEW YORK</td><td>{"DEPTNO":10, "DNAME":"ACCOUNTING", "LOC":"NEW YORK"}</td></tr>
+<tr><td>20</td><td>RESEARCH</td><td>DALLAS</td><td>{"DEPTNO":20, "DNAME":"RESEARCH", "LOC":"DALLAS"}</td></tr>
+<tr><td>30</td><td>SALES</td><td>CHICAGO</td><td>{"DEPTNO":30, "DNAME":"SALES", "LOC":"CHICAGO"}</td></tr>
+<tr><td>40</td><td>OPERATIONS</td><td>BOSTON</td><td>{"DEPTNO":40, "DNAME":"OPERATIONS", "LOC":"BOSTON"}</td></tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="总结">总结</h2>
+<p>有了以上几个案例，应该基本可以说明这个功能怎么使用了，而且我之前有个程序的缺陷(<a href="/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</a>)，无法自动对所有空值进行处理，也能通过此方法解决。<br/>
+可惜的是，在百度上搜索 oracle +ptf 和 ORACLE+Polymorphic Table Functions ，几乎找不到一篇中国人写的文档，而且就算是在英文网站上，相关说明文档也不到一手之数。<br/>
+甚至搜索“DBMS_TF”这个包名，都只有一份oracle的英文官方文档和ORACLE官方的在线sql演示页<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png" srcset="/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1200 1200w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=400 400w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1600 1600w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=800 800w"/><br/>
+希望我这篇文章能给各位带来一些新的启发。</p>
+<p>fin</p>
+<p><font size="1">参考文章：<br/>
+<a href="https://livesql.oracle.com/apex/livesql/file/content_GC53R14C0CVHJHUT3CUY7SN0F.html">https://livesql.oracle.com/apex/livesql/file/content_GC53R14C0CVHJHUT3CUY7SN0F.html</a><br/>
+<a href="https://oracle-base.com/articles/18c/polymorphic-table-functions-18c">https://oracle-base.com/articles/18c/polymorphic-table-functions-18c</a><br/>
+</font></p>
+</div>
+</article>
     </div>
     
 </article>

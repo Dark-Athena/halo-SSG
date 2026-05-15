@@ -155,7 +155,137 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h4 id="前言">前言</h4>
+<p>为了对标阿里系的钉钉，腾讯于2016年4月18日推出了企业微信<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png" srcset="/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1200 1200w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=400 400w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1600 1600w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=800 800w"/><br/>
+专注企业内部通讯（目前已加入客户管理及客户通讯功能），替代原有的RTX腾讯通<br/>
+<img alt="RTX首页已推荐企业微信，建议原RTX用户迁移到企业微信" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png" srcset="/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1200 1200w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=400 400w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1600 1600w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=800 800w"/></p>
+<p>企业微信由于微信的生态及其易用性，已被很多企业使用，甚至个人都可以申请开通一个企业，其中经常会使用到的一个功能为消息推送。</p>
+<p>消息推送目前分两大种，一是通过在企业微信新建应用，通过该应用发送给企业微信内指定的成员或群；二是通过企业微信群内的自建机器人，来发送消息到群。两种方式都支持api调用，但由于第一种需要新建应用，还要token和secret支持，在企业内有多个企业微信的应用开发项目时，容易发生token频繁更新导致经常失效，第二种方式不需要token，甚至不需要企业微信管理员的授权，所以第二种更方便使用。</p>
+<p>一般像这种api调用都要再另外开发一个程序，比如JAVA/PY等，也有利用.bat/.sh这类的操作系统批处理脚本来发送，但是都依赖于操作系统，而且增加了运维监控的工作量。</p>
+<p>本文针对第二种，介绍下如何通过ORACLE数据库存储过程来使用此功能（本文不描述如何申请开通企业微信）。</p>
+<h3 id="先了解企业微信官方api文档-群机器人配置说明">先了解企业微信官方API文档-群机器人配置说明</h3>
+<p><a href="https://work.weixin.qq.com/api/doc/90000/90136/91770">https://work.weixin.qq.com/api/doc/90000/90136/91770</a><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png" srcset="/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1200 1200w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=400 400w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1600 1600w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=800 800w"/><br/>
+看完文档后，可以了解到，使用这个API大致分以下几个步骤<br/>
+1.创建一个群聊机器人<br/>
+2.获得群聊机器人的链接（含webhook）<br/>
+3.向该链接发送消息</p>
+<p>下面我们正式开始操作</p>
+<h2 id="一创建群聊机器人及获得webhook">一、创建群聊机器人及获得webhook</h2>
+<p>1.打开手机端企业微信客户端，打开一个群（不支持外部群）<br/>
+2.点击右上角两个人头的图标<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png" srcset="/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1200 1200w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=400 400w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1600 1600w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=800 800w"/><br/>
+3.点击群机器人<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png" srcset="/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1200 1200w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=400 400w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1600 1600w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=800 800w"/><br/>
+4.点击添加机器人（或右上角添加）<br/>
+<img alt="i" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-2ea76709187c41809a273728c730de30.png" srcset="/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1200 1200w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=400 400w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1600 1600w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=800 800w"/><br/>
+5.输入机器人名字，点击添加按钮<br/>
+6.获得webhook的地址，直接点复制，也可返回查看<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png" srcset="/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1200 1200w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=400 400w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1600 1600w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=800 800w"/><br/>
+该地址格式如下，注意保密不要泄露<br/>
+<a href="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=a******-***-***-***-******">https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=a******-***-***-***-******</a></p>
+<h2 id="二在oracle数据库中配置acl授权可能需要sys用户允许oracle数据库访问企业微信api的地址">二、在ORACLE数据库中配置ACL授权(可能需要SYS用户)，允许ORACLE数据库访问企业微信API的地址</h2>
+<pre><code class="language-plsql">begin
+  sys.dbms_network_acl_admin.create_acl( -- 创建访问控制文件（ACL）     
+                                    acl         =&gt; 'utl_http.xml', -- 文件名称   
+                                    description =&gt; 'HTTP Access', -- 描述    
+                                    principal   =&gt; 'ORACLE_USER', -- 授权或者取消授权账号，大小写敏感     
+                                    is_grant    =&gt; TRUE, -- 授权还是取消授权     
+                                    privilege   =&gt; 'connect', -- 授权或者取消授权的权限列表    
+                                    start_date  =&gt; null, -- 起始日期   
+                                    end_date    =&gt; null -- 结束日期  
+                                    );
+  sys.dbms_network_acl_admin.add_privilege( -- 添加访问权限列表项    
+                                       acl        =&gt; 'utl_http.xml', -- 刚才创建的acl名称     
+                                       principal  =&gt; 'ORACLE_USER', -- 授权或取消授权用户   
+                                       is_grant   =&gt; TRUE, -- 与上同     
+                                       privilege  =&gt; 'resolve', -- 权限列表   
+                                       start_date =&gt; null,
+                                       end_date   =&gt; null);
+  sys.dbms_network_acl_admin.assign_acl( -- 该段命令意思是允许访问acl名为utl_http.xml下授权的用户，使用oracle网络访问包，所允许访问的目的主机，及其端口范围。   
+                                    acl  =&gt; 'utl_http.xml',
+                                    host =&gt; 'qyapi.weixin.qq.com',
+                                    lower_port =&gt; 1, -- 允许访问的起始端口号    
+                                    upper_port =&gt; 9999 -- 允许访问的截止端口号  
+                                    );
+  commit;
+end;
+/
+</code></pre>
+<h2 id="三配置oracle数据库的wallet">三、配置ORACLE数据库的WALLET</h2>
+<p>该api地址为https开头，表示启用了ssl加密，之前在<br/>
+<a href="/archives/ssl-email">使用ORACLE数据库存储过程发送加密email（SSL）</a><br/>
+<a href="/archives/oracle-wallet">【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</a><br/>
+两文中提到，这种情况需要配置oracle的wallet，我们可以直接用浏览器打开<br/>
+<a href="https://qyapi.weixin.qq.com">https://qyapi.weixin.qq.com</a><br/>
+这个地址，使用浏览器来获得证书文件，已实测这个证书在失效1个月后仍然可以正常发送消息（2021-07-15时测试结果，不代表未来，如果提示证书失效请自行更新wallet）<br/>
+wallet配置方法请参考之前这篇文章</p>
+<h2 id="四编译数据库包-qyapi-weixin-robot-sql">四、编译数据库包 qyapi_weixin_robot_sql</h2>
+<pre><code class="language-plsql">create or replace package qyapi_weixin_robot_sql is
+
+  -- Author  : DarkAthena
+  -- Created : 2020-06-15 13:33:16
+  -- Purpose : 企业微信群机器人API
+  
+  g_WALLET_path varchar2(1000):='H:\WINDOWS.X64_193000_db_home\ssl_wallet';--钱夹保存路径
+  g_wallet_pwd varchar2(1000) :='12345678'; --钱夹密码，若设置了自动登录，可为空
+  g_content_type varchar2(1000):='application/json';
+  procedure sendmsg_text(i_webhook varchar2,i_content_text varchar2);--发送文本信息
+  procedure sendmsg_file(i_webhook  varchar2,
+                         i_dir      varchar2,
+                         i_file_name varchar2,
+                         i_display_file_name varchar2);--发送文件信息
+  procedure sendmsg_image(i_webhook varchar2,i_dir varchar2,i_imagename varchar2);--发送图片信息
+end qyapi_weixin_robot_sql;
+/
+</code></pre>
+<p>完整源码请访问我的github项目获取<br/>
+<a href="https://github.com/Dark-Athena/workweixinrobot-oracle">https://github.com/Dark-Athena/workweixinrobot-oracle</a></p>
+<h2 id="五修改数据库包qyapi-weixin-robot-sql中wallet及wallet密码的配置">五、修改数据库包qyapi_weixin_robot_sql中wallet及wallet密码的配置</h2>
+<pre><code class="language-plsql"> g_WALLET_path varchar2(1000):='H:\WINDOWS.X64_193000_db_home\ssl_wallet';--钱夹保存路径
+ g_wallet_pwd varchar2(1000) :='12345678'; --钱夹密码，若设置了自动登录，可为空
+</code></pre>
+<h2 id="六测试发送">六、测试发送</h2>
+<p>由于常用的就是文本、文件、图片三种内容，因此只对这三种进行了封装，markdown/图文暂不支持（要实现其实也很简单，懒得搞了）</p>
+<p>1.发送文本信息</p>
+<pre><code class="language-plsql">begin
+  qyapi_weixin_robot_sql.sendmsg_text(i_webhook      =&gt; 'a******-***-***-***-******',--这里只要webhook地址后面的key
+                                        i_content_text =&gt; '亲爱的主人，早安');
+end;
+/
+</code></pre>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png" srcset="/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1200 1200w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=400 400w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1600 1600w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=800 800w"/></p>
+<p>2.发送文件</p>
+<pre><code class="language-plsql">begin
+  qyapi_weixin_robot_sql.sendmsg_file(i_webhook           =&gt; 'a******-***-***-***-******',
+                                        i_dir               =&gt;'SENDFILE_DIR',--这里为数据库中配置的目录，下同， create or replace directory SENDFILE_DIR as 'H:\WINDOWS.X64_193000_db_home\TEMP'
+                                        i_file_name         =&gt;'20210715_456798215648977.xlsx',--实际文件名
+                                        i_display_file_name =&gt;'昨日账单20210715.xlsx'--聊天窗口中要显示的文件名
+);
+end;
+/
+
+</code></pre>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png" srcset="/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1200 1200w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=400 400w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1600 1600w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=800 800w"/></p>
+<p>3.发送图片<br/>
+其实图片也是可以通过文件发送的，但是如果是通过文件的形式发送，用户需要点击这个图片打开才能看到内容，如果是以图片显示发送，则在聊天窗口中可以直接显示图片内容</p>
+<pre><code class="language-plsql">begin
+  qyapi_weixin_robot_sql.sendmsg_image(i_webhook   =&gt; 'a******-***-***-***-******',
+                                         i_dir       =&gt;'SENDFILE_DIR' ,
+                                         i_imagename =&gt; '1625668522172.jpg');
+end;
+/
+
+</code></pre>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png" srcset="/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1200 1200w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=400 400w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1600 1600w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=800 800w"/></p>
+<h3 id="20210715-更新补充">20210715 更新补充</h3>
+<p>之前在 oracle 11g上测试的时候，这个api必须有包含对应证书的wallet才能发送，当然也可以把地址中的https的s去掉，只是这样安全度会降低。今天写这篇文章时同步在oracle 19c上测试，发现去掉钱夹的配置，地址为https时一样可以正常发送，原因不明。所以之后可能会在这个包中再多配置一个参数，由用户自行决定是否要启用ssl</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

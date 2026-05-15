@@ -155,7 +155,1033 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="oracle分区表数据倾斜会发生什么">【ORACLE】分区表数据倾斜会发生什么</h1>
+<h2 id="背景">背景</h2>
+<p>有经验的ORACLE DBA可能经常遇到,每当跨年和跨月的时候,有些应用系统1号早上一来就卡爆了,查数据库会话,一堆会话在执行几个相同的慢SQL,而且这个慢SQL里大概率有个分区表。</p>
+<p>遇到这种场景的时候,做下最近的几个分区的统计信息收集或者全表的统计信息收集,可能就好了。我以前也遇到过好多次,只是时间隔得有点久,已经记不清当时的SQL长啥样了,于是我让AI尝试构造出由于分区表导致的性能差的问题。</p>
+<blockquote>
+<p>我:写个ORACLE的sqlplus测试脚本，模拟分区表数据倾斜导致执行性能差的问题。我期望数据倾斜的表上，使用相同的SQL，只是where条件中绑定变量的值不一样，出现性能好和性能差两种不同的情况。比如,假设统计信息不准,执行发现数据量很少,而且查了数据少的分区,就没走索引,然后换条件参数,查了数据多的分区,也没走到索引,就慢了,这个时候加上索引扫描的hint就变快了。连接信息是<code>system/SysPassword1@localhost:1527/pdb1</code>,你写好测试用例后直接进行测试 。</p>
+</blockquote>
+<p>vibe coding过程就省了,直接贴测试执行的记录吧</p>
+<h2 id="用例一-锁定错误统计信息的分区倾斜">用例一: 锁定错误统计信息的分区倾斜</h2>
+<h3 id="执行记录">执行记录</h3>
+<pre><code class="language-sql">PS F:\GITEE\test_partition\123&gt; &amp; sqlplus system/SysPassword1@localhost:1527/pdb1 "@skew_partition_demo.sql"
+
+SQL*Plus: Release 19.0.0.0.0 - Production on Thu Jan 8 20:29:25 2026
+Version 19.20.0.0.0
+
+Copyright (c) 1982, 2022, Oracle.  All rights reserved.
+
+Last Successful login time: Thu Jan 08 2026 20:23:20 +08:00
+
+Connected to:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; set termout on
+SQL&gt; set timing on
+SQL&gt; set serveroutput on size unlimited
+SQL&gt;
+SQL&gt; prompt === Connect as SYSTEM for setup ===
+=== Connect as SYSTEM for setup ===
+SQL&gt; connect system/SysPassword1@localhost:1527/pdb1
+Connected.
+SQL&gt;
+SQL&gt; -- Drop and recreate a clean demo user
+SQL&gt; begin
+  2    execute immediate 'drop user skew_demo cascade';
+  3  exception
+  4    when others then
+  5      if sqlcode != -01918 then -- user does not exist
+  6        raise;
+  7      end if;
+  8  end;
+  9  /
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.28
+SQL&gt; create user skew_demo identified by skew_demo
+  2    default tablespace users
+  3    quota unlimited on users;
+
+User created.
+
+Elapsed: 00:00:00.05
+SQL&gt; grant connect, resource to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt; grant plustrace to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt;
+SQL&gt; prompt === Connect as SKEW_DEMO ===
+=== Connect as SKEW_DEMO ===
+SQL&gt; connect skew_demo/skew_demo@localhost:1527/pdb1
+Connected.
+SQL&gt;
+SQL&gt; alter session set nls_date_format = 'YYYY-MM-DD HH24:MI:SS';
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt;
+SQL&gt; -- Create a range-partitioned table with a hot partition; payload makes full scans heavy       
+SQL&gt; -- Primary key/indexes will be created after bulk load for faster insert
+SQL&gt; create table orders_skew
+  2  (
+  3    order_id    number not null,
+  4    region_id   number not null,
+  5    order_dt    date   not null,
+  6    status_txt  varchar2(20) not null,
+  7    payload     varchar2(1000) not null
+  8  )
+  9  partition by range (region_id)
+ 10  (
+ 11    partition p_small values less than (10),
+ 12    partition p_warm  values less than (50),
+ 13    partition p_hot   values less than (maxvalue)
+ 14  );
+
+Table created.
+
+Elapsed: 00:00:00.02
+SQL&gt;
+SQL&gt; prompt === Populate skewed data ===
+=== Populate skewed data ===
+SQL&gt; insert into orders_skew
+  2  select level, 1, trunc(sysdate) - mod(level, 30), 'SMALL', rpad('S', 200, 'S')
+  3  from dual
+  4  connect by level &lt;= 200;
+
+200 rows created.
+
+Elapsed: 00:00:00.01
+SQL&gt; commit;
+
+Commit complete.
+
+Elapsed: 00:00:00.00
+SQL&gt;
+SQL&gt; -- Hot partition: 3,000,000 rows all in region 999 (wider payload)
+SQL&gt; -- Generate 3M rows via two small generators to avoid CONNECT BY memory exhaustion
+SQL&gt; insert /*+ append */ into orders_skew
+  2  select 1000000 + (g1.r - 1) * 1000 + g2.r,
+  3         999,
+  4         trunc(sysdate) - mod((g1.r - 1) * 1000 + g2.r, 30),
+  5    case when mod((g1.r - 1) * 1000 + g2.r, 100) = 0 then 'HOT_RARE' else 'HOT' end,
+  6         rpad('H', 800, 'H')
+  7  from (select rownum r from dual connect by level &lt;= 3000) g1
+  8  cross join (select rownum r from dual connect by level &lt;= 1000) g2;
+
+3000000 rows created.
+
+Elapsed: 00:00:08.76
+SQL&gt; commit;
+
+Commit complete.
+
+Elapsed: 00:00:00.01
+SQL&gt;
+SQL&gt; -- Composite local index includes status to make selective hot predicate faster
+SQL&gt; create index idx_orders_skew_reg on orders_skew(region_id, status_txt) local;
+
+Index created.
+
+Elapsed: 00:00:14.85
+SQL&gt; create unique index pk_orders_skew on orders_skew(order_id);
+
+Index created.
+
+Elapsed: 00:00:10.85
+SQL&gt; alter table orders_skew add constraint pk_orders_skew primary key (order_id) using index pk_orders_skew;
+
+Table altered.
+
+Elapsed: 00:00:00.08
+SQL&gt;
+SQL&gt; prompt === Make statistics intentionally wrong to encourage full scans ===
+=== Make statistics intentionally wrong to encourage full scans ===
+SQL&gt; begin
+  2    dbms_stats.set_table_stats(
+  3      ownname    =&gt; user,
+  4      tabname    =&gt; 'ORDERS_SKEW',
+  5      numrows    =&gt; 1000,
+  6      numblks    =&gt; 100,
+  7      avgrlen    =&gt; 64,
+  8      no_invalidate =&gt; false);
+  9
+ 10    -- Use full parameter list to match 19c signature: own, ind, part, stattab, statid, numrows, 
+numlblks, numdist, avgrlen
+ 11    dbms_stats.set_index_stats(
+ 12      ownname    =&gt; user,
+ 13      indname    =&gt; 'IDX_ORDERS_SKEW_REG',
+ 14      partname   =&gt; null,
+ 15      stattab    =&gt; null,
+ 16      statid     =&gt; null,
+ 17      numrows    =&gt; 1000,
+ 18      numlblks   =&gt; 200,
+ 19      numdist    =&gt; 500,
+ 20      avglblk    =&gt; 1,
+ 21      avgdblk    =&gt; 1,
+ 22      clstfct    =&gt; 100000,
+ 23      indlevel   =&gt; 1,
+ 24      flags      =&gt; 0,
+ 25      statown    =&gt; null,
+ 26      no_invalidate =&gt; false,
+ 27      guessq     =&gt; null,
+ 28      cachedblk  =&gt; null,
+ 29      cachehit   =&gt; null,
+ 31
+ 32    dbms_stats.lock_table_stats(user, 'ORDERS_SKEW');
+ 33  end;
+ 34  /
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.11
+SQL&gt; prompt === Setup complete. Please run run_test.sql ===
+=== Setup complete. Please run run_test.sql ===
+SQL&gt; exit;
+Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+PS F:\GITEE\test_partition\123&gt; &amp; sqlplus system/SysPassword1@localhost:1527/pdb1 "@run_test.sql"
+
+SQL*Plus: Release 19.0.0.0.0 - Production on Fri Jan 9 08:46:30 2026
+Version 19.20.0.0.0
+
+Copyright (c) 1982, 2022, Oracle.  All rights reserved.
+
+Last Successful login time: Fri Jan 09 2026 08:45:43 +08:00
+
+Connected to:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; set linesize 1000
+SQL&gt;
+SQL&gt; -- fast -&gt; slow -&gt; hint to speed up slow -&gt; rerun slow
+SQL&gt; prompt === Connect as SKEW_DEMO to run tests ===
+=== Connect as SKEW_DEMO to run tests ===
+SQL&gt; connect system/SysPassword1@localhost:1527/pdb1
+Connected.
+SQL&gt; alter system flush buffer_cache;
+
+System altered.
+
+Elapsed: 00:00:00.06
+SQL&gt; connect skew_demo/skew_demo@localhost:1527/pdb1
+Connected.
+SQL&gt;
+SQL&gt; alter session set optimizer_adaptive_plans = false;
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt; alter session set optimizer_dynamic_sampling = 0;
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt; alter session set cursor_sharing = exact;
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt; set autotrace traceonly explain statistics
+SQL&gt; 
+SQL&gt; variable v_region number
+SQL&gt; variable v_status varchar2(20)
+SQL&gt;
+SQL&gt; prompt === Fast case (small partition) ===
+=== Fast case (small partition) ===
+SQL&gt; exec :v_region := 1;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'SMALL';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select count(*)
+  2  from orders_skew where region_id = :v_region and status_txt = :v_status;
+
+Elapsed: 00:00:00.01
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 470076437
+
+-------------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Rows  | Bytes | Cost (%CPU)| Time     | Pstart| Pstop |
+-------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |     1 |    25 |    11   (0)| 00:00:01 |       |       |
+|   1 |  SORT AGGREGATE         |             |     1 |    25 |            |          |       |       |
+|   2 |   PARTITION RANGE SINGLE|             |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+|*  3 |    TABLE ACCESS FULL    | ORDERS_SKEW |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+-------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - filter("STATUS_TXT"=:V_STATUS AND "REGION_ID"=TO_NUMBER(:V_REGION))
+
+
+Statistics
+----------------------------------------------------------
+          5  recursive calls
+          0  db block gets
+         54  consistent gets
+         52  physical reads
+          0  redo size
+        359  bytes sent via SQL*Net to client
+        479  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          0  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+
+SQL&gt;
+SQL&gt; prompt === Slow case (hot partition, no hint) ===
+=== Slow case (hot partition, no hint) ===
+SQL&gt; exec :v_region := 999;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'HOT_RARE';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select count(*)
+  2  from orders_skew where region_id = :v_region and status_txt = :v_status;
+
+Elapsed: 00:00:11.83
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 470076437
+
+-------------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Rows  | Bytes | Cost (%CPU)| Time     | Pstart| Pstop |
+-------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |     1 |    25 |    11   (0)| 00:00:01 |       |       |
+|   1 |  SORT AGGREGATE         |             |     1 |    25 |            |          |       |       |
+|   2 |   PARTITION RANGE SINGLE|             |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+|*  3 |    TABLE ACCESS FULL    | ORDERS_SKEW |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+-------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - filter("STATUS_TXT"=:V_STATUS AND "REGION_ID"=TO_NUMBER(:V_REGION))
+
+
+Statistics
+----------------------------------------------------------
+          0  recursive calls
+          0  db block gets
+     375018  consistent gets
+     375006  physical reads
+         88  redo size
+        359  bytes sent via SQL*Net to client
+        483  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          0  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+
+SQL&gt;
+SQL&gt; prompt === Hint to speed up slow case ===
+=== Hint to speed up slow case ===
+SQL&gt; select /*+ index(orders_skew idx_orders_skew_reg) */ count(*)
+  2  from orders_skew where region_id = :v_region and status_txt = :v_status;
+
+Elapsed: 00:00:00.01
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 2275676676
+
+---------------------------------------------------------------------------------------------------------------    
+| Id  | Operation               | Name                | Rows  | Bytes | Cost (%CPU)| Time     | Pstart| Pstop |    
+---------------------------------------------------------------------------------------------------------------    
+|   0 | SELECT STATEMENT        |                     |     1 |    25 |  3998   (1)| 00:00:01 |       |       |    
+|   1 |  SORT AGGREGATE         |                     |     1 |    25 |            |          |       |       |    
+|   2 |   PARTITION RANGE SINGLE|                     |   333 |  8325 |  3998   (1)| 00:00:01 |   KEY |   KEY |    
+|*  3 |    INDEX RANGE SCAN     | IDX_ORDERS_SKEW_REG |   333 |  8325 |  3998   (1)| 00:00:01 |   KEY |   KEY |    
+---------------------------------------------------------------------------------------------------------------    
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - access("REGION_ID"=TO_NUMBER(:V_REGION) AND "STATUS_TXT"=:V_STATUS)
+
+
+Statistics
+----------------------------------------------------------
+          0  recursive calls
+          0  db block gets
+        104  consistent gets
+        104  physical reads
+          0  redo size
+        359  bytes sent via SQL*Net to client
+        529  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          0  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+
+SQL&gt;
+SQL&gt; prompt === rerun slow case ===
+=== rerun slow case ===
+SQL&gt; select count(*)
+  2  from orders_skew where region_id = :v_region and status_txt = :v_status;
+
+Elapsed: 00:00:07.08
+
+Execution Plan
+----------------------------------------------------------
+Plan hash value: 470076437
+
+-------------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Rows  | Bytes | Cost (%CPU)| Time     | Pstart| Pstop |
+-------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |     1 |    25 |    11   (0)| 00:00:01 |       |       |
+|   1 |  SORT AGGREGATE         |             |     1 |    25 |            |          |       |       |
+|   2 |   PARTITION RANGE SINGLE|             |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+|*  3 |    TABLE ACCESS FULL    | ORDERS_SKEW |   333 |  8325 |    11   (0)| 00:00:01 |   KEY |   KEY |
+-------------------------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   3 - filter("STATUS_TXT"=:V_STATUS AND "REGION_ID"=TO_NUMBER(:V_REGION))
+
+
+Statistics
+----------------------------------------------------------
+          0  recursive calls
+          0  db block gets
+     375017  consistent gets
+     375006  physical reads
+          0  redo size
+        359  bytes sent via SQL*Net to client
+        483  bytes received via SQL*Net from client
+          2  SQL*Net roundtrips to/from client
+          0  sorts (memory)
+          0  sorts (disk)
+          1  rows processed
+
+SQL&gt;
+SQL&gt; set autotrace off
+SQL&gt; exit;
+Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+PS F:\GITEE\test_partition\123&gt; 
+</code></pre>
+<h3 id="结果汇总">结果汇总</h3>
+<p>汇总测试结果:</p>
+<table><thead><tr><th>测试场景</th><th>数据少的分区</th><th>数据多的分区</th><th>数据多的分区+hint</th><th>重复查数据多的分区不带hint</th></tr></thead><tbody><tr><td>耗时</td><td>0.01</td><td>11.83</td><td>0.01</td><td>7.08</td></tr><tr><td>执行计划</td><td>单分区全扫</td><td>单分区全扫</td><td>单分区索引范围扫</td><td>单分区全扫</td></tr></tbody></table>
+<h3 id="观察与改进">观察与改进</h3>
+<p>这个测试用例是手动锁定了错误的统计信息才出现了这种结果,如果统计信息为空或者正常收集了统计信息,无论是数据多的分区还是少的分区,ORACLE一定会走索引扫描(FFS)。不过针对这个表和查询SQL,AI尝试了很多次,都没构造出统计信息过旧导致执行计划不对的场景,哪怕是统计信息旧了,ORACLE也还是走了索引扫描。可能需要改改SQL了。</p>
+<p>于是乎我让AI尝试模拟正常的使用,不要设置这一堆参数,尽量保持默认值或者最佳实践,尤其不要手动设置错误的统计信息,期望能在统计信息正确的情况下模拟出ORACLE跑得慢然后加HINT就好了的情况。最后真整出了一个场景。另外,在反复修改测试用例时,有观察到autotrace的执行计划其实不是真实的执行计划,我也让AI改成显示真实执行计划了。</p>
+<p>还有一点意外发现,在sqlplus里,就算输入了两条完全一致的SQL,由于sqlplus需要解析哪些是客户端本地命令,哪些是需要发送到数据库的SQL,因此会进行词法解析、语法解析、提取token流等操作,但由于混合了本地命令和客户端命令,导致提取出来的sql语句可能并不是原始输入的SQL语句了,在某些token中间可能会插入额外的空格,在数据库里可能就会出现不同的SQLID。所以修改后的测试用例尽量保持了对应sql语句上下文的一致性。</p>
+<h2 id="用例二-正常收集统计信息的分区倾斜">用例二: 正常收集统计信息的分区倾斜</h2>
+<p>下面这个用例的关键点就是把这个表的并行度设置成了8</p>
+<h3 id="执行记录-1">执行记录</h3>
+<pre><code class="language-sql">PS F:\GITEE\test_partition\123&gt; &amp; sqlplus system/SysPassword1@localhost:1527/pdb1 "@skew_partition_demo2.sql"
+
+SQL*Plus: Release 19.0.0.0.0 - Production on Fri Jan 9 13:31:15 2026
+Version 19.20.0.0.0
+
+Copyright (c) 1982, 2022, Oracle.  All rights reserved.
+
+Last Successful login time: Fri Jan 09 2026 13:24:52 +08:00
+
+Connected to:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; set termout on
+SQL&gt; set timing on
+SQL&gt; set serveroutput on size unlimited
+SQL&gt; set pagesize 1000
+SQL&gt; set linesize 200
+SQL&gt;
+SQL&gt; prompt === Connect as SYSTEM for setup ===
+=== Connect as SYSTEM for setup ===
+SQL&gt; connect sys/SysPassword1@localhost:1527/pdb1 AS SYSDBA
+Connected.
+SQL&gt;
+SQL&gt; -- Drop and recreate a clean demo user
+SQL&gt; begin
+  2    execute immediate 'drop user skew_demo cascade';
+  3  exception
+  4    when others then
+  5      if sqlcode != -01918 then -- user does not exist
+  6        raise;
+  7      end if;
+  8  end;
+  9  /
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:08.60
+SQL&gt; create user skew_demo identified by skew_demo
+  2    default tablespace users
+  3    quota unlimited on users;
+
+User created.
+
+Elapsed: 00:00:00.06
+SQL&gt; grant connect, resource to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt; grant plustrace to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt;
+SQL&gt; grant select on v_$session to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.02
+SQL&gt; grant select on v_$sql_plan to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.02
+SQL&gt; grant select on v_$sql_plan_statistics_all to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt; grant select on v_$sql to skew_demo;
+
+Grant succeeded.
+
+Elapsed: 00:00:00.01
+SQL&gt;
+SQL&gt; prompt === Connect as SKEW_DEMO ===
+=== Connect as SKEW_DEMO ===
+SQL&gt; connect skew_demo/skew_demo@localhost:1527/pdb1
+Connected.
+SQL&gt;
+SQL&gt; alter session set nls_date_format = 'YYYY-MM-DD HH24:MI:SS';
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt;
+SQL&gt; -- Create interval-partitioned table so multi-partition queries can trigger wide-range scans
+SQL&gt; -- Primary key/indexes will be created after bulk load for faster insert
+SQL&gt; create table orders_skew
+  2  (
+  3    order_id    number not null,
+  4    region_id   number not null,
+  5    order_dt    date   not null,
+  6    status_txt  varchar2(20) not null,
+  7    payload     varchar2(3000) not null
+  8  )
+  9  partition by range (region_id)
+ 10  interval (10)
+ 11  (
+ 12    partition p_base values less than (0)
+ 13  );
+
+Table created.
+
+Elapsed: 00:00:00.06
+SQL&gt;
+SQL&gt; -- Favor full scans on table vs index by setting a moderate parallel degree on the table
+SQL&gt; alter table orders_skew parallel 8;
+
+Table altered.
+
+Elapsed: 00:00:00.01
+SQL&gt;
+SQL&gt; prompt === Populate skewed data ===
+=== Populate skewed data ===
+SQL&gt; insert into orders_skew
+  2  select level, 1, trunc(sysdate) - mod(level, 30), 'SMALL', rpad('S', 400, 'S')
+  3  from dual
+  4  connect by level &lt;= 200;
+
+200 rows created.
+
+Elapsed: 00:00:00.03
+SQL&gt; commit;
+
+Commit complete.
+
+Elapsed: 00:00:00.00
+SQL&gt;
+SQL&gt; insert /*+ append */ into orders_skew
+  2  select 1000000 + (g1.r - 1) * 1000 + g2.r,
+  3         999,
+  4         trunc(sysdate) - mod((g1.r - 1) * 1000 + g2.r, 30),
+  5         'HOT',
+  6       rpad('H', 3000, 'H')
+  7  from (select rownum r from dual connect by level &lt;= 10) g1
+  8  cross join (select rownum r from dual connect by level &lt;= 1000) g2;
+
+10000 rows created.
+
+Elapsed: 00:00:00.36
+SQL&gt; commit;
+
+Commit complete.
+
+Elapsed: 00:00:00.00
+SQL&gt;
+SQL&gt;
+SQL&gt; declare
+  2    batches constant number := 10; -- 10 batches * 500k rows = ~5,000,000 rows
+  3  begin
+  4    for i in 0 .. batches-1 loop
+  5      insert /*+ append */ into orders_skew
+  6      select 2000000 + i*500000 + (g1.r - 1) * 1000 + g2.r,
+  7             (i*500) + (g1.r - 1),
+  8             trunc(sysdate) - mod((g1.r - 1) * 1000 + g2.r, 30),
+  9             case when mod((g1.r - 1) * 1000 + g2.r, 1000) = 0 then 'HOT_RARE' else 'HOT' end,
+ 10             rpad('H', 3000, 'H')
+ 11      from (select rownum r from dual connect by level &lt;= 500) g1
+ 12      cross join (select rownum r from dual connect by level &lt;= 1000) g2;
+ 13      commit;
+ 14    end loop;
+ 15  end;
+ 16  /
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:56.55
+SQL&gt;
+SQL&gt; create index idx_orders_skew_sel on orders_skew(region_id, status_txt) global;
+
+Index created.
+
+Elapsed: 00:01:11.59
+SQL&gt; create unique index pk_orders_skew on orders_skew(order_id);
+
+Index created.
+
+Elapsed: 00:01:04.72
+SQL&gt; alter table orders_skew add constraint pk_orders_skew primary key (order_id) using index pk_orders_skew;
+
+Table altered.
+
+Elapsed: 00:00:00.05
+SQL&gt;
+SQL&gt;
+  2    dbms_stats.gather_table_stats(
+  3      ownname    =&gt; user,
+  4      tabname    =&gt; 'ORDERS_SKEW',
+  5      cascade    =&gt; false,
+  6      estimate_percent =&gt; dbms_stats.auto_sample_size,
+  7      method_opt =&gt; 'FOR ALL COLUMNS SIZE AUTO');
+  8  end;
+  9  /
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:49.42
+SQL&gt;
+SQL&gt; prompt === Setup complete. Please run run_test.sql ===
+=== Setup complete. Please run run_test.sql ===
+SQL&gt; exit;
+Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+PS F:\GITEE\test_partition\123&gt; &amp; sqlplus system/SysPassword1@localhost:1527/pdb1 "@run_test.sql"
+
+SQL*Plus: Release 19.0.0.0.0 - Production on Fri Jan 9 13:36:05 2026
+Version 19.20.0.0.0
+
+Copyright (c) 1982, 2022, Oracle.  All rights reserved.
+
+Last Successful login time: Fri Jan 09 2026 13:31:15 +08:00
+
+Connected to:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+
+SQL&gt; set linesize 150
+SQL&gt; set pagesize 2000
+SQL&gt; COL PLAN_TABLE_OUTPUT FORMAT A150
+SQL&gt;
+SQL&gt; -- fast -&gt; slow -&gt; hint to speed up slow
+SQL&gt; prompt === Connect as SKEW_DEMO to run tests ===
+=== Connect as SKEW_DEMO to run tests ===
+SQL&gt; connect sys/SysPassword1@localhost:1527/pdb1 AS SYSDBA
+Connected.
+SQL&gt; alter system flush buffer_cache;
+
+System altered.
+
+Elapsed: 00:00:00.89
+SQL&gt; connect skew_demo/skew_demo@localhost:1527/pdb1
+Connected.
+SQL&gt;
+SQL&gt; alter session set optimizer_adaptive_plans = false;
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt; --alter session set optimizer_dynamic_sampling = 0;
+SQL&gt; --default 2
+SQL&gt; --alter session set cursor_sharing = exact;
+SQL&gt; --alter session set optimizer_index_cost_adj = 10000;
+SQL&gt; --default 100
+SQL&gt; --alter session set optimizer_index_caching = 0;
+SQL&gt; --alter session set db_file_multiblock_read_count = 128;
+SQL&gt; --default 49
+SQL&gt; alter session set statistics_level = all;
+
+Session altered.
+
+Elapsed: 00:00:00.00
+SQL&gt; set autotrace off
+SQL&gt;
+SQL&gt; variable v_low number
+SQL&gt; variable v_high number
+SQL&gt; variable v_status varchar2(20)
+SQL&gt;
+SQL&gt; prompt === Fast case (small partition) ===
+=== Fast case (small partition) ===
+SQL&gt; exec :v_low := 1;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_high := 1;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'SMALL';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select count(*)
+  2  from orders_skew
+  3   where region_id between :v_low and :v_high
+  4           and status_txt = :v_status
+  5           and length(payload) &gt; 0;
+
+  COUNT(*)
+----------
+       200
+
+Elapsed: 00:00:00.19
+SQL&gt; select * from table(dbms_xplan.display_cursor(format =&gt; 'ALLSTATS LAST +PEEKED_BINDS'));
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  5zx4wddk6gwx9, child number 0
+-------------------------------------
+select count(*) from orders_skew  where region_id between :v_low and
+:v_high   and status_txt = :v_status   and length(payload) &gt; 0
+
+Plan hash value: 1484433998
+
+-------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+-------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |      1 |        |      1 |00:00:00.12 |       5 |
+|   1 |  SORT AGGREGATE         |             |      1 |      1 |      1 |00:00:00.12 |       5 |
+|*  2 |   PX COORDINATOR        |             |      1 |        |      8 |00:00:00.12 |       5 |
+|   3 |    PX SEND QC (RANDOM)  | :TQ10000    |      0 |      1 |      0 |00:00:00.01 |       0 |
+|   4 |     SORT AGGREGATE      |             |      0 |      1 |      0 |00:00:00.01 |       0 |
+|*  5 |      FILTER             |             |      0 |        |      0 |00:00:00.01 |       0 |
+|   6 |       PX BLOCK ITERATOR |             |      0 |     17 |      0 |00:00:00.01 |       0 |
+|*  7 |        TABLE ACCESS FULL| ORDERS_SKEW |      0 |     17 |      0 |00:00:00.01 |       0 |
+-------------------------------------------------------------------------------------------------
+
+Peeked Binds (identified by position):
+--------------------------------------
+
+   1 - :1 (NUMBER): 1
+   2 - :2 (NUMBER): 1
+   3 - (VARCHAR2(30), CSID=873): 'SMALL'
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(:V_HIGH&gt;=:V_LOW)
+   5 - filter(:V_HIGH&gt;=:V_LOW)
+   7 - access(:Z&gt;=:Z AND :Z&lt;=:Z)
+       filter(("REGION_ID"&lt;=:V_HIGH AND "STATUS_TXT"=:V_STATUS AND LENGTH("PAYLOAD")&gt;0
+              AND "REGION_ID"&gt;=:V_LOW))
+
+Note
+-----
+   - Degree of Parallelism is 8 because of table property
+
+
+40 rows selected.
+
+Elapsed: 00:00:00.45
+SQL&gt; 
+SQL&gt; prompt === Slow case (hot partition, no hint) ===
+=== Slow case (hot partition, no hint) ===
+SQL&gt; exec :v_low := 0;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_high := 4999;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'HOT_RARE';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select count(*)
+  2  from orders_skew
+  3   where region_id between :v_low and :v_high
+  4           and status_txt = :v_status
+  5           and length(payload) &gt; 0;
+
+  COUNT(*)
+----------
+      5000
+
+Elapsed: 00:00:16.91
+SQL&gt; select * from table(dbms_xplan.display_cursor(format =&gt; 'ALLSTATS LAST +PEEKED_BINDS'));
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  5zx4wddk6gwx9, child number 0
+-------------------------------------
+select count(*) from orders_skew  where region_id between :v_low and
+:v_high   and status_txt = :v_status   and length(payload) &gt; 0
+
+Plan hash value: 1484433998
+
+----------------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Reads  |
+----------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |      1 |        |      1 |00:00:16.92 |    2500 |    499 |
+|   1 |  SORT AGGREGATE         |             |      1 |      1 |      1 |00:00:16.92 |    2500 |    499 |
+|*  2 |   PX COORDINATOR        |             |      1 |        |      8 |00:00:16.92 |    2500 |    499 |
+|   3 |    PX SEND QC (RANDOM)  | :TQ10000    |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |
+|   4 |     SORT AGGREGATE      |             |      0 |      1 |      0 |00:00:00.01 |       0 |      0 |
+|*  5 |      FILTER             |             |      0 |        |      0 |00:00:00.01 |       0 |      0 |
+|   6 |       PX BLOCK ITERATOR |             |      0 |     17 |      0 |00:00:00.01 |       0 |      0 |
+|*  7 |        TABLE ACCESS FULL| ORDERS_SKEW |      0 |     17 |      0 |00:00:00.01 |       0 |      0 |
+----------------------------------------------------------------------------------------------------------
+
+Peeked Binds (identified by position):
+--------------------------------------
+
+   1 - :1 (NUMBER): 1
+   2 - :2 (NUMBER): 1
+   3 - (VARCHAR2(30), CSID=873): 'SMALL'
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(:V_HIGH&gt;=:V_LOW)
+   5 - filter(:V_HIGH&gt;=:V_LOW)
+   7 - access(:Z&gt;=:Z AND :Z&lt;=:Z)
+       filter(("REGION_ID"&lt;=:V_HIGH AND "STATUS_TXT"=:V_STATUS AND LENGTH("PAYLOAD")&gt;0 AND
+              "REGION_ID"&gt;=:V_LOW))
+
+Note
+-----
+   - Degree of Parallelism is 8 because of table property
+
+
+40 rows selected.
+
+Elapsed: 00:00:00.05
+SQL&gt;
+SQL&gt; prompt === Hint to speed up slow case ===
+=== Hint to speed up slow case ===
+SQL&gt; exec :v_low := 0;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_high := 4999;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'HOT_RARE';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select /*+ index(orders_skew idx_orders_skew_sel) */ count(*)
+  2  from orders_skew
+  3   where region_id between :v_low and :v_high
+  4           and status_txt = :v_status
+  5           and length(payload) &gt; 0;
+
+  COUNT(*)
+----------
+      5000
+
+Elapsed: 00:00:03.33
+SQL&gt; select * from table(dbms_xplan.display_cursor(format =&gt; 'ALLSTATS LAST +PEEKED_BINDS'));
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  658dyx09zkk79, child number 0
+-------------------------------------
+select /*+ index(orders_skew idx_orders_skew_sel) */ count(*) from
+orders_skew  where region_id between :v_low and :v_high   and
+status_txt = :v_status   and length(payload) &gt; 0
+
+Plan hash value: 89002941
+
+---------------------------------------------------------------------------------------------------------------------------------------
+| Id  | Operation                                    | Name                | Starts | E-Rows | A-Rows |   A-Time   | Buffers | Reads  |
+---------------------------------------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT                             |                     |      1 |        |      1 |00:00:02.27 |   10073 |  10062 |
+|   1 |  SORT AGGREGATE                              |                     |      1 |      1 |      1 |00:00:02.27 |   10073 |  10062 |
+|*  2 |   FILTER                                     |                     |      1 |        |   5000 |00:00:02.27 |   10073 |  10062 |
+|*  3 |    TABLE ACCESS BY GLOBAL INDEX ROWID BATCHED| ORDERS_SKEW         |      1 |  83503 |   5000 |00:00:02.27 |   10073 |  10062 |
+|*  4 |     INDEX SKIP SCAN                          | IDX_ORDERS_SKEW_SEL |      1 |   1670K|   5000 |00:00:01.22 |    5063 |   5063 |
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Peeked Binds (identified by position):
+--------------------------------------
+
+   1 - :1 (NUMBER): 0
+   2 - :2 (NUMBER): 4999
+   3 - (VARCHAR2(30), CSID=873): 'HOT_RARE'
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(:V_HIGH&gt;=:V_LOW)
+   3 - filter(LENGTH("PAYLOAD")&gt;0)
+   4 - access("REGION_ID"&gt;=:V_LOW AND "STATUS_TXT"=:V_STATUS AND "REGION_ID"&lt;=:V_HIGH)
+       filter("STATUS_TXT"=:V_STATUS)
+
+
+33 rows selected.
+
+Elapsed: 00:00:00.04
+SQL&gt;
+SQL&gt; prompt === Slow case (hot partition, no hint) ===
+=== Slow case (hot partition, no hint) ===
+SQL&gt; exec :v_low := 0;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_high := 4999;
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; exec :v_status := 'HOT_RARE';
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:00:00.00
+SQL&gt; select count(*)
+  2  from orders_skew
+  3   where region_id between :v_low and :v_high
+  4           and status_txt = :v_status
+  5           and length(payload) &gt; 0;
+
+  COUNT(*)
+----------
+      5000
+
+Elapsed: 00:00:17.94
+SQL&gt; select * from table(dbms_xplan.display_cursor(format =&gt; 'ALLSTATS LAST +PEEKED_BINDS'));
+
+PLAN_TABLE_OUTPUT
+------------------------------------------------------------------------------------------------------------------------------------------------------
+SQL_ID  5zx4wddk6gwx9, child number 0
+-------------------------------------
+select count(*) from orders_skew  where region_id between :v_low and
+:v_high   and status_txt = :v_status   and length(payload) &gt; 0
+
+Plan hash value: 1484433998
+
+-------------------------------------------------------------------------------------------------
+| Id  | Operation               | Name        | Starts | E-Rows | A-Rows |   A-Time   | Buffers |
+-------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT        |             |      1 |        |      1 |00:00:17.94 |    2500 |
+|   1 |  SORT AGGREGATE         |             |      1 |      1 |      1 |00:00:17.94 |    2500 |
+|*  2 |   PX COORDINATOR        |             |      1 |        |      8 |00:00:17.94 |    2500 |
+|   3 |    PX SEND QC (RANDOM)  | :TQ10000    |      0 |      1 |      0 |00:00:00.01 |       0 |
+|   4 |     SORT AGGREGATE      |             |      0 |      1 |      0 |00:00:00.01 |       0 |
+|*  5 |      FILTER             |             |      0 |        |      0 |00:00:00.01 |       0 |
+|   6 |       PX BLOCK ITERATOR |             |      0 |     17 |      0 |00:00:00.01 |       0 |
+|*  7 |        TABLE ACCESS FULL| ORDERS_SKEW |      0 |     17 |      0 |00:00:00.01 |       0 |
+-------------------------------------------------------------------------------------------------
+
+Peeked Binds (identified by position):
+--------------------------------------
+
+   1 - :1 (NUMBER): 1
+   2 - :2 (NUMBER): 1
+   3 - (VARCHAR2(30), CSID=873): 'SMALL'
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - filter(:V_HIGH&gt;=:V_LOW)
+   5 - filter(:V_HIGH&gt;=:V_LOW)
+   7 - access(:Z&gt;=:Z AND :Z&lt;=:Z)
+       filter(("REGION_ID"&lt;=:V_HIGH AND "STATUS_TXT"=:V_STATUS AND LENGTH("PAYLOAD")&gt;0
+              AND "REGION_ID"&gt;=:V_LOW))
+
+Note
+-----
+   - Degree of Parallelism is 8 because of table property
+
+
+40 rows selected.
+
+Elapsed: 00:00:00.04
+SQL&gt;
+SQL&gt; exit;
+Disconnected from Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.13.0.0.0
+PS F:\GITEE\test_partition\123&gt; 
+</code></pre>
+<h3 id="结果汇总-1">结果汇总</h3>
+<p>本轮测试结果汇总:</p>
+<table><thead><tr><th>测试场景</th><th>数据少的分区</th><th>数据多的分区</th><th>数据多的分区+hint</th><th>重复查数据多的分区不带hint</th></tr></thead><tbody><tr><td>耗时</td><td>0.19</td><td>16.91</td><td>3.33</td><td>17.94</td></tr><tr><td>执行计划</td><td>并行分区全扫</td><td>并行分区全扫</td><td>全局索引跳扫</td><td>并行分区全扫</td></tr></tbody></table>
+<p>这轮测试的关键在于给表加上了并行度（大表查询加parallel hint也很常见）,以及使用了全局索引,还引入了额外的字段条件使其强制回表,使得索引扫描的开销变得很大,统计信息正确的情况下,数据库仍然倾向于使用并行全表扫描。</p>
+<p>这种SQL慢算数据库的BUG么？我个人认为不算。真实生产环境中存在大量的类似情况,这完全是应用开发者没有深入理解数据库原理在那胡搞一通,数据量大了就搞分区表,查询慢了就加索引,哪有这么简单！</p>
+<h2 id="结论与建议">结论与建议</h2>
+<ul>
+<li>用例一表明: 错误或被锁定的统计信息容易让分区表在倾斜场景下退化为全表扫描,针对热分区更明显。</li>
+<li>用例二强调: 在并行度、全局索引和回表代价叠加的情况下,即便统计信息正确,优化器也可能更偏好并行全表扫描,Hint 能快速拉回到索引路径但需谨慎使用。</li>
+<li>生产环境应重视 SQL 设计与统计信息质量,不能仅靠分区和索引“头痛医头”,必要时做 SQL 质量管控与回归验证。</li>
+</ul>
+<p>ORACLE数据库自己评估的执行计划不是最优,这还只是单表查询,复杂的多表关联情况下问题会更多,就更别说其他数据库能不能保证执行计划好了。</p>
+<p>篇幅有限,精力有限,本文未贴出研究过程中完整的手动调整测试过程,感兴趣的可以自己按照本文的测试过程去测测看。</p>
+<p>我本人是不太喜欢写这种性能分析文章的(疯狂暗示)。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

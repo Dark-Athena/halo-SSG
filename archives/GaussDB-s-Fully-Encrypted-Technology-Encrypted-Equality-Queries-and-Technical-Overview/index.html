@@ -153,7 +153,382 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="-GaussDB-全密态等值查询功能测试">【GaussDB】全密态等值查询功能测试</h1>
+<h1 id="一-引言">一、引言</h1>
+<p>全密态要解决的问题重点在于，认为<strong>服务提供方是不可信的</strong>，即网络传输和数据库存储都可能存在数据泄露的风险，因此网络传输和数据库存储都要加密，且要求服务提供方无法自行解密，只有受信的客户端能解密。</p>
+<p>由于常规的数据库设计，SQL执行层都是在数据库服务端，必然会涉及到对数据的访问和计算，因此最大的难点就在于如何在数据库自身无法解密数据的情况下还能对数据进行访问和计算。在这种限制下，就连最简单的等值查询都有技术挑战，除非使用确定性加密，但确定性加密，对于重复度高的数据，很容易破解，比如性别。</p>
+<p>全密态的最终目标是全同态，即能支持任意类型的计算（比如 ，在不知道密钥的情况下，能计算出”1的密文加2的密文等于3的密文“）。虽然全同态至今已经发展了几十年，但现有的全同态方案效率仍然是极低，如果把全同态技术放在通用的数据库软件里，其性能的削减程度是无法接受的。</p>
+<p>本文重点在于测试GaussDB的全密态如何使用，主要参考官方文档中 《全密态数据库等值查询》、 《设置密态等值查询》、《特性指南-内存解密逃生通道》 、《数据库安全-内存解密逃生通道》四个章节，相关原理请参考这篇文章：<a href="https://www.modb.pro/db/1900001768193404928">《GaussDB高安全—全密态数据库》</a></p>
+<h1 id="二-基本测试">二、基本测试</h1>
+<h2 id="创建用户">创建用户</h2>
+<pre><code class="language-sql">gaussdb=# CREATE USER alice PASSWORD 'Gaussdb@123';
+CREATE ROLE
+gaussdb=# \q
+</code></pre>
+<h2 id="gsql全密态连接">gsql全密态连接</h2>
+<p>连接时要加 -C ,如果是其他客户端，需要使用对应的全密态版本驱动或加载对应的动态库</p>
+<pre><code class="language-sql">[gaussdb@01c3b6b51da2 data]$ gsql -d postgres -U alice -WGaussdb@123 -r -C
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+</code></pre>
+<h3 id="设置密钥">设置密钥</h3>
+<p>注意每次使用密态连接都要先设置密钥。当密钥类型为user_token时，表示不依赖外部服务或硬件，此时只需要设置密码;另外可选的有华为云在线的kms或者第三方加密卡的kms</p>
+<pre><code class="language-sql">gaussdb=&gt; \key_info keyType=user_token,password=Gaussdb@123
+</code></pre>
+<blockquote>
+<p>注：openGauss的本地密钥和GaussDB的user_token不一样，openGauss的叫 <code>localkms</code>，以文件形式保存在服务端,无需密码;而GaussDB的user_token仅在客户端，服务端不进行存储也无法主动获知。</p>
+</blockquote>
+<h3 id="创建主密钥">创建主密钥</h3>
+<p>在key_store里选择刚刚设置的类型</p>
+<pre><code class="language-sql">gaussdb=&gt; CREATE CLIENT MASTER KEY alice_cmk WITH ( KEY_STORE = user_token , ALGORITHM = AES_256_GCM );
+CREATE CLIENT MASTER KEY
+</code></pre>
+<h3 id="创建列密钥">创建列密钥</h3>
+<pre><code class="language-sql">gaussdb=&gt; CREATE COLUMN ENCRYPTION KEY cek1 WITH VALUES (CLIENT_MASTER_KEY = alice_cmk, ALGORITHM = AES_256_GCM);
+CREATE COLUMN ENCRYPTION KEY
+</code></pre>
+<h3 id="创建具有加密列的表-并插入数据">创建具有加密列的表，并插入数据</h3>
+<pre><code class="language-sql">gaussdb=&gt; CREATE TABLE creditcard_info (
+gaussdb(&gt;   id_number int,
+gaussdb(&gt;   name text encrypted with (column_encryption_key = cek1, encryption_type = DETERMINISTIC),
+gaussdb(&gt;   credit_card varchar(19) encrypted with (column_encryption_key = cek1, encryption_type = DETERMINISTIC));
+CREATE TABLE
+gaussdb=&gt; INSERT INTO creditcard_info VALUES (1,'joe','6217986500001288393');
+INSERT 0 1
+gaussdb=&gt; INSERT INTO creditcard_info VALUES (2, 'joy','6219985678349800033');
+INSERT 0 1
+</code></pre>
+<h3 id="使用等值条件查询数据">使用等值条件查询数据</h3>
+<p>能查询出明文数据</p>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info where name = 'joe';
+ id_number | name |     credit_card   
+-----------+------+---------------------
+         1 | joe  | 6217986500001288393
+(1 row)
+</code></pre>
+<h3 id="更新数据">更新数据</h3>
+<p>也能正常更新</p>
+<pre><code class="language-sql">gaussdb=&gt; update creditcard_info set credit_card = '80000000011111111' where name = 'joy';
+UPDATE 1
+</code></pre>
+<h3 id="模糊查询">模糊查询</h3>
+<p>加密列无法模糊查询</p>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info where name like 'j%';
+ERROR(CLIENT): operator is not allowed on datatype of this column
+</code></pre>
+<h3 id="范围查询">范围查询</h3>
+<p>加密列无法范围查询</p>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info where name &gt;'a';
+ERROR(CLIENT): operator is not allowed on datatype of this column
+gaussdb=&gt; \q
+</code></pre>
+<h2 id="使用非密态连接">使用非密态连接</h2>
+<pre><code class="language-sql">[gaussdb@01c3b6b51da2 data]$ gsql -d postgres -U alice -WGaussdb@123 -r 
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+</code></pre>
+<h3 id="对加密列进行等值查询">对加密列进行等值查询</h3>
+<p>报错</p>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info where name = 'joe';
+ERROR:  The entered syntax is not supported by the byteawithoutorderwithequalcol type.
+LINE 1: select * from creditcard_info where name = 'joe';
+                                                   ^
+</code></pre>
+<h3 id="不带过滤条件进行查询">不带过滤条件进行查询</h3>
+<p>能看到加密列的数据都为密文，而且长度已经超过了定义的长度</p>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info;
+ id_number |                                        name                                        |                                                    credit_car
+d                                       
+-----------+------------------------------------------------------------------------------------+--------------------------------------------------------------
+------------------------------------------------------
+         1 | \x01eaa587da4b8a0ed0d3ec32ce1284a6e1b82e69d4310000000d5762f944388244665aa54c12b31b | \x01eaa587dab33533b2e2114abbd025a680f72cf95231000000cedfd5255
+e15ade775ec81d734c2dc4ea4277aad3d70bad0eb38e3121bac45
+         2 | \x01eaa587da331c34df8a04c86ae4d1ed3102d0738631000000102d852e9ce5d5c388c21ab793463e | \x01eaa587da8e633482090e8b78f79598d11ec27486310000007cd9ea54c
+fc38269b6a2a14f1bb5e814774b45bbd317188b6b7eb176ce
+(2 rows)
+</code></pre>
+<h2 id="表结构显示">表结构显示</h2>
+<p>虽然字段类型显示为varchar，但实际上已经已经变成了二进制类型</p>
+<pre><code class="language-sql">gaussdb=&gt; \dS+ creditcard_info
+                            Table "alice.creditcard_info"
+   Column    |       Type        | Modifiers  | Storage  | Stats target | Description 
+-------------+-------------------+------------+----------+--------------+-------------
+ id_number   | integer           |            | plain    |              | 
+ name        | text              |  encrypted | extended |              | 
+ credit_card | character varying |  encrypted | extended |              | 
+Has OIDs: no
+Options: orientation=row, compression=no, storage_type=USTORE, segment=off, toast.storage_type=USTORE, toast.toast_storage_type=enhanced_toast
+
+gaussdb=&gt;
+</code></pre>
+<h1 id="三-内存解密逃生通道">三、内存解密逃生通道</h1>
+<p>内存解密作为密态等值查询的一个逃生通道使用。在该逃生通道中，会将密钥传输到数据库内存中，对数据进行解密，以实现密文字段的特殊计算或查询功能，包括范围查询、排序；其他涉及密文操作、隐式或显式类型转换时，进行自动加解密。</p>
+<h2 id="逃生连接">逃生连接</h2>
+<p>加-C3进行连接</p>
+<pre><code class="language-sql">[gaussdb@01c3b6b51da2 data]$ gsql -d postgres -U alice -WGaussdb@123 -r -C3
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+</code></pre>
+<h2 id="设置密钥信息">设置密钥信息</h2>
+<pre><code class="language-sql">gaussdb=&gt; \key_info keyType=user_token,password=Gaussdb@123
+</code></pre>
+<h2 id="默认情况-非等值查询报错">默认情况，非等值查询报错</h2>
+<pre><code class="language-sql">gaussdb=&gt; select * from creditcard_info where name like 'j%';
+ERROR:  The entered syntax is not supported by the byteawithoutorderwithequalcol type.
+LINE 1: select * from creditcard_info where name like 'j%';
+                                                      ^
+</code></pre>
+<h2 id="传输密钥后再使用非等值查询-不报错">传输密钥后再使用非等值查询，不报错</h2>
+<pre><code class="language-sql">gaussdb=&gt; \st
+Token cache enabled in Trusted Domain.
+gaussdb=&gt; select * from creditcard_info where name like 'j%';
+ id_number | name |     credit_card   
+-----------+------+---------------------
+         1 | joe  | 6217986500001288393
+         2 | joy  | 80000000011111111
+(2 rows)
+</code></pre>
+<h1 id="四-FAQ">四、FAQ</h1>
+<h2 id="透明加密和全密态有什么区别-">透明加密和全密态有什么区别？</h2>
+<p>答：透明加密和全密态都可以加密数据，但这是两种不同的加密模式，具体区别如下：</p>
+<ul>
+<li>加密位置不同：透明加密在数据库存储模块后加密，全密态在数据库驱动中加密。</li>
+<li>加密对象不同：透明加密数据页中的全部数据，全密态加密SQL语句中的某几列数据。</li>
+<li>加密性能不同：透明加密一次可以处理8k的数据页，全密态一次仅可以处理SQL语句中的一条数据，透明加密性能高于全密态。</li>
+<li>安全性不同：全密态安全性高于透明加密。</li>
+</ul>
+<h1 id="五-相关学术文章">五、相关学术文章</h1>
+<p><a href="https://jos.org.cn/html/2024/8/7095.htm">全密态数据库密态计算关键技术综述</a>--毕树人, 钮泽平, 李国良, 李琦. 全密态数据库密态计算关键技术综述[J]. 软件学报, 2024, 35(8): 3980-4010. <a href="http://www.jos.org.cn/1000-9825/7095.htm">http://www.jos.org.cn/1000-9825/7095.htm</a></p>
+<p>以下来自ima对这篇文章的整理</p>
+<blockquote>
+<p>这篇文档《全密态数据库密态计算关键技术调研综述》是一篇非常详尽的关于全密态数据库（Fully Encrypted Database, FEDB）的技术调研文章。它系统性地梳理了全密态数据库的概念、挑战、架构、关键技术以及未来研究方向。以下是其主要内容的详细总结：</p>
+<p><strong>核心目标：</strong> 解决云数据库场景下敏感数据的全传输、存储、计算）机密性保护问题，防止非授权方（包括云服务商管理员、攻击者）窥探或泄露数据。</p>
+<p><strong>主要挑战：</strong> 设计全密态数据库需要在<strong>安全性、功能性（支持的SQL操作）和性能</strong>三者之间进行权衡（Trade-off）。目前没有单一方案能完美满足三者：</p>
+<ul>
+<li><strong>安全性：</strong> 首要挑战。方案必须提供足够的安全性保障。</li>
+<li><strong>高性能：</strong> 现代数据库需支持海量数据、高并发、低延迟，密态计算带来额外开销。</li>
+<li><strong>功能性：</strong> 需支持复杂的SQL操作（等值查询、范围查询、字符串查询、连接、聚集等）。不同加密方案支持的功能有限。</li>
+</ul>
+<p><strong>1. 全密态数据库概述</strong></p>
+<ul>
+<li><strong>定义：</strong> 在数据的传输、存储和计算整个生命周期中保持加密状态，保护数据机密性。</li>
+<li><strong>核心能力：</strong>
+<ul>
+<li><strong>密态传输：</strong> 使用TLS/SSL等技术加密传输数据。</li>
+<li><strong>密态存储：</strong> 使用AES等算法加密存储数据。</li>
+<li><strong>密态计算：</strong> 核心挑战！在云端非可信内存区域保持数据密文状态并执行数据库操作。防止DBA窥探、内存快照/观测攻击。</li>
+</ul>
+</li>
+<li><strong>应用场景：</strong> 主要应用于对数据隐私与安全性要求极高的场景（医疗、金融、政府），数据库类型多为关系型、事务型数据库。分布式关系型事务数据库的需求日益迫切。</li>
+<li><strong>敌手模型：</strong>
+<ul>
+<li><strong>被动型敌手 (半诚实型)：</strong> 能监听/读取数据，但不能篡改。关注保护数据机密性。</li>
+<li><strong>主动型敌手 (恶意型)：</strong> 能监听/读取并篡改数据。需额外保护数据正确性与完整性。</li>
+</ul>
+</li>
+</ul>
+<p><strong>2. 全密态数据库的模型和架构</strong></p>
+<ul>
+<li><strong>系统模型：</strong> 两方场景（客户端 - 云服务端）。客户端是数据拥有者/使用者（可信），云服务端是数据存储/管理者（不可信）。敏感数据只在客户端明文存在，在服务端始终密文。</li>
+<li><strong>密钥管理：</strong> 通常采用分层密钥体系（如DEK加密数据，CMK加密DEK）。CMK最敏感，存储在用户本地或可信KMS。</li>
+<li><strong>三种典型架构：</strong>
+<ul>
+<li><strong>基于软件加密算法的架构：</strong>
+<ul>
+<li><strong>原理：</strong> 依赖纯软件加密算法（如DET, OPE, SSE, PHE, FHE, GC）在密文上执行操作。</li>
+<li><strong>优点：</strong> 通用性强，无需特定硬件。</li>
+<li><strong>缺点：</strong> 功能受限（需组合多种算法）、安全性/性能/功能性难以兼顾（高安全/高功能方案性能低，高功能/高性能方案安全性低）、存储/计算开销大。</li>
+<li><strong>关键技术挑战：</strong> 设计安全、高效、功能丰富的加密方案（特别是通用方案如FHE的实用化）。</li>
+</ul>
+</li>
+<li><strong>基于可信硬件TEE的架构：</strong>
+<ul>
+<li><strong>原理：</strong> 利用可信执行环境（如Intel SGX, AMD SEV, ARM TrustZone）在服务端创建可信飞地（Enclave）。密钥安全传入飞地，密文在飞地内解密为明文执行操作，结果加密返回。</li>
+<li><strong>优点：</strong> 功能性强（支持几乎所有操作）、安全性较高（相比纯软方案）、开发复杂度相对低。</li>
+<li><strong>缺点：</strong> 依赖特定硬件、TEE本身存在侧信道攻击风险、修复依赖硬件厂商、国内自主可控TEE发展迅速。</li>
+<li><strong>关键技术挑战：</strong>
+<ul>
+<li><strong>功能拆分：</strong> 决定哪些数据库模块在TEE内执行（整个DBMS、部分执行器、算子级）。</li>
+<li><strong>加密粒度：</strong> 权衡安全性与灵活性（元组、单元、索引值、索引页）。</li>
+<li><strong>有限内存：</strong> 早期SGX EPC内存小（128/256MB），EDMM动态内存管理缓解此问题（支持GB/TB级）。</li>
+<li><strong>TEE-REE交互开销：</strong> ECall/OCall开销巨大（数千时钟周期），需减少交互次数和数据量。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>软硬融合式架构：</strong>
+<ul>
+<li><strong>原理：</strong> 融合软件加密和TEE双方优点。部分查询（如等值查询）利用加密算法在REE执行，部分查询（如范围查询）利用TEE在飞地内执行。自适应选择执行模式。</li>
+<li><strong>优点：</strong> 显著降低REE-TEE交互开销，在安全、功能、性能间取得更好平衡。</li>
+<li><strong>代表：</strong> GaussDB（三层密钥体系：CEK, CMK, DK）。</li>
+<li><strong>关键技术挑战：</strong> 如何协同REE和TEE处理查询（如利用REE预过滤减少TEE数据量）、提升软件部分算法的安全性（如替代DET）。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>3. 关键技术详解</strong></p>
+<ul>
+<li><strong>基于软件加密算法的关键技术：</strong>
+<ul>
+<li><strong>加密算法安全性基础：</strong> 介绍了语义安全（IND-CPA）、IND-CCA、IND-DCPA、IND-OCPA、IND-CKA等安全等级定义。</li>
+<li><strong>明文加密 (RND)：</strong> 仅支持存储，不支持查询（如MongoDB早期）。</li>
+<li><strong>密态等值查询：</strong>
+<ul>
+<li><strong>确定性加密 (DET)：</strong> 高效支持等值查询、连接、聚集。缺点：暴露相同明文频率，易受推理攻击（如Naveed攻击），安全性低（IND-DCPA）。</li>
+<li><strong>对称可搜索加密 (SSE)：</strong> 支持密文等值搜索。核心：客户端生成加密索引和陷门，服务端匹配返回。安全性中等（IND-CKA）。需构建索引（倒排、正排、树形、布隆过滤器）。</li>
+</ul>
+</li>
+<li><strong>密态范围查询：</strong>
+<ul>
+<li><strong>基于分桶：</strong> 将范围查询转换为多个桶的等值查询（DET）。缺点：可能有假阳结果、需后处理、暴露分区分布、安全性未严格证明。</li>
+<li><strong>保序加密 (OPE)：</strong> 密文保持明文顺序，可直接构建B-tree索引，高效。缺点：暴露顺序和等值频率，安全性低。发展阶段：无严格安全 -&gt; 严格安全（IND-OCPA）-&gt; 理想安全（IND-OCPA, 如Popa方案）-&gt; 超越理想（隐藏频率, FH-OPE）。FH-OPE方案（如Kerschbaum, Li）通常有状态、需交互或存储开销大。</li>
+<li><strong>揭序加密 (ORE)：</strong> OPE改进，通过比较函数判断顺序，密文不限于数字。无状态、密文不变。安全性优于部分OPE但仍暴露顺序和部分信息（如首个不同比特/块）。代表方案：Boneh, Chenette, Lewi-Wu, EncodeORE (Liu)。</li>
+<li><strong>基于SSE和树形索引：</strong> 利用树结构（如RSSE）将范围查询转换为多个子范围等值查询（SSE token）。安全性中等（IND-CKA2）。缺点：集成复杂、空间膨胀大（O(n log A)）。</li>
+</ul>
+</li>
+<li><strong>密态字符串查询：</strong>
+<ul>
+<li><strong>通配符搜索：</strong> 主要基于SSE和布隆过滤器（BF）。核心是特征提取（字符+位置）。方案如Suga（固定位置）、Hu（扩展位置类型，支持后缀等，但有假阳）、Yang（同态加密，安全高但效率低）、Liu（布隆过滤器二叉树）、Li（内积方案）。</li>
+<li><strong>模糊搜索：</strong> 基于编辑距离、N-gram、Soundex等。早期方案构造模糊关键词集（存储开销大）。基于局部敏感哈希（LSH）的方案成为主流，如Kuzu（单关键词）、Wang（多关键词，基于BF和向量内积）、Fu（改进Wang，处理拼写错误和权重）、Zhong（动态，利用平衡二叉树减少搜索时间）。</li>
+</ul>
+</li>
+<li><strong>密态算术运算：</strong>
+<ul>
+<li><strong>半同态加密 (PHE)：</strong> 支持密文上的特定算术运算（加/减/乘），用于聚集操作（SUM, AVG）。</li>
+<li><strong>分类：</strong>
+<ul>
+<li>基于非对称加密（ElGamal：同态乘除；Paillier：同态加减、密文明文运算）：安全性高（IND-CPA），但效率极低（比明文慢数万倍）。</li>
+<li>基于对称加密（ASHE：加法；SAHE/SMHE/Symmetria：加减/乘除）：效率显著提升（比非对称快数倍到数量级），但功能可能受限。</li>
+</ul>
+</li>
+<li><strong>性能优化：</strong> 如Tawose的基于基数的并发缓存方案，减少加密操作次数，大幅提升效率。</li>
+</ul>
+</li>
+<li><strong>通用加密方案：</strong>
+<ul>
+<li><strong>全同态加密 (FHE)：</strong> 理论上支持任意密文计算。是密码学“圣杯”，但效率极低（比明文慢数万到数百万倍），目前可行性低。</li>
+<li><strong>混淆电路 (GC)：</strong> 理论上支持任意安全计算（多方安全计算）。语义安全（IND-CPA）。缺点：计算、带宽、交互开销巨大，通常不可重用。</li>
+</ul>
+</li>
+<li><strong>代表性系统：</strong>
+<ul>
+<li><strong>CryptDB：</strong> 先驱，支持多种操作。采用“洋葱模型”（多层加密）和“多列模型”（不同加密类型列）。性能较好（TPC-C吞吐量降26%），但安全性争议大（DET/OPE易受推理攻击）。</li>
+<li><strong>Monomi：</strong> 基于CryptDB的分析型（OLAP）优化。拆分查询执行、优化技术（预计算等）、优化数据布局和规划器。性能提升（TPC-H时间增24%），但继承CryptDB安全性问题。</li>
+<li><strong>BlindSeer：</strong> 基于BF搜索树和GC高（保护访问模式），支持等值、范围、布尔查询。缺点：更新不友好、功能有限（不支持连接等）、交互多性能差。</li>
+<li><strong>Arx：</strong> 仅使用语义安全加密（RND）。架构类似CryptDB（代理）。关键技术：ArxEq（SSE+计数器隐藏频率）、ArxRange（混淆电路+二叉树索引）。安全性高，功能有限（主要等值范围），性能低（混淆电路需修复，交互多）。</li>
+<li><strong>MongoDB Queryable Encryption：</strong> 工业界产品。基于SSE实现密文等值查询（索引值存储在文档的 <code>__safeContent__</code>集合中，使用序号隐藏频率）。安全性中等（IND-CKA）。范围查询基于SSE和树形索引（类似Logarithmic-BRC）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>基于可信硬件TEE的关键技术：</strong>
+<ul>
+<li><strong>TEE原理与功能：</strong> 提供隔离飞地（Enclave）、数据密封（Sealing）、远程认证（Attestation）。代表：Intel SGX（内存加密，EPC）。</li>
+<li><strong>应用与挑战：</strong>
+<ul>
+<li><strong>功能拆分模式：</strong> 整个DBMS入TEE（如EnclaveDB，内存受限）、部分执行器入TEE（如TrustedDB, CipherBase）、算子入TEE（主流，如Always Encrypted, Enclage, GaussDB, StealthDB，TCB最小）。</li>
+<li><strong>加密粒度：</strong> 对象（元组、单元、索引值） vs. 页（Enclage，安全性高、批处理优）。</li>
+<li><strong>有限内存：</strong> 早期SGX EPC小（128/256MB），EDMM动态内存管理缓解（支持GB/TB）。</li>
+<li><strong>TEE-REE交互开销：</strong> ECall/OCall开销大（数千时钟周期），需减少交互。</li>
+</ul>
+</li>
+<li><strong>代表性系统：</strong>
+<ul>
+<li><strong>TrustedDB：</strong> 早期基于IBM SCPU。拆分查询为public/private子查询分别在REE/SCPU执行。</li>
+<li><strong>CipherBase：</strong> 基于FPGA。UM/TM架构。仅解密和核心运算在TM。</li>
+<li><strong>EnclaveDB：</strong> 整个内存DBMS入SGX飞地。适合数据量小于内存场景。</li>
+<li><strong>StealthDB：</strong> （算子级）基于PostgreSQL。为密文构建B-tree索引（二次加密提升安全性）。性能较好（TPC-C吞吐量降30%）。</li>
+<li><strong>Always Encrypted (AEv2)：</strong> （算子级）基于SQL Server + SGX。支持密文B-tree索引（暴露顺序）并保留DET。</li>
+<li><strong>Enclage：</strong> （算子级）基于SGX的存储引擎。页级加密粒度，提升安全性和批处理效率。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>软硬融合的全密态数据库：</strong>
+<ul>
+<li><strong>代表：GaussDB。</strong> 结合软件模式（REE，基于DET索引支持等值查询等）和TEE模式（SGX/TrustZone，支持范围查询等）。自适应选择模式。三层密钥体系（CEK, CMK, DK）。优点：降低交互开销，平衡安全、功能、性能。挑战：协同查询处理、提升软件部分安全性。</li>
+</ul>
+</li>
+</ul>
+<p><strong>4. 访问模式保护关键技术</strong></p>
+<ul>
+<li><strong>问题：</strong> 即使数据加密，攻击者可通过分析访问模式（访问类型、内存地址、返回结果）推断信息。</li>
+<li><strong>基于软件的保护：</strong>
+<ul>
+<li><strong>不经意随机访问机 (ORAM)：</strong> 核心方案。隐藏访问类型和地址（通过原子读写、虚拟数据、批量访问）。模型多样（简单、平方根、层次、分区、树形Path-ORAM效率相对好）。开销大（存储、带宽、计算）。</li>
+<li><strong>应用：</strong>
+<ul>
+<li><strong>连接操作：</strong> 研究不经意的连接算法（效率挑战大，笛卡尔积级或优化如Krastnikov, Chang）。</li>
+<li><strong>聚集操作：</strong> SAGMA（SSE+SWHE+分桶）、HEDA（FHE），保护访问模式但各有性能或安全局限。</li>
+<li><strong>范围查询：</strong> Range ORAM（结合范围树，存储开销大）、Chang方案（基于Path-ORAM和B-tree索引）。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>基于TEE的保护：</strong>
+<ul>
+<li><strong>优点：</strong> ORAM客户端可运行在enclave内，减少网络开销。</li>
+<li><strong>代表系统：</strong>
+<ul>
+<li><strong>Opaque：</strong> 基于Spark的分布式平台，支持广泛查询，保护访问模式，性能提升显著。</li>
+<li><strong>CipherBase：</strong> 提出不经意运算符概念。</li>
+<li><strong>ObliDB：</strong> 提出不经意B+树索引，提升查询效率（比Opaque快19倍）。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><strong>5. 未来研究方向与挑战</strong></p>
+<ul>
+<li><strong>基于软件加密：</strong>
+<ul>
+<li>设计更好加密方案（平衡安全、功能、性能）。</li>
+<li>提升通用方案（FHE）的实用性。</li>
+<li>降低SSE存储开销。</li>
+<li>提升PHE效率。</li>
+<li>适应分布式场景（SSE索引集中存储问题）。</li>
+</ul>
+</li>
+<li><strong>基于TEE：</strong>
+<ul>
+<li>设计TEE原生数据库。</li>
+<li>减少TEE-REE交互开销（次数、数据量）。</li>
+</ul>
+</li>
+<li><strong>软硬融合：</strong>
+<ul>
+<li>优化REE与TEE协同查询处理（如REE预过滤）。</li>
+<li>提升软件部分加密方案的安全性（替代DET）。</li>
+</ul>
+</li>
+<li><strong>访问模式保护：</strong>
+<ul>
+<li>提高不经意访问方案（ORAM等）的效率，增强可实践性。</li>
+</ul>
+</li>
+<li><strong>其他：</strong> 标准化、易用性、与现有数据库生态集成等。</li>
+</ul>
+<p><strong>6. 结束语</strong></p>
+<ul>
+<li>重申全密态数据库在云数据安全中的重要性。</li>
+<li>总结三种架构（纯软、TEE、软硬融合）及其关键技术。</li>
+<li>强调访问模式保护的重要性。</li>
+<li>展望未来研究方向，为研究者提供参考。</li>
+</ul>
+<p><strong>总结来说，这篇文档全面而深入地探讨了全密态数据库这一重要领域，涵盖了从基础概念、核心挑战、主流架构（纯软、TEE、软硬融合）的详细技术实现（各种加密算法、TEE应用、系统设计），到访问模式保护方案，最后展望了未来的研究趋势。它是一份非常有价值的全密态数据库技术全景图。</strong></p>
+</blockquote>
+<h1 id="总结">总结</h1>
+<p>GaussDB的全密态等值查询功能测试基本符合预期，但是用户必须要清楚其使用场景。使用全密态的副作用并不仅仅是性能下降那么简单，其原理上就限制了非常多的使用场景是无法支持的。<br/>
+不过如果期望的效果是数据库服务器最高权限被黑，网络被黑，涉密数据也不会明文泄露，那么全密态可能是唯一的选择了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

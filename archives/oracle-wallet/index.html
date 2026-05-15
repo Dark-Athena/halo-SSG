@@ -155,7 +155,40 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>一般开发中，很少会接触到Oracle数据库的wallet，但是我在一次研究发送ssl邮件的时候，了解到了这个东西，当时因为我没找到关于wallet的完整介绍文档，没和DBA说清楚，导致DBA错误操作使数据库无法登陆了。后来我翻了很多中文和英文的文档和文章，对于单实例ORACLE数据库，大致整理出以下四种常用的用途</p>
+<h2 id="常见用途">常见用途</h2>
+<h4 id="1客户端免密码登陆数据库">1.客户端免密码登陆数据库</h4>
+<p>可以生成一个wallet，配置好相关登录信息后，将wallet文件放在客户端上，客户端即可实现无密码登录，防止密码明文配置在客户端导致泄漏的风险，像java、python等开发语言都可以使用wallet登录oracle数据库</p>
+<h4 id="2透明加密列加密">2.透明加密（列加密）</h4>
+<p>可以把数据库中某些表的某些列进行加密，让常规用户名密码登录方式的用户无法查看这些列中的内容，只有通过wallet登录的会话才能查看，减少敏感数据泄露的风险</p>
+<h4 id="3数据库对外进行ssl加密的tcp通讯">3.数据库对外进行ssl加密的tcp通讯</h4>
+<p>比如发起https的api请求，发送加密邮件等。oracle数据库目前还无法自动下载对称加密的证书，需要用户自行下载并配置到wallet中，然后在开始进行tcp通讯前引用一下wallet的目录即可。</p>
+<h4 id="4客户端和数据库间通讯数据加密">4.客户端和数据库间通讯数据加密</h4>
+<p>这个和https类似，我之前有在未加密的客户端和数据库通讯时抓过包，比如写条查询sql，那么客户端发送给数据库的网络包中就会这个sql的明文信息，数据库返回数据到客户端时也是如此。如果网络被监控，或者走了公网，存在一定程度的安全风险。所以可以通过配置wallet，让数据库和客户端间进行对称加密，这样就算被抓包也很难破解出其中的内容了</p>
+<h2 id="配置工具">配置工具</h2>
+<p>wallet有两个配置工具，这两个配置工具在linux和windows上都是有的，并且可以脱离数据库服务器使用</p>
+<h4 id="1命令行工具-orapki">1.命令行工具 orapki</h4>
+<p>可以通过命令行脚本来创建wallet、生成证书、添加证书等，适用于自动化部署<br/>
+比如</p>
+<pre><code class="language-batch">REM 创建wallet
+orapki wallet create -wallet /u01/app/wallet -pwd password  -auto_login
+REM 给wallet添加一个证书文件
+orapki wallet add -wallet /u01/app/wallet -trusted_cert -cert /u01/app/wallet/cert1.cer -pwd password
+</code></pre>
+<h4 id="2图形界面工具-owmwallet-manager">2.图形界面工具 owm（Wallet Manager）</h4>
+<p>有可视化窗口的工具，配置方式更人性化<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png" srcset="/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1200 1200w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=400 400w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1600 1600w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=800 800w"/></p>
+<h2 id="wallet文件">wallet文件</h2>
+<p>在选定目录执行创建wallet并保存后，会在该目录下生成“ewallet.p12”和“cwallet.sso”这两个文件,如果需要变更wallet目录，只需要移动这两个文件即可</p>
+<h2 id="其他">其他</h2>
+<h4 id="1如果只是想访问https的api或者发送带ssl的email只要生成钱夹并添加证书即可千万不要盲目的对数据库进行其他有关wallet的操作">1.如果只是想访问https的api或者发送带ssl的email，只要生成钱夹并添加证书即可，千万不要盲目的对数据库进行其他有关wallet的操作</h4>
+<h4 id="2本文主要目的在于给读者提供一个初学指引想更加详细了解的建议参考">2.本文主要目的在于给读者提供一个初学指引，想更加详细了解的，建议参考</h4>
+<p><a href="https://blog.csdn.net/tianlesoftware/article/details/8269547">https://blog.csdn.net/tianlesoftware/article/details/8269547</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

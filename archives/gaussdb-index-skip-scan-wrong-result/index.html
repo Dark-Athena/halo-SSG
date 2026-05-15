@@ -153,7 +153,1353 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb排查创建索引后查询数据行数发生变化的问题">【GaussDB】排查创建索引后查询数据行数发生变化的问题</h1>
+<h2 id="背景">背景</h2>
+<p>客户开发反馈，有个复杂的SQL，本来查询行数有几千行，针对其中一个表创建索引后，这个SQL查询行数只有一百多行了,重复多次执行都可以复现。</p>
+<h2 id="确认版本">确认版本</h2>
+<p>GaussDB 内核为 506.0.0SPC0100， 已打修复跳扫BUG的热补丁（<a href="https://www.darkathena.top/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug">【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</a>）。而且因为重复执行能复现，因此理论上与之前这个VACUUM同时发生的BUG无关。</p>
+<h2 id="个人分析--20260202">个人分析--20260202</h2>
+<p>隔壁驻场的同事发现执行计划里有索引跳扫，于是在有索引的情况下，把索引跳扫关闭，数据查询结果正常了。<br/>
+得到这个信息后，我就开始逐段简化SQL，比较索引跳扫开关前后的表现，最后简化成了这样</p>
+<pre><code class="language-sql">select count(1) from tb1 where c2 in ('6','7');
+</code></pre>
+<p>这个表有68个字段，其中9个字段作为一个复合索引。<br/>
+这个SQL走全表扫描出来的行数和走索引跳扫出来的行数不一致，索引跳扫的行数要小一些。但现在表里的数据量还有几十万行，不方便提交给华为，于是我继续缩小。</p>
+<p>先减少行数：</p>
+<pre><code class="language-sql">drop table if exists tb2;
+create table tb2 as select * from tb1 limit 10000;
+create index ind_tb2 on tb2(c1,c2,c3,c4,c5,c6,c7,c8,c9);
+select /*+IndexSkipScan(t ind_tb2)*/ count(1) from tb2 t where c2 in ('6','7');
+select /*+fullscan(t)*/ count(1) from tb2 t where c2 in ('6','7');
+</code></pre>
+<p>反复测试，发现当limit 调整到188行时，仍能复现行数不一致，但limit 调整到187行时，两个行数就一致了。</p>
+<p>再减少字段数，既然索引是9个字段，那么干脆就根据索引的这9个字段建一个9字段的表</p>
+<pre><code class="language-sql">create table t_test_skip as select c1, c2, c3, c4, c5, c6, c7, c8, c9 from tb1 limit 188;
+CREATE INDEX ind_t_test_skip ON t_test_skip (c1, c2, c3, c4, c5, c6, c7, c8, c9) ;
+select /*+IndexSkipScan(t ind_tb2)*/ count(1) from t_test_skip t where c2 in ('6','7');
+select /*+tablescan(t)*/ count(1) from t_test_skip t where c2 in ('6','7');
+</code></pre>
+<p>果然还可以复现。<br/>
+将这188行数据导出成insert sql，尝试注释中间的一些行，发现至少需要插入134行才能复现，全表扫比索引跳扫多2行。</p>
+<p>最终复现的数据构造为</p>
+<pre><code class="language-sql">drop table if exists t_test_skip;
+
+CREATE TABLE t_test_skip (
+    c1 character varying(1),
+    c2 character varying(1),
+    c3 character varying(8),
+    c4 character varying(3),
+    c5 numeric(19,3),
+    c6 numeric(19,3),
+    c7 character varying(2),
+    c8 numeric(19,3),
+    c9 character varying(10)
+)
+WITH (orientation=row, compression=no, storage_type=USTORE, segment=off);
+CREATE INDEX ind_t_test_skip ON t_test_skip USING ubtree (c1, c2, c3, c4, c5, c6, c7, c8, c9) WITH (storage_type=USTORE) TABLESPACE pg_default;
+
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','1',NULL,'CNY',10000000.000,0.000,'5',0.000,'0022'),
+     ('0','6','20080201','CNY',1000000.000,1000000.000,'2',1000000.000,'0028'),
+     ('0','6','20080205','CNY',5000000.000,5000000.000,'3',5000000.000,'0028'),
+     ('0','6','20080205','CNY',50000000.000,50000000.000,'2',50000000.000,'0047'),
+     ('0','6','20080218','CNY',30000000.000,30000000.000,'1',30000000.000,'0028'),
+     ('0','6','20080219','CNY',100000000.000,100000000.000,'2',100000000.000,'0047'),
+     ('0','6','20080220','CNY',20000000.000,20000000.000,'1',20000000.000,'0028'),
+     ('0','6','20080221','CNY',100000.000,100000.000,'2',100000.000,'0148'),
+     ('0','6','20080221','CNY',100000.000,100000.000,'3',100000.000,'0148'),
+     ('0','6','20080221','CNY',100000.000,100000.000,'4',100000.000,'0148');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080221','CNY',100000.000,100000.000,'5',100000.000,'0148'),
+     ('0','6','20080222','CNY',10000000.000,10000000.000,'1',10000000.000,'0148'),
+     ('0','6','20080222','CNY',15000000.000,15000000.000,'1',15000000.000,'0148'),
+     ('0','6','20080222','CNY',20000000.000,20000000.000,'2',20000000.000,'0148'),
+     ('0','6','20080225','CNY',26000000.000,26000000.000,'1',26000000.000,'0148'),
+     ('0','6','20080225','CNY',30000000.000,30000000.000,'1',30000000.000,'0028'),
+     ('0','6','20080225','CNY',70000000.000,70000000.000,'2',70000000.000,'0047'),
+     ('0','6','20080228','CNY',30000000.000,30000000.000,'1',30000000.000,'0148'),
+     ('0','6','20080229','CNY',5000000.000,5000000.000,'2',5000000.000,'0148'),
+     ('0','6','20080229','CNY',10000000.000,10000000.000,'1',10000000.000,'0148');
+
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080602','CNY',3000000.000,3000000.000,'5',3000000.000,'0049'),
+     ('0','6','20080602','CNY',5000000.000,5000000.000,'2',5000000.000,'0018'),
+     ('0','6','20080602','CNY',8000000.000,8000000.000,'3',8000000.000,'0049'),
+     ('0','6','20080602','CNY',40000000.000,40000000.000,'1',40000000.000,'0005'),
+     ('0','6','20080604','CNY',20000000.000,20000000.000,'1',20000000.000,'0125'),
+     ('0','6','20080605','CNY',30000000.000,30000000.000,'1',30000000.000,'0005'),
+     ('0','6','20080611','CNY',15000000.000,15000000.000,'3',15000000.000,'0096'),
+     ('0','6','20080612','CNY',5000000.000,5000000.000,'1',5000000.000,'0151'),
+     ('0','6','20080613','CNY',6000000.000,6000000.000,'1',6000000.000,'0151'),
+     ('0','6','20080616','CNY',8000000.000,8000000.000,'2',8000000.000,'0073');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080617','CNY',6000000.000,6000000.000,'2',6000000.000,'0014'),
+     ('0','6','20080617','CNY',6000000.000,6000000.000,'5',6000000.000,'0088'),
+     ('0','6','20080617','CNY',16000000.000,16000000.000,'2',16000000.000,'0018'),
+     ('0','6','20080618','CNY',5000000.000,5000000.000,'3',5000000.000,'0003'),
+     ('0','6','20080618','CNY',29000000.000,29000000.000,'1',29000000.000,'0148'),
+     ('0','6','20080618','CNY',40000000.000,40000000.000,'1',40000000.000,'0103'),
+     ('0','6','20080618','CNY',75000000.000,75000000.000,'5',75000000.000,'0022'),
+     ('0','6','20080618','CNY',110000000.000,110000000.000,'1',110000000.000,'0005'),
+     ('0','6','20080619','CNY',5000.000,5000.000,'2',5000.000,'0336'),
+     ('0','6','20080619','CNY',1189421.090,1189421.090,'2',1189421.090,'0025');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080619','CNY',2379174.080,2379174.080,'5',2379174.080,'0011'),
+     ('0','6','20080619','CNY',6000000.000,6000000.000,'2',6000000.000,'0016'),
+     ('0','6','20080619','CNY',29147311.650,29147311.650,'5',29147311.650,'0011'),
+     ('0','6','20080619','CNY',29383832.150,29383832.150,'2',29383832.150,'0025'),
+     ('0','6','20080619','CNY',76884993.630,76884993.630,'2',76884993.630,'0073'),
+     ('0','6','20080707','CNY',5000000.000,5000000.000,'2',5000000.000,'0073'),
+     ('0','6','20080707','CNY',10000000.000,10000000.000,'3',10000000.000,'0077'),
+     ('0','6','20080708','CNY',150000.000,150000.000,'3',150000.000,'0156'),
+     ('0','6','20080708','CNY',3000000.000,3000000.000,'5',3000000.000,'0011'),
+     ('0','6','20080708','CNY',5000000.000,5000000.000,'2',5000000.000,'0014');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080708','CNY',6000000.000,6000000.000,'3',6000000.000,'0003'),
+     ('0','6','20080709','CNY',10000000.000,10000000.000,'3',10000000.000,'0096'),
+     ('0','6','20080710','CNY',10000.000,10000.000,'2',10000.000,'0121'),
+     ('0','6','20080710','CNY',7000000.000,7000000.000,'1',7000000.000,'0270'),
+     ('0','6','20080710','CNY',8000000.000,8000000.000,'1',8000000.000,'0234'),
+     ('0','6','20080711','CNY',1000000.000,1000000.000,'1',1000000.000,'0345'),
+     ('0','6','20080711','CNY',2000000.000,2000000.000,'1',2000000.000,'0003'),
+     ('0','6','20080711','CNY',30000000.000,30000000.000,'2',30000000.000,'0047'),
+     ('0','6','20080712','CNY',6000000.000,6000000.000,'1',6000000.000,'0234'),
+     ('0','6','20080714','CNY',2000000.000,2000000.000,'5',2000000.000,'0022');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080714','CNY',5000000.000,5000000.000,'1',5000000.000,'0298'),
+     ('0','6','20080714','CNY',5000000.000,5000000.000,'2',5000000.000,'0073'),
+     ('0','6','20080714','CNY',5000000.000,5000000.000,'5',5000000.000,'0298'),
+     ('0','6','20080714','CNY',8000000.000,8000000.000,'1',8000000.000,'0151'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'1',10000000.000,'0076'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'1',10000000.000,'0261'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'1',10000000.000,'0298'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'1',10000000.000,'0333'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'2',10000000.000,'0121'),
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'3',10000000.000,'0016');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080714','CNY',10000000.000,10000000.000,'3',10000000.000,'0042'),
+     ('0','6','20080714','CNY',12000000.000,12000000.000,'1',12000000.000,'0136'),
+     ('0','6','20080714','CNY',20000000.000,20000000.000,'1',20000000.000,'0358'),
+     ('0','6','20080714','CNY',30000000.000,30000000.000,'2',30000000.000,'0008'),
+     ('0','6','20080714','CNY',30000000.000,30000000.000,'3',30000000.000,'0148'),
+     ('0','6','20080714','CNY',50000000.000,50000000.000,'1',50000000.000,'0103'),
+     ('0','6','20080715','CNY',5000000.000,5000000.000,'1',5000000.000,'0086'),
+     ('0','6','20080715','CNY',10000000.000,10000000.000,'2',10000000.000,'0088'),
+     ('0','6','20080715','CNY',15000000.000,15000000.000,'3',15000000.000,'0052'),
+     ('0','6','20080715','CNY',20000000.000,20000000.000,'3',20000000.000,'0134');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080716','CNY',1000000.000,1000000.000,'1',1000000.000,'0019'),
+     ('0','6','20080716','CNY',2000000.000,2000000.000,'1',2000000.000,'0019'),
+     ('0','6','20080716','CNY',2000000.000,2000000.000,'1',2000000.000,'0076'),
+     ('0','6','20080716','CNY',4000000.000,4000000.000,'1',4000000.000,'0011'),
+     ('0','6','20080716','CNY',5000000.000,5000000.000,'2',5000000.000,'0073'),
+     ('0','6','20080716','CNY',9000000.000,9000000.000,'1',9000000.000,'0076'),
+     ('0','6','20080716','CNY',20000000.000,20000000.000,'1',20000000.000,'0047'),
+     ('0','6','20080716','CNY',30000000.000,30000000.000,'1',30000000.000,'0253'),
+     ('0','6','20080716','CNY',35000000.000,35000000.000,'1',35000000.000,'0116'),
+     ('0','6','20080717','CNY',10000000.000,10000000.000,'1',10000000.000,'0270');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080717','CNY',30000000.000,30000000.000,'2',30000000.000,'0121'),
+     ('0','6','20080725','CNY',30000000.000,30000000.000,'2',30000000.000,'0028'),
+     ('0','6','20080725','CNY',40000000.000,40000000.000,'2',40000000.000,'0047'),
+     ('0','6','20080728','CNY',8000000.000,8000000.000,'3',8000000.000,'0042'),
+     ('0','6','20080729','CNY',6000000.000,6000000.000,'2',6000000.000,'0325'),
+     ('0','6','20080729','CNY',10000000.000,10000000.000,'1',10000000.000,'0136'),
+     ('0','6','20080730','CNY',30000000.000,30000000.000,'3',30000000.000,'0077'),
+     ('0','6','20080731','CNY',5000000.000,5000000.000,'5',5000000.000,'0028'),
+     ('0','6','20080731','CNY',12000000.000,12000000.000,'1',12000000.000,'0234'),
+     ('0','6','20080804','CNY',300000.000,300000.000,'3',300000.000,'0318');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080804','CNY',10000000.000,10000000.000,'3',10000000.000,'0134'),
+     ('0','6','20080804','CNY',20000000.000,20000000.000,'1',20000000.000,'0007'),
+     ('0','6','20080805','CNY',5000000.000,5000000.000,'2',5000000.000,'0277'),
+     ('0','6','20080805','CNY',5000000.000,5000000.000,'5',5000000.000,'0022'),
+     ('0','6','20080806','CNY',5000000.000,5000000.000,'5',5000000.000,'0067'),
+     ('0','6','20080806','CNY',7000000.000,7000000.000,'2',7000000.000,'0298'),
+     ('0','6','20080806','CNY',8000000.000,8000000.000,'1',8000000.000,'0003'),
+     ('0','6','20080807','CNY',15000000.000,15000000.000,'5',15000000.000,'0298'),
+     ('0','6','20080811','CNY',1000000.000,1000000.000,'1',1000000.000,'0013'),
+     ('0','6','20080811','CNY',2000000.000,2000000.000,'3',2000000.000,'0013');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080811','CNY',10000000.000,10000000.000,'1',10000000.000,'0096'),
+     ('0','6','20080811','CNY',20000000.000,20000000.000,'1',20000000.000,'0007'),
+     ('0','6','20080811','CNY',35000000.000,35000000.000,'3',35000000.000,'0077'),
+     ('0','6','20080812','CNY',1000000.000,1000000.000,'1',1000000.000,'0169'),
+     ('0','6','20080812','CNY',3000000.000,3000000.000,'1',3000000.000,'0156'),
+     ('0','6','20080812','CNY',8000000.000,8000000.000,'2',8000000.000,'0277'),
+     ('0','6','20080812','CNY',10000000.000,10000000.000,'3',10000000.000,'0077'),
+     ('0','6','20080812','CNY',20000000.000,20000000.000,'1',20000000.000,'0006'),
+     ('0','6','20080812','CNY',20000000.000,20000000.000,'1',20000000.000,'0007'),
+     ('0','6','20080812','CNY',20000000.000,20000000.000,'1',20000000.000,'0125');
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('0','6','20080812','CNY',80000000.000,80000000.000,'5',80000000.000,'0047'),
+     ('0','6','20080813','CNY',5000000.000,5000000.000,'5',5000000.000,'0011'),
+     ('0','6','20080813','CNY',20000000.000,20000000.000,'3',20000000.000,'0042'),
+     ('0','8','20080715','CNY',15000000.000,15000000.000,'3',0.000,'0052'),
+     ('0','8','20080717','CNY',20000.000,20000.000,'1',0.000,'0076'),
+     ('0','B',NULL,'CNY',1000.000,0.000,'2',0.000,'0248'),
+     ('0','C',NULL,'CNY',6000000.000,6000000.000,'5',0.000,'0088');
+
+INSERT INTO t_test_skip (c1,c2,c3,c4,c5,c6,c7,c8,c9) VALUES
+     ('1','6','20080811','CNY',2.000,2.000,'1',2.000,'0183'),
+     ('1','6','20080811','CNY',10000000.000,10000000.000,'1',10000000.000,'0037'),
+     ('1','6','20080812','CNY',5000000.000,5000000.000,'3',5000000.000,'0016'),
+     ('1','6','20080812','CNY',20000000.000,20000000.000,'1',20000000.000,'0037'),
+     ('1','6','20080812','CNY',35000000.000,35000000.000,'3',35000000.000,'0077'),
+     ('1','A',null,'CNY',15000000.000,0.000,'1',0.000,'0086'),
+     ('1','B',null,'CNY',10000000.000,0.000,'2',0.000,'0016');
+
+select  /*+IndexSkipScan(t ind_t_test_skip)*/ count(1) from t_test_skip t where c2 in ('6','7'); --125 rows
+select /*+tablescan(t)*/ count(1) from t_test_skip t where c2 in ('6','7'); --127 rows
+</code></pre>
+<pre><code class="language-sql">gaussdb=# select  /*+IndexSkipScan(t ind_t_test_skip)*/ count(1) from root.t_test_skip t where c2 in ('6','7'); 
+ count
+-------
+   125
+(1 row)
+
+gaussdb=# select  /*+tablescan(t)*/ count(1) from root.t_test_skip t where c2 in ('6','7'); 
+ count
+-------
+   127
+(1 row)
+
+</code></pre>
+<p>最后几行的数据似乎还是有些特别的</p>
+<p><img alt="image-ffyu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ffyu.png" srcset="/upload/image-ffyu.png?width=1200 1200w, /upload/image-ffyu.png?width=400 400w, /upload/image-ffyu.png?width=1600 1600w, /upload/image-ffyu.png?width=800 800w"/><br/>
+比如说c3最后两行有NULL，但尝试把这两个NULL改成有值，同样还是能复现问题；<br/>
+然后C2是A/B ，也改成和上面一样的6 ，也还是能复现问题。<br/>
+这意味着，可能与最后两行是什么值没有关系了，更可能与索引页面边界有关。</p>
+<p>于是尝试比较插入133行的索引页面，和插入134行的索引页面，发现在133行时，索引页面有2个，但是插入第134行时，索引页面变成了4个。</p>
+<p>目前没有GaussDB没有文档详细介绍rcr_ubtree的文件结构，只能先肉眼看看二进制文件能不能比出一些差异。</p>
+<p>在134行表(左)和133行表（右）的索引文件里，最上面这个块（0h~2000h）长得差不多，只有一点点信息，然后下面全是空的</p>
+<p><img alt="image-iqwt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iqwt.png" srcset="/upload/image-iqwt.png?width=1200 1200w, /upload/image-iqwt.png?width=400 400w, /upload/image-iqwt.png?width=1600 1600w, /upload/image-iqwt.png?width=800 800w"/></p>
+<p>第2个块(2001h~3ff0h)就有些区别了，左边这个134行表的，多出了一些空的，但右边这个133行表的，空的就比较少，而且右边已经索引到了最后一行（可以发现 <code>1.B.CNY</code>），而134行的在第二个块里还不包含后面一部分数据</p>
+<p><img alt="image-xite.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xite.png" srcset="/upload/image-xite.png?width=1200 1200w, /upload/image-xite.png?width=400 400w, /upload/image-xite.png?width=1600 1600w, /upload/image-xite.png?width=800 800w"/></p>
+<p>134行表索引的第三个块(4000h~5ff0h)比较空，有几行数据</p>
+<p><img alt="image-vnip.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vnip.png" srcset="/upload/image-vnip.png?width=1200 1200w, /upload/image-vnip.png?width=400 400w, /upload/image-vnip.png?width=1600 1600w, /upload/image-vnip.png?width=800 800w"/></p>
+<p><img alt="image-puop.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-puop.png" srcset="/upload/image-puop.png?width=1200 1200w, /upload/image-puop.png?width=400 400w, /upload/image-puop.png?width=1600 1600w, /upload/image-puop.png?width=800 800w"/></p>
+<p><img alt="image-hzhg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hzhg.png" srcset="/upload/image-hzhg.png?width=1200 1200w, /upload/image-hzhg.png?width=400 400w, /upload/image-hzhg.png?width=1600 1600w, /upload/image-hzhg.png?width=800 800w"/></p>
+<p>134行表的索引第4个块里似乎有一行数据,但不完整，应该是无用的，没被vacuum掉</p>
+<p><img alt="image-riww.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-riww.png" srcset="/upload/image-riww.png?width=1200 1200w, /upload/image-riww.png?width=400 400w, /upload/image-riww.png?width=1600 1600w, /upload/image-riww.png?width=800 800w"/></p>
+<p>识别到 <code>(0,6,20080813)</code> 开始及后面的数据，在134行表的索引里，都在多出来的这第3个块里，跳扫少了的两行数据正好也在这个块里。</p>
+<p>暂时不理解为什么已经有了第3个块，里面还有很多空的，为什么会有第4个块（难道是文档里说的双循环队列？）。<strong>但目前现象就是在索引跳扫的时候，刚好把第三个块里的前两个字段为 <code>(0,6)</code> 的数据给忽略掉了，第二个块前两个字段刚好也全是 <code>(0,6)</code></strong></p>
+<p>考虑到<strong>跳扫其实是要自动拼接前导列的条件</strong>，因此<strong>怀疑此处是拼接的条件有误</strong>。</p>
+<p>不过此处由于没有源码，暂时不好猜要怎么断点跟踪，有找到几个内核函数（find_scankey_with_old_value、update_skip_scankeys），也没法去观察了。</p>
+<pre><code>/usr1/GaussDBKernel/server/opengauss/src/compatibility/storage_adaptor/ipc/sinvaladt.cpp
+/usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/cache/inval.cpp
+
+
+#1  0x000055fa4c976b42 in UBTreeSearch::update_skip_scankeys (this=0x7fb49fbba81f, scan=0x7fb4964e5050, indexRel=0x7fb496638f28) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_search.cpp:2131
+#2  0x000055fa4c976bcb in UBTreeSearch::find_scankey_with_old_value (this=0x7fb49fbba81f, scan=0x7fb4964e5050, dir=FORWARD_SCAN_DIRECTION, scanstart=&lt;optimized out&gt;, offnum=@0x7fb49fbba6ce: 7) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_search.cpp:1767
+#3  0x000055fa4c976d99 in UBTreeSearch::exec_skip_internal (this=0x7fb49fbba81f, scan=0x7fb4964e5050, dir=FORWARD_SCAN_DIRECTION, indexdir=FORWARD_SCAN_DIRECTION, scanstart=&lt;optimized out&gt;, prefix=1) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_search.cpp:2057
+#4  0x000055fa4c977b90 in UBTreeSearch::exec_skip (this=0x7fb49fbba81f, scan=0x7fb4964e5050, dir=FORWARD_SCAN_DIRECTION, indexdir=FORWARD_SCAN_DIRECTION, scanstart=&lt;optimized out&gt;, prefix=1) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_search.cpp:1752
+#5  0x000055fa4ca0076d in index_skip (scan=0x7fb4964e5050, direction=FORWARD_SCAN_DIRECTION, indexdir=&lt;optimized out&gt;, scanstart=&lt;optimized out&gt;, prefix=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/storage_adaptor/index/indexam.cpp:1328
+#6  0x000055fa4b48988c in IndexOnlyScanOperator::get_next_internal (this=0x7fb498bd4050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_indexonlyscan.cpp:197
+#7  0x000055fa4b4e2d0d in gs_exec_scan_fetch&lt;IndexOnlyScanOperator&gt; (in_node=0x7fb498bd4050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_execscan.cpp:96
+#8  0x000055fa4b4e2f22 in gs_exec_scan&lt;IndexOnlyScanOperator&gt; (in_node=0x7fb498bd4050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_execscan.cpp:131
+#9  0x000055fa4b4d1d1a in PlanState::get_next (this=0x7fb498bd4050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_core.cpp:387
+#10 0x000055fa4b46ddf9 in AggOperator::fetch_input_tuple (this=0x7fb40ef4c050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_agg.cpp:132
+#11 0x000055fa4b4731cd in AggOperator::agg_retrieve_direct (this=0x7fb40ef4c050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_agg.cpp:1735
+#12 0x000055fa4b473e55 in AggOperator::get_next (this=0x7fb40ef4c050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_agg.cpp:1607
+#13 0x000055fa4b4d1d1a in PlanState::get_next (this=0x7fb40ef4c050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_core.cpp:387
+#14 0x000055fa4a695e46 in exec_execute_plan (bii_state=&lt;optimized out&gt;, dest=0x7fb48dc29f00, direction=&lt;optimized out&gt;, numberTuples=0, sendTuples=true, operation=CMD_SELECT, planstate=0x7fb40ef4c050, estate=0x7fb48dd60050) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:2388
+#15 exec_standard_executor_run (queryDesc=0x7fb48dc4d050, direction=&lt;optimized out&gt;, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:899
+#16 0x000055fa4ae6c11d in sqlcmd_explain_executor_run (query_desc=0x7fb48dc4d050, direction=FORWARD_SCAN_DIRECTION, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/auto_explain.cpp:113
+#17 0x000055fa4a6963f2 in exec_executor_run (queryDesc=0x7fb48dc4d050, direction=FORWARD_SCAN_DIRECTION, count=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:701
+#18 0x000055fa4b36f5de in PortalRunSelect (portal=0x7fb48247e050, forward=true, count=0, dest=0x7fb48dc29f00) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1801
+#19 0x000055fa4b370468 in PortalRun (portal=0x7fb48247e050, count=9223372036854775807, isTopLevel=true, dest=0x7fb48dc29f00, altdest=0x7fb48dc29f00, completionTag=0x7fb49fbbb260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1469
+#20 0x000055fa4b3d1490 in execute_with_cachedplan (cplan=&lt;optimized out&gt;, param_list_info=0x7fb498b96bc0, psrc=0x7fb496688850, parameterized_exec_inputs=0x7fb49fbbb220, saved_parse_tree=&lt;optimized out&gt;, es=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/parameterize/parameterized_core.cpp:143
+#21 0x000055fa4b3d24f3 in execute_with_cachedplan (saved_parse_tree=&lt;optimized out&gt;, es=0x0, parameterized_exec_inputs=0x7fb49fbbb220, psrc=&lt;optimized out&gt;, param_list_info=&lt;optimized out&gt;, cplan=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/parameterize/parameterized_core.cpp:528
+#22 exec_parameterized_simple_query (raw_parse_tree=0x7fb49fbbb208, parameterized_exec_inputs=0x7fb49fbbb220) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/parameterize/parameterized_core.cpp:549
+#23 0x000055fa4b356a78 in exec_simple_query (query_string=&lt;optimized out&gt;, msg=0x7fb49fbbb530, messageType=QUERY_MESSAGE) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:3248
+#24 0x000055fa4b362e38 in gs_process_command (firstchar=&lt;optimized out&gt;, input_message=0x7fb49fbbb530, send_ready_for_query=0x7fb49fbbb526) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11743
+#25 0x000055fa4b3689c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7fb499565b20, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#26 0x000055fa4b2ec2df in backend_run (port=0x7fb49fbbb890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#27 0x000055fa4b32b1b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#28 0x000055fa4b2ec39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#29 0x00007fb60f026f1b in ?? () from /usr/lib64/libpthread.so.0
+#30 0x00007fb60ef5e320 in clone () from /usr/lib64/libc.so.6
+</code></pre>
+<p>后来华为oncall提供了一个函数可以解析索引文件</p>
+<pre><code>select * from gs_parse_page_bypath((select pg_relation_filepath('ind_t_test_skip')), -1, 'ubtree', true);
+</code></pre>
+<pre><code>The target page is from disk.
+UBtree index page information of block 0/3
+        pd_lsn: 13/5E007538 ,len 8 ,offset 0
+        pd_checksum: 0x2D87, verify success, len 2, offset 8
+        pd_flags: 0x40
+        pd_lower: 56, non-empty, len 2, offset 12
+        pd_upper: 8144, old page, len 2, offset 14
+        pd_special: 8144, size 48, len 2, offset 16
+        Page size &amp; version: 8192, 5, len 2, offset 18
+        pd_prune_xid: 0
+
+        Meta Page Info: btm_level: 1, btm_fastlevel: 1, btm_root: 3, btm_fastroot: 3, btm_version: UBTREE_RCR_VERSION, btm_magic: 53162, btpo_flags: BTP_META, reltoastrelid: 0
+
+
+        UBTree index special information:
+                btree left sibling: 0
+                btree right sibling: 0
+                btree tree level: 0
+                btree flag: BTP_INTERNAL
+                btree cycle ID: 0
+                ubtree last_delete_xid: 0
+                ubtree xid_base: 0
+                ubtree active tuples: 0
+
+The target page is from disk.
+UBtree index page information of block 1/3
+        pd_lsn: 13/5E007538 ,len 8 ,offset 0
+        pd_checksum: 0x5592, verify success, len 2, offset 8
+        pd_flags: 0x40
+        pd_lower: 512, non-empty, len 2, offset 12
+        pd_upper: 1256, old page, len 2, offset 14
+        pd_special: 8144, size 48, len 2, offset 16
+        Page size &amp; version: 8192, 5, len 2, offset 18
+        pd_prune_xid: 0
+
+        Index tuple information on this page
+
+                Tuple #1 is normal: length 24, offset 8120
+                        Heap Tid: block 0/0, offset 3
+                        ctid(0,3), tablebucketid -1, tableoid 0
+                        Length: 24, has var-width attrs
+
+
+                Tuple #2 is normal: length 56, offset 8064
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 1
+                        ctid(0,1), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs, has nulls
+
+
+                Tuple #3 is normal: length 56, offset 8008
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 2
+                        ctid(0,2), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #4 is normal: length 56, offset 7952
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 3
+                        ctid(0,3), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #5 is normal: length 56, offset 7896
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 4
+                        ctid(0,4), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #6 is normal: length 56, offset 7840
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 5
+                        ctid(0,5), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #7 is normal: length 56, offset 7784
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 6
+                        ctid(0,6), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #8 is normal: length 56, offset 7728
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 7
+                        ctid(0,7), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #9 is normal: length 56, offset 7672
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 8
+                        ctid(0,8), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #10 is normal: length 56, offset 7616
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 9
+                        ctid(0,9), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #11 is normal: length 56, offset 7560
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 10
+                        ctid(0,10), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #12 is normal: length 56, offset 7504
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 11
+                        ctid(0,11), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #13 is normal: length 56, offset 7448
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 12
+                        ctid(0,12), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #14 is normal: length 56, offset 7392
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 13
+                        ctid(0,13), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #15 is normal: length 56, offset 7336
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 14
+                        ctid(0,14), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #16 is normal: length 56, offset 7280
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 15
+                        ctid(0,15), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #17 is normal: length 56, offset 7224
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 16
+                        ctid(0,16), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #18 is normal: length 56, offset 7168
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 17
+                        ctid(0,17), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #19 is normal: length 56, offset 7112
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 18
+                        ctid(0,18), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #20 is normal: length 56, offset 7056
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 19
+                        ctid(0,19), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #21 is normal: length 56, offset 7000
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 20
+                        ctid(0,20), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #22 is normal: length 56, offset 6944
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 21
+                        ctid(0,21), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #23 is normal: length 56, offset 6888
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 22
+                        ctid(0,22), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #24 is normal: length 56, offset 6832
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 23
+                        ctid(0,23), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #25 is normal: length 56, offset 6776
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 24
+                        ctid(0,24), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #26 is normal: length 56, offset 6720
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 25
+                        ctid(0,25), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #27 is normal: length 56, offset 6664
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 26
+                        ctid(0,26), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #28 is normal: length 56, offset 6608
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 27
+                        ctid(0,27), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #29 is normal: length 56, offset 6552
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 28
+                        ctid(0,28), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #30 is normal: length 56, offset 6496
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 29
+                        ctid(0,29), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #31 is normal: length 56, offset 6440
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 30
+                        ctid(0,30), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #32 is normal: length 56, offset 6384
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 31
+                        ctid(0,31), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #33 is normal: length 56, offset 6328
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 32
+                        ctid(0,32), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #34 is normal: length 56, offset 6272
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 33
+                        ctid(0,33), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #35 is normal: length 56, offset 6216
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 34
+                        ctid(0,34), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #36 is normal: length 56, offset 6160
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 35
+                        ctid(0,35), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #37 is normal: length 56, offset 6104
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 36
+                        ctid(0,36), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #38 is normal: length 56, offset 6048
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 37
+                        ctid(0,37), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #39 is normal: length 64, offset 5984
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 38
+                        ctid(0,38), tablebucketid -1, tableoid 0
+                        Length: 56, has var-width attrs
+
+
+                Tuple #40 is normal: length 56, offset 5928
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 39
+                        ctid(0,39), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #41 is normal: length 72, offset 5856
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 40
+                        ctid(0,40), tablebucketid -1, tableoid 0
+                        Length: 64, has var-width attrs
+
+
+                Tuple #42 is normal: length 72, offset 5784
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 41
+                        ctid(0,41), tablebucketid -1, tableoid 0
+                        Length: 64, has var-width attrs
+
+
+                Tuple #43 is normal: length 56, offset 5728
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 42
+                        ctid(0,42), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #44 is normal: length 72, offset 5656
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 43
+                        ctid(0,43), tablebucketid -1, tableoid 0
+                        Length: 64, has var-width attrs
+
+
+                Tuple #45 is normal: length 72, offset 5584
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 44
+                        ctid(0,44), tablebucketid -1, tableoid 0
+                        Length: 64, has var-width attrs
+
+
+                Tuple #46 is normal: length 72, offset 5512
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 45
+                        ctid(0,45), tablebucketid -1, tableoid 0
+                        Length: 64, has var-width attrs
+
+
+                Tuple #47 is normal: length 56, offset 5456
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 46
+                        ctid(0,46), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #48 is normal: length 56, offset 5400
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 47
+                        ctid(0,47), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #49 is normal: length 56, offset 5344
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 48
+                        ctid(0,48), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #50 is normal: length 56, offset 5288
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 49
+                        ctid(0,49), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #51 is normal: length 56, offset 5232
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 50
+                        ctid(0,50), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #52 is normal: length 56, offset 5176
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 51
+                        ctid(0,51), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #53 is normal: length 56, offset 5120
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 52
+                        ctid(0,52), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #54 is normal: length 56, offset 5064
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 53
+                        ctid(0,53), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #55 is normal: length 56, offset 5008
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 54
+                        ctid(0,54), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #56 is normal: length 56, offset 4952
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 55
+                        ctid(0,55), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #57 is normal: length 56, offset 4896
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 56
+                        ctid(0,56), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #58 is normal: length 56, offset 4840
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 57
+                        ctid(0,57), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #59 is normal: length 56, offset 4784
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 58
+                        ctid(0,58), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #60 is normal: length 56, offset 4728
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 59
+                        ctid(0,59), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #61 is normal: length 56, offset 4672
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 60
+                        ctid(0,60), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #62 is normal: length 56, offset 4616
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 61
+                        ctid(0,61), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #63 is normal: length 56, offset 4560
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 62
+                        ctid(0,62), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #64 is normal: length 56, offset 4504
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 63
+                        ctid(0,63), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #65 is normal: length 56, offset 4448
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 64
+                        ctid(0,64), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #66 is normal: length 56, offset 4392
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 65
+                        ctid(0,65), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #67 is normal: length 56, offset 4336
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 66
+                        ctid(0,66), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #68 is normal: length 56, offset 4280
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 67
+                        ctid(0,67), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #69 is normal: length 56, offset 4224
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 68
+                        ctid(0,68), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #70 is normal: length 56, offset 4168
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 69
+                        ctid(0,69), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #71 is normal: length 56, offset 4112
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 70
+                        ctid(0,70), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #72 is normal: length 56, offset 4056
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 71
+                        ctid(0,71), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #73 is normal: length 56, offset 4000
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 72
+                        ctid(0,72), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #74 is normal: length 56, offset 3944
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 73
+                        ctid(0,73), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #75 is normal: length 56, offset 3888
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 74
+                        ctid(0,74), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #76 is normal: length 56, offset 3832
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 75
+                        ctid(0,75), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #77 is normal: length 56, offset 3776
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 76
+                        ctid(0,76), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #78 is normal: length 56, offset 3720
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 77
+                        ctid(0,77), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #79 is normal: length 56, offset 3664
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 78
+                        ctid(0,78), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #80 is normal: length 56, offset 3608
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 79
+                        ctid(0,79), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #81 is normal: length 56, offset 3552
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 80
+                        ctid(0,80), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #82 is normal: length 56, offset 3496
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 81
+                        ctid(0,81), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #83 is normal: length 56, offset 3440
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 82
+                        ctid(0,82), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #84 is normal: length 56, offset 3384
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 83
+                        ctid(0,83), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #85 is normal: length 56, offset 3328
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 84
+                        ctid(0,84), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #86 is normal: length 56, offset 3272
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 85
+                        ctid(0,85), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #87 is normal: length 56, offset 3216
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 86
+                        ctid(0,86), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #88 is normal: length 56, offset 3160
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 87
+                        ctid(0,87), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #89 is normal: length 56, offset 3104
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 88
+                        ctid(0,88), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #90 is normal: length 56, offset 3048
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 89
+                        ctid(0,89), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #91 is normal: length 56, offset 2992
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 90
+                        ctid(0,90), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #92 is normal: length 56, offset 2936
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 91
+                        ctid(0,91), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #93 is normal: length 56, offset 2880
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 92
+                        ctid(0,92), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #94 is normal: length 56, offset 2824
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 93
+                        ctid(0,93), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #95 is normal: length 56, offset 2768
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 94
+                        ctid(0,94), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #96 is normal: length 56, offset 2712
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 95
+                        ctid(0,95), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #97 is normal: length 56, offset 2656
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 96
+                        ctid(0,96), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #98 is normal: length 56, offset 2600
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 97
+                        ctid(0,97), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #99 is normal: length 56, offset 2544
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 98
+                        ctid(0,98), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #100 is normal: length 56, offset 2488
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 99
+                        ctid(0,99), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #101 is normal: length 56, offset 2432
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 100
+                        ctid(0,100), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #102 is normal: length 56, offset 2376
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 101
+                        ctid(0,101), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #103 is normal: length 56, offset 2320
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 102
+                        ctid(0,102), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #104 is normal: length 56, offset 2264
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 103
+                        ctid(0,103), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #105 is normal: length 56, offset 2208
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 104
+                        ctid(0,104), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #106 is normal: length 56, offset 2152
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 105
+                        ctid(0,105), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #107 is normal: length 56, offset 2096
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 106
+                        ctid(0,106), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #108 is normal: length 56, offset 2040
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 107
+                        ctid(0,107), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #109 is normal: length 56, offset 1984
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 108
+                        ctid(0,108), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #110 is normal: length 56, offset 1928
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 109
+                        ctid(0,109), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #111 is normal: length 56, offset 1872
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 110
+                        ctid(0,110), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #112 is normal: length 56, offset 1816
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 111
+                        ctid(0,111), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #113 is normal: length 56, offset 1760
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 112
+                        ctid(0,112), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #114 is normal: length 56, offset 1704
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 113
+                        ctid(0,113), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #115 is normal: length 56, offset 1648
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 114
+                        ctid(0,114), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #116 is normal: length 56, offset 1592
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 115
+                        ctid(0,115), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #117 is normal: length 56, offset 1536
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 116
+                        ctid(0,116), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #118 is normal: length 56, offset 1480
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 117
+                        ctid(0,117), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #119 is normal: length 56, offset 1424
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 118
+                        ctid(0,118), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #120 is normal: length 56, offset 1368
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 119
+                        ctid(0,119), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #121 is normal: length 56, offset 1312
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 120
+                        ctid(0,120), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #122 is normal: length 56, offset 1256
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 121
+                        ctid(0,121), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+        Summary (122 total): 0 unused, 122 normal, 0 dead, 0 redirect
+
+        UBTree index special information:
+                btree left sibling: 0
+                btree right sibling: 2
+                btree tree level: 0
+                btree flag: BTP_LEAF
+                btree cycle ID: 0
+                ubtree last_delete_xid: 0
+                ubtree xid_base: 0
+                ubtree active tuples: 121
+
+The target page is from disk.
+UBtree index page information of block 2/3
+        pd_lsn: 13/5E007440 ,len 8 ,offset 0
+        pd_checksum: 0x34CB, verify success, len 2, offset 8
+        pd_flags: 0x40
+        pd_lower: 76, non-empty, len 2, offset 12
+        pd_upper: 7416, old page, len 2, offset 14
+        pd_special: 8144, size 48, len 2, offset 16
+        Page size &amp; version: 8192, 5, len 2, offset 18
+        pd_prune_xid: 0
+
+        Index tuple information on this page
+
+                Tuple #1 is normal: length 56, offset 8088
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 122
+                        ctid(0,122), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #2 is normal: length 56, offset 8032
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 123
+                        ctid(0,123), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #3 is normal: length 56, offset 7976
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 124
+                        ctid(0,124), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #4 is normal: length 56, offset 7920
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 125
+                        ctid(0,125), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #5 is normal: length 56, offset 7864
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 126
+                        ctid(0,126), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs, has nulls
+
+
+                Tuple #6 is normal: length 56, offset 7808
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 127
+                        ctid(0,127), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs, has nulls
+
+
+                Tuple #7 is normal: length 56, offset 7752
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 128
+                        ctid(0,128), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #8 is normal: length 56, offset 7696
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 129
+                        ctid(0,129), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #9 is normal: length 56, offset 7640
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 130
+                        ctid(0,130), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #10 is normal: length 56, offset 7584
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 131
+                        ctid(0,131), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #11 is normal: length 56, offset 7528
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 132
+                        ctid(0,132), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #12 is normal: length 56, offset 7472
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 133
+                        ctid(0,133), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs, has nulls
+
+
+                Tuple #13 is normal: length 56, offset 7416
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 134
+                        ctid(0,134), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs, has nulls
+
+        Summary (13 total): 0 unused, 13 normal, 0 dead, 0 redirect
+
+        UBTree index special information:
+                btree left sibling: 1
+                btree right sibling: 0
+                btree tree level: 0
+                btree flag: BTP_LEAF
+                btree cycle ID: 0
+                ubtree last_delete_xid: 0
+                ubtree xid_base: 0
+                ubtree active tuples: 13
+
+The target page is from disk.
+UBtree index page information of block 3/3
+        pd_lsn: 13/5E007538 ,len 8 ,offset 0
+        pd_checksum: 0x8848, verify success, len 2, offset 8
+        pd_flags: 0x40
+        pd_lower: 32, non-empty, len 2, offset 12
+        pd_upper: 8112, old page, len 2, offset 14
+        pd_special: 8144, size 48, len 2, offset 16
+        Page size &amp; version: 8192, 5, len 2, offset 18
+        pd_prune_xid: 0
+
+        Index tuple information on this page
+
+                Tuple #1 is normal: length 8, offset 8136
+                        Heap Tid: block 0/1, offset 0
+                        ctid(1,0), tablebucketid -1, tableoid 0
+                        Length: 8
+
+
+                Tuple #2 is normal: length 24, offset 8112
+                        Heap Tid: block 0/2, offset 3
+                        ctid(2,3), tablebucketid -1, tableoid 0
+                        Length: 24, has var-width attrs
+
+        Summary (2 total): 0 unused, 2 normal, 0 dead, 0 redirect
+
+        UBTree index special information:
+                btree left sibling: 0
+                btree right sibling: 0
+                btree tree level: 1
+                btree flag: BTP_INTERNAL BTP_ROOT
+                btree cycle ID: 0
+                ubtree last_delete_xid: 0
+                ubtree xid_base: 0
+                ubtree active tuples: 0
+</code></pre>
+<p>可以看到是3个块（从原索引文件里看到的第一个块叫元页面-Meta Page，不算），<br/>
+这里显示第一个块 <code>active tuples: 121</code>,第二个块 <code>active tuples: 13</code>,第三个块 <code>ubtree active tuples: 0</code> ,也就一共144行，和前面直接看二进制的结果差不多，数据都集中在两个块里，跳扫没找到的数据在13行的这个块里，也就是这两行</p>
+<pre><code>                Tuple #1 is normal: length 56, offset 8088
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 122
+                        ctid(0,122), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+
+
+                Tuple #2 is normal: length 56, offset 8032
+                        xmin:17625415 xmax:0 Heap Tid: block 0/0, offset 123
+                        ctid(0,123), tablebucketid -1, tableoid 0
+                        Length: 48, has var-width attrs
+</code></pre>
+<p><img alt="image-fejo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fejo.png" srcset="/upload/image-fejo.png?width=1200 1200w, /upload/image-fejo.png?width=400 400w, /upload/image-fejo.png?width=1600 1600w, /upload/image-fejo.png?width=800 800w"/></p>
+<p>暂时只能分析到这里了，等华为排查给出原因后再更新。</p>
+<h2 id="20260203更新">20260203更新</h2>
+<p>华为答复：</p>
+<blockquote>
+<ul>
+<li>【问题原因】<br/>
+在索引包含多个字段且查询过滤条件包含索引列的后列，不包含前列，执行计划使用到索引跳过能力场景下，如果索引的前导组<br/>
+(如:索引lindex(a,b,c),数据(0,1,a)(0,1,b),...,(0,1,n),(0,2,a)(0,2,b),...,(0,2,n),前导组即为数据(0,1)的所属行)中的数据跨越了多个页面，在扫描到第二个页面前，scankey(查询过滤条件组成的key)错误赋值，导致后续scankey与索引元组比较时，从而扫描行数和预期不符。</li>
+<li>【触发场景】<br/>
+1、创建联合索引。<br/>
+2、使用where条件进行select查询，且where条件中只包含索引列的后几列，不包含第一列，触发index skip scan的查询计划。</li>
+<li>【规避手段】打热补丁解决</li>
+<li>【解决版本】506.0.0.HP0106</li>
+</ul>
+</blockquote>
+<p>华为的这个答复和我猜想的原因是一样的，但也是没说为什么跨页的时候前导列会赋值错误，只是给了个这样的结果，那就看下这个补丁的文档里说了什么吧：</p>
+<table><thead><tr><th>问题单号</th><th>DTS2025121805690</th></tr></thead><tbody><tr><td>问题描述</td><td>IUDS+query并发压测索引扫描非法内存访问heap-use-after-free /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/varlena_cmp.cpp:1195 in texteq(FunctionCallInfoData*)</td></tr><tr><td>触发场景</td><td>1、创建联合索引。<br/>2、使用where条件进行select查询，且where条件中只包含索引列的后几列，不包含第一列，触发index skip scan的查询计划。<br/>3、并发DML。</td></tr><tr><td>严重级别</td><td>严重</td></tr><tr><td>根因分析</td><td>1、find_scankey_from_page根据前导列的分组tuple保存本次查询使用的scankey；<br/>2、first根据1获取的scankey保存so-&gt;key_data，key_data的argument指向so-&gt;skip_old_tuple内存；<br/>3、获取到tuple之后，又错误地调用了skip_save_tuple释放了so-&gt;skip_old_tuple的内存，但未更新so-&gt;key_data，key_data将会指向已释放的内存，后续出现内存问题。</td></tr><tr><td>解决方案</td><td>修改exec_skip_internal逻辑，find_scankey_from_page已经保存了本次分组的tuple和scankey，后续不需要再次保存。</td></tr><tr><td>补丁后操作</td><td>不涉及</td></tr><tr><td>修改影响</td><td>无影响</td></tr></tbody></table>
+<p>虽然本文问题的场景和这个补丁问题描述不一样，但从根因分析里可以看到，似乎是错误释放了内存，然后key_data指向了野地址。</p>
+<p>索引跳扫的核心逻辑就是找到where条件里缺失的前导列的值，由于索引是有序的，它可以从索引里的第一个值开始拼（c1='0'），和SQL里的where条件组装在一起就可以走普通的索引范围扫描了，然后继续扫索引，当当前值和上一个值不一样时，就可以又组合出一组条件，依次直到索引的前导列扫完。但这里问题就发生在跨页的时候，GaussDB把上一个值的内存释放掉了，也就是值错了，但新页面前两行的前导列和上一个页面最后一行的前导列是一样的，本不需要再组装新条件的，它组装了新条件(c1=random)，就没找到这两行数据，然后继续往下，由于前导列值发生变化(c1='1')，所以又组装了正确的新条件，后面的数据都能扫到了。</p>
+<p>但补丁里没说这个问题会导致数据查询结果错误，导致了客户在之前收到这个补丁的时候，误判了这个问题的严重性，没有及时进行补丁验证和更新。</p>
+<p>我验证了下，打了这个补丁后，该用例的确已经恢复正常。</p>
+<pre><code class="language-bash">[Ruby@gaussdb-dn2 hotpatch]$ gs_om -t hotpatch -n $PWD/GaussDB-Kernel_506.0.0.SPC0100.HP0106.pat -c load
+[SUCCESS] 192.168.163.119:
+dn_6001
+[2026-02-03 10:39:16.850][101974][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:16.912][101974][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+dn_6002
+[2026-02-03 10:39:16.920][102004][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:16.955][102004][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+
+[SUCCESS] 192.168.163.118:
+dn_6003
+[2026-02-03 10:39:16.854][101077][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:16.901][101077][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+
+
+############### S U M M A R Y ###############
+SUCCESS:   3 FAILED   0
+[SUCCESS] 192.168.163.119:
+dn_6001
+[2026-02-03 10:39:19.041][103482][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:19.090][103482][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+dn_6002
+[2026-02-03 10:39:19.101][103548][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:19.131][103548][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+
+[SUCCESS] 192.168.163.118:
+dn_6003
+[2026-02-03 10:39:19.381][101766][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:39:19.407][101766][][gs_ctl]: [PATCH-SUCCESS] LOAD PATCH
+
+
+
+############### S U M M A R Y ###############
+SUCCESS:   3 FAILED   0
+[SUCCESS] 192.168.163.119:
+OM:
+[PATCH-SUCCESS] LOAD PATCH
+
+[SUCCESS] 192.168.163.118:
+OM:
+[PATCH-SUCCESS] LOAD PATCH
+
+
+############### S U M M A R Y ###############
+SUCCESS:   2 FAILED   0
+[Ruby@gaussdb-dn2 hotpatch]$ gs_om -t hotpatch -n KERNEL -c list
+[SUCCESS] 192.168.163.119:
+dn_6001
+[2026-02-03 10:39:38.030][113128][][gs_ctl]: gs_ctl to control dcf cluster
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0105.pat STATE: ACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_EXTENSION_platform_compatibility_b_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+[PATCH-SUCCESS] LIST PATCH
+dn_6002
+[2026-02-03 10:39:38.091][113149][][gs_ctl]: gs_ctl to control dcf cluster
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0105.pat STATE: ACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_EXTENSION_platform_compatibility_b_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+[PATCH-SUCCESS] LIST PATCH
+
+[SUCCESS] 192.168.163.118:
+dn_6003
+[2026-02-03 10:39:38.027][111546][][gs_ctl]: gs_ctl to control dcf cluster
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0105.pat STATE: ACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+PATCH: GaussDB-Kernel_KERNELHP_EXTENSION_platform_compatibility_b_506.0.0.SPC0100.0106.pat STATE: DEACTIVE
+[PATCH-SUCCESS] LIST PATCH
+
+
+############### S U M M A R Y ###############
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0105.pat ACTIVE   3 DEACTIVE   0
+PATCH: GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0106.pat ACTIVE   0 DEACTIVE   3
+PATCH: GaussDB-Kernel_KERNELHP_EXTENSION_platform_compatibility_b_506.0.0.SPC0100.0106.pat ACTIVE   0 DEACTIVE   3
+SUCCESS:   3 FAILED   0
+[Ruby@gaussdb-dn2 hotpatch]$ gs_om -t hotpatch -n GaussDB-Kernel_KERNELHP_506.0.0.SPC0100.0106.pat -c active
+[SUCCESS] 192.168.163.119:
+dn_6001
+[2026-02-03 10:40:18.959][129085][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:40:18.994][129085][][gs_ctl]: [PATCH-SUCCESS] ACTIVE PATCH
+
+dn_6002
+[2026-02-03 10:40:19.005][129103][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:40:19.036][129103][][gs_ctl]: [PATCH-SUCCESS] ACTIVE PATCH
+
+
+[SUCCESS] 192.168.163.118:
+dn_6003
+[2026-02-03 10:40:18.970][126776][][gs_ctl]: gs_ctl to control dcf cluster
+[2026-02-03 10:40:19.000][126776][][gs_ctl]: [PATCH-SUCCESS] ACTIVE PATCH
+
+
+
+############### S U M M A R Y ###############
+SUCCESS:   3 FAILED   0
+[Ruby@gaussdb-dn2 hotpatch]$
+[Ruby@gaussdb-dn2 hotpatch]$ gsql -r -d postgres -p 8000
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=# set search_path=root;
+SET
+gaussdb=# select  /*+IndexSkipScan(t ind_t_test_skip)*/ count(1) from t_test_skip t where c2 in ('6','7')
+gaussdb-# union all
+gaussdb-# select /*+tablescan(t)*/ count(1) from t_test_skip t where c2 in ('6','7');
+ count
+-------
+   127
+   127
+(2 rows)
+
+gaussdb=#
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

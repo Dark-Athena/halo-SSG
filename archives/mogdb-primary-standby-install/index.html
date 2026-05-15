@@ -155,7 +155,280 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>本文参考MogDB官方安装文档中的“手动安装”<a href="https://docs.mogdb.io/zh/mogdb/v3.0/manual-installation" target="_blank">https://docs.mogdb.io/zh/mogdb/v3.0/manual-installation</a>，<br/>
+使用Oracle VM VirtualBOX虚拟机软件，安装两台openEuler操作系统的虚拟机，并安装MogDB一主一备环境</p>
+<h2 id="%E5%85%88%E8%AF%B4%E6%88%91%E9%81%87%E5%88%B0%E7%9A%84%E5%9D%91" tabindex="-1">先说我遇到的坑</h2>
+<ol>
+<li>在虚拟机硬件配置中，默认是1个cpu，操作系统是可以安装成功的，也可以正常启动，但是启动数据库时会报错，设置2个cpu后就没有报错了（我反复安装了七八次操作系统，还更换了镜像版本，使用同样的安装流程在vmware中没有报错，然后各种修改硬件配置，包括增加内存和磁盘大小，报错依旧，当时一度怀疑是虚拟机软件的问题，都打算放弃使用VirtualBOX了，抱着最后一丝希望增加了cpu数，结果成功启动了）</li>
+</ol>
+<blockquote>
+<p>! ERROR:  floating-point exception<br/>
+! DETAIL:  An invalid floating-point operation was signaled. This probably<br/>
+means an out-of-range result or an invalid operation, such as division by zero.</p>
+</blockquote>
+<ol start="2">
+<li>
+<p>Oracle VM VirtualBOX这款虚拟机软件，不像vmware一样在安装完操作系统后会自动修改启动顺序，所以安装完操作系统后，点重启，又会进入操作系统安装界面，需要在重启时把安装光盘卸掉</p>
+</li>
+<li>
+<p>虚拟机需要添加两个网卡，一个仅主机，一个网络地址转换</p>
+</li>
+<li>
+<p>在操作系统内，可能需要手动启动网卡连接，否则获取不到ip，需要确保两张网卡都处于连接状态<br/>
+先运行</p>
+</li>
+</ol>
+<pre><code class="language-bash">nmcli
+</code></pre>
+<p>如果发现有disconnect的网卡，则需要执行下列命令开启对应的网卡，比如要开启名称为"enp0s8"的网卡</p>
+<pre><code class="language-bash">nmcli device connect "enp0s8"
+</code></pre>
+<ol start="5">
+<li>固定ip，并调整网卡为开机自动，要在网卡启动后，修改对应的配置文件，网卡没启动的话就找不到配置文件（此处参考openEuler官方文档<a href="https://docs.openeuler.org/zh/docs/22.03_LTS/docs/Administration/%E9%85%8D%E7%BD%AE%E7%BD%91%E7%BB%9C.html#%E9%85%8D%E7%BD%AE%E9%9D%99%E6%80%81%E7%BD%91%E7%BB%9C" target="_blank">https://docs.openeuler.org/zh/docs/22.03_LTS/docs/Administration/%E9%85%8D%E7%BD%AE%E7%BD%91%E7%BB%9C.html#配置静态网络</a>）</li>
+</ol>
+<p>查看 /etc/sysconfig/network-scripts目录，一个网卡一个文件,比如我这里文件分别为ifcfg-enp0s3和ifcfg-enp0s8</p>
+<pre><code class="language-bash"> vi /etc/sysconfig/network-scripts/ifcfg-enp0s3
+</code></pre>
+<p>修改 ONBOOT=yes<br/>
+修改 BOOTPROTO=none<br/>
+增加 IPADDR=当前本机ip地址<br/>
+增加 PREFIX=24</p>
+<p>同样ifcfg-enp0s8这个文件也要进行修改。</p>
+<ol start="6">
+<li>当机器性能不足的情况下，根据官方文档中执行数据库重启操作时，可能会卡很久，因此建议前面的主库先不要启动</li>
+<li>在执行官方文档中的"将主库的配置文件传到备库"时，是需要输入yes确认和输入密码的，如果前面都是按文档复制粘贴操作，那么密码为 Enmo@123</li>
+<li>在安装中可能会遇到各种未知问题，由于Oracle VM VirtualBOX这个软件可以直接克隆虚拟机，因此可以在一些需要耗时比较长或者操作比较麻烦的步骤完成后（比如刚刚安装完操作系统重启后），及时做个克隆，以防后面操作失误又得重头开始</li>
+</ol>
+<h2 id="%E5%BC%80%E5%A7%8B%E5%86%99%E6%B5%81%E6%B0%B4%E8%B4%A6" tabindex="-1">开始写流水账</h2>
+<h3 id="%E4%B8%80%E3%80%81%E4%BB%8B%E8%B4%A8%E5%87%86%E5%A4%87" tabindex="-1">一、介质准备</h3>
+<ol>
+<li>下载并安装Oracle VM VirtualBOX，注意下载对应操作系统的（这个软件的安装步骤我就不写了，反正一路下一步就好了）<br/>
+<a href="https://www.virtualbox.org/wiki/Downloads" target="_blank">https://www.virtualbox.org/wiki/Downloads</a></li>
+<li>下载操作系统镜像，此处使用的是openEuler-20.03-LTS-SP2-x86_64版本<br/>
+<a href="https://repo.openeuler.org/openEuler-20.03-LTS-SP2/ISO/x86_64/openEuler-20.03-LTS-SP2-x86_64-dvd.iso" target="_blank">https://repo.openeuler.org/openEuler-20.03-LTS-SP2/ISO/x86_64/openEuler-20.03-LTS-SP2-x86_64-dvd.iso</a></li>
+<li>下载数据库安装包，此处使用的是MogDB-3.0.0-openEuler-x86_64版本（当前该版本处于测试阶段，预计6月将会开放下载，在此之前可使用2.1.1版本）<br/>
+<a href="https://www.mogdb.io/downloads/mogdb/" target="_blank">https://www.mogdb.io/downloads/mogdb/</a><br/>
+MogDB-3.0.0-openEuler-x86_64.tar<br/>
+并解压出<br/>
+MogDB-3.0.0-openEuler-64bit.tar.bz2 这个文件</li>
+</ol>
+<h3 id="%E4%BA%8C%E3%80%81%E5%88%9B%E5%BB%BAopeneuler%E6%AF%8D%E6%9C%BA%E6%A8%A1%E6%9D%BF" tabindex="-1">二、创建openEuler母机模板</h3>
+<ol>
+<li>打开已安装的Oracle VM VirtualBox软件，点击控制-新建<br/>
+<img alt="image-1652888977837" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652888977837.png" srcset="/upload/2022/05/image-1652888977837.png?width=1200 1200w, /upload/2022/05/image-1652888977837.png?width=400 400w, /upload/2022/05/image-1652888977837.png?width=1600 1600w, /upload/2022/05/image-1652888977837.png?width=800 800w"/></li>
+<li>输入虚拟机名称，选择操作系统类型为Linux,版本为Other Linux (64-bit),点击下一步<br/>
+<img alt="image-1652889040152" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889040152.png" srcset="/upload/2022/05/image-1652889040152.png?width=1200 1200w, /upload/2022/05/image-1652889040152.png?width=400 400w, /upload/2022/05/image-1652889040152.png?width=1600 1600w, /upload/2022/05/image-1652889040152.png?width=800 800w"/></li>
+<li>设置内存大小为2048MB，点下一步<br/>
+<img alt="image-1652889146453" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889146453.png" srcset="/upload/2022/05/image-1652889146453.png?width=1200 1200w, /upload/2022/05/image-1652889146453.png?width=400 400w, /upload/2022/05/image-1652889146453.png?width=1600 1600w, /upload/2022/05/image-1652889146453.png?width=800 800w"/></li>
+<li>选择现在创建虚拟硬盘，点创建<br/>
+<img alt="image-1652889194293" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889194293.png" srcset="/upload/2022/05/image-1652889194293.png?width=1200 1200w, /upload/2022/05/image-1652889194293.png?width=400 400w, /upload/2022/05/image-1652889194293.png?width=1600 1600w, /upload/2022/05/image-1652889194293.png?width=800 800w"/></li>
+<li>选择VDI,点下一步<br/>
+<img alt="image-1652889267936" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889267936.png" srcset="/upload/2022/05/image-1652889267936.png?width=1200 1200w, /upload/2022/05/image-1652889267936.png?width=400 400w, /upload/2022/05/image-1652889267936.png?width=1600 1600w, /upload/2022/05/image-1652889267936.png?width=800 800w"/></li>
+<li>选择动态分配，点下一步<br/>
+<img alt="image-1652889255286" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889255286.png" srcset="/upload/2022/05/image-1652889255286.png?width=1200 1200w, /upload/2022/05/image-1652889255286.png?width=400 400w, /upload/2022/05/image-1652889255286.png?width=1600 1600w, /upload/2022/05/image-1652889255286.png?width=800 800w"/></li>
+<li>选择20GB（8GB其实也能装，不过建议大点），点击创建<br/>
+<img alt="image-1652889504257" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889504257.png" srcset="/upload/2022/05/image-1652889504257.png?width=1200 1200w, /upload/2022/05/image-1652889504257.png?width=400 400w, /upload/2022/05/image-1652889504257.png?width=1600 1600w, /upload/2022/05/image-1652889504257.png?width=800 800w"/></li>
+<li>选中虚拟机，点击设置<br/>
+<img alt="image-1652889618601" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889618601.png" srcset="/upload/2022/05/image-1652889618601.png?width=1200 1200w, /upload/2022/05/image-1652889618601.png?width=400 400w, /upload/2022/05/image-1652889618601.png?width=1600 1600w, /upload/2022/05/image-1652889618601.png?width=800 800w"/></li>
+<li>切换到系统，把cpu改成4个（至少2个）<br/>
+<img alt="image-1652889720407" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889720407.png" srcset="/upload/2022/05/image-1652889720407.png?width=1200 1200w, /upload/2022/05/image-1652889720407.png?width=400 400w, /upload/2022/05/image-1652889720407.png?width=1600 1600w, /upload/2022/05/image-1652889720407.png?width=800 800w"/></li>
+<li>切换到存储，点击“没有盘片”，再点击最右边的光盘图标，选择虚拟盘<br/>
+<img alt="image-1652889777581" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889777581.png" srcset="/upload/2022/05/image-1652889777581.png?width=1200 1200w, /upload/2022/05/image-1652889777581.png?width=400 400w, /upload/2022/05/image-1652889777581.png?width=1600 1600w, /upload/2022/05/image-1652889777581.png?width=800 800w"/></li>
+<li>选择下载好的系统镜像<br/>
+<img alt="image-1652889857863" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889857863.png" srcset="/upload/2022/05/image-1652889857863.png?width=1200 1200w, /upload/2022/05/image-1652889857863.png?width=400 400w, /upload/2022/05/image-1652889857863.png?width=1600 1600w, /upload/2022/05/image-1652889857863.png?width=800 800w"/></li>
+<li>切换到网络，网卡1启用，连接方式改为“仅主机（Host-Only）网络<br/>
+<img alt="image-1652889912722" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889912722.png" srcset="/upload/2022/05/image-1652889912722.png?width=1200 1200w, /upload/2022/05/image-1652889912722.png?width=400 400w, /upload/2022/05/image-1652889912722.png?width=1600 1600w, /upload/2022/05/image-1652889912722.png?width=800 800w"/></li>
+<li>网卡2启用，连接方式改为"网络地址转换（NAT)",点击OK退出设置界面<br/>
+<img alt="image-1652889983522" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652889983522.png" srcset="/upload/2022/05/image-1652889983522.png?width=1200 1200w, /upload/2022/05/image-1652889983522.png?width=400 400w, /upload/2022/05/image-1652889983522.png?width=1600 1600w, /upload/2022/05/image-1652889983522.png?width=800 800w"/></li>
+<li>点击启动<br/>
+<img alt="image-1652890130737" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890130737.png" srcset="/upload/2022/05/image-1652890130737.png?width=1200 1200w, /upload/2022/05/image-1652890130737.png?width=400 400w, /upload/2022/05/image-1652890130737.png?width=1600 1600w, /upload/2022/05/image-1652890130737.png?width=800 800w"/></li>
+<li>选第一个，回车<br/>
+<img alt="image-1652890168045" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890168045.png" srcset="/upload/2022/05/image-1652890168045.png?width=1200 1200w, /upload/2022/05/image-1652890168045.png?width=400 400w, /upload/2022/05/image-1652890168045.png?width=1600 1600w, /upload/2022/05/image-1652890168045.png?width=800 800w"/></li>
+<li>选择中文，点继续<br/>
+<img alt="image-1652890413967" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890413967.png" srcset="/upload/2022/05/image-1652890413967.png?width=1200 1200w, /upload/2022/05/image-1652890413967.png?width=400 400w, /upload/2022/05/image-1652890413967.png?width=1600 1600w, /upload/2022/05/image-1652890413967.png?width=800 800w"/><br/>
+<img alt="image-1652890891653" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890891653.png" srcset="/upload/2022/05/image-1652890891653.png?width=1200 1200w, /upload/2022/05/image-1652890891653.png?width=400 400w, /upload/2022/05/image-1652890891653.png?width=1600 1600w, /upload/2022/05/image-1652890891653.png?width=800 800w"/></li>
+<li>点击安装目的地，点击完成<br/>
+<img alt="image-1652890909876" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890909876.png" srcset="/upload/2022/05/image-1652890909876.png?width=1200 1200w, /upload/2022/05/image-1652890909876.png?width=400 400w, /upload/2022/05/image-1652890909876.png?width=1600 1600w, /upload/2022/05/image-1652890909876.png?width=800 800w"/></li>
+<li>点击根密码，输入两次密码，点击完成<br/>
+<img alt="image-1652890940670" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890940670.png" srcset="/upload/2022/05/image-1652890940670.png?width=1200 1200w, /upload/2022/05/image-1652890940670.png?width=400 400w, /upload/2022/05/image-1652890940670.png?width=1600 1600w, /upload/2022/05/image-1652890940670.png?width=800 800w"/></li>
+<li>点击开始安装，然后等<br/>
+<img alt="image-1652890966443" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890966443.png" srcset="/upload/2022/05/image-1652890966443.png?width=1200 1200w, /upload/2022/05/image-1652890966443.png?width=400 400w, /upload/2022/05/image-1652890966443.png?width=1600 1600w, /upload/2022/05/image-1652890966443.png?width=800 800w"/></li>
+<li>安装完成后，点击左下角的重启系统<br/>
+<img alt="image-1652891675781" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891675781.png" srcset="/upload/2022/05/image-1652891675781.png?width=1200 1200w, /upload/2022/05/image-1652891675781.png?width=400 400w, /upload/2022/05/image-1652891675781.png?width=1600 1600w, /upload/2022/05/image-1652891675781.png?width=800 800w"/></li>
+<li>在启动前，迅速点击"设备-分配光驱-移除虚拟盘"<br/>
+<img alt="image-1652890693703" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652890693703.png" srcset="/upload/2022/05/image-1652890693703.png?width=1200 1200w, /upload/2022/05/image-1652890693703.png?width=400 400w, /upload/2022/05/image-1652890693703.png?width=1600 1600w, /upload/2022/05/image-1652890693703.png?width=800 800w"/></li>
+<li>启动后，输入用户名root,回车,输入密码,回车<br/>
+<img alt="image-1652892027698" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892027698.png" srcset="/upload/2022/05/image-1652892027698.png?width=1200 1200w, /upload/2022/05/image-1652892027698.png?width=400 400w, /upload/2022/05/image-1652892027698.png?width=1600 1600w, /upload/2022/05/image-1652892027698.png?width=800 800w"/></li>
+<li>输入nmcli 回车，找到显示为disconnect的网卡名称<br/>
+<img alt="image-1652892085210" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892085210.png" srcset="/upload/2022/05/image-1652892085210.png?width=1200 1200w, /upload/2022/05/image-1652892085210.png?width=400 400w, /upload/2022/05/image-1652892085210.png?width=1600 1600w, /upload/2022/05/image-1652892085210.png?width=800 800w"/></li>
+<li>根据以上disconnect的网卡名称，执行以下命令启用网卡</li>
+</ol>
+<pre><code class="language-bash">nmcli device connect "enp0s3"
+nmcli device connect "enp0s8"
+</code></pre>
+<p><img alt="image-1652892158292" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892158292.png" srcset="/upload/2022/05/image-1652892158292.png?width=1200 1200w, /upload/2022/05/image-1652892158292.png?width=400 400w, /upload/2022/05/image-1652892158292.png?width=1600 1600w, /upload/2022/05/image-1652892158292.png?width=800 800w"/><br/>
+再次执行 nmcli，得到enp0s3的ip，此时可以改用其他ssh连接工具方便操作，比如xshell<br/>
+<img alt="image-1652892215613" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892215613.png" srcset="/upload/2022/05/image-1652892215613.png?width=1200 1200w, /upload/2022/05/image-1652892215613.png?width=400 400w, /upload/2022/05/image-1652892215613.png?width=1600 1600w, /upload/2022/05/image-1652892215613.png?width=800 800w"/><br/>
+25. 修改网卡配置文件，把ONBOOT参数的值改为yes，并保存</p>
+<pre><code class="language-bash"> vi /etc/sysconfig/network-scripts/ifcfg-enp0s3
+</code></pre>
+<p><img alt="image-1652893033733" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652893033733.png" srcset="/upload/2022/05/image-1652893033733.png?width=1200 1200w, /upload/2022/05/image-1652893033733.png?width=400 400w, /upload/2022/05/image-1652893033733.png?width=1600 1600w, /upload/2022/05/image-1652893033733.png?width=800 800w"/><br/>
+<img alt="image-1652893074167" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652893074167.png" srcset="/upload/2022/05/image-1652893074167.png?width=1200 1200w, /upload/2022/05/image-1652893074167.png?width=400 400w, /upload/2022/05/image-1652893074167.png?width=1600 1600w, /upload/2022/05/image-1652893074167.png?width=800 800w"/><br/>
+两个网卡文件都要改</p>
+<pre><code class="language-bash"> vi /etc/sysconfig/network-scripts/ifcfg-enp0s8
+</code></pre>
+<ol start="26">
+<li>执行以下命令安装相关依赖和常用工具</li>
+</ol>
+<pre><code class="language-bash">yum install -y tar vim libaio-devel flex bison ncurses-devel glibc-devel patch readline-devel libnsl openssh net-tools
+</code></pre>
+<p><img alt="image-1652892361891" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892361891.png" srcset="/upload/2022/05/image-1652892361891.png?width=1200 1200w, /upload/2022/05/image-1652892361891.png?width=400 400w, /upload/2022/05/image-1652892361891.png?width=1600 1600w, /upload/2022/05/image-1652892361891.png?width=800 800w"/><br/>
+<img alt="image-1652892632791" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892632791.png" srcset="/upload/2022/05/image-1652892632791.png?width=1200 1200w, /upload/2022/05/image-1652892632791.png?width=400 400w, /upload/2022/05/image-1652892632791.png?width=1600 1600w, /upload/2022/05/image-1652892632791.png?width=800 800w"/><br/>
+27. 执行以下命令关闭防火墙</p>
+<pre><code class="language-bash">systemctl disable firewalld.service
+systemctl stop firewalld.service
+setenforce=0
+sed -i '/^SELINUX=/c'SELINUX=disabled /etc/selinux/config
+</code></pre>
+<p><img alt="image-1652896474489" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896474489.png" srcset="/upload/2022/05/image-1652896474489.png?width=1200 1200w, /upload/2022/05/image-1652896474489.png?width=400 400w, /upload/2022/05/image-1652896474489.png?width=1600 1600w, /upload/2022/05/image-1652896474489.png?width=800 800w"/></p>
+<ol start="28">
+<li>点击控制-正常关机<br/>
+<img alt="image-1652891373842" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891373842.png" srcset="/upload/2022/05/image-1652891373842.png?width=1200 1200w, /upload/2022/05/image-1652891373842.png?width=400 400w, /upload/2022/05/image-1652891373842.png?width=1600 1600w, /upload/2022/05/image-1652891373842.png?width=800 800w"/></li>
+</ol>
+<h3 id="%E4%B8%89%E3%80%81%E5%88%9B%E5%BB%BA%E6%95%B0%E6%8D%AE%E5%BA%93%E6%AF%8D%E6%9C%BA%E6%A8%A1%E6%9D%BF" tabindex="-1">三、创建数据库母机模板</h3>
+<ol>
+<li>鼠标右键选择虚拟机，点击复制<br/>
+<img alt="image-1652891455898" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891455898.png" srcset="/upload/2022/05/image-1652891455898.png?width=1200 1200w, /upload/2022/05/image-1652891455898.png?width=400 400w, /upload/2022/05/image-1652891455898.png?width=1600 1600w, /upload/2022/05/image-1652891455898.png?width=800 800w"/></li>
+<li>改个名称，点下一步<br/>
+<img alt="image-1652891496833" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891496833.png" srcset="/upload/2022/05/image-1652891496833.png?width=1200 1200w, /upload/2022/05/image-1652891496833.png?width=400 400w, /upload/2022/05/image-1652891496833.png?width=1600 1600w, /upload/2022/05/image-1652891496833.png?width=800 800w"/></li>
+<li>选择完全复制，点下一步<br/>
+<img alt="image-1652891532875" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891532875.png" srcset="/upload/2022/05/image-1652891532875.png?width=1200 1200w, /upload/2022/05/image-1652891532875.png?width=400 400w, /upload/2022/05/image-1652891532875.png?width=1600 1600w, /upload/2022/05/image-1652891532875.png?width=800 800w"/></li>
+<li>等待复制完成（此处彩蛋为克隆羊多莉~）<br/>
+<img alt="image-1652892686246" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892686246.png" srcset="/upload/2022/05/image-1652892686246.png?width=1200 1200w, /upload/2022/05/image-1652892686246.png?width=400 400w, /upload/2022/05/image-1652892686246.png?width=1600 1600w, /upload/2022/05/image-1652892686246.png?width=800 800w"/></li>
+<li>选择复制出来的虚拟机，点击启动<br/>
+<img alt="image-1652892711871" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892711871.png" srcset="/upload/2022/05/image-1652892711871.png?width=1200 1200w, /upload/2022/05/image-1652892711871.png?width=400 400w, /upload/2022/05/image-1652892711871.png?width=1600 1600w, /upload/2022/05/image-1652892711871.png?width=800 800w"/></li>
+<li>输入用户名密码进入，得到ip，此时可以使用其他工具进行ssh连接<br/>
+<img alt="image-1652892809201" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652892809201.png" srcset="/upload/2022/05/image-1652892809201.png?width=1200 1200w, /upload/2022/05/image-1652892809201.png?width=400 400w, /upload/2022/05/image-1652892809201.png?width=1600 1600w, /upload/2022/05/image-1652892809201.png?width=800 800w"/><br/>
+<img alt="image-1652893314899" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652893314899.png" srcset="/upload/2022/05/image-1652893314899.png?width=1200 1200w, /upload/2022/05/image-1652893314899.png?width=400 400w, /upload/2022/05/image-1652893314899.png?width=1600 1600w, /upload/2022/05/image-1652893314899.png?width=800 800w"/></li>
+<li>创建相关用户、组、目录</li>
+</ol>
+<pre><code class="language-bash">groupadd dbgrp -g 2000
+useradd omm -g 2000 -u 2000
+echo "Enmo@123" | passwd --stdin omm
+mkdir -p /opt/mogdb/software
+mkdir -p /opt/mogdb/data
+chown -R omm:dbgrp /opt/mogdb
+</code></pre>
+<ol start="8">
+<li>上传安装包并解压<br/>
+上传 MogDB-3.0.0-openEuler-64bit.tar.bz2 至 /opt/mogdb/software<br/>
+(不要问我怎么上传，自己去搜…)<br/>
+<img alt="image-1652893777987" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652893777987.png" srcset="/upload/2022/05/image-1652893777987.png?width=1200 1200w, /upload/2022/05/image-1652893777987.png?width=400 400w, /upload/2022/05/image-1652893777987.png?width=1600 1600w, /upload/2022/05/image-1652893777987.png?width=800 800w"/></li>
+</ol>
+<pre><code class="language-bash">cd /opt/mogdb/software/
+chown omm:dbgrp MogDB-3.0.0-openEuler-64bit.tar.bz2
+</code></pre>
+<pre><code class="language-bash">su - omm
+</code></pre>
+<pre><code class="language-bash">cd /opt/mogdb/software/
+tar -xf MogDB-3.0.0-openEuler-64bit.tar.bz2
+</code></pre>
+<ol start="9">
+<li>配置环境变量</li>
+</ol>
+<pre><code class="language-bash">echo "export GAUSSHOME=/opt/mogdb/software"  &gt;&gt; /home/omm/.bashrc &amp;&amp; \
+echo "export PATH=\$GAUSSHOME/bin:\$PATH " &gt;&gt; /home/omm/.bashrc &amp;&amp; \
+echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$LD_LIBRARY_PATH" &gt;&gt; /home/omm/.bashrc
+source /home/omm/.bashrc
+</code></pre>
+<p><img alt="image-1652895514365" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895514365.png" srcset="/upload/2022/05/image-1652895514365.png?width=1200 1200w, /upload/2022/05/image-1652895514365.png?width=400 400w, /upload/2022/05/image-1652895514365.png?width=1600 1600w, /upload/2022/05/image-1652895514365.png?width=800 800w"/><br/>
+10. 初始化数据库</p>
+<pre><code class="language-bash">cd /opt/mogdb/software
+bin/gs_initdb --pgdata=/opt/mogdb/data --nodename=primary --pwpasswd=Enmo@123 --encoding=UTF-8 --locale=en_US.UTF-8
+</code></pre>
+<p><img alt="image-1652895446083" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895446083.png" srcset="/upload/2022/05/image-1652895446083.png?width=1200 1200w, /upload/2022/05/image-1652895446083.png?width=400 400w, /upload/2022/05/image-1652895446083.png?width=1600 1600w, /upload/2022/05/image-1652895446083.png?width=800 800w"/><br/>
+11. 修改参数</p>
+<pre><code class="language-bash">echo "port=26000" &gt;&gt; /opt/mogdb/data/postgresql.conf
+echo "listen_addresses = '0.0.0.0'" &gt;&gt; /opt/mogdb/data/postgresql.conf
+echo "password_encryption_type = 0" &gt;&gt; /opt/mogdb/data/postgresql.conf
+echo "log_directory = 'pg_log'" &gt;&gt; /opt/mogdb/data/postgresql.conf
+echo "remote_read_mode=non_authentication" &gt;&gt; /opt/mogdb/data/postgresql.conf
+echo "host all all 0.0.0.0/0 md5" &gt;&gt; /opt/mogdb/data/pg_hba.conf
+</code></pre>
+<p><img alt="image-1652895602558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895602558.png" srcset="/upload/2022/05/image-1652895602558.png?width=1200 1200w, /upload/2022/05/image-1652895602558.png?width=400 400w, /upload/2022/05/image-1652895602558.png?width=1600 1600w, /upload/2022/05/image-1652895602558.png?width=800 800w"/><br/>
+12. 点击控制-正常关机<br/>
+<img alt="image-1652891373842" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652891373842.png" srcset="/upload/2022/05/image-1652891373842.png?width=1200 1200w, /upload/2022/05/image-1652891373842.png?width=400 400w, /upload/2022/05/image-1652891373842.png?width=1600 1600w, /upload/2022/05/image-1652891373842.png?width=800 800w"/></p>
+<h3 id="%E5%9B%9B%E3%80%81%E5%88%9B%E5%BB%BA%E6%95%B0%E6%8D%AE%E5%BA%93%E4%B8%BB%E5%A4%87" tabindex="-1">四、创建数据库主备</h3>
+<ol>
+<li>选择刚刚创建的数据库母机模板，再执行一次 “三.1~三.6” ，新的机器作为主机<br/>
+<img alt="image-1652894802184" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652894802184.png" srcset="/upload/2022/05/image-1652894802184.png?width=1200 1200w, /upload/2022/05/image-1652894802184.png?width=400 400w, /upload/2022/05/image-1652894802184.png?width=1600 1600w, /upload/2022/05/image-1652894802184.png?width=800 800w"/></li>
+<li>再执行一次 “四.1”，新的机器作为备机<br/>
+<img alt="image-1652894585326" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652894585326.png" srcset="/upload/2022/05/image-1652894585326.png?width=1200 1200w, /upload/2022/05/image-1652894585326.png?width=400 400w, /upload/2022/05/image-1652894585326.png?width=1600 1600w, /upload/2022/05/image-1652894585326.png?width=800 800w"/></li>
+<li>主机执行下面的命令，注意修改两处ip，localhost为本机（主机），remotehost为另一台机（备机）</li>
+</ol>
+<pre><code class="language-bash">su - omm
+
+echo "replconninfo1='localhost=192.168.56.113 localport=26001 localheartbeatport=26005 localservice=26004 remotehost=192.168.56.114 remoteport=26001 remoteheartbeatport=26005 remoteservice=26004'
+" &gt;&gt; /opt/mogdb/data/postgresql.conf
+</code></pre>
+<p><img alt="image-1652895234087" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895234087.png" srcset="/upload/2022/05/image-1652895234087.png?width=1200 1200w, /upload/2022/05/image-1652895234087.png?width=400 400w, /upload/2022/05/image-1652895234087.png?width=1600 1600w, /upload/2022/05/image-1652895234087.png?width=800 800w"/><br/>
+4.在主机执行，复制主机配置文件到备机</p>
+<pre><code class="language-bash">scp /opt/mogdb/data/pg_hba.conf /opt/mogdb/data/postgresql.conf 192.168.56.114:/opt/mogdb/data/
+</code></pre>
+<p>输入yes 回车<br/>
+<img alt="image-1652895791315" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895791315.png" srcset="/upload/2022/05/image-1652895791315.png?width=1200 1200w, /upload/2022/05/image-1652895791315.png?width=400 400w, /upload/2022/05/image-1652895791315.png?width=1600 1600w, /upload/2022/05/image-1652895791315.png?width=800 800w"/><br/>
+输入密码  Enmo@123  回车<br/>
+<img alt="image-1652895807468" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895807468.png" srcset="/upload/2022/05/image-1652895807468.png?width=1200 1200w, /upload/2022/05/image-1652895807468.png?width=400 400w, /upload/2022/05/image-1652895807468.png?width=1600 1600w, /upload/2022/05/image-1652895807468.png?width=800 800w"/><br/>
+如图所示，配置文件已经复制到了备机<br/>
+<img alt="image-1652895828758" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652895828758.png" srcset="/upload/2022/05/image-1652895828758.png?width=1200 1200w, /upload/2022/05/image-1652895828758.png?width=400 400w, /upload/2022/05/image-1652895828758.png?width=1600 1600w, /upload/2022/05/image-1652895828758.png?width=800 800w"/></p>
+<ol start="5">
+<li>启动主库(注意此处和官方文档不一样，我这里是启动，而非重启)</li>
+</ol>
+<pre><code class="language-bash">gs_ctl start -D /opt/mogdb/data/ -M primary
+</code></pre>
+<p><img alt="image-1652896040605" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896040605.png" srcset="/upload/2022/05/image-1652896040605.png?width=1200 1200w, /upload/2022/05/image-1652896040605.png?width=400 400w, /upload/2022/05/image-1652896040605.png?width=1600 1600w, /upload/2022/05/image-1652896040605.png?width=800 800w"/><br/>
+6. 切换到备机，修改备库配置文件</p>
+<pre><code class="language-bash">vi /opt/mogdb/data/postgresql.conf
+</code></pre>
+<p>直接翻到最下，对调两个ip<br/>
+<img alt="image-1652896209122" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896209122.png" srcset="/upload/2022/05/image-1652896209122.png?width=1200 1200w, /upload/2022/05/image-1652896209122.png?width=400 400w, /upload/2022/05/image-1652896209122.png?width=1600 1600w, /upload/2022/05/image-1652896209122.png?width=800 800w"/><br/>
+7. 启动备库</p>
+<pre><code class="language-bash">gs_ctl build -D /opt/mogdb/data/ -b full -M standby
+</code></pre>
+<p><img alt="image-1652896546430" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896546430.png" srcset="/upload/2022/05/image-1652896546430.png?width=1200 1200w, /upload/2022/05/image-1652896546430.png?width=400 400w, /upload/2022/05/image-1652896546430.png?width=1600 1600w, /upload/2022/05/image-1652896546430.png?width=800 800w"/></p>
+<h3 id="%E4%BA%94%E3%80%81%E9%AA%8C%E8%AF%81%E4%B8%BB%E5%A4%87%E5%BA%93%E5%90%8C%E6%AD%A5" tabindex="-1">五、验证主备库同步</h3>
+<p>1.在主机上本地连接主库</p>
+<pre><code class="language-bash">gsql -d postgres -p 26000
+</code></pre>
+<p><img alt="image-1652896666059" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896666059.png" srcset="/upload/2022/05/image-1652896666059.png?width=1200 1200w, /upload/2022/05/image-1652896666059.png?width=400 400w, /upload/2022/05/image-1652896666059.png?width=1600 1600w, /upload/2022/05/image-1652896666059.png?width=800 800w"/><br/>
+2. 创建用户并授权</p>
+<pre><code class="language-sql">create user mogdb with login password "Enmo@123" ;
+grant all privileges to mogdb;
+ALTER USER mogdb MONADMIN;
+\q
+</code></pre>
+<p><img alt="image-1652896835482" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896835482.png" srcset="/upload/2022/05/image-1652896835482.png?width=1200 1200w, /upload/2022/05/image-1652896835482.png?width=400 400w, /upload/2022/05/image-1652896835482.png?width=1600 1600w, /upload/2022/05/image-1652896835482.png?width=800 800w"/><br/>
+3. 使用该用户远程连接备库</p>
+<pre><code class="language-bash">gsql -d postgres -h 192.168.56.114 -U mogdb -p 26000 -W Enmo@123
+</code></pre>
+<p><img alt="image-1652896853208" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652896853208.png" srcset="/upload/2022/05/image-1652896853208.png?width=1200 1200w, /upload/2022/05/image-1652896853208.png?width=400 400w, /upload/2022/05/image-1652896853208.png?width=1600 1600w, /upload/2022/05/image-1652896853208.png?width=800 800w"/></p>
+<p>成功连接，说明备库自动同步创建了该用户，至此，MogDB手动主备已安装完成。<br/>
+另外，可参考我文章中最前面的坑里说到的 固定ip，把两台机器的ip固定下来，避免重启后，ip变了。<br/>
+另外，由于未使用管理工具，在服务器重启后，数据库要手动启动<br/>
+主机要手动执行</p>
+<pre><code class="language-bash">su - omm
+gs_ctl start -D /opt/mogdb/data/ -M primary
+</code></pre>
+<p>备机要手动执行</p>
+<pre><code class="language-bash">su - omm
+gs_ctl build -D /opt/mogdb/data/ -b full -M standby
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

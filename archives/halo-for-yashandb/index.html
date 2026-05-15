@@ -153,7 +153,69 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="yashandb应用适配实战-halo博客系统适配崖山数据库">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</h1>
+<p><a href="https://www.darkathena.top/archives/yashandb-r2dbc-driver-dev">【YaShanDB】给YaShanDB开发R2DBC驱动</a><br/>
+上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了</p>
+<h2 id="ai-coding">AI Coding</h2>
+<p>这次我连编辑器都懒得打开了，直接github上找agent开干，中间过程我也不关心了</p>
+<p><img alt="image-ebFU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ebFU.png" srcset="/upload/image-ebFU.png?width=1200 1200w, /upload/image-ebFU.png?width=400 400w, /upload/image-ebFU.png?width=1600 1600w, /upload/image-ebFU.png?width=800 800w"/></p>
+<p>然后让他生成了docker compose,让我能一键启动个带崖山数据库的halo。不过由于开了个新的agent，他不记得要用修改后的halo了，而且中间由于java构建环境各个组件版本兼容性的问题修复了很多次才修好。</p>
+<p><img alt="image-HeAt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-HeAt.png" srcset="/upload/image-HeAt.png?width=1200 1200w, /upload/image-HeAt.png?width=400 400w, /upload/image-HeAt.png?width=1600 1600w, /upload/image-HeAt.png?width=800 800w"/></p>
+<p>不过好在最后还是完成了</p>
+<p><img alt="image-qLAe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qLAe.png" srcset="/upload/image-qLAe.png?width=1200 1200w, /upload/image-qLAe.png?width=400 400w, /upload/image-qLAe.png?width=1600 1600w, /upload/image-qLAe.png?width=800 800w"/></p>
+<pre><code class="language-bash"># 克隆此 fork
+git clone https://github.com/Dark-Athena/halo.git &amp;&amp; cd halo
+
+# 启动（首次会从源码构建镜像，需要较长时间）
+docker compose -f docker-compose-yashandb.yaml up -d
+
+# 或者先单独构建镜像，再启动
+docker compose -f docker-compose-yashandb.yaml build
+docker compose -f docker-compose-yashandb.yaml up -d
+</code></pre>
+<h2 id="remote-test">remote test</h2>
+<p>我也不下载代码，直接在github上启动codespace</p>
+<p><img alt="image-CRsh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-CRsh.png" srcset="/upload/image-CRsh.png?width=1200 1200w, /upload/image-CRsh.png?width=400 400w, /upload/image-CRsh.png?width=1600 1600w, /upload/image-CRsh.png?width=800 800w"/></p>
+<p><img alt="image-CRIH.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-CRIH.png" srcset="/upload/image-CRIH.png?width=1200 1200w, /upload/image-CRIH.png?width=400 400w, /upload/image-CRIH.png?width=1600 1600w, /upload/image-CRIH.png?width=800 800w"/></p>
+<p><img alt="image-GOXl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GOXl.png" srcset="/upload/image-GOXl.png?width=1200 1200w, /upload/image-GOXl.png?width=400 400w, /upload/image-GOXl.png?width=1600 1600w, /upload/image-GOXl.png?width=800 800w"/></p>
+<p>最终成功一键启动,这个web版的vscode也会自动把端口给映射出来，能远程访问</p>
+<p><img alt="image-VXwv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VXwv.png" srcset="/upload/image-VXwv.png?width=1200 1200w, /upload/image-VXwv.png?width=400 400w, /upload/image-VXwv.png?width=1600 1600w, /upload/image-VXwv.png?width=800 800w"/><br/>
+首次进入初始化页面</p>
+<p><img alt="image-NxaU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-NxaU.png" srcset="/upload/image-NxaU.png?width=1200 1200w, /upload/image-NxaU.png?width=400 400w, /upload/image-NxaU.png?width=1600 1600w, /upload/image-NxaU.png?width=800 800w"/><br/>
+系统概览里的数据库显示了YashanDB(版本号暂时懒得管了)(后面偶然瞟了一眼r2dbc驱动，AI写死了，没从JDBC的数据库元数据里取，后面再改下)(r2dbc-yashandb 0.1.2版本已修复版本号的问题)</p>
+<p><img alt="image-aRYl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aRYl.png" srcset="/upload/image-aRYl.png?width=1200 1200w, /upload/image-aRYl.png?width=400 400w, /upload/image-aRYl.png?width=1600 1600w, /upload/image-aRYl.png?width=800 800w"/></p>
+<p>测试了安装几个插件，编写文章发布都是正常的。</p>
+<p>代码开源在</p>
+<p><a href="https://github.com/Dark-Athena/halo/tree/for-yashandb">https://github.com/Dark-Athena/halo/tree/for-yashandb</a></p>
+<p>本地一行代码没有，直接在网页上聊几句天就把项目开发完了，还能远程直接启动服务来演示，CI/CD也直接集成了，github这生态真是太舒服了。</p>
+<p><img alt="image-RojJ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-RojJ.png" srcset="/upload/image-RojJ.png?width=1200 1200w, /upload/image-RojJ.png?width=400 400w, /upload/image-RojJ.png?width=1600 1600w, /upload/image-RojJ.png?width=800 800w"/></p>
+<h2 id="坑点">坑点</h2>
+<p>spring 的r2dbc方言，只支持ORACLE/MYSQL/POSTGRSQL/SQLSERVER/H2这5个数据库，然后HALO博客官方的社区版只支持MYSQL/POSTGRSQL/H2这3个数据库，ORACLE的支持是在商业版里的，没开源。崖山数据库的支持肯定是要大量套用ORACLE的方言的，所以AI在这里绕了挺久，我也没看他最后是怎么修复的，反正改了几轮后跑通了。</p>
+<p><a href="https://github.com/spring-projects/spring-framework/blob/main/spring-r2dbc/src/main/java/org/springframework/r2dbc/core/binding/BindMarkersFactoryResolver.java">https://github.com/spring-projects/spring-framework/blob/main/spring-r2dbc/src/main/java/org/springframework/r2dbc/core/binding/BindMarkersFactoryResolver.java</a></p>
+<p>static class BuiltInBindMarkersFactoryProvider implements BindMarkerFactoryProvider {</p>
+<pre><code class="language-java">private static final Map&lt;String, BindMarkersFactory&gt; BUILTIN =
+			new LinkedCaseInsensitiveMap&lt;&gt;(Locale.ENGLISH);
+
+	static {
+		BUILTIN.put("H2", BindMarkersFactory.indexed("$", 1));
+		BUILTIN.put("MariaDB", BindMarkersFactory.anonymous("?"));
+		BUILTIN.put("Microsoft SQL Server", BindMarkersFactory.named("@", "P", 32,
+				BuiltInBindMarkersFactoryProvider::filterBindMarker));
+		BUILTIN.put("MySQL", BindMarkersFactory.anonymous("?"));
+		BUILTIN.put("Oracle", BindMarkersFactory.named(":", "P", 32,
+				BuiltInBindMarkersFactoryProvider::filterBindMarker));
+		BUILTIN.put("PostgreSQL", BindMarkersFactory.indexed("$", 1));
+	}
+</code></pre>
+<p>另外，虽然HALO官方的自动化测试E2E能跑过去，但很可能无法合入HALO，因为本次修改比较粗暴，有改动原本HALO里不少代码，连CI也改了。而且开源产品里支持一个非开源的数据库，可能会有一些商业考虑，改天有时间我去找凌霞问问看。</p>
+<h2 id="总结">总结</h2>
+<p>本次项目更多还是验证上一篇开发的崖山数据库R2DBC驱动是否真正可用，通过本次对HALO博客的修改适配，成功确认了这个R2DBC驱动是真正可以用于项目中的。<br/>
+据我之前了解到的一些情况，halo博客在不少地方的政务系统里也有使用，本次的实战经验应该是很有价值的了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

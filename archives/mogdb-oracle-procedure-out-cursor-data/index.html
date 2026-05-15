@@ -155,7 +155,157 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>使用ORACLE作为数据库的应用软件中，偶尔会遇到使用游标作为出参的存储过程，这种存储过程迁移到MogDB并不需要进行改造，但是在开发这样的存储过程时，开发人员偶尔会想要在数据库中测试执行一下，看看游标中的数据是否符合预期，但游标并不是常规的基本数据类型，再写一段plsql或者其他语言的代码去扫游标中的数据打印出来又会有额外的开发量。因此本文介绍几种在开发过程中，ORACLE和MogDB查看出参游标数据的方式。</p>
+<h2 id="二测试对象创建">二、测试对象创建</h2>
+<p>以下代码在ORACLE和MogDB（A模式）中均可执行</p>
+<pre><code class="language-sql">--创建测试表并插入数据
+create table t_test_cursor1(col1 number,col2 varchar2(100));
+insert into t_test_cursor1 values (1,'abc');
+insert into t_test_cursor1 values (1,'def');
+commit;
+
+--创建带出参游标的package
+create or replace package pkg_test_mutil_cursor is
+procedure proc (a int,
+c1 out sys_refcursor,
+c2 out sys_refcursor,
+c3 out sys_refcursor);
+end;
+/
+
+create or replace package body pkg_test_mutil_cursor is
+procedure proc (a int,
+c1 out sys_refcursor,
+c2 out sys_refcursor,
+c3 out sys_refcursor) is
+begin
+open c1 for select *  from t_test_cursor1 where col1=a;
+open c2 for select col1 ,count(1) ct from t_test_cursor1 where col1=a group by col1;
+open c3 for select col1,substr(listagg(col2,',') within group(order by col2),1,100) l from t_test_cursor1 where col1=a group by col1;
+end;  
+end;
+/
+
+</code></pre>
+<h2 id="三oracle查看游标中数据的方式">三、Oracle查看游标中数据的方式</h2>
+<h3 id="1sqlplus">1.sqlplus</h3>
+<p>此方法适用于无其他客户端工具，仅有数据库自带客户端sqlplus时使用</p>
+<pre><code class="language-sql">SQL&gt; set linesize 200
+SQL&gt; var r1 refcursor;
+SQL&gt; var r2 refcursor;
+SQL&gt; var r3 refcursor;
+SQL&gt; exec pkg_test_mutil_cursor.proc(1,:r1,:r2,:r3);
+
+PL/SQL 过程已成功完成。
+
+SQL&gt; print r1;
+
+      COL1 COL2
+---------- --------------------------------------------------
+         1 abc
+         1 def
+
+SQL&gt; print r2;
+
+      COL1         CT
+---------- ----------
+         1          2
+
+SQL&gt; print r3;
+
+      COL1 L
+---------- ----------------------------------------------------------------------------------------------------
+         1 abc,def
+
+SQL&gt;
+</code></pre>
+<p>如上代码所示，使用var声明变量和变量的类型，然后使用exec命令(exec/execute/call都行）执行这个procedure，最后再使用print命令打印变量。<br/>
+需要注意的是，这个用例中出现的set /var/exec/print 这四个命令都不是oracle的sql语法中有的，这4个都是sqlplus这个客户端里的语法，因此无法在其他开发语言中使用sql执行接口来调用。<br/>
+另外，这里的print会把游标中的所有数据都打印出来，如果游标数据量很大，sqlplus会疯狂刷屏。</p>
+<h3 id="2dbms_sqlreturn_result">2.dbms_sql.return_result</h3>
+<p>oracle 12c新增了dbms_sql.return_result功能，可以在sqlplus中执行存储过程后直接显示结果集中的数据（可以参考mysql的存储过程里直接select查数据的用法）,但是由于其本身就已经fetch完了，因此游标已不能再使用。另外oracle还支持ResultSet,这里就不过多介绍了，因为return_result和resultset功能需要修改原存储过程，而且应用开发的时候还得使用新的接口来处理这个数据交互，不具有通用性。详细用法参考oracle官方文档 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sqpug/using-scripts-in-SQL-Plus.html#GUID-9C965E00-45C6-42B2-8E4D-9B1EFA143834">using-scripts-in-SQL-Plus</a></p>
+<h3 id="3plsql-developer">3.PLSQL DEVELOPER</h3>
+<p>相比前面sqlplus还要额外声明变量打印的方式，PLSQL DEVELOPER的处理方式更人性化一些，只需在调试窗口中直接执行，即可逐个打开变量查看游标中的数据</p>
+<p><img alt="屏幕截图 2024-04-13 170412.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170412.png" srcset="/upload/屏幕截图 2024-04-13 170412.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170412.png?width=400 400w, /upload/屏幕截图 2024-04-13 170412.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170412.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 170620.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170620.png" srcset="/upload/屏幕截图 2024-04-13 170620.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170620.png?width=400 400w, /upload/屏幕截图 2024-04-13 170620.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170620.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 170656.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170656.png" srcset="/upload/屏幕截图 2024-04-13 170656.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170656.png?width=400 400w, /upload/屏幕截图 2024-04-13 170656.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170656.png?width=800 800w"/></p>
+<p>但是这里注意，游标的数据窗口关闭后，再打开就无法看到里面的数据了</p>
+<h3 id="4oracle-sql-developer">4.Oracle sql developer</h3>
+<p>和plsql developer一样，Oracle官方的Oracle sql developer，也是通过调试来查看出参游标中的数据，不过并不需要像plsql developer那样打开新的窗口，并且此处切换不同的游标查看并不会出现只能看一次的情况</p>
+<p><img alt="屏幕截图 2024-04-13 184316.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 184316.png" srcset="/upload/屏幕截图 2024-04-13 184316.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 184316.png?width=400 400w, /upload/屏幕截图 2024-04-13 184316.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 184316.png?width=800 800w"/></p>
+<h2 id="四mogdb查看游标中数据的方式">四、MogDB查看游标中数据的方式</h2>
+<p>注：本文使用的MogDB版本为5.0，相关限定条件不一定适用于更高的版本</p>
+<h3 id="1gsql">1.gsql</h3>
+<pre><code class="language-sql">MogDB=# begin;
+BEGIN
+MogDB=# call pkg_test_mutil_cursor.proc(1,null,null,null);
+         c1         |         c2         |         c3
+--------------------+--------------------+--------------------
+ &lt;unnamed portal 1&gt; | &lt;unnamed portal 2&gt; | &lt;unnamed portal 3&gt;
+(1 row)
+
+MogDB=# fetch all "&lt;unnamed portal 1&gt;";
+ col1 | col2
+------+------
+    1 | abc
+    1 | def
+(2 rows)
+
+MogDB=# fetch all "&lt;unnamed portal 2&gt;";
+ col1 | ct
+------+----
+    1 |  2
+(1 row)
+
+MogDB=# fetch all "&lt;unnamed portal 3&gt;";
+ col1 |    l
+------+---------
+    1 | abc,def
+(1 row)
+
+MogDB=# end;
+COMMIT
+MogDB=#
+</code></pre>
+<p>其实这里和postgresql的用法是基本一致的，需要先手动开启一个事务，然后再执行存储过程。不仅可以看到游标中的数据，还能直接操作游标向前向后，只看第一条、只看最后一条、游标计数等，</p>
+<pre><code>Fetch ::= FETCH [ direction { FROM | IN } ] cursor_name;
+</code></pre>
+<pre><code>direction ::= NEXT
+   | PRIOR
+   | FIRST
+   | LAST
+   | ABSOLUTE count
+   | RELATIVE count
+   | count
+   | ALL
+   | FORWARD
+   | FORWARD count
+   | FORWARD ALL
+   | BACKWARD
+   | BACKWARD count
+   | BACKWARD ALL
+</code></pre>
+<p>具体可参考MogDB官方文档 <a href="https://docs.mogdb.io/zh/mogdb/v5.0/FETCH">FETCH</a></p>
+<p>在gsql中，一般情况下，不需要额外再声明变量，可直接传入常量来call这个存储过程，只要满足参数个数即可。但是需要注意重载的问题，当有同名且参数个数相同的存储过程时，参数位置需要输入指定数据类型的任意值(<a href="https://docs.mogdb.io/zh/mogdb/v5.0/CALL">详见CALL语法</a>)。<br/>
+关于重载的说明可以参考我之前写的这篇文章 <a href="https://www.darkathena.top/archives/opengauss-procoutparamoverride-test">【openGauss】带有out参数的存储过程及自定义函数的重载测试</a></p>
+<p>另外，还要注意一个参数plsql_compile_check_options='outparam'，开启此参数后，<br/>
+出参就只能传变量了，不能使用常量占位（oracle的出参也是不能用常量占位的）。</p>
+<p>这里用命令获取游标数据的方式，和ORACLE最大的本质区别，其实在于，MogDB中获取游标的fetch语句，其实是个sql语句，而非客户端命令，因此该方式可以用于其他开发语言甚至图形化客户端中，灵活度大大提高。</p>
+<h3 id="2mogeaver">2.Mogeaver</h3>
+<p>得益于开源的dbeaver，Mogeaver在游标查看上也相当方便（这里使用的Mogeaver版本为23.3.0）。<br/>
+打开一个SQL窗口，开启<strong>手动提交</strong>（默认是自动提交的），然后使用call语句执行存储过程，可以看到出参以结果集的方式返回了，可以直接点到对应的游标名称上，右侧的数值查看器即可展示游标中的数据，无需像plsqldev那样切换窗口来展示（如果使用Mogeaver连接ORACLE来查看出参游标，效果是一样的）</p>
+<p><img alt="屏幕截图 2024-04-13 180427.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 180427.png" srcset="/upload/屏幕截图 2024-04-13 180427.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 180427.png?width=400 400w, /upload/屏幕截图 2024-04-13 180427.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 180427.png?width=800 800w"/></p>
+<p>当然这里如果想用gsql里那样的方式，使用fetch语句来各种操作游标也是可以的，毕竟这里的fetch就是sql语句,执行后就会返回对应的结果。</p>
+<p><img alt="屏幕截图 2024-04-13 181715.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 181715.png" srcset="/upload/屏幕截图 2024-04-13 181715.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 181715.png?width=400 400w, /upload/屏幕截图 2024-04-13 181715.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 181715.png?width=800 800w"/></p>
+<h2 id="总结">总结</h2>
+<p>很多人在突然面对一个新的东西时，可能会出现不知所措的情况，但是如果去使用了，可能会发现新的东西并不是那么不同，能找到越来越多的相似点。</p>
+<p>在Oracle和MogDB中，带有游标出参的存储过程创建语法是完全一致的。而且MogDB也有在开发过程中查看游标数据的多种方式，可以让从Oracle转过来的开发人员能更快适应在MogDB上进行开发。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,135 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdbgaussdb506版本a模式中的date类型">【GaussDB】GaussDB506版本A模式中的date类型</h1>
+<p>GuassDB 在506.0版本中引入了一个新的数据类型，<code>datea</code>，用于兼容ORACLE的<code>date</code>类型。而在此版本前，GaussDB只是在ORACL兼容模式下，把位于数据类型位置的<code>date</code>，转换成了<code>timestamp(0) without timezone</code>。虽然timestamp(0)和ORACLE的date都是精确到秒，但是两者仍有诸多差异。在边上修修补补对齐行为，还要考虑原本timestamp类型行为的对齐，存在很多矛盾。所以GaussDB干脆就直接新增了一个类型，不再折腾原本的timestamp了。</p>
+<p>GaussDB官方文档: <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/compatibility-description/gaussdb-39-0004.html">GaussDB文档中心/集中式版Oracle兼容性说明/兼容性说明/SQL的基本元素/数据类型</a></p>
+<h2 id="启用date默认映射到datea">启用date默认映射到datea</h2>
+<p>修改参数<code>mapping_date_to_datea=on</code>,重启数据库，SQL解析时就会把<code>date</code>类型转换成<code>datea</code>类型。<br/>
+注：新安装的506.0 SPC0100版本中，该参数是默认开启的。</p>
+<h2 id="影响点">影响点</h2>
+<ol>
+<li>SQL中DATE类型的语义识别<br/>
+之前版本中，</li>
+</ol>
+<pre><code class="language-sql">create table t1(a date); -&gt; create table t1(a timestamp(0) without time zone);
+select cast(sysdate as date) -&gt; select cast(sysdate as timestamp(0) without time zone);
+</code></pre>
+<p>启用datea后</p>
+<pre><code class="language-sql">create table t1(a date); -&gt; create table t1(a datea);
+select cast(sysdate as date) -&gt; select cast(sysdate as datea);
+</code></pre>
+<ol start="2">
+<li>默认输出的文本格式</li>
+</ol>
+<pre><code class="language-sql">gaussdb=# select '2022-01-01 22:01:23'::timestamp(6)::datea;
+         datea          
+------------------------
+ 2022-01-01 22:01:23 AD
+(1 row)
+
+gaussdb=# select trunc('2022-01-01 22:01:23'::timestamp(6)::datea);
+         trunc          
+------------------------
+ 2022-01-01 00:00:00 AD
+(1 row)
+
+gaussdb=# 
+</code></pre>
+<p>ORACLE里的DATE格式在sqlplus中的输出受会话中nls_date_format参数的影响，而gaussdb则为固定格式 。</p>
+<p>相比自带的timestamp类型，秒后面没有小数了，但相比ORACLE的date类型，多了个表示公元前后的标识<code>AD/BC</code>,而ORACLE则是在前面加负号表示公元前（需<code>alter session set nls_Date_format='syyyy-mm-dd hh24:mi:ss';</code>才能显示）。</p>
+<ol start="3">
+<li>实际存储</li>
+</ol>
+<pre><code class="language-sql">gaussdb=# select timestamp_send('2022-01-01 22:01:23'::timestamp(6));
+   timestamp_send   
+--------------------
+ \x0002778b326412c0
+(1 row)
+
+gaussdb=# select datea_send('2022-01-01 22:01:23'::timestamp(6)::datea);
+     datea_send     
+--------------------
+ \x0002778b326412c0
+(1 row)
+
+</code></pre>
+<p>可以发现datea的存储格式其实还是和timestamp类型一致，因此并不会因为不记录秒后小数而节省存储空间。</p>
+<ol start="4">
+<li>系统函数映射</li>
+</ol>
+<ul>
+<li>sysdate</li>
+</ul>
+<table><thead><tr><th>mapping_date_to_datea</th><th>a_format_dev_version</th><th>a_format_date_timestamp</th><th>sysdate实际表达式</th><th>数据类型</th><th>数据输出格式示例</th></tr></thead><tbody><tr><td>on</td><td>s7</td><td>on</td><td>sysdate_a()</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s7</td><td>off</td><td>sysdate_a()</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s1</td><td>on</td><td>sysdate_a()</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s1</td><td>off</td><td>sysdate_a()</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>off</td><td>s7</td><td>on</td><td>(clock_timestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s7</td><td>off</td><td>(clock_timestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s2-s6</td><td>on</td><td>(pg_systimestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s2-s6</td><td>off</td><td>(pg_systimestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s1</td><td>on</td><td>(pg_systimestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s1</td><td>off</td><td>(pg_systimestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr></tbody></table>
+<ul>
+<li>current_date</li>
+</ul>
+<table><thead><tr><th>mapping_date_to_datea</th><th>a_format_dev_version</th><th>a_format_date_timestamp</th><th>current_date实际表达式</th><th>数据类型</th><th>数据输出格式示例</th></tr></thead><tbody><tr><td>on</td><td>s7</td><td>on</td><td>pg_systimestamp())::datea</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s7</td><td>off</td><td>pg_systimestamp())::datea</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s1</td><td>on</td><td>pg_systimestamp())::datea</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>on</td><td>s1</td><td>off</td><td>pg_systimestamp())::datea</td><td>datea</td><td>2025-06-13 11:00:44 AD</td></tr><tr><td>off</td><td>s7</td><td>on</td><td>('now'::text)::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s7</td><td>off</td><td>('now'::text)::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s2-s6</td><td>on</td><td>('now'::text)::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s2-s6</td><td>off</td><td>('now'::text)::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s1</td><td>on</td><td>(pg_systimestamp())::timestamp(0) without time zone</td><td>timestamp</td><td>2025-06-13 11:00:44.000000</td></tr><tr><td>off</td><td>s1</td><td>off</td><td>text_date('now'::text)</td><td>"date"</td><td>2025-06-13</td></tr></tbody></table>
+<p>映射到不同的函数，其查询结果的值会与事务、跨语句、执行次数等行为存在相关性，这是老生常谈的问题，本文暂不展开，可参考PG的文档或问AI。</p>
+<ol start="5">
+<li>部分表达式的行为变化<br/>
+开启后，默认情况下 <code>date'2022-01-01'</code> 这样的用法会报错，因为<code>nls_date_format</code>的默认值是<code>DD-MON-RR</code>,需要修改参数<code>nls_date_format='yyyy-mm-dd'</code>才能正常执行,这里和ORACLE产生了兼容性差异，ORACLE的 <code>date'2022-01-01'</code>这种用法与<code>nls_date_format</code>参数无关，只能使用<code>syyyy-mm-dd</code>的格式。</li>
+</ol>
+<pre><code class="language-sql">gaussdb=# select date'2022-12-13';
+ERROR:  invalid value "22-12-13" for "MON"
+LINE 1: select date'2022-12-13';
+                   ^
+DETAIL:  The given value did not match any of the allowed values for this field.
+CONTEXT:  referenced column: datea
+gaussdb=# set nls_date_format='yyyy-mm-dd';
+SET
+gaussdb=# select date'2022-12-13';
+         datea          
+------------------------
+ 2022-12-13 00:00:00 AD
+(1 row)
+
+gaussdb=# 
+</code></pre>
+<ol start="6">
+<li>操作符变化</li>
+</ol>
+<pre><code class="language-sql">gaussdb=# select '2022-01-01 22:01:23'::timestamp(6)::datea -'2021-01-01 21:01:23'::timestamp(6)::datea;
+     ?column?     
+------------------
+ 365.041666666667
+(1 row)
+
+gaussdb=# select '2022-01-01 22:01:23'::timestamp(6) -'2021-01-01 21:01:23'::timestamp(6);
+           ?column?            
+-------------------------------
+ +000000365 01:00:00.000000000
+(1 row)
+
+gaussdb=# 
+</code></pre>
+<p>最重要的就是两个日期相减了，原本的timestamp相减只能返回interval类型，而datea相减能返回numeric类型，行为兼容ORACLE。</p>
+<ol start="7">
+<li>
+<p>数据导入<br/>
+原本timestamp可以直接以文本方式导入，开启后，对于datea类型必须指定datea_format格式（oracle的sqlldr也要指定日期格式）</p>
+</li>
+<li>
+<p>函数易变性<br/>
+另外，还有一个参数 modify_function_property，新装的默认值为“3257,5562,4164,4073”，<br/>
+表示把下面这4个函数的易变性从immutable改成stable</p>
+</li>
+</ol>
+<ul>
+<li>pg_catalog.current_timestamp(numeric)</li>
+<li>pg_catalog.text_timestamp(text)</li>
+<li>pg_catalog.text_date(text)</li>
+<li>pg_catalog.DBTimezone()</li>
+</ul>
+<p>因为date相关的表达式在不同GUC参数配置下会对应到不同的表达式，而上面这些函数的易变性可以调整，就增加了影响结果的因素。</p>
+<h2 id="总结">总结</h2>
+<p>如果习惯了之前openGauss/GaussDB版本把date处理成timestamp(0)，则建议在506.0版本中关闭mapping_date_to_datea，因为这些行为变化实在太多了，可能现有应用程序代码要排查的点太多。但如果是刚开始使用这个版本，可以开启mapping_date_to_datea，这样至少日期相减得数字的这个最常见的兼容性问题就不用纠结了。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

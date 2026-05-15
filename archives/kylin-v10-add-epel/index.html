@@ -159,7 +159,51 @@ name=Extra Packages for Enterprise Linux $releasever - $basearch
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>进入目录，创建文件</p>
+<pre><code>cd /etc/yum.repos.d
+vi epel-OpenEuler.repo
+</code></pre>
+<p>以下为文件内容</p>
+<pre><code>[epel]
+name=Extra Packages for Enterprise Linux $releasever - $basearch
+# It is much more secure to use the #metalink, but if you wish to use a local mirror
+# place its address here.
+baseurl=https://mirrors.huaweicloud.com/openeuler/openEuler-20.03-LTS-SP3/EPOL/main/$basearch
+#metalink=https://mirrors.fedoraproject.org/#metalink?repo=epel-$releasever&amp;arch=$basearch&amp;infra=$infra&amp;content=$contentdir
+enabled=1
+gpgcheck=0
+countme=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-8
+
+[epel-debuginfo]
+name=Extra Packages for Enterprise Linux $releasever - $basearch - Debug
+# It is much more secure to use the #metalink, but if you wish to use a local mirror
+# place its address here.
+baseurl=https://mirrors.huaweicloud.com/openeuler/openEuler-20.03-LTS-SP3/EPOL/main/$basearch/debug
+#metalink=https://mirrors.fedoraproject.org/#metalink?repo=epel-debug-$releasever&amp;arch=$basearch&amp;infra=$infra&amp;content=$contentdir
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-8
+gpgcheck=0
+
+[epel-source]
+name=Extra Packages for Enterprise Linux $releasever - $basearch - Source
+# It is much more secure to use the #metalink, but if you wish to use a local mirror
+# place it's address here.
+baseurl=https://mirrors.huaweicloud.com/openeuler/openEuler-20.03-LTS-SP3/EPOL/main//source/tree/
+#metalink=https://mirrors.fedoraproject.org/#metalink?repo=epel-source-$releasever&amp;arch=$basearch&amp;infra=$infra&amp;content=$contentdir
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-8
+gpgcheck=0
+</code></pre>
+<p>测试</p>
+<pre><code>yum install openconnect
+</code></pre>
+<p>以上方式在kylin v10 sp3测试通过</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

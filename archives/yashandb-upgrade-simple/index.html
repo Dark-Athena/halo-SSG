@@ -153,7 +153,128 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【YashanDB】单机版数据库升级测试</p>
+<h2 id="背景">背景</h2>
+<p>2025年8月22号，Yashan总算是通过了安全可靠认证，但是信创市场留给Yashan的份额已经不多了。第一份安可名单出来，很多客户连PoC测试都要求必须是安可名单的才给测试，所以第一批进入安可名单的厂商可以大范围采集真实的用户场景，然后改进自己的产品，尤其是在替O的O兼容性能力上。而Yashan由于覆盖客户较少，虽然从文档上看，似乎非常像O，但是毕竟缺少真实场景的打磨，数据库内核研发人员永远想不到应用开发人员会如何去用数据库的各种特性。</p>
+<p>刚好我这边积累了大量的ORACLE存储过程，顺便用Yashan官方的迁移工具YMP迁移看看到底兼容度如何，结果却发现一百多个PACKAGE几乎全军覆没，全部是不兼容。一看原因，package里定义subtype语句不支持，然后其他所有包都引用了这个subtype。Yashan咋连这种基础需求都没识别到？翻官方文档，发现2025 年 7 月 18 日发布的v23.4.2.100版本才支持subype特性，但官方当前最新可下载的版本是v23.4.1.102 （截止到本文发出的2025年10月26号仍然是这个版本）。</p>
+<p>于是注册了个YashanDB 服务平台的账号，给Yashan走了个工单，问最新版下载地址在哪，工单回复说：</p>
+<blockquote>
+<p>您好，官网是可以免费下载企业版介质的，最新版本的软件包我们一般是面向企业用户开放的。若您有其他特殊场景的需求，您留个联系方式，回头我们跟您联系下。</p>
+</blockquote>
+<p>然后我就关闭了工单，隔天客服就打电话来了，说可以发安装包给我，看来Yashan还是在积极争取所有可能的潜在客户。</p>
+<p>所以本文正好来测试一下，yashan数据库的升级。</p>
+<h2 id="升级实操">升级实操</h2>
+<p>官方文档：</p>
+<ol>
+<li><a href="https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Installation-and-Upgrade/Upgrade/Pre-Upgrade-Preparation.html">升级前准备</a></li>
+<li><a href="https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Installation-and-Upgrade/Upgrade/Upgrade-Procedure/Offline-Upgrade.html">离线升级</a></li>
+</ol>
+<p>这次升级不想太折腾，没去弄什么滚动升级，单机版也不需要弄共享集群相关操作，就尽量按照官方文档一步一步操作了。</p>
+<p>其实我操作了一轮，总结下来，正常情况对于空闲的且正常的测试环境，只需要进行下面几步操作</p>
+<ol>
+<li>上传并解压新版本包<br/>
+搞个单独的目录</li>
+</ol>
+<pre><code class="language-sh">cd /home/yashan
+mkdir tmp_upgrade
+</code></pre>
+<pre><code class="language-sh">cd tmp_upgrade
+tar -xf yashandb-23.4.2.104-linux-x86_64.tar.gz
+</code></pre>
+<ol start="2">
+<li><strong>确保数据库当前是open状态</strong></li>
+</ol>
+<pre><code class="language-sh">yasboot sql -d sys/********@192.168.1.2:1688 -s 'select status from v$instance;'
+</code></pre>
+<ol start="3">
+<li>关闭monit</li>
+</ol>
+<pre><code class="language-sh">yasboot monit stop -c yashandb
+</code></pre>
+<pre><code class="language-sh">[yashan@kylinv10sp3-node1 tmp_upgrade]$ yasboot monit stop -c yashandb
+ type | uuid             | name            | hostid | index    | status  | return_code | progress | cost
+---------------------------------------------------------------------------------------------------------
+ task | 9e37fb6ccbae5c48 | MonitParentStop | -      | yashandb | WAITING | -           | 0        | -
+------+------------------+-----------------+--------+----------+---------+-------------+----------+------
+已杀死
+[yashan@kylinv10sp3-node1 tmp_upgrade]$ 
+</code></pre>
+<ol start="4">
+<li>升级package<br/>
+这一步操作会自动停止agent和om，然后安装新版本的agent和om到新的目录，再启动新版本的agent和om。注意这里的hosts.toml是之前版本安装时的安装文件目录里面的</li>
+</ol>
+<pre><code class="language-sh">./bin/yasboot package upgrade -t /opt/software/yashandb/hosts.toml
+</code></pre>
+<pre><code class="language-sh">[yashan@kylinv10sp3-node1 tmp_upgrade]$ ./bin/yasboot package upgrade -t /opt/software/yashandb/hosts.toml
+upgrade package...
+install version: yashandb 23.4.2.104
+upgrade host to yasom...
+[yashan@kylinv10sp3-node1 tmp_upgrade]$
+</code></pre>
+<ol start="5">
+<li>升级数据库<br/>
+这一步会更新数据库的而二进制程序和元数据版本，升级完后还是启动状态,如果加<code>--rolling</code>则表示进行不停机的滚动升级（滚动升级要求见官方文档-<a href="https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Installation-and-Upgrade/Upgrade/Upgrade-Procedure/Rolling-Upgrade.html">滚动升级</a>）</li>
+</ol>
+<pre><code class="language-sh">./bin/yasboot cluster upgrade --cluster yashandb
+</code></pre>
+<pre><code class="language-sh">[yashan@kylinv10sp3-node1 tmp_upgrade]$ ./bin/yasboot cluster upgrade --cluster yashandb
+Database Upgrade Prompt:
+1. The data will update
+2. It is recommended to perform a full backup before the upgrade.
+3. If the upgrade fails, please contact yashandb technical support.
+Please read the above information and then confirm to continue the upgrade.
+[yes/no]: yes
+execute precheck task:
+task completed, status: SUCCESS
+precheck successfully, now ready to upgrade:
++-------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name                | hostid | index    | status  | return_code | progress | cost |
++-------------------------------------------------------------------------------------------------------------+
+| task | 81da00cc3d768f58 | UpgradeYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 71   |
++------+------------------+---------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+[yashan@kylinv10sp3-node1 tmp_upgrade]$ 
+</code></pre>
+<ol start="6">
+<li>修改环境变量YASDB_HOME，指向新版本目录</li>
+</ol>
+<pre><code class="language-sh">vi .bashrc
+export YASDB_HOME=/home/yashan/yasdb_home/yashandb/23.4.2.104
+</code></pre>
+<p>如果不做这一步，yasql可能仍然还会是旧版本的</p>
+<p>官方文档里有很多配置修改和检查都是针对集群的，而且还弄了个备份来兜底，我这个测试环境无所谓，坏了大不了铲了重装，就没去干那些操作。</p>
+<h2 id="异常处理">异常处理</h2>
+<p>如果升级前数据库不为open状态，比如数据库已经手动关闭了，那么升级package还是会成功，升级数据库会失败，此时需要回滚package，然后启动数据库，再重新升级</p>
+<pre><code class="language-sh">[yashan@kylinv10sp3-node1 tmp_upgrade]$ ./bin/yasboot cluster upgrade --cluster yashandb
+Database Upgrade Prompt:
+1. The data will update
+2. It is recommended to perform a full backup before the upgrade.
+3. If the upgrade fails, please contact yashandb technical support.
+Please read the above information and then confirm to continue the upgrade.
+[yes/no]: yes
+cannot get db version
+# 由于是关闭的，无法获取数据库版本，所以失败
+[yashan@kylinv10sp3-node1 tmp_upgrade]$ yasboot cluster start -c yashandb
+gob: type mismatch in decoder: want struct type taskpub.GetTaskReq; got non-struct
+# 在升级了package后直接启动数据库会报错，所以必须回滚package
+[yashan@kylinv10sp3-node1 tmp_upgrade]$ ./bin/yasboot package rollback -c yashandb -t /opt/software/yashandb/hosts.toml
+rollback package...
+[yashan@kylinv10sp3-node1 tmp_upgrade]$ yasboot cluster start -c yashandb
+ type | uuid             | name              | hostid | index    | status  | return_code | progress | cost
+-----------------------------------------------------------------------------------------------------------
+ task | 4349fb6d729ab7c1 | StartYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 23
+------+------------------+-------------------+--------+----------+---------+-------------+----------+------
+task completed, status: SUCCESS
+[yashan@kylinv10sp3-node1 tmp_upgrade]$
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>YashanDB的单机升级操作还算是比较简单，基本没遇到什么坑，这对于国产数据库快速迭代需求是非常重要的。<br/>
+在ORACLE兼容性赛道上，Yashandb绝对是不容忽视的一批黑马，但是建议还是甲方们还是拿自己的应用软件去迁移一下试试。这和所有的国产数据库一样，支持的ORACLE语法和函数再多，都无法保证在多种语法和函数混合使用下的结果一致性。当然只要数据库厂商足够给力，这种语法和函数的兼容性能力其实是最容易做的。所以数据库升级几乎是无可避免的事。有哪家数据库从开始去甲方测试重度ORACLE用法的软件，到甲方软件正式上线这个软件，是没换过数据库版本的？</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

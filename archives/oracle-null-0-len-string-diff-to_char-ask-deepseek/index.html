@@ -155,7 +155,254 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="背景">背景</h1>
+<p>最近在做一个国产数据库替代项目，要求将ORACLE迁移到一个openGauss系数据库，迁移后，执行一个存储过程时，发现国产库的执行结果和ORACLE不一致，</p>
+<pre><code class="prism language-sql">declare
+x varchar2(10);
+y varchar2(10);
+begin
+y:='"'||to_char(20,x)||'kg"';
+dbms_output.put_line(y);
+end;
+/
+--ORACLE: "20kg"
+--国产库:  "kg"
+
+</code></pre>
+<p>并意外发现了一处在ORACLE中’'和null并不等价的情况</p>
+<pre><code class="prism language-sql">SQL&gt; select to_char(20,null),to_char(20,'') from dual;
+
+TO_CHAR(20,NULL) TO_CHAR(20,'')
+---------------- --------------
+                 #
+
+SQL&gt; 
+</code></pre>
+<h1 id="分析">分析</h1>
+<p>先看原始问题<br/>
+<code>y:='"'||to_char(20,x)||'kg"';</code> 这里的<code>to_char</code>，在第二个参数为空时，返回的是<code>20</code>，但是手动执行<code>select to_char(20,null),to_char(20,'') from dual;</code>，都不会返回<code>20</code>，自然会猜想，是不是SQL引擎和PLSQL引擎里对to_char函数的处理不一样？<br/>
+于是构造以下用例：</p>
+<pre><code class="prism language-sql">declare
+x varchar2(10);
+y varchar2(10);
+begin
+y:='"'||to_char(20,x)||'kg"';
+dbms_output.put_line('PLSQL:'||y);
+select '"'||to_char(20,x)||'kg"' into y from dual;
+dbms_output.put_line('SQL:'||y);
+end;
+/
+</code></pre>
+<p>输出：</p>
+<pre><code>PLSQL:"20kg"
+SQL:"kg"
+</code></pre>
+<p>所以结论的确就是ORACLE的to_char函数在SQL及PLSQL引擎中的确会有差异表现，但是原因是什么，由于ORACLE官方文档并未提及，且ORACLE也未开源，因此无法得知这个原因。</p>
+<p>我只能猜想，PLSQL引擎中，to_char的第二个参数为空时，认为是没有传第二个参数（或者参数使用了默认值），相当于执行了<code>to_char(20)</code>；而在SQL引擎中，to_char的第二个参数为空时，则进入了参数为空则返回空的逻辑。</p>
+<p>然后看SQL引擎里to_char第二个参数传<code>''</code>和<code>null</code>的差异。<br/>
+众所周知，在ORACLE中，<code>''</code>等同于null，因此理论上<code>to_char(20,null)</code> 和<code>to_char(20,'')</code>的返回应该一样，但实际测试却不一样,</p>
+<ul>
+<li><code>to_char(20,null)</code>  返回 <code>null</code></li>
+<li><code>to_char(20,'')</code> 返回 <code>#</code></li>
+</ul>
+<p>返回<code>#</code>意味着提供的格式是无效的，而返回<code>null</code>意味着提供的格式是有效但为空的。<br/>
+而出现差异的原因，可能是SQL引擎里针对函数的参数会有不同处理，比如传<code>null</code>时就知道是<code>null</code>，不去做校验，而传<code>''</code>时，一开始还不知道里面没有东西，就进入了格式字符串的校验逻辑。<br/>
+对比下执行计划：</p>
+<pre><code class="prism language-sql">select 1 from dual where '1'=to_char(1,'');
+
+ Plan Hash Value  : 4034615273 
+
+------------------------------------------------------------------
+| Id  | Operation        | Name | Rows | Bytes | Cost | Time     |
+------------------------------------------------------------------
+|   0 | SELECT STATEMENT |      |    1 |       |    2 | 00:00:01 |
+| * 1 |   FILTER         |      |      |       |      |          |
+|   2 |    FAST DUAL     |      |    1 |       |    2 | 00:00:01 |
+------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - filter(TO_CHAR(1,'')='1')
+</code></pre>
+<pre><code class="prism language-sql">select 1 from dual where '1'=to_char(1,null);
+ Plan Hash Value  : 4034615273 
+
+------------------------------------------------------------------
+| Id  | Operation        | Name | Rows | Bytes | Cost | Time     |
+------------------------------------------------------------------
+|   0 | SELECT STATEMENT |      |    1 |       |    0 |          |
+| * 1 |   FILTER         |      |      |       |      |          |
+|   2 |    FAST DUAL     |      |    1 |       |    2 | 00:00:01 |
+------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 1 - filter(NULL IS NOT NULL)
+</code></pre>
+<p>这里可以清楚地看到，如果to_char的第二个参数传null时，则SQL引擎就把to_char函数优化掉了，直接改成了<code>null</code>。而传<code>''</code>时，SQL引擎并不能提前知道<code>''</code>的结果也是null，因此无法优化。</p>
+<p>其实这也是ORACLE的sql引擎和PG系数据库的差异之一，在PG系数据库里，对于一些immutable的函数和操作符，当参数为常量时，可以提前先进行计算，在优化器里就已经已经把这个函数或操作符表达式的结果计算出来了，到执行器里直接使用计算的结果，通常这个行为叫常量折叠。但是ORACLE并不会提前进行常量折叠，因此这个差异能解释得通。</p>
+<p>由于无ORACLE源码和相关材料，只能猜到这里了。</p>
+<h1 id="deepseek怎么看">deepseek怎么看</h1>
+<p>最近deepseek大火，正好问问看deepseek怎么分析这个问题。<br/>
+由于deepseek官网提供的对话服务经常超时，我使用了“硅基流动 x 华为云联合推出基于昇腾云的 DeepSeek R1推理服务”，满血版671B参数，效果远好于一些蒸馏出来的7B、32B的其他三方服务。<br/>
+点击以下链接注册可以有免费的2000万tokens使用<br/>
+<a href="https://cloud.siliconflow.cn/i/K1q4jqh3">https://cloud.siliconflow.cn/i/K1q4jqh3</a></p>
+<p>问：以下是ORACLE中执行的SQL及结果，分析出现这种结果的原因，并给出明确的证据</p>
+<pre><code class="prism language-sql">SQL&gt; select to_char(20,null),to_char(20,'') from dual;
+
+TO_CHAR(20,NULL) TO_CHAR(20,'')
+---------------- --------------
+                 #
+</code></pre>
+<blockquote>
+<ul>
+<li>深度思考</li>
+</ul>
+<blockquote>
+<p>嗯，我现在遇到了一个Oracle SQL的问题，需要仔细分析一下。题目是执行了这样的SQL语句：select to_char(20,null),to_char(20,’’) from dual; 结果得到的是空值和#号。我需要找出为什么会这样，并且给出明确的证据。</p>
+</blockquote>
+<blockquote>
+<p>首先，我得回忆一下Oracle中to_char函数的用法。to_char通常用于将数字或日期转换成字符串，第二个参数是格式模型。如果格式参数有问题，可能会出现不同的结果。那这里的情况是，第二个参数一个是null，另一个是空字符串’’，结果分别是空和#号。为什么会这样呢？</p>
+</blockquote>
+<blockquote>
+<p>先来看第一个情况，to_char(20, null)。当格式参数是null的时候，根据Oracle的文档，当格式模型为null时，to_char函数应该返回null。因为格式模型是必须的，如果没提供或者为null，可能无法正确转换，所以返回null。所以第一个结果为空应该是对的。</p>
+</blockquote>
+<blockquote>
+<p>那第二个情况，to_char(20, ‘’)，也就是格式参数是空字符串。这时候Oracle如何处理呢？空字符串在Oracle中通常被当作null处理吗？或者是否有其他处理方式？比如，可能当格式模型是空字符串时，Oracle无法识别，所以返回某种错误符号，比如#号。或者可能因为格式无效，所以用#号表示转换错误。</p>
+</blockquote>
+<blockquote>
+<p>我记得在Oracle中，如果数字转换的格式模型不匹配或者无效，通常会返回一串#号。例如，如果数字太大而格式模型指定的宽度不够，就会显示#。比如，to_char(12345, ‘9999’)会返回#####，因为五位数字无法放入四位宽度的格式中。那这里的情况，空字符串作为格式模型，可能被Oracle视为无效的格式，因此返回#号作为错误指示。</p>
+</blockquote>
+<blockquote>
+<p>但需要验证这个结论是否正确。我需要查阅Oracle的官方文档，看看当to_char函数的格式参数为null或者空字符串时，具体的行为是怎样的。</p>
+</blockquote>
+<blockquote>
+<p>查找Oracle文档，关于TO_CHAR函数的说明。在Oracle 12c的文档中，关于TO_CHAR (number)的部分，格式参数必须是有效的数字格式模型。如果格式参数被省略，那么Oracle会使用一个默认的模型。例如，对于数字，默认的格式可能足够大以显示所有有效数字。但如果在函数中显式传递null或空字符串，如何处理？</p>
+</blockquote>
+<blockquote>
+<p>根据Oracle的文档，当格式参数为null时，函数返回null。例如，在SQL中，很多函数当参数为null时会返回null，特别是当参数是必须的情况下。例如，TO_CHAR(number, null)会导致结果为null，因为格式模型无效或者缺失。</p>
+</blockquote>
+<blockquote>
+<p>而对于空字符串作为格式参数的情况，可能Oracle不认为这是一个有效的格式模型。例如，空字符串可能被当作无效的格式，导致转换错误。此时，Oracle可能返回由多个’#'组成的字符串，表示转换错误。例如，当格式模型无法正确转换数字时，就会用#填充。</p>
+</blockquote>
+<blockquote>
+<p>另外，可能需要注意Oracle处理空字符串和null的区别。在Oracle中，空字符串’‘在VARCHAR2中被视为null，也就是说，’'和null是等同的。但在某些情况下，可能函数参数的处理会有不同。例如，在TO_CHAR函数中，如果第二个参数是空字符串，是否会被视为null，还是当作无效格式？</p>
+</blockquote>
+<blockquote>
+<p>假设当格式参数是空字符串时，Oracle可能不会将其视为null，而是尝试解析为一个格式模型。但空字符串显然不是一个有效的格式模型，所以会导致错误，从而返回#号。而null作为参数时，函数直接返回null，而不是尝试处理格式。</p>
+</blockquote>
+<blockquote>
+<p>例如，执行以下两个语句：</p>
+</blockquote>
+<blockquote>
+<p><code>SELECT TO_CHAR(20, NULL) FROM DUAL;</code> – 返回null，显示为空 <code>SELECT TO_CHAR(20, '') FROM DUAL;</code>– 返回#，因为格式无效</p>
+</blockquote>
+<blockquote>
+<p>所以，两者的处理方式不同，尽管在Oracle中通常’'被视为null，但在这种情况下，可能函数内部对参数的处理不同。或者，可能是在参数传递时，空字符串被当作一个非null但无效的格式处理，导致不同的结果。</p>
+</blockquote>
+<blockquote>
+<p>为了验证这一点，可以查阅Oracle的官方文档或者进行测试。</p>
+</blockquote>
+<blockquote>
+<p>根据Oracle的文档，当使用无效的格式模型时，TO_CHAR函数会返回由填充字符（通常是#）组成的字符串，其长度等于格式模型中格式元素的长度。例如，如果格式模型是无效的，或者无法正确表示数字，则返回#号。</p>
+</blockquote>
+<blockquote>
+<p>例如，如果格式模型是’ABC’，这样的无效格式，那么TO_CHAR(123, ‘ABC’)可能会返回###，因为无法解析格式模型。</p>
+</blockquote>
+<blockquote>
+<p>同样，当格式模型是空字符串时，可能被视为无效，导致返回一个#号。而NULL作为格式参数时，函数直接返回NULL，因为没有格式模型。</p>
+</blockquote>
+<blockquote>
+<p>另一个可能的测试是，当使用不同的格式参数时，比如NULL和空字符串，是否返回不同的结果。例如，执行以下查询：</p>
+</blockquote>
+<blockquote>
+<p>SELECT TO_CHAR(NULL) FROM DUAL; – 错误，因为缺少参数</p>
+</blockquote>
+<blockquote>
+<p>而正确的例子是，当第二个参数是NULL时，返回NULL；当第二个参数是空字符串时，返回#。</p>
+</blockquote>
+<blockquote>
+<p>所以，结论是：</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>TO_CHAR(20, NULL)返回NULL，因为格式参数是NULL，导致结果为NULL。</li>
+<li>TO_CHAR(20, ‘’)返回#，因为空字符串作为格式参数是无效的，无法正确转换，所以用#号表示错误。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>这符合题目中的结果，第一个字段为空，第二个字段为#。</p>
+</blockquote>
+<blockquote>
+<p>为了找到明确的证据，可以查阅Oracle的官方文档。例如，在Oracle Database SQL Language Reference中的TO_CHAR (number)部分，其中说明：</p>
+</blockquote>
+<blockquote>
+<p>“The optional fmt and nlsparam arguments serve the same purpose as they do in the TO_CHAR function for datetime conversion.”</p>
+</blockquote>
+<blockquote>
+<p>而关于格式模型的有效性，如果格式模型无效，则函数可能返回错误或特定符号。例如，在数字格式模型中，如果格式不足以显示数字，则返回#号。而当格式模型为NULL时，函数返回NULL。</p>
+</blockquote>
+<blockquote>
+<p>另外，在Oracle的文档中，可能提到当格式参数为NULL时，结果返回NULL。例如，在Oracle的文档中，某些函数当参数为NULL时，返回NULL，而不管其他参数的值如何。例如，如果TO_CHAR的第二个参数是NULL，则整个表达式的结果为NULL。</p>
+</blockquote>
+<blockquote>
+<p>而对于空字符串的情况，可能被当作无效格式处理，导致返回错误符号。例如，在Oracle的文档中，可能指出格式模型必须是有效的，否则结果不可预测或返回错误符号。</p>
+</blockquote>
+<blockquote>
+<p>因此，结合文档和测试结果，可以得出这样的结论：当格式参数为NULL时，TO_CHAR返回NULL；当格式参数是空字符串时，视为无效格式，返回#号。</p>
+</blockquote>
+<blockquote>
+<p>在Oracle中，<code>TO_CHAR</code>函数的第二个参数（格式模型）为<code>NULL</code>或空字符串<code>''</code>时，结果会不同。以下是具体原因和证据：</p>
+</blockquote>
+<h3 id="to_char20-null--返回空值">1.  <code>TO_CHAR(20, NULL)</code>  返回空值</h3>
+<ul>
+<li><strong>原因</strong>：当格式模型为<code>NULL</code>时，<code>TO_CHAR</code>函数直接返回<code>NULL</code>。Oracle的函数在处理参数时，若关键参数为<code>NULL</code>，通常会返回<code>NULL</code>。</li>
+<li><strong>证据</strong>：根据Oracle官方文档，格式模型是<code>TO_CHAR</code>的必选参数。若显式传递<code>NULL</code>作为格式模型，函数会返回<code>NULL</code>，因为无法进行有效转换。</li>
+</ul>
+<h3 id="to_char20---返回">2.  <code>TO_CHAR(20, '')</code>  返回<code>#</code></h3>
+<ul>
+<li><strong>原因</strong>：空字符串<code>''</code>被视为<strong>无效格式模型</strong>。当格式模型无效时，Oracle无法将数字转换为字符串，因此用<code>#</code>表示转换错误。</li>
+<li><strong>证据</strong>：Oracle文档指出，若格式模型无法正确表示数字（如格式宽度不足或语法错误），结果会用<code>#</code>填充。例如：</li>
+</ul>
+<pre><code class="prism language-sql">  SELECT TO_CHAR(12345, '999') FROM DUAL; -- 返回 '#####'（宽度不足）
+</code></pre>
+<p>空字符串<code>''</code>作为格式模型，同样被判定为无效，导致返回单个<code>#</code>。</p>
+<h3 id="关键区别">关键区别</h3>
+<ul>
+<li><strong><code>NULL</code>  vs 空字符串</strong>：虽然Oracle中空字符串<code>''</code>通常与<code>NULL</code>等价，但在函数参数中，<code>NULL</code>表示“无值”，而<code>''</code>是一个实际传递的<strong>非NULL但无效的字符串</strong>。因此：<br/>
+-   <code>TO_CHAR(20, NULL)</code>  触发参数为<code>NULL</code>的逻辑，返回<code>NULL</code>。<br/>
+-   <code>TO_CHAR(20, '')</code>  触发格式无效的逻辑，返回错误符号<code>#</code>。</li>
+</ul>
+<h3 id="验证测试">验证测试</h3>
+<pre><code class="prism language-sql">-- 测试NULL格式模型
+SELECT TO_CHAR(20, NULL) FROM DUAL;  -- 结果：NULL（显示为空）
+
+-- 测试空字符串格式模型
+SELECT TO_CHAR(20, '') FROM DUAL;    -- 结果：'#'
+
+-- 测试无效格式模型（如'XYZ'）
+SELECT TO_CHAR(20, 'XYZ') FROM DUAL; -- 结果：'###'（长度与格式模型相关）
+</code></pre>
+<h3 id="结论">结论</h3>
+<ul>
+<li><strong><code>TO_CHAR(20, NULL)</code></strong>：格式模型为<code>NULL</code>，函数返回<code>NULL</code>。</li>
+<li><strong><code>TO_CHAR(20, '')</code></strong>：格式模型为空字符串，视为无效格式，返回错误符号<code>#</code>。</li>
+</ul>
+<p>这种行为符合Oracle对参数处理和格式模型有效性的设计逻辑。</p>
+<p>「tokens: 1972, speed: 8.17 tokens/s」</p>
+</blockquote>
+<p>以上deepseek的思考并不完全正确，但是其思考方式和人类已经极其相似了，最终得到的结论和我想的也一样。</p>
+<h1 id="总结">总结</h1>
+<ol>
+<li>尽管在大多数情况下，ORACLE的<code>null</code>和<code>''</code>是等价的，但有一些场景仍然会有区别，暂且只能认为<code>select null</code>和<code>select ''</code>的结果是一致的。</li>
+<li>相同的函数，在ORACLE的SQL引擎和PLSQL引擎里，表现可能会有差异，比如<code>to_char(number,varchar2)</code></li>
+<li>deepseek牛x</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

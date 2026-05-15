@@ -157,7 +157,217 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>之前有写过一篇<br/>
+<a href="https://www.darkathena.top/archives/oml4py-server-setup" target="_blank">【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a></p>
+<p>在断断续续折腾了好久之后，总算可以用oracle官方提供的方案在oracle数据库中执行python代码了。但是仔细研究后，发现除了安装是个坑外，使用起来也是有相当多的限制，毕竟这个功能的目的是用来写机器学习的，不是纯粹的执行python代码。</p>
+<p>所以我就写这篇文章记录下这个功能该怎么使用。</p>
+<p>注意，本文不会大篇幅复制官方原文档的内容，请自行结合官方原文档食用。</p>
+<p>官方原文档：<a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html" target="_blank">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html</a></p>
+<h2 id="%E6%A6%82%E8%A7%88" tabindex="-1">概览</h2>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png" srcset="/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1200 1200w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=400 400w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1600 1600w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=800 800w"/></p>
+<h2 id="%E5%88%9B%E5%BB%BA%E5%87%BD%E6%95%B0" tabindex="-1">创建函数</h2>
+<pre><code class="language-sql">sys.pyqScriptCreate (
+    V_NAME          VARCHAR2    IN  --脚本名称
+    V_SCRIPT        CLOB        IN  --脚本内容
+    V_GLOBAL        BOOLEAN     IN     DEFAULT  --是否全局可用（即public）
+    V_OVERWRITE     BOOLEAN     IN     DEFAULT) --是否覆盖
+</code></pre>
+<p>根据官方多个示例来看，V_SCRIPT这个参数在形式上有两种<br/>
+1</p>
+<pre><code class="language-python">func = lambda: "Hello World from a lambda!
+</code></pre>
+<p>2</p>
+<pre><code class="language-python">def func_name():
+    import xxx
+    ...
+    return value
+</code></pre>
+<p>并且在创建环节，如果python代码有误，是不会报错的，仅仅只是把这段文本保存进了数据库。<br/>
+需要注意的有几点</p>
+<ol>
+<li>由于这个参数是个字符串，需要注意单引号的转义</li>
+<li>注意python代码的行首缩进规则，官网示例有一部分格式化的代码是存在问题的</li>
+<li>它必须是个函数(对象？)，所以import 不能放在最前面</li>
+</ol>
+<blockquote>
+<p>ORA-20000: PyQuery error<br/>
+The script must define exactly one object</p>
+</blockquote>
+<p>另外还有几点放在后面使用函数来说</p>
+<h2 id="%E5%88%A0%E9%99%A4%E5%87%BD%E6%95%B0" tabindex="-1">删除函数</h2>
+<pre><code class="language-sql">sys.pyqScriptDrop (
+    V_NAME          VARCHAR2    IN    --脚本名称
+    V_GLOBAL        BOOLEAN     IN     DEFAULT  --是否全局
+    V_SILENT        BOOLEAN     IN     DEFAULT) --是否"不显示"删除报错信息
+</code></pre>
+<p>这个没啥好说的，是物理删除 sys.pyq$script 这个表中的记录 ，一删就没了。多用户的时候注意下 V_GLOBAL。</p>
+<h2 id="%E6%9F%A5%E7%9C%8B%E5%87%BD%E6%95%B0" tabindex="-1">查看函数</h2>
+<pre><code class="language-sql">select * from ALL_PYQ_SCRIPTS;
+</code></pre>
+<p>可以看到名称、内容、所有者</p>
+<h2 id="%E4%BD%BF%E7%94%A8%E5%87%BD%E6%95%B0" tabindex="-1">使用函数</h2>
+<p>它提供了4种执行函数的方式，每种的区别在于传入参数</p>
+<table>
+<thead>
+<tr>
+<th>pyqEval</th>
+<th>pyqTableEval</th>
+<th>pyqRowEval</th>
+<th>pyqGroupEval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>INP_QRY</td>
+<td>INP_QRY</td>
+<td>INP_QRY</td>
+</tr>
+<tr>
+<td>PAR_QRY</td>
+<td>PAR_QRY</td>
+<td>PAR_QRY</td>
+<td>PAR_QRY</td>
+</tr>
+<tr>
+<td>OUT_QRY</td>
+<td>OUT_QRY</td>
+<td>OUT_QRY</td>
+<td>OUT_QRY</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td>ROW_NUM</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>GRP_COL</td>
+</tr>
+<tr>
+<td>EXP_NAM</td>
+<td>EXP_NAM</td>
+<td>EXP_NAM</td>
+<td>EXP_NAM</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>EXP_NAM 为要调用的python函数名称</li>
+<li>OUT_QRY 为查询输出的格式<br/>
+2.1 “XML”,最通用的，将python返回结果以xml格式的一个字符串返回到一个clob类型的字段中；如果是图片，则返回对应的base64编码<br/>
+2.2 “PNG”,将python返回的png图片的二进制数据返回到一个blob类型的字段中<br/>
+2.3 一个类似于’{“A”:“varchar2(100)”,“B”:“NUMBER”}'这样的json串，此方式必须保证python的返回值为以下几种之一：a pandas.DataFrame, a numpy.ndarray, a tuple, or a list of tuples，并且返回的字段数量及类型必须都匹配。使用此方式时，是以一个表的形式返回数据，方便在数据库中使用。这种其实对python函数有了大幅限制。<br/>
+2.4 表或视图名称，必须是该用户有查询权限的</li>
+<li>PAR_QRY 为要传入到EXP_NAM中指定的函数的参数，json格式，比如’{“modelName”:“linregr”,“datastoreName”:“pymodel”,“oml_connect”:1}'，其中以"oml_"开头的为保留参数，起到一些特殊控制的作用 <a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/about-embedded-python-execution.html#GUID-A15F3A62-736A-4276-83F2-7C54BE026639__SECTION_ULD_KND_YGB" target="_blank"> About Special Control Arguments</a></li>
+<li>INP_QRY 为要传入到EXP_NAM中指定的函数的表或视图名称,必须是该用户有查询权限的</li>
+<li>ROW_NUM 为对应INP_QRY中表或视图的行数，整数类型</li>
+<li>GRP_COL 为对应INP_QRY中表或视图的分组字段，用逗号分割的字符串</li>
+</ol>
+<p>可以看到EXP_NAM和OUT_QRY是每种方式都必填的，其他几个都是要传到python函数的参数。</p>
+<p>执行的方式都是下面这种形式</p>
+<pre><code class="language-sql">SELECT * 
+  FROM table(pyqEval( 
+               NULL,
+               'XML',
+                'pyqFun2'));
+</code></pre>
+<h2 id="%E6%95%B0%E6%8D%AE%E5%AD%98%E5%82%A8" tabindex="-1">数据存储</h2>
+<p>这里说的数据存储不是指的数据库中的表，而是指的机器学习计算的结果，比如模型数据。<br/>
+比如官方的这个例子</p>
+<pre><code class="language-sql">BEGIN
+   sys.pyqScriptCreate('myLinearRegressionModel',
+      'def fit_model(dat, modelName, datastoreName):
+         import oml
+         from sklearn import linear_model
+         regr = linear_model.LinearRegression()
+         regr.fit(dat.loc[:, ["Sepal_Length", "Sepal_Width", \
+                             "Petal_Length"]], dat.loc[:,["Petal_Width"]])
+         oml.ds.save(objs={modelName:regr}, name=datastoreName, overwrite=True)
+         return str(regr)', 
+       FALSE, TRUE); 
+END;
+</code></pre>
+<p>创建这个函数后，执行它，它会在“oml.ds.save”这里，把数据保存进去，然后在</p>
+<pre><code class="language-sql">select * from ALL_PYQ_DATASTORE_CONTENTS;
+select * from ALL_PYQ_DATASTORES;
+</code></pre>
+<p>这两个视图中都只有一条记录，显示该数据的相关参数，比如名称、模型、类、大小等</p>
+<h2 id="%E5%BB%B6%E4%BC%B8%E4%B8%80%E7%82%B9" tabindex="-1">延伸一点</h2>
+<p>机器学习和数据查询完全是两个不同的思路，但oracle这个功能，在执行机器学习的操作时，都是以select的方式来执行函数，你既可以查询python吐出来的数据，也可以把数据库中的一张表当成样本丢到python里去进行模型训练，只是形式上都是"select xxx from table()"</p>
+<p>这个功能可能有资源自动回收机制，有调用python的会话在inactive一段时间后，再执行python函数，会报</p>
+<blockquote>
+<p>ORA-28576: lost RPC connection to external procedure agent<br/>
+ORA-06512: at “PYQSYS.PYQ$EVALIMPL_IN”, line 77<br/>
+ORA-06512: at “PYQSYS.PYQ$EVALIMPL_IN”, line 74<br/>
+ORA-06512: at “SYS.DBMS_SQL”, line 1766<br/>
+ORA-06512: at “PYQSYS.PYQ$ETSTART”, line 159<br/>
+ORA-06512: at “PYQSYS.PYQEVALIMPL”, line 51</p>
+</blockquote>
+<p>然后直接再执行一次，即可正常返回结果，从这里可以看到，它其实是在与操作系统中的程序在进行交互，这点我们其实也可以通过执行个python函数验证，比如获取当前执行路径或者生成一个文件到操作系统目录中去</p>
+<pre><code class="language-sql">BEGIN
+   sys.pyqScriptCreate('pyqFun12', 
+q'{def aaa():
+    import os
+    f = open('orapytest.txt', 'w')
+    f.write('Hello, world!')
+    f.close()    
+    return os.getcwd()}'); 
+END;
+/
+SELECT * FROM table(pyqEval(NULL, 'XML', 'pyqFun12'));
+
+name value
+---- --------
+     &lt;root&gt;&lt;str&gt;/u02/config/cdb1/homes/OraDB21Home1/hs/log&lt;/str&gt;&lt;/root&gt;
+</code></pre>
+<p>然后我们进操作系统的这个“/u02/config/cdb1/homes/OraDB21Home1/hs/log”目录看看<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png" srcset="/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1200 1200w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=400 400w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1600 1600w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=800 800w"/></p>
+<p>果然在这里，另外我尝试生成文件到其他目录，有报权限不够，看看这个文件的属性<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png" srcset="/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1200 1200w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=400 400w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1600 1600w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=800 800w"/></p>
+<p>这说明使用oml4py,让ORACLE嵌入式执行python时，是以操作系统oracle用户的身份在操作系统中执行的，和dbms_mle的机制不一样，但这样其实更方便数据的交互。不过需要注意的是，这要更加防范恶意的sql注入，所以一定要把控好相关对象的执行权限。</p>
+<p>而且由于它会自动回收，所以如果写自动化的程序时，一定要写此种异常的重试机制（ORACLE干嘛自己不把这个加进去~）。</p>
+<p>既然知道了它与操作系统有关，当然就到了喜闻乐见的整活环节了。</p>
+<h2 id="%E6%95%B4%E6%B4%BB" tabindex="-1">整活</h2>
+<p>假设我直接把".py"文件放到操作系统中，然后在数据库写个函数，import这个文件，它能不能执行？</p>
+<p>我把我上次写的解析sql中的表名那个项目的文件下载进操作系统<br/>
+<a href="https://github.com/Dark-Athena/list_table_sql-py" target="_blank">https://github.com/Dark-Athena/list_table_sql-py</a></p>
+<p>保存在了 “/list_table_sql-py” 目录，然后安装依赖库</p>
+<pre><code class="language-bash">pip3 install antlr4-python3-runtime
+</code></pre>
+<p>在数据库中创建python函数并执行它</p>
+<pre><code class="language-sql">BEGIN
+   sys.pyqScriptCreate('pyqFun13', 
+'def aaa(sql):
+    import sys
+    sys.path.append(''/list_table_sql-py'')
+    from list_table_sql import list_table_sql as t
+    return t(''{"sql":"''+sql+''","mode":"T"}'')
+    '); 
+END;
+/
+
+SELECT *
+  FROM table(pyqEval('{"sql":"select abc,cdf x from tab1 a,tab2,tab3@dblink where 1=1"}',
+                     'XML',
+                     'pyqFun13'));
+
+NAME	VALUE
+----    -----
+	&lt;root&gt;&lt;dict&gt;&lt;item&gt;&lt;key&gt;tablename&lt;/key&gt;&lt;value&gt;&lt;item&gt;tab1&lt;/item&gt;&lt;item&gt;tab2&lt;/item&gt;&lt;item&gt;tab3@dblink&lt;/item&gt;&lt;/value&gt;&lt;/item&gt;&lt;/dict&gt;&lt;/root&gt;
+
+</code></pre>
+<p>可以看到三个表名都解析出来了。</p>
+<p>本篇完。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

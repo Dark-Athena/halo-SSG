@@ -149,11 +149,305 @@
         
         <span>2024-11-15</span>
         
-        <span>197 阅读</span>
+        <span>198 阅读</span>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在我之前的文章中有提过，原生PG对于重度存储过程的应用系统适配，具有一个致命缺陷，即原生PG中的plsql是会话级缓存，这意味着每个会话在第一次执行某个存储过程时，都需要对这个存储过程进行编译，并且将编译结果缓存到本会话，由此引发巨大的内存占用（应用连接池多连接）以及首次调用时的严重性能问题（应用短连接）。</p>
+<h2 id="测试">测试</h2>
+<p>下面在openGauss 6.0.0版本中测试，使用匿名块构造了一个约两万行的存储过程，并且创建进了数据库，包含有循环、判断、DML、赋值、简单计算表达式，但实际这个存储过程begin后的第一行就是return，避免执行不同语句的时间干扰对性能的判断。</p>
+<pre><code class="prism language-sql">DECLARE
+  v_sql CLOB := '';
+  v_table_sql CLOB := '';
+  v_line_count int:=20000;
+BEGIN
+  -- 生成建表语句
+  v_table_sql := 'CREATE TABLE example_table (id NUMBER PRIMARY KEY, name VARCHAR2(100), value NUMBER);';
+ execute immediate  v_table_sql;
+
+  -- 初始化procedure创建语句
+  v_sql := 'CREATE OR REPLACE PROCEDURE example_pro IS
+
+      v_counter NUMBER := 0;
+      v_sum NUMBER := 0;
+    BEGIN
+return;
+  ';
+  -- 代码翻倍
+  FOR i IN 1..trunc(v_line_count/10) LOOP
+    v_sql := v_sql || '  v_counter := v_counter + 1;
+      v_sum := v_sum + ' || i || ';
+      IF MOD(' || i || ', 2) = 0 THEN
+        INSERT INTO example_table (id, name, value) VALUES (' || i || ', ''Even'', v_sum);
+      ELSE
+        INSERT INTO example_table (id, name, value) VALUES (' || i || ', ''Odd'', v_sum);
+      END IF;
+      FOR j IN 1..5 LOOP
+        v_sum := v_sum + j;
+      END LOOP;
+    ';
+  END LOOP;
+
+  -- 结束procedure
+  v_sql := v_sql || '  v_sum := v_sum / 50000;
+      --DBMS_OUTPUT.PUT_LINE(''Average Sum: '' || v_sum);
+  END ;
+';
+  -- 执行生成的procedure创建语句
+  execute immediate v_sql;
+END;
+/
+</code></pre>
+<p>然后开启计时，比如PG/OG系数据库在自带命令行客户端中的方式为</p>
+<pre><code class="prism language-sql">\timing on
+</code></pre>
+<p>手动调用几次这个存储过程</p>
+<pre><code class="prism language-sql">call example_pro();
+</code></pre>
+<p>并且尝试更换会话去执行这个存储过程</p>
+<pre><code class="prism language-sql">[og600@kylinv10sp3-node1 ~]$ gsql -r
+gsql ((openGauss 6.0.0 build aee4abd5) compiled at 2024-09-29 18:39:52 commit 0 last mr  )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+openGauss=# \timing on
+Timing is on.
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1141.496 ms
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1.327 ms
+openGauss=# \c postgres
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+You are now connected to database "postgres" as user "og600".
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1150.205 ms
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1.399 ms
+openGauss=#
+</code></pre>
+<p>可以看到每个会话首次执行与第二次执行的时长差异巨大。如果是个短连接的应用，执行一次就断开连接，执行十次需要十几秒，但是实际存储过程本身的执行时间可能才十几毫秒！</p>
+<p>然后观察下首次执行这个存储过程前后，该会话的内存使用情况。</p>
+<pre><code class="prism language-sql">openGauss=# select  pg_size_pretty(sum(usedsize)) from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid();
+ pg_size_pretty
+----------------
+ 8900 kB
+(1 row)
+
+Time: 14.220 ms
+openGauss=# select  contextname,totalsize,usedsize from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid() order by usedsize desc limit 10;
+           contextname           | totalsize | usedsize
+---------------------------------+-----------+----------
+ LocalSysCacheShareMemoryContext |   5368400 |  4104592
+ PLpgSQL function cache          |   2076184 |  2073416
+ LocalSysCacheTopMemoryContext   |   1097888 |   650800
+ ThreadTopMemoryContext          |    417288 |   400392
+ DefaultTopMemoryContext         |    344608 |   270624
+ CBBTopMemoryContext             |    243984 |   223904
+ LocalSysCacheMyDBMemoryContext  |    253952 |   220584
+ StorageTopMemoryContext         |    125744 |    91224
+ Timezones                       |     83504 |    80736
+ Type information cache          |     73232 |    70464
+(10 rows)
+
+Time: 21.794 ms
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1134.256 ms
+openGauss=# call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1.259 ms
+
+openGauss=# select  pg_size_pretty(sum(usedsize)) from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid();
+ pg_size_pretty
+----------------
+ 25 MB
+(1 row)
+
+Time: 19.403 ms
+openGauss=# select  contextname,totalsize,usedsize from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid() order by usedsize desc limit 10;
+                contextname                | totalsize | usedsize
+-------------------------------------------+-----------+----------
+ PL/pgSQL function context_281474977359207 |  25173800 | 17169704
+ LocalSysCacheShareMemoryContext           |   5368400 |  4104592
+ PLpgSQL function cache                    |   2076184 |  2073416
+ LocalSysCacheTopMemoryContext             |   1097888 |   650800
+ ThreadTopMemoryContext                    |    466440 |   419720
+ DefaultTopMemoryContext                   |    344608 |   270624
+ CBBTopMemoryContext                       |    243984 |   223904
+ LocalSysCacheMyDBMemoryContext            |    253952 |   223400
+ OptimizerTopMemoryContext                 |    108200 |   102888
+ StorageTopMemoryContext                   |    125744 |    91224
+(10 rows)
+
+Time: 14.663 ms
+</code></pre>
+<p>可以发现该会话多了一个<code>PL/pgSQL function context_*</code>的内存占用，差不多就是执行存储过程后，增加的17MB内存。<br/>
+做个粗略的计算，假设某应用系统有200个这样的存储过程（约400万行plsql代码），连接池有200个并发，那么光存储过程就能把内存吃掉 <code>17*200*200/1024 MB=660 GB</code> ！<br/>
+而且该例子中的存储过程还比较简单，没有复杂表达式，变量也少，也没有使用自定义类型，否则内存占用会更多，有些国产高配的1TB内存服务器都玩不转了。</p>
+<p>很多大行核心系统都是千万级的PLSQL代码，而且并发数肯定也不止200个，所以这个问题必然是PG/OG系数据库要解决的一个核心问题。</p>
+<h2 id="mogdb-5.2.0的突破">MogDB 5.2.0的突破</h2>
+<p>根据以上的测试，可以发现该问题的核心在于，存储过程的编译产物是在当前会话里，不能被其他会话共享，因此解决这个问题的关键，就是让存储过程的编译产物放进共享内存。于是MogDB在5.2.0版本新增了特性–<strong>GLOBAL PLSQL CACHE</strong>(全局PLSQL缓存)。</p>
+<h3 id="相关参数">1.相关参数</h3>
+<p><strong>enable_global_plsql_cache</strong><br/>
+<strong>参数描述</strong>：控制是否启用global PL/SQL cache功能。<br/>
+<strong>参数级别</strong>：该参数属于POSTMASTER类型参数。修改需要重启生效<br/>
+<strong>取值范围</strong>：布尔型。<br/>
+<strong>默认值</strong>: on 。即默认打开global PL/SQL cache。</p>
+<p><strong>plsql_global_cache_max_memory</strong><br/>
+<strong>参数描述</strong>：Global PL/SQL cache的内存大小限制，用于存放编译的PL/SQL function/package。当插入的内存的function/package大小大于此参数值时，会对global_cache做内存清理<br/>
+<strong>参数级别</strong>：该参数属于SIGHUP类型参数。<br/>
+<strong>取值范围</strong>：5MB - 1TB<br/>
+<strong>默认值</strong>： 1GB</p>
+<p><strong>plsql_global_cache_clean_timeinterval</strong><br/>
+<strong>参数描述</strong>：清理global_cache的时间间隔。<br/>
+<strong>参数级别</strong>：该参数属于SIGHUP类型参数。<br/>
+<strong>取值范围</strong>：5分钟 - 36500天<br/>
+<strong>默认值</strong>：30分钟</p>
+<p><strong>plsql_global_cache_clean_percent</strong><br/>
+<strong>参数描述</strong>：清理一次global_cache时，至少要清理的global_cache空间比例。<br/>
+<strong>参数级别：</strong> 该参数属于SIGHUP类型参数。<br/>
+<strong>取值范围</strong>：1 - 100<br/>
+<strong>默认值</strong>：20（即至少清理20%）</p>
+<h3 id="相关函数">2.相关函数</h3>
+<h4 id="缓存信息查询函数">缓存信息查询函数</h4>
+<pre><code class="prism language-sql">select * from plsql_global_cache_info();
+</code></pre>
+<p>字段说明</p>
+<ul>
+<li><strong>database</strong> : 该PL/SQL cache function/Package所在的database Oid。</li>
+<li><strong>xmin</strong>: 该PL/SQL cache function/Package 记录的xmin。</li>
+<li><strong>trigrel_oid</strong>: 对于PL/SQL cache trigger function，记录触发表的Oid。</li>
+<li><strong>collation</strong>： 该PL/SQL cache function/Package的collationOid</li>
+<li><strong>Namespace</strong>: 该PL/SQL cache function/Package 所在的schema Oid。</li>
+<li><strong>Oid</strong>: 该PL/SQL cache function/Package的Oid。</li>
+<li><strong>Name</strong> : 该PL/SQL cache function/Package的名称。</li>
+<li><strong>type_enum</strong>： 该PL/SQL cache 的类型：function/procedure/pkg_spec/pkg_body。</li>
+<li><strong>search_path</strong>： 该PL/SQL cache function/Package编译时的search_path。</li>
+<li><strong>valid</strong>：该PL/SQL cache function/Package 是否有效。当前该记录被删除或repalce后，该标记会设置为false，并且待ref_count为0后，清除该cache。</li>
+<li><strong>ref_count</strong>： 该PL/SQL cache function/Package的引用计数。</li>
+<li><strong>used_count</strong>：该PL/SQL cache function/Package的使用次数。</li>
+<li><strong>total_space</strong>：该PL/SQL cache function/Package 占用的空间大小，单位为字节。</li>
+<li><strong>inval_items</strong>：该PL/SQL cache function/Package依赖的其他object。</li>
+<li><strong>is_all_func_compiled</strong>：该字段为区分Package spec和body。当该字段为false时，表明该记录为pkg spec，不包含body。当该字段为true时，表面该记录为pkg body并包含pkg spec。</li>
+</ul>
+<h4 id="移除缓存函数">移除缓存函数</h4>
+<p>plsql_cache_clean<br/>
+plsql_cache_drop_object</p>
+<h3 id="mogdb实测">3.MogDB实测</h3>
+<pre><code class="prism language-sql">[mogdb26200@kylinv10sp3-node1 ~]$ gsql -r -U system -W oracle -d testdb
+gsql ((MogDB 5.2.0 build e0c9adc2) compiled at 2024-09-28 02:48:39 commit 0 last mr 1804 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+testdb=&gt; \timing on
+Timing is on.
+testdb=&gt; select  pg_size_pretty(sum(usedsize)) from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid();
+ pg_size_pretty
+----------------
+ 9394 kB
+(1 row)
+
+Time: 20.083 ms
+testdb=&gt; select  contextname,totalsize,usedsize from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid() order by usedsize desc limit 10;
+         contextname          | totalsize | usedsize
+------------------------------+-----------+----------
+ SessionCacheMemoryContext    |   3534048 |  2808640
+ PLpgSQL function cache       |   2076184 |  2073416
+ ThreadTopMemoryContext       |    587432 |   517960
+ FunctionScan_22875809511168  |    532560 |   464656
+ ExprContext                  |    516096 |   379232
+ StorageTopMemoryContext      |    354384 |   328744
+ global_session_memory_detail |    231224 |   227936
+ session_memory_detail        |    231224 |   226112
+ node_name                    |    223032 |   221184
+ CBBTopMemoryContext          |    236736 |   217256
+(10 rows)
+
+Time: 24.702 ms
+testdb=&gt; call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1.370 ms
+testdb=&gt; call example_pro();
+ example_pro
+-------------
+
+(1 row)
+
+Time: 1.072 ms
+testdb=&gt; select  pg_size_pretty(sum(usedsize)) from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid();
+ pg_size_pretty
+----------------
+ 9471 kB
+(1 row)
+
+Time: 24.194 ms
+testdb=&gt; select  contextname,totalsize,usedsize from dbe_perf.global_session_memory_detail where sessid ~pg_backend_pid() order by usedsize desc limit 10;
+         contextname          | totalsize | usedsize
+------------------------------+-----------+----------
+ SessionCacheMemoryContext    |   3602144 |  2883952
+ PLpgSQL function cache       |   2076184 |  2073416
+ ThreadTopMemoryContext       |    587432 |   518504
+ FunctionScan_22875809511168  |    532560 |   464656
+ ExprContext                  |    516096 |   379232
+ StorageTopMemoryContext      |    354384 |   329152
+ global_session_memory_detail |    231224 |   227936
+ session_memory_detail        |    231224 |   226112
+ node_name                    |    223032 |   221184
+ CBBTopMemoryContext          |    236736 |   217256
+(10 rows)
+
+Time: 23.035 ms
+testdb=&gt;
+</code></pre>
+<p>从这个测试结果可以看到，MogDB 5.2.0的会话内存占用，在首次调用存储过程后，并无显著增长，而且首次执行速度相比第二次执行速度，差异并不大。<br/>
+我们再进行一次粗略计算，和前面的假设一样，某应用系统有200个这样的存储过程（约400万行plsql代码），连接池有200个并发，由于PLSQL编译结果共享了，不在单个会话内，所以存储过程的内存占用约为 <code>17*200*1024 MB=3.3 GB</code> 远低于无 <code>global plsql cache</code>时660GB占用！而且并发数越高，plsql代码量越大、越复杂，启用global plsql cache节省的内存越多！</p>
+<h2 id="全局plsql缓存还能干什么？">全局PLSQL缓存还能干什么？</h2>
+<p>MogDB又做了一个创新。<br/>
+对于重度存储过程使用的应用软件而言，尤其那种迭代开发了十几、甚至数十年的应用软件，代码内部存在不计其数的逻辑分支，软件升级后的回归测试，尤其在国产数据库替换时，很难保证所有的代码都被执行过，这个时候就需要有<strong>存储过程覆盖率</strong>这个功能。很多数据库产品设计plsql覆盖率这个功能只能支持单会话内统计，但真实的场景期望是不要按单个会话统计，而是应用多个连接真正把业务运行起来，所有场景都测完后，再去看这个覆盖率，从而对测试场景进行查漏补缺。<br/>
+存储过程覆盖率简单来说可以理解为有个数据，里面有每个存储过程的每一行代码，并且有记录每一行是否有执行到，对多会话进行统计就必须要有个公共的区域来进行这个数据的统计。<br/>
+既然做了全局PLSQL缓存，这不就是现成的公共区域么，而且plsql代码也已经有了，不需要再次获取。而且由于不是用表进行的统计，大大降低了并发时的锁冲突时间。<br/>
+因此MogDB 5.2.0把<strong>存储过程覆盖率</strong>这个功能做到了全局PLSQL缓存内。<br/>
+后面有时间再单独介绍这个功能。</p>
+<h2 id="总结">总结</h2>
+<p>其实openGauss相比原生postgresql，在内存的优化上的确也做了不少工作，比如<code>global plancache</code>–全局计划缓存、<code>global syscache</code>–全局系统缓存（数据字典），而且将PG的进程模型改为线程模型，避免了这种内存上下文在进程间频繁交换导致的性能问题。MogDB 5.2.0实现了<code>global plsql cache</code>，并默认开启，这对于拥有重度存储过程代码的ORACLE应用迁移到国产数据库，具有非常深刻的意义。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -149,11 +149,421 @@
         
         <span>2025-10-27</span>
         
-        <span>118 阅读</span>
+        <span>119 阅读</span>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像</p>
+<h2 id="背景">背景</h2>
+<p>现在信创已经进行到白热化阶段了，为了赶国家2027年的任务，有不少开发人员正忙于应用系统的国产化适配改造。目前国产服务器系统可以说Kylin v10占了大半边天，所以很多软件都需要在kylin v10上进行适配，尤其是用c/c++开发的需要依赖系统库的软件。但是服务器资源都是有限的，虚拟机也不可能无限分割，如果需要克隆很多套环境用于开发和测试的不同阶段，这个时候用docker就很方便了。但是kylin v10官方似乎并没有提供docker镜像，而且就算提供了，docker镜像里往往还会少一些组件需要额外装，并且多了自己不需要用的一些组件导致镜像比较大。这个时候就催生了一个需求，能不能自己根据自己软件的需要，定制化构建一个kylin v10的docker镜像？</p>
+<p>结论是当然可以。</p>
+<h2 id="分析">分析</h2>
+<h3 id="完整原始需求描述">完整原始需求描述</h3>
+<p>期望构建一个kylin v10 sp3的docker镜像作为基础镜像，使用此基础镜像可以直接运行GaussDB最小内核而无需再安装其他依赖，并且这个镜像需要尽可能小。</p>
+<h3 id="依赖组件">依赖组件</h3>
+<p>由于期望在docker里运行的软件为GaussDB,因此需要分析GaussDB依赖了哪些系统组件。<br/>
+先找一个正常的Kylin v10的GaussDB环境,ldd看下</p>
+<pre><code class="prism language-bash">[gaussdb506@ky10-sp3 ~]$ ldd /data/gaussdb506/app/bin/gaussdb
+        linux-vdso.so.1 (0x00007ffe9e3fc000)
+        libcrypt.so.1 =&gt; /usr/lib64/libcrypt.so.1 (0x00007fcc39bee000)
+        libdl.so.2 =&gt; /usr/lib64/libdl.so.2 (0x00007fcc39be9000)
+        libssl.so =&gt; /data/gaussdb506/app/lib/libssl.so (0x00007fcc39b3d000)
+        libcrypto.so =&gt; /data/gaussdb506/app/lib/libcrypto.so (0x00007fcc396ec000)
+        librt.so.1 =&gt; /usr/lib64/librt.so.1 (0x00007fcc396e1000)
+        libz.so.1 =&gt; /data/gaussdb506/app/lib/libz.so.1 (0x00007fcc396c7000)
+        libeSDKOBS.so.3 =&gt; /data/gaussdb506/app/lib/libeSDKOBS.so.3 (0x00007fcc3965b000)
+        libeSDKLogAPI.so.3 =&gt; /data/gaussdb506/app/lib/libeSDKLogAPI.so.3 (0x00007fcc39410000)
+        libpcre.so.1 =&gt; /data/gaussdb506/app/lib/libpcre.so.1 (0x00007fcc393d8000)
+        libiconv.so.2 =&gt; /data/gaussdb506/app/lib/libiconv.so.2 (0x00007fcc392e3000)
+        libspdlog.so.1.12 =&gt; /data/gaussdb506/app/lib/libspdlog.so.1.12 (0x00007fcc3925a000)
+        libcurl.so.4 =&gt; /data/gaussdb506/app/lib/libcurl.so.4 (0x00007fcc391d1000)
+        liblz4.so.1 =&gt; /data/gaussdb506/app/lib/liblz4.so.1 (0x00007fcc3918b000)
+        libcjson.so.1 =&gt; /data/gaussdb506/app/lib/libcjson.so.1 (0x00007fcc3917e000)
+        libcgroup.so.2 =&gt; /data/gaussdb506/app/lib/libcgroup.so.2 (0x00007fcc38f00000)
+        libzstd.so.1 =&gt; /data/gaussdb506/app/lib/libzstd.so.1 (0x00007fcc38df1000)
+        libstdc++.so.6 =&gt; /data/gaussdb506/app/lib/libstdc++.so.6 (0x00007fcc38c6e000)
+        libaio.so.1 =&gt; /usr/lib64/libaio.so.1 (0x00007fcc38c69000)
+        libncurses.so.6 =&gt; /usr/lib64/libncurses.so.6 (0x00007fcc38c3b000)
+        libtinfo.so.6 =&gt; /usr/lib64/libtinfo.so.6 (0x00007fcc38c0b000)
+        libcom_err.so.3 =&gt; /data/gaussdb506/app/lib/libcom_err.so.3 (0x00007fcc38c05000)
+        libgssapi_krb5.so.2 =&gt; /data/gaussdb506/app/lib/libgssapi_krb5.so.2 (0x00007fcc38b9d000)
+        libkrb5.so.3 =&gt; /data/gaussdb506/app/lib/libkrb5.so.3 (0x00007fcc38a9e000)
+        libgssrpc.so.4 =&gt; /data/gaussdb506/app/lib/libgssrpc.so.4 (0x00007fcc38a79000)
+        libk5crypto.so.3 =&gt; /data/gaussdb506/app/lib/libk5crypto.so.3 (0x00007fcc38a31000)
+        libkadm5clnt_mit.so.12 =&gt; /data/gaussdb506/app/lib/libkadm5clnt_mit.so.12 (0x00007fcc38a16000)
+        libkadm5srv_mit.so.12 =&gt; /data/gaussdb506/app/lib/libkadm5srv_mit.so.12 (0x00007fcc389f3000)
+        libkdb5.so.10 =&gt; /data/gaussdb506/app/lib/libkdb5.so.10 (0x00007fcc389db000)
+        libkrb5support.so.0 =&gt; /data/gaussdb506/app/lib/libkrb5support.so.0 (0x00007fcc389ca000)
+        libdcf.so =&gt; /data/gaussdb506/app/lib/libdcf.so (0x00007fcc33352000)
+        libetrace.so =&gt; /data/gaussdb506/app/lib/libetrace.so (0x00007fcc3331b000)
+        libm.so.6 =&gt; /usr/lib64/libm.so.6 (0x00007fcc33198000)
+        libgcc_s.so.1 =&gt; /data/gaussdb506/app/lib/libgcc_s.so.1 (0x00007fcc3317f000)
+        libpthread.so.0 =&gt; /usr/lib64/libpthread.so.0 (0x00007fcc3315e000)
+        libc.so.6 =&gt; /usr/lib64/libc.so.6 (0x00007fcc32fa6000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007fcc6a2a2000)
+        libxml2.so.2 =&gt; /usr/lib64/libxml2.so.2 (0x00007fcc32e41000)
+        libkeyutils.so.1 =&gt; /usr/lib64/libkeyutils.so.1 (0x00007fcc32e38000)
+        libresolv.so.2 =&gt; /usr/lib64/libresolv.so.2 (0x00007fcc32e1f000)
+        liblzma.so.5 =&gt; /usr/lib64/liblzma.so.5 (0x00007fcc32df6000)
+</code></pre>
+<p>然后排除gaussdb自带的so，得到</p>
+<pre><code class="prism language-bash">linux-vdso.so.1 (0x00007ffdcfff5000)
+libcrypt.so.1 =&gt; /usr/lib64/libcrypt.so.1 (0x00007faf390d0000)
+libdl.so.2 =&gt; /usr/lib64/libdl.so.2 (0x00007faf390cb000)
+librt.so.1 =&gt; /usr/lib64/librt.so.1 (0x00007faf38bc3000)
+libaio.so.1 =&gt; /usr/lib64/libaio.so.1 (0x00007faf3814b000)
+libncurses.so.6 =&gt; /usr/lib64/libncurses.so.6 (0x00007faf3811d000)
+libtinfo.so.6 =&gt; /usr/lib64/libtinfo.so.6 (0x00007faf380ed000)
+libm.so.6 =&gt; /usr/lib64/libm.so.6 (0x00007faf3267a000)
+libpthread.so.0 =&gt; /usr/lib64/libpthread.so.0 (0x00007faf32640000)
+libc.so.6 =&gt; /usr/lib64/libc.so.6 (0x00007faf32488000)
+/lib64/ld-linux-x86-64.so.2 (0x00007faf69784000)
+libxml2.so.2 =&gt; /usr/lib64/libxml2.so.2 (0x00007faf32323000)
+libkeyutils.so.1 =&gt; /usr/lib64/libkeyutils.so.1 (0x00007faf3231a000)
+libresolv.so.2 =&gt; /usr/lib64/libresolv.so.2 (0x00007faf32301000)
+liblzma.so.5 =&gt; /usr/lib64/liblzma.so.5 (0x00007faf322d8000)
+</code></pre>
+<p>接着就是找这些so是在哪些组件里。现在有AI，很快就能找出来，不需要自己一个一个去找了：</p>
+<pre><code>coreutils glibc libaio ncurses keyutils libxml2
+</code></pre>
+<h3 id="系统目录生成工具">系统目录生成工具</h3>
+<p>接着就是选择一种合适的基础镜像目录生成方式。<br/>
+一开始我搜到了debootstrap，但是这个是针对debain系的系统，比如ubuntu；但是kylin v10的服务器版是fedora系的，于是我找到了febootstrap；但是febootstrap只在centos 6的yum源里，在内网获取不方便，而且还怕有兼容性问题，于是AI告诉我</p>
+<blockquote>
+<p>若ISO中无febootstrap包，改用yum/dnf --installroot构建：</p>
+<pre><code>mkdir ./minimal-root
+yum --installroot=$(pwd)/minimal-root \
+   --disablerepo=* --enablerepo=local \
+   install -y bash glibc coreutils libaio ncurses
+</code></pre>
+</blockquote>
+<pre><code class="prism language-bash">[root@ky10-sp3 mksysiso]# ll minimal-root
+total 8
+lrwxrwxrwx  1 root root    7 Mar  6  2021 bin -&gt; usr/bin
+dr-xr-xr-x  2 root root    6 Mar  6  2021 boot
+drwxr-xr-x  2 root root   18 Oct 13 09:32 dev
+drwxr-xr-x 45 root root 4096 Oct 13 09:32 etc
+drwxr-xr-x  2 root root    6 Mar  6  2021 home
+lrwxrwxrwx  1 root root    7 Mar  6  2021 lib -&gt; usr/lib
+lrwxrwxrwx  1 root root    9 Mar  6  2021 lib64 -&gt; usr/lib64
+drwxr-xr-x  2 root root    6 Mar  6  2021 media
+drwxr-xr-x  2 root root    6 Mar  6  2021 mnt
+drwxr-xr-x  2 root root    6 Mar  6  2021 opt
+dr-xr-xr-x  2 root root    6 Mar  6  2021 proc
+dr-xr-x---  2 root root    6 Mar  6  2021 root
+drwxr-xr-x 13 root root  175 Oct 13 09:32 run
+lrwxrwxrwx  1 root root    8 Mar  6  2021 sbin -&gt; usr/sbin
+drwxr-xr-x  2 root root    6 Mar  6  2021 srv
+dr-xr-xr-x  2 root root    6 Mar  6  2021 sys
+drwxrwxrwt  2 root root    6 Mar  6  2021 tmp
+drwxr-xr-x 12 root root  144 Oct 13 09:32 usr
+drwxr-xr-x 18 root root  235 Oct 13 09:32 var
+[root@ky10-sp3 mksysiso]#
+</code></pre>
+<p>这就简单多了，不依赖外部工具，内网有yum源或iso就能直接生成一套完整的操作系统目录。</p>
+<h3 id="导入镜像">导入镜像</h3>
+<p>尝试把这个目录直接打成tar包，然后docker import进去，发现无法容器无法启动</p>
+<pre><code class="prism language-bash">docker: Error response from daemon: OCI runtime create failed: container_linux.go:318: starting container process caused "exec: \"/bin/bash\": stat /bin/bash: no such file or directory": unknown.
+ERRO[0000] error waiting for container: context canceled
+</code></pre>
+<p>咨询AI，说是缺少ENTRYPOINT</p>
+<blockquote>
+<p>docker import导入的如果是容器快照（非完整镜像），会丢失默认启动命令和元数据，导致找不到/bin/bash。未定义容器入口点（ENTRYPOINT/CMD）</p>
+</blockquote>
+<p>AI给了个方案</p>
+<pre><code class="prism language-dockerfile"># Stage1：创建含元数据的临时镜像
+FROM scratch AS base
+COPY minimal-root / 
+RUN echo "root:x:0:0:root:/root:/bin/bash" &gt; /etc/passwd &amp;&amp; \
+    echo "root:x:0:" &gt; /etc/group
+
+# Stage2：生成最终镜像（解决ENTRYPOINT缺失）
+FROM alpine:latest AS builder
+COPY --from=base / /rootfs/
+RUN tar -C /rootfs -czf rootfs.tar.gz .
+
+FROM scratch
+ADD rootfs.tar.gz /
+CMD ["/bin/bash"]  # 显式定义启动命令
+</code></pre>
+<pre><code class="prism language-bash"># 1. 将目录打包为tar
+tar -C minimal-root -czf rootfs.tar.gz .
+
+# 2. 用Dockerfile构建（非import！）
+docker build -t my-minimal-image .
+</code></pre>
+<p>这个方式构建的确没有报错，不过后来细看了下，AI这里犯蠢了，把数据拷贝进去，然后拷贝到另一个镜像压缩，再把压缩包拷贝到另一个镜像解压，压根就不是在解决ENTRYPOINT缺失的问题。</p>
+<p>先继续，后面再优化。</p>
+<p>然后这里遇到了个坑，以前我build的时候，镜像就直接加载到本地docker环境里了，但是这次没有报错，且本地环境里也找不到这个镜像</p>
+<pre><code class="prism language-bash">[root@ky10-sp3 mksysiso]# docker build -t my-minimal-image .
+[+] Building 19.5s (5/5) FINISHED                                                                                                         docker-container:default
+ =&gt; [internal] booting buildkit                                                                                                                               9.6s
+ =&gt; =&gt; pulling image moby/buildkit:buildx-stable-1                                                                                                            8.9s
+ =&gt; =&gt; creating container buildx_buildkit_default                                                                                                             0.8s
+ =&gt; [internal] load build definition from dockerfile                                                                                                          0.0s
+ =&gt; =&gt; transferring dockerfile: 459B                                                                                                                          0.0s
+ =&gt; WARN: JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 14)                              0.0s
+ =&gt; [internal] load .dockerignore                                                                                                                             0.0s
+ =&gt; =&gt; transferring context: 2B                                                                                                                               0.0s
+ =&gt; [internal] load build context                                                                                                                             0.9s
+ =&gt; =&gt; transferring context: 105.52MB                                                                                                                         0.9s
+ =&gt; [stage-2 1/1] ADD rootfs.tar.gz /                                                                                                                         8.7s
+WARNING: No output specified with docker-container driver. Build result will only remain in the build cache. To push result image into registry use --push or to load image into docker use --load
+
+ 1 warning found (use --debug to expand):
+ - JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 14)
+</code></pre>
+<blockquote>
+<p>从您提供的构建输出来看，整个过程没有报错（显示 FINISHED），但存在一个关键警告⚠️：</p>
+<pre><code>bash
+WARNING: No output specified with docker-container driver. 
+Build result will only remain in the build cache.
+To push result image into registry use --push 
+or to load image into docker use --load
+</code></pre>
+<p>这意味着您构建的镜像 未被加载到本地Docker引擎，只存在于 构建缓存（build cache） 中。以下是具体分析和解决方案：</p>
+<ul>
+<li>问题分析</li>
+</ul>
+<ol>
+<li>Buildx工具的特殊性<br/>
+您使用默认的docker build命令触发了Buildx（Docker的下一代构建工具），该工具默认使用 容器驱动（container driver）7。这种模式下：</li>
+</ol>
+<p>构建成功但镜像不会自动加载到本地<br/>
+必须显式使用–load参数才能载入本地镜像库</p>
+<ol start="2">
+<li>镜像可见性验证<br/>
+执行docker image ls后未见my-minimal-image标签，进一步证实镜像未加载（本地只有缓存中的中间层）：</li>
+</ol>
+<pre><code>REPOSITORY               TAG        IMAGE ID         ...
+</code></pre>
+<ul>
+<li>解决方案</li>
+</ul>
+<p>方案一：使用–load参数加载镜像（推荐）</p>
+<pre><code class="prism language-bash"># 重构建并直接加载镜像到本地
+docker buildx build --load -t my-minimal-image .
+</code></pre>
+<p>方案二：切换回传统构建模式</p>
+<pre><code class="prism language-bash"># 禁用Buildx（返回传统构建）
+export DOCKER_BUILDKIT=0
+
+# 重新构建并自动加载
+docker build -t my-minimal-image .
+</code></pre>
+<p>方案三：从缓存中提取镜像</p>
+<pre><code class="prism language-bash"># 查看缓存中的镜像ID（需根据实际输出调整）
+docker buildx imagetools inspect local/cache:my-minimal-image
+
+# 提取缓存镜像到本地库
+docker pull local/cache:my-minimal-image
+</code></pre>
+</blockquote>
+<p>我暂时用了方案一,测试启动容器，能进去</p>
+<pre><code class="prism language-bash">[root@ky10-sp3 mksysiso]# docker run -it --rm my-minimal-image /bin/bash
+bash-5.0# ls
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+bash-5.0#
+</code></pre>
+<p>然而这个镜像没有su/sudo/useradd，问了AI，说是在util-linux里，要yum再装一下，于是我又清理下环境，从头开始弄了下</p>
+<pre><code class="prism language-bash">docker image rm my-minimal-image
+rm -rf minimal-root rootfs.tar.gz
+
+mkdir minimal-root
+dnf --installroot=$(pwd)/minimal-root install -y util-linux sudo coreutils glibc bash libaio ncurses libxml2 keyutils --nodocs --nogpgcheck --setopt=install_weak_deps=0
+tar -C minimal-root -czf rootfs.tar.gz .
+docker build -t my-minimal-image .
+</code></pre>
+<p>但是util-linux会带来额外五十MB的容量占用，我尝试了不安装这个包，而是手动把su和相关的so复制过来，但仍然会由于pam模块不完整导致su执行报错，手动复制pam相关文件后也仍然没有解决，就算<code>yum install pam</code>，也会把整个util-linux全装进去。继续分析下去会很耗时间，最终还是把util-linux装上去了。</p>
+<h3 id="精简大小">精简大小</h3>
+<p>接着的重点就是减小镜像大小了，先按网上的通用思路整了下</p>
+<pre><code class="prism language-bash">## 删除文档/缓存/本地化文件
+rm -rf minimal-root/usr/share/{doc,man,info} 
+find minimal-root/var/cache -type f -delete
+## 仅保留英语和中文语言包
+find minimal-root/usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en_US' ! -name 'zh_CN*' ! -name 'locale.alias' -exec rm -rf {} +
+## 清理发行版元数据
+rm -rf minimal-root/var/log/* anaconda-post.log
+
+# 下面没执行
+# 删除非核心二进制（如systemd等） 只有8.4MB (useradd在usr/sbin/,如果删掉就不方便加用户了）
+# rm -rf minimal-root/sbin/* minimal-root/usr/sbin/* 
+# 去除调试符号  （实际没有东西）
+# find minimal-root/. -type f -name \*.so -exec strip --strip-unneeded {} + 2&gt;/dev/null
+</code></pre>
+<p>这样弄出来的镜像还有399MB,使用du排查哪个文件占大头，发现一个locale-archive占了206MB</p>
+<pre><code class="prism language-bash">bash-5.0# ls -lh /usr/lib/locale/locale-archive
+-rw-r--r-- 1 root root 206M Jul 16 08:58 /usr/lib/locale/locale-archive
+</code></pre>
+<p>继续找AI，得到一串这样的命令</p>
+<pre><code class="prism language-bash">localedef --delete-from-archive $(localedef --list-archive | grep -v -E "en_US|zh_CN") \
+    &amp;&amp; mv /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl \
+    &amp;&amp; build-locale-archive
+</code></pre>
+<p>使用localedef从归档中删除 en_US和zh_CN 之外的其他语言，然后将locale-archive重命名为locale-archive.tmpl，再执行build-locale-archive构建，这样得到的locale-archive就只剩12MB了</p>
+<pre><code class="prism language-bash">bash-5.0# ls -lh /usr/lib/locale/locale-archive
+-rw-r--r-- 1 root root 12M Oct 13 01:45 /usr/lib/locale/locale-archive
+</code></pre>
+<p>镜像整体大小也来到了191MB,大头已经干完了，如果想要再减小，得一个个命令去分析依赖关系了，暂时不分析了。</p>
+<h2 id="完整方案">完整方案</h2>
+<h3 id="代码文件">1.代码文件</h3>
+<p>dockerfile</p>
+<pre><code class="prism language-dockerfile">FROM scratch AS builder2
+COPY minimal-root /
+RUN localedef --delete-from-archive $(localedef --list-archive | grep -v -E "en_US|zh_CN")  &amp;&amp; mv /usr/lib/locale/locale-archive /usr/lib/locale/locale-archive.tmpl &amp;&amp; build-locale-archive
+
+FROM scratch
+COPY --from=builder2 / /
+
+CMD ["/bin/bash"] 
+</code></pre>
+<p>构建脚本<br/>
+build_base_image.sh</p>
+<pre><code class="prism language-bash"># !/bin/bash
+# 一、准备系统目录
+mkdir minimal-root
+dnf --installroot=$(pwd)/minimal-root install -y util-linux sudo coreutils glibc bash libaio ncurses libxml2 keyutils --nodocs --nogpgcheck --setopt=install_weak_deps=0
+###  su 、sudo 、pam 、 useradd 在util-linux里，会增加五十MB体积
+
+# 二、减小体积
+## 删除文档/缓存/本地化文件
+rm -rf minimal-root/usr/share/{doc,man,info} 
+find minimal-root/var/cache -type f -delete
+## 仅保留英语和中文语言包
+find minimal-root/usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en_US' ! -name 'zh_CN*' ! -name 'locale.alias' -exec rm -rf {} +
+## 清理发行版元数据
+rm -rf minimal-root/var/log/* anaconda-post.log
+
+# 三、打包
+tar -C minimal-root -czf rootfs.tar.gz .
+
+# 四、构建docker镜像（兼容新老版本docker）
+export DOCKER_BUILDKIT=0
+docker build -t kylinv10sp3-minimal .
+</code></pre>
+<h3 id="执行镜像构建">2.执行镜像构建</h3>
+<pre><code class="prism language-bash">chmod +x build_base_image.sh
+./build_base_image.sh
+</code></pre>
+<h3 id="测试">3.测试</h3>
+<pre><code class="prism language-bash">docker run -it --rm kylinv10sp3-minimal /bin/bash
+</code></pre>
+<h2 id="继续缩小">继续缩小</h2>
+<p>前面已经说了本次暂时不去减少文件了，但是docker镜像导出成文件其实还是可以压缩的，并且部分压缩格式的镜像也可以免解压直接导入（网上有挺多文章里都是先解压再导入，其实大可不必）。<br/>
+通过咨询AI，并且自己实测，发现gzip/bzip2/xz这三种格式是可以无需解压，直接用<code>docker load -i</code>导入的</p>
+<pre><code class="prism language-bash">docker save kylinv10sp3-minimal | gzip &gt; kylinv10sp3-minimal.tar.gz
+docker save kylinv10sp3-minimal | bzip2 &gt; kylinv10sp3-minimal.tar.bz2
+docker save kylinv10sp3-minimal | xz &gt; kylinv10sp3-minimal.tar.xz
+</code></pre>
+<pre><code class="prism language-bash">[root@ky10-sp3 mksysiso]# ls -lh kylin*
+-rw-r--r-- 1 root root 57M Oct 13 13:37 kylinv10sp3-minimal.tar.bz2
+-rw-r--r-- 1 root root 66M Oct 13 13:37 kylinv10sp3-minimal.tar.gz
+-rw-r--r-- 1 root root 40M Oct 13 13:39 kylinv10sp3-minimal.tar.xz
+</code></pre>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>格式</th>
+<th>耗时</th>
+<th>压缩后大小</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gzip</td>
+<td>14.72s</td>
+<td>66M</td>
+</tr>
+<tr>
+<td>bzip2</td>
+<td>22.57s</td>
+<td>57M</td>
+</tr>
+<tr>
+<td>xz</td>
+<td>99.26s</td>
+<td>40M</td>
+</tr>
+</tbody>
+</table>
+</div><p>xz压得最小，但是耗时最长；gz最快，但是体积最大；平衡耗时和大小，可以选择bz2。<br/>
+就这样，一个能运行GaussDB的Kylin V10SP3的docker镜像就缩小到了40MB。</p>
+<h2 id="测试构建gaussdb的docker镜像并运行容器">测试构建GaussDB的docker镜像并运行容器</h2>
+<p>在之前的文章中，我有介绍如何构建GaussDB的docker镜像<br/>
+<a href="https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb">https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb</a></p>
+<p>但是构建的基础镜像使用的是docker hub上不明人士做的kylinv10sp3镜像，里面还是少了一个包，而且光操作系统就有609MB了，装上gaussdb后就有732MB，就算压缩镜像也还有308MB。</p>
+<p>既然通过本文的方案可以构建自己的kylinv10sp3镜像，那么GaussDB的docker镜像就可以进一步缩小。</p>
+<p>dockerfile</p>
+<pre><code class="prism language-dockerfile">FROM kylinv10sp3-minimal:latest AS builder
+COPY GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin /opt/gaussdb/
+COPY entrypoint.sh /opt/gaussdb/
+
+RUN mkdir /opt/gaussdb/log &amp;&amp;\
+mkdir /opt/gaussdb/data &amp;&amp;\
+useradd gaussdb &amp;&amp;\
+rm -rf /tmp/* &amp;&amp;\
+echo "export GAUSSHOME=/opt/gaussdb"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PATH=\$GAUSSHOME/bin:\$PATH"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$LD_LIBRARY_PATH"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PGDATA=\$GAUSSHOME/data"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export PGDATABASE=postgres"&gt;&gt;/home/gaussdb/.bash_profile &amp;&amp;\
+echo "export GAUSSLOG=\$GAUSSHOME/log"&gt;&gt;/home/gaussdb/.bash_profile
+
+ENTRYPOINT ["/opt/gaussdb/entrypoint.sh"]
+EXPOSE 5432
+CMD ["gaussdb"]
+</code></pre>
+<p>entrypoint.sh文件保持和 <a href="https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb">https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb</a> 中一致<br/>
+GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin文件的提取 参考 <a href="https://www.darkathena.top/archives/GaussDB-How-to-Extract-Kernel-Binaries-from-the-Release-Package">https://www.darkathena.top/archives/GaussDB-How-to-Extract-Kernel-Binaries-from-the-Release-Package</a></p>
+<p>构建命令</p>
+<pre><code class="prism language-bash">export DOCKER_BUILDKIT=0
+docker build -t mini-gaussdb .
+</code></pre>
+<p>镜像大小302MB</p>
+<pre><code class="prism language-bash">[root@ky10-sp3 gauss]# docker image list
+REPOSITORY               TAG               IMAGE ID       CREATED          SIZE
+mini-gaussdb             latest            fa02cdf6e1b5   8 seconds ago    302MB
+kylinv10sp3-minimal      latest            ea73e828e507   20 minutes ago   191MB
+</code></pre>
+<p>创建容器</p>
+<pre><code class="prism language-bash">docker run --name gaussdb506.0 -d -p 8000:5432 mini-gaussdb
+docker logs gaussdb506.0 -f -n 20
+</code></pre>
+<p>跟踪日志，观察到成功启动</p>
+<p>导出压缩镜像</p>
+<pre><code class="prism language-bash">docker save mini-gaussdb | gzip &gt; mini-gaussdb.tar.gz
+docker save mini-gaussdb | bzip2 &gt; mini-gaussdb.tar.bz2
+docker save mini-gaussdb | xz &gt; mini-gaussdb.tar.xz
+</code></pre>
+<p>最小可以到146MB，因为GaussDB的内核包就是7z压过的，所以大小也就是在系统基础镜像的基础上增加了GaussDB内核包的大小。</p>
+<pre><code class="prism language-bash">[root@ky10-sp3 gauss]# ls -lh mini*
+-rw-r--r-- 1 root root 163M Oct 13 14:02 mini-gaussdb.tar.bz2
+-rw-r--r-- 1 root root 172M Oct 13 14:01 mini-gaussdb.tar.gz
+-rw-r--r-- 1 root root 146M Oct 13 14:05 mini-gaussdb.tar.xz
+</code></pre>
+<h3 id="环境差异">环境差异</h3>
+<p>本文所使用的环境信息：</p>
+<pre><code class="prism language-bash">[root@ky10-sp3 gauss]# uname -a
+Linux ky10-sp3 4.19.90-52.22.v2207.ky10.x86_64 #1 SMP Tue Mar 14 12:19:10 CST 2023 x86_64 x86_64 x86_64 GNU/Linux
+[root@ky10-sp3 gauss]# docker --version
+Docker version 25.0.3, build 4debf41
+</code></pre>
+<p>相同脚本在arm64上的kylin v10 sp3+docker 18 (TPOPS自带的版本)可以构建成功，但是数据库容器的端口映射不出来。而且同样是kylin v10 sp3，x86_64和arm64两个平台版本的系统组件之间的依赖关系也有差异（比如ARM64不会自动装unbound）。另外建议构建ARM版本操作系统镜像时补充安装iproute和procps-ng，因为su切换时和执行gs_guc命令时会用到ip、free等相关命令。</p>
+<p>目前暂没有环境可以测试验证是基础镜像系统包安装不全，还是docker版本过低或是docker有特殊配置，导致无法在arm64上映射出容器端口，不过可以用<code>--net=host</code>直接共享主机网络，这样也可以从容器外访问数据库服务，因此该问题暂时搁置。</p>
+<h2 id="总结">总结</h2>
+<p>本次通过从构建操作系统的docker镜像开始，到构建出gaussdb的docker镜像,最终得到了大小仅为146MB的GaussDB的docker镜像，并获得一些知识点<br/>
+1.<code>yum --installroot</code>可以生成一个基本的操作系统目录，且可以安装自己需要的组件<br/>
+2.新的docker有buildx，构建镜像时可能不会自动导入，需要加–load的参数，或者临时设置<code>export DOCKER_BUILDKIT=0</code><br/>
+3.减少locale-archived文件的大小需要用到<code>localedef</code>和<code>build-locale-archived</code>命令<br/>
+4.docker支持直接导入压缩的镜像，测试至少支持的格式为tar.gz/tar.bz2/tar.xz</p>
+<blockquote>
+<p>免责声明：本文中的方案为实验性研究，非华为官方提供，禁止用于生产环境。使用本方案所产生的任何问题，华为公司和本人均不承担任何责任。</p>
+</blockquote>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,388 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<div class="vditor-toc" contenteditable="false" data-block="0" data-type="toc-block"><ul><li><span data-target-id="前言">前言</span><ul><li><span data-target-id="关于Mogeaver">关于Mogeaver</span></li><li><span data-target-id="为什么选择Mogeaver">为什么选择Mogeaver</span></li><li><span data-target-id="版本说明">版本说明</span></li><li><span data-target-id="下载地址">下载地址</span></li></ul></li><li><span data-target-id="一-界面布局说明">一、界面布局说明</span><ul><li><span data-target-id="1-菜单栏">1.菜单栏</span></li><li><span data-target-id="2-工具栏">2.工具栏</span></li><li><span data-target-id="3-快捷栏">3.快捷栏</span></li><li><span data-target-id="4-工作区">4.工作区</span></li></ul></li><li><span data-target-id="二-连接">二、连接</span><ul><li><span data-target-id="1--常规">1. 常规</span></li><li><span data-target-id="2-显示所有数据库">2.显示所有数据库</span></li><li><span data-target-id="3-切换当前SQL窗口连接的数据库和schema">3.切换当前SQL窗口连接的数据库和schema</span></li><li><span data-target-id="4--配置dbms-output输出">4. 配置dbms_output输出</span></li><li><span data-target-id="5--配置C风格注释">5. 配置C风格注释</span></li></ul></li><li><span data-target-id="三-数据库导航">三、数据库导航</span><ul><li><span data-target-id="1--查看对象列表">1. 查看对象列表</span></li><li><span data-target-id="2--按名称过滤对象">2. 按名称过滤对象</span></li><li><span data-target-id="3--查看对象属性">3. 查看对象属性</span></li></ul></li><li><span data-target-id="四-对象属性">四、对象属性</span><ul><li><span data-target-id="1-属性">1.属性</span></li><li><span data-target-id="2-查看DDL">2.查看DDL</span></li><li><span data-target-id="3-数据-只有表和视图有-">3.数据（只有表和视图有）</span></li></ul></li><li><span data-target-id="五-SQL编辑器">五、SQL编辑器</span><ul><li><span data-target-id="1--SQL编辑器概述">1. SQL编辑器概述</span></li><li><span data-target-id="2--切换手动提交-自动提交">2. 切换手动提交、自动提交</span></li><li><span data-target-id="3--列编辑模式-块选择-">3. 列编辑模式（块选择）</span></li><li><span data-target-id="4--快捷键">4. 快捷键</span></li><li><span data-target-id="5--大小写转换">5. 大小写转换</span></li><li><span data-target-id="6--SQL模板">6. SQL模板</span></li><li><span data-target-id="7--修改字体大小">7. 修改字体大小</span></li><li><span data-target-id="8--历史执行记录">8. 历史执行记录</span></li><li><span data-target-id="9--执行多条SQL">9. 执行多条SQL</span></li><li><span data-target-id="10--显示行号">10. 显示行号</span></li><li><span data-target-id="11--查看SQL的执行计划">11. 查看SQL的执行计划</span></li><li><span data-target-id="12--查看输出">12. 查看输出</span></li><li><span data-target-id="13--定位执行SQL的错误位置">13. 定位执行SQL的错误位置</span></li><li><span data-target-id="14--存储过程报错行数解读-以及找到对应代码">14. 存储过程报错行数解读，以及找到对应代码</span></li></ul></li><li><span data-target-id="六-数据查看-编辑器">六、数据查看/编辑器</span><ul><li><span data-target-id="1--日期时间格式">1. 日期时间格式</span></li><li><span data-target-id="2--数字格式">2. 数字格式</span></li><li><span data-target-id="3--查看游标">3. 查看游标</span></li><li><span data-target-id="4--导出数据">4. 导出数据</span></li><li><span data-target-id="5--修改记录">5. 修改记录</span></li><li><span data-target-id="6--粘贴多行记录">6. 粘贴多行记录</span></li></ul></li><li><span data-target-id="七-调试">七、调试</span><ul><li><span data-target-id="1--调试步骤">1. 调试步骤</span></li><li><span data-target-id="2--调试时的各种报错">2. 调试时的各种报错</span></li></ul></li><li><span data-target-id="八-其他">八、其他</span><ul><li><span data-target-id="1--拖动各种后缀的文件到mogeaver里打开">1. 拖动各种后缀的文件到mogeaver里打开</span></li><li><span data-target-id="2--变更运行软件的版本时需要执行的操作">2. 变更运行软件的版本时需要执行的操作</span></li><li><span data-target-id="3--多开如何避免目录冲突">3. 多开如何避免目录冲突</span></li><li><span data-target-id="4--设置JVM内存大小">4. 设置JVM内存大小</span></li><li><span data-target-id="5--设置mogeaver日志级别">5. 设置mogeaver日志级别</span></li><li><span data-target-id="6--执行SQL脚本容易犯错的情况">6. 执行SQL脚本容易犯错的情况</span></li><li><span data-target-id="7--命令行方式启动连接-集成进堡垒机-">7. 命令行方式启动连接（集成进堡垒机）</span></li><li><span data-target-id="8--数据导入时自动给表增加了字段">8. 数据导入时自动给表增加了字段</span></li><li><span data-target-id="9--在kylin-v10-桌面版上使用Mogeaver">9. 在kylin v10 桌面版上使用Mogeaver</span></li><li><span data-target-id="10--在UOS桌面版上使用Mogeaver">10. 在UOS桌面版上使用Mogeaver</span></li><li><span data-target-id="11--多个人在修改同一个数据库内的某个package-有人看到的不是最新的代码">11. 多个人在修改同一个数据库内的某个package，有人看到的不是最新的代码</span></li></ul></li></ul></div>
+<h2 id="前言">前言</h2>
+<h3 id="关于Mogeaver">关于Mogeaver</h3>
+<p>Mogeaver [moˈgi:və(r) ] 基于流行的开源图形化工具<a href="https://dbeaver.io/">DBeaver</a>，在严格遵循DBeaver Community Edition 的<a href="https://dbeaver.io/product/dbeaver_license.txt">ASL</a>开源协议基础上，进行了二次开发和封装，支持对于MogDB数据库的图形化开发及管理，支持通过图形化的方式创建，修改，调试数据库内的存储过程，自定义函数，及包。</p>
+<h3 id="为什么选择Mogeaver">为什么选择Mogeaver</h3>
+<ul>
+<li>多平台支持
+<ul>
+<li>支持macOS Intel版本，支持macOS Apple Silicon版本，</li>
+<li>支持Windows，包括但不限于Windows 10， Windows 11</li>
+<li>支持Linux，包括但不限于openEuler，Kylin Linux，UOS，Ubuntu，CentOS</li>
+</ul>
+</li>
+<li>兼容MogDB/openGauss的特性
+<ul>
+<li>支持创建数据库选择不同的兼容模式（A，B，PG）</li>
+<li>支持管理MogDB数据库角色（role）</li>
+<li>支持管理Large序列（MogDB 3.0之后版本支持）</li>
+<li>支持管理分区表（Partition Table）</li>
+<li>支持管理数据库内任务（Job）</li>
+<li>支持BLOB和CLOB字段的修改和查看</li>
+</ul>
+</li>
+<li>支持图形化调试
+<ul>
+<li>支持MogDB服务端的dbe_pldebugger调试功能</li>
+<li>支持断点调试和单步调试</li>
+<li>支持查看调试中变量值实时变化</li>
+<li>支持定位并跳转至准确的代码报错位置</li>
+</ul>
+</li>
+</ul>
+<h3 id="版本说明">版本说明</h3>
+<p>本文基于Mogeaver 23.3.1版本进行演示说明，部分特性在旧版本中不支持。</p>
+<h3 id="下载地址">下载地址</h3>
+<p><a href="https://docs.mogdb.io/zh/mogdb/v5.0/mogeaver-release-notes">https://docs.mogdb.io/zh/mogdb/v5.0/mogeaver-release-notes</a></p>
+<h2 id="一-界面布局说明">一、界面布局说明</h2>
+<p>Mogeaver窗口包含菜单栏、工具栏、一个或多个编辑器和视图的工作区以及状态栏</p>
+<p><img alt="image-razl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-razl.png" srcset="/upload/image-razl.png?width=1200 1200w, /upload/image-razl.png?width=400 400w, /upload/image-razl.png?width=1600 1600w, /upload/image-razl.png?width=800 800w"/></p>
+<h3 id="1-菜单栏">1.菜单栏</h3>
+<p>默认情况下，菜单栏包含以下菜单：</p>
+<ul>
+<li><strong>文件(File)</strong> 菜单包含用于创建文件、文件夹、<a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/Projects">项目</a>、<a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/Create-Connection">数据库连接</a>、数据库项目、 <a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/ER-Diagrams">ER 图</a>以及导入和导出项的菜单项。</li>
+<li><strong>编辑(Edit)</strong> 菜单包含全局命令，如剪切、复制、粘贴、删除和针对活动元素的<a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/Bookmarks">添加书签</a>。</li>
+<li><strong>导航(Navigate)</strong> 菜单允许通过脚本和数据库对象进行导航。</li>
+<li><strong>搜索(Search)</strong> 菜单提供在文件数据库对象和跨数据中<a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/Search">搜索</a>的选项。</li>
+<li><strong>SQL 编辑器(SQL Editor)</strong> 菜单用于打开<a href="https://www.darkathena.top/docs/dbeaver-chinese-docs/zh/dbeaver/index.html#/SQL-Editor">SQL 编辑器</a>并管理其外观。</li>
+<li><strong>数据库(Database)</strong> 菜单允许管理数据库驱动程序、连接和事务，并重新连接到数据库或从数据库断开连接。</li>
+<li><strong>窗口(Window)</strong> 菜单包括管理 Mogeaver 窗口外观的项：显示/隐藏和最小化/最大化视图和 编辑器、显示栏、分割编辑器以及管理其他首选项。</li>
+<li><strong>帮助(Help)</strong> 菜单包含信息和帮助资源的链接，以及检查版本号和更新可用性的菜单项。</li>
+</ul>
+<p>您可以自定义菜单栏和要显示的菜单项列表；为此，请转到 <strong>窗口(Window)</strong> -&gt; <strong>自定义 视角(Customize Perspective)</strong> -&gt; <strong>菜单可见性(Menu Visibility)</strong> 标签页。</p>
+<h3 id="2-工具栏">2.工具栏</h3>
+<p>工具栏包含最基本和最常用命令的按钮：</p>
+<p><img alt="image-ybuf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ybuf.png" srcset="/upload/image-ybuf.png?width=1200 1200w, /upload/image-ybuf.png?width=400 400w, /upload/image-ybuf.png?width=1600 1600w, /upload/image-ybuf.png?width=800 800w"/></p>
+<p>有些按钮是启用的(彩色的)，有些则是禁用的(灰色的)。根据工作区中活动的编辑器，启用和禁用按钮的集合会发生变化。只有启用的按钮适用于活动视图 或编辑器。</p>
+<h3 id="3-快捷栏">3.快捷栏</h3>
+<p>工作区域的左侧和右侧各有一个快捷栏。快捷栏托管视图和编辑器的快捷方式，如果至少有一个视图或编辑器最小化，则会显示，否则它们会隐藏</p>
+<h3 id="4-工作区">4.工作区</h3>
+<p>视图是工作区内的窗口，提供信息的展示和导航方式。</p>
+<p>编辑器是您可以与文件和数据库的内容进行交互的窗口。</p>
+<p>视图和编辑器可以作为单独的窗口出现，或者与其他视图/编辑器堆叠在一个标签式窗口中。 以下图片显示了一个标签式窗口的标题栏。如果标签不适合标题栏，则它们会隐藏。 要查看隐藏的标签列表，请点击显示列表图标，该图标还表示它们的数量：</p>
+<p><img alt="image-vgzy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vgzy.png" srcset="/upload/image-vgzy.png?width=1200 1200w, /upload/image-vgzy.png?width=400 400w, /upload/image-vgzy.png?width=1600 1600w, /upload/image-vgzy.png?width=800 800w"/></p>
+<p>几个视图和编辑器可以同时在工作区打开，但一次只能有一个处于活动状态。</p>
+<p>您可以通过打开和关闭视图、将它们停靠在工作区的不同位置、将它们折叠到快捷栏或扩展它们以占据整个工作区并将它们恢复到最新的停靠位置来更改工作区的布局。</p>
+<h2 id="二-连接">二、连接</h2>
+<h3 id="1--常规">1. 常规</h3>
+<p>点击菜单栏 <code>数据库</code>-<code>新建数据库连接</code></p>
+<p><img alt="image-vpbb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vpbb.png" srcset="/upload/image-vpbb.png?width=1200 1200w, /upload/image-vpbb.png?width=400 400w, /upload/image-vpbb.png?width=1600 1600w, /upload/image-vpbb.png?width=800 800w"/></p>
+<p>选择 <code>MogDB</code>数据库</p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image.png" srcset="/upload/image.png?width=1200 1200w, /upload/image.png?width=400 400w, /upload/image.png?width=1600 1600w, /upload/image.png?width=800 800w"/></p>
+<p>填写 <code>主机地址</code>、<code>端口</code>、<code>数据库名</code>、<code>用户名</code>、<code>密码</code>，</p>
+<p><img alt="image-bhbk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bhbk.png" srcset="/upload/image-bhbk.png?width=1200 1200w, /upload/image-bhbk.png?width=400 400w, /upload/image-bhbk.png?width=1600 1600w, /upload/image-bhbk.png?width=800 800w"/></p>
+<p>点击 <code>测试连接</code>，出现下图表示连接正常</p>
+<p><img alt="image-mmpc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mmpc.png" srcset="/upload/image-mmpc.png?width=1200 1200w, /upload/image-mmpc.png?width=400 400w, /upload/image-mmpc.png?width=1600 1600w, /upload/image-mmpc.png?width=800 800w"/></p>
+<p>点击 <code>Finish</code>完成连接创建</p>
+<h3 id="2-显示所有数据库">2.显示所有数据库</h3>
+<p>默认情况下，用上述方式新建的连接，只会显示指定连接的库，不会显示该实例下的其他数据库，可以在连接上，点击鼠标右键-编辑连接，在 <code>MogDB</code>选项卡中勾选 <code>显示所有数据库</code></p>
+<p><img alt="image-hgbt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hgbt.png" srcset="/upload/image-hgbt.png?width=1200 1200w, /upload/image-hgbt.png?width=400 400w, /upload/image-hgbt.png?width=1600 1600w, /upload/image-hgbt.png?width=800 800w"/></p>
+<p><img alt="image-azex.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-azex.png" srcset="/upload/image-azex.png?width=1200 1200w, /upload/image-azex.png?width=400 400w, /upload/image-azex.png?width=1600 1600w, /upload/image-azex.png?width=800 800w"/></p>
+<h3 id="3-切换当前SQL窗口连接的数据库和schema">3.切换当前SQL窗口连接的数据库和schema</h3>
+<p><img alt="image-kdjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kdjd.png" srcset="/upload/image-kdjd.png?width=1200 1200w, /upload/image-kdjd.png?width=400 400w, /upload/image-kdjd.png?width=1600 1600w, /upload/image-kdjd.png?width=800 800w"/></p>
+<p><img alt="image-hihq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hihq.png" srcset="/upload/image-hihq.png?width=1200 1200w, /upload/image-hihq.png?width=400 400w, /upload/image-hihq.png?width=1600 1600w, /upload/image-hihq.png?width=800 800w"/></p>
+<h3 id="4--配置dbms-output输出">4. 配置dbms_output输出</h3>
+<p>默认情况下，dbms_output不会输出到控制台（pldsql developer是自动执行了一下 <code>dbms_output.enable</code>）,可以在连接上，点击鼠标右键-编辑连接，在 <code>MogDB</code>选项卡中勾选 <code>启用DBMS输出</code></p>
+<p><img alt="image-kfti.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kfti.png" srcset="/upload/image-kfti.png?width=1200 1200w, /upload/image-kfti.png?width=400 400w, /upload/image-kfti.png?width=1600 1600w, /upload/image-kfti.png?width=800 800w"/></p>
+<p>然后执行 <code>dbms_output.put_line</code>，即可在输出窗口中看到dbms_output的输出信息</p>
+<p><img alt="image-hkvf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hkvf.png" srcset="/upload/image-hkvf.png?width=1200 1200w, /upload/image-hkvf.png?width=400 400w, /upload/image-hkvf.png?width=1600 1600w, /upload/image-hkvf.png?width=800 800w"/></p>
+<h3 id="5--配置C风格注释">5. 配置C风格注释</h3>
+<p>默认情况下，Mogeaver的块注释按照postgresql的风格进行高亮，即支持嵌套注释。但是ORACLE风格的块注释是C语言风格的，不支持嵌套注释，遇到第一个块注释结尾就认为整段注释结束。<br/>
+由于MogDB 5.2.0版本起，也支持了ORACLE风格块注释，因此Mogeaver也新增一个选项，用于切换注释高亮风格。可以在连接上，点击鼠标右键-编译连接，在 <code>MogDB</code>选项卡中勾选 <code>Enable C Style Comment</code></p>
+<p>开关的对比效果如下</p>
+<p><img alt="image-uhwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uhwk.png" srcset="/upload/image-uhwk.png?width=1200 1200w, /upload/image-uhwk.png?width=400 400w, /upload/image-uhwk.png?width=1600 1600w, /upload/image-uhwk.png?width=800 800w"/></p>
+<p>注意该选项需要配合数据库的 <code>enable_oracle_comment</code>参数使用</p>
+<h2 id="三-数据库导航">三、数据库导航</h2>
+<p>数据库导航器是用于处理数据库结构和内容的主视图。</p>
+<h3 id="1--查看对象列表">1. 查看对象列表</h3>
+<p><img alt="image-fofq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fofq.png" srcset="/upload/image-fofq.png?width=1200 1200w, /upload/image-fofq.png?width=400 400w, /upload/image-fofq.png?width=1600 1600w, /upload/image-fofq.png?width=800 800w"/></p>
+<h3 id="2--按名称过滤对象">2. 按名称过滤对象</h3>
+<p><img alt="image-ydyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ydyx.png" srcset="/upload/image-ydyx.png?width=1200 1200w, /upload/image-ydyx.png?width=400 400w, /upload/image-ydyx.png?width=1600 1600w, /upload/image-ydyx.png?width=800 800w"/></p>
+<h3 id="3--查看对象属性">3. 查看对象属性</h3>
+<p>在对象名称上双击，或者鼠标右键-查看</p>
+<p><img alt="image-lpwf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lpwf.png" srcset="/upload/image-lpwf.png?width=1200 1200w, /upload/image-lpwf.png?width=400 400w, /upload/image-lpwf.png?width=1600 1600w, /upload/image-lpwf.png?width=800 800w"/></p>
+<h2 id="四-对象属性">四、对象属性</h2>
+<h3 id="1-属性">1.属性</h3>
+<p><img alt="image-ktps.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ktps.png" srcset="/upload/image-ktps.png?width=1200 1200w, /upload/image-ktps.png?width=400 400w, /upload/image-ktps.png?width=1600 1600w, /upload/image-ktps.png?width=800 800w"/></p>
+<h3 id="2-查看DDL">2.查看DDL</h3>
+<p><img alt="image-dsxm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-dsxm.png" srcset="/upload/image-dsxm.png?width=1200 1200w, /upload/image-dsxm.png?width=400 400w, /upload/image-dsxm.png?width=1600 1600w, /upload/image-dsxm.png?width=800 800w"/></p>
+<h3 id="3-数据-只有表和视图有-">3.数据（只有表和视图有）</h3>
+<p><img alt="image-nrhn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nrhn.png" srcset="/upload/image-nrhn.png?width=1200 1200w, /upload/image-nrhn.png?width=400 400w, /upload/image-nrhn.png?width=1600 1600w, /upload/image-nrhn.png?width=800 800w"/></p>
+<h2 id="五-SQL编辑器">五、SQL编辑器</h2>
+<p>要开始使用SQL编辑器，您有几种选择：</p>
+<ol>
+<li><strong>通过数据库导航器</strong>：
+<ul>
+<li>在[数据库导航器]视图中导航到所需的数据库连接。</li>
+<li>按F4或从主菜单中选择<strong>SQL编辑器</strong> -&gt; <strong>打开SQL脚本</strong>，或者右键单击连接并从上下文菜单中选择<strong>打开SQL脚本</strong>。</li>
+<li>会出现一个<strong>选择SQL脚本</strong>窗口。单击任何脚本以在新选项卡中打开它。</li>
+</ul>
+</li>
+<li><strong>打开最近的SQL脚本</strong>：
+<ul>
+<li>右键单击您的数据库连接，并从上下文菜单中选择<strong>SQL编辑器</strong> -&gt; <strong>最近的SQL脚本</strong>，或从主菜单中选择<strong>SQL编辑器</strong> -&gt; <strong>最近的SQL脚本</strong>。或者在[数据库导航器]视图中使用Ctrl+Enter快捷键。</li>
+<li>会出现一个<strong>选择SQL脚本</strong>窗口。单击任何脚本以在新选项卡中打开它。</li>
+</ul>
+</li>
+<li><strong>创建新SQL脚本</strong>：
+<ul>
+<li>在主菜单中导航到<strong>SQL编辑器 -&gt; 新建SQL编辑器</strong>。</li>
+<li>按F3并在<strong>选择SQL脚本</strong>窗口中单击<strong>新建脚本</strong>。</li>
+</ul>
+</li>
+</ol>
+<p><strong>注意</strong>：连接的SQL编辑器与表或视图的SQL控制台不同。SQL编辑器可以保存脚本及其所做的更改，而控制台不保存。</p>
+<p>您可以在[项目资源管理器]视图中的<strong>脚本</strong>文件夹中看到所有已保存的SQL脚本。。</p>
+<h3 id="1--SQL编辑器概述">1. SQL编辑器概述</h3>
+<p>SQL编辑器包含脚本面板、工具栏和结果面板。</p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png" srcset="/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1200 1200w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=400 400w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1600 1600w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=800 800w"/></p>
+<p><strong>提示</strong>：您可以按Alt+Enter或右键单击并导航到<strong>首选项</strong>来打开SQL编辑器首选项。</p>
+<h3 id="2--切换手动提交-自动提交">2. 切换手动提交、自动提交</h3>
+<p>默认新建的连接为自动提交，可根据需要改成手动提交（注意长时间持有未提交事务可能会造成其他会话被阻塞）</p>
+<p><img alt="image-auki.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-auki.png" srcset="/upload/image-auki.png?width=1200 1200w, /upload/image-auki.png?width=400 400w, /upload/image-auki.png?width=1600 1600w, /upload/image-auki.png?width=800 800w"/></p>
+<h3 id="3--列编辑模式-块选择-">3. 列编辑模式（块选择）</h3>
+<p>菜单栏-<code>编辑</code>-<code>Toggle Block Selection</code>,开启后，鼠标在SQL编辑器区域会变为十字型，此时可以按列选择、复制、输入</p>
+<p><img alt="image-aduh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aduh.png" srcset="/upload/image-aduh.png?width=1200 1200w, /upload/image-aduh.png?width=400 400w, /upload/image-aduh.png?width=1600 1600w, /upload/image-aduh.png?width=800 800w"/></p>
+<p><img alt="image-igwc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-igwc.png" srcset="/upload/image-igwc.png?width=1200 1200w, /upload/image-igwc.png?width=400 400w, /upload/image-igwc.png?width=1600 1600w, /upload/image-igwc.png?width=800 800w"/></p>
+<p><img alt="image-tdog.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tdog.png" srcset="/upload/image-tdog.png?width=1200 1200w, /upload/image-tdog.png?width=400 400w, /upload/image-tdog.png?width=1600 1600w, /upload/image-tdog.png?width=800 800w"/></p>
+<h3 id="4--快捷键">4. 快捷键</h3>
+<p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>用户界面</code>-<code>Keys</code></p>
+<p><img alt="image-nblt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nblt.png" srcset="/upload/image-nblt.png?width=1200 1200w, /upload/image-nblt.png?width=400 400w, /upload/image-nblt.png?width=1600 1600w, /upload/image-nblt.png?width=800 800w"/></p>
+<p>可以输入菜单名称进行过滤，在 <code>Binding</code>处修改快捷键，比如 <code>alter+shift+A</code>是企业微信的截图键，和列编辑模式冲突，我们可以把这个快捷键修改成其他组合。另外还要修改生效范围，即 <code>When</code>,修改到 <code>SQL编辑器上下文</code></p>
+<h3 id="5--大小写转换">5. 大小写转换</h3>
+<p>选中需要转换的文本，鼠标右键-格式-<code>to Upper Case</code>,转换成大写；<code>to Lower Case</code>转换成小写。或者选中文本后，按对应的快捷键</p>
+<p><img alt="image-qdzf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qdzf.png" srcset="/upload/image-qdzf.png?width=1200 1200w, /upload/image-qdzf.png?width=400 400w, /upload/image-qdzf.png?width=1600 1600w, /upload/image-qdzf.png?width=800 800w"/></p>
+<h3 id="6--SQL模板">6. SQL模板</h3>
+<p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>SQL编辑器</code>-<code>模板</code>，目前版本预置了5个模板，可自定义</p>
+<p><img alt="image-uabs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uabs.png" srcset="/upload/image-uabs.png?width=1200 1200w, /upload/image-uabs.png?width=400 400w, /upload/image-uabs.png?width=1600 1600w, /upload/image-uabs.png?width=800 800w"/></p>
+<p>使用方式举例：<br/>
+在SQL编辑器中输入 <code>sf</code>,然后按键盘的 <code>tab</code>键</p>
+<p><img alt="image-xdgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xdgz.png" srcset="/upload/image-xdgz.png?width=1200 1200w, /upload/image-xdgz.png?width=400 400w, /upload/image-xdgz.png?width=1600 1600w, /upload/image-xdgz.png?width=800 800w"/></p>
+<p><img alt="image-lvyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lvyx.png" srcset="/upload/image-lvyx.png?width=1200 1200w, /upload/image-lvyx.png?width=400 400w, /upload/image-lvyx.png?width=1600 1600w, /upload/image-lvyx.png?width=800 800w"/></p>
+<h3 id="7--修改字体大小">7. 修改字体大小</h3>
+<p>SQL编辑器和数值查看器：</p>
+<p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>用户界面</code>-<code>Appearance</code>-<code>Colors and fonts</code>-<code>Dbeaver Fonts</code>-<code>Monospace font</code></p>
+<p><img alt="image-efiz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-efiz.png" srcset="/upload/image-efiz.png?width=1200 1200w, /upload/image-efiz.png?width=400 400w, /upload/image-efiz.png?width=1600 1600w, /upload/image-efiz.png?width=800 800w"/></p>
+<p><img alt="image-hwoy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hwoy.png" srcset="/upload/image-hwoy.png?width=1200 1200w, /upload/image-hwoy.png?width=400 400w, /upload/image-hwoy.png?width=1600 1600w, /upload/image-hwoy.png?width=800 800w"/></p>
+<h3 id="8--历史执行记录">8. 历史执行记录</h3>
+<p>点击SQL编辑器的工具栏中的</p>
+<p><img alt="image-qiwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qiwk.png" srcset="/upload/image-qiwk.png?width=1200 1200w, /upload/image-qiwk.png?width=400 400w, /upload/image-qiwk.png?width=1600 1600w, /upload/image-qiwk.png?width=800 800w"/></p>
+<p>会展示该SQL窗口执行过的SQL及相关执行信息</p>
+<p><img alt="image-sbrw.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sbrw.png" srcset="/upload/image-sbrw.png?width=1200 1200w, /upload/image-sbrw.png?width=400 400w, /upload/image-sbrw.png?width=1600 1600w, /upload/image-sbrw.png?width=800 800w"/></p>
+<h3 id="9--执行多条SQL">9. 执行多条SQL</h3>
+<p>选择多条SQL，点击SQL编辑器的工具栏中的</p>
+<p><img alt="image-uvvj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uvvj.png" srcset="/upload/image-uvvj.png?width=1200 1200w, /upload/image-uvvj.png?width=400 400w, /upload/image-uvvj.png?width=1600 1600w, /upload/image-uvvj.png?width=800 800w"/></p>
+<p><img alt="image-jjuo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jjuo.png" srcset="/upload/image-jjuo.png?width=1200 1200w, /upload/image-jjuo.png?width=400 400w, /upload/image-jjuo.png?width=1600 1600w, /upload/image-jjuo.png?width=800 800w"/></p>
+<p>注意该按钮无法识别 <code>/</code>为语句分隔符</p>
+<h3 id="10--显示行号">10. 显示行号</h3>
+<p>方法一：在SQL编辑器左侧的空白处点击鼠标右键，选择 <code>Show Line Numbers</code>,该方法仅为此窗口临时开启</p>
+<p><img alt="image-wuvs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wuvs.png" srcset="/upload/image-wuvs.png?width=1200 1200w, /upload/image-wuvs.png?width=400 400w, /upload/image-wuvs.png?width=1600 1600w, /upload/image-wuvs.png?width=800 800w"/></p>
+<p>方法二：菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>Text Editors</code>,勾选 <code>Show Line Numbers</code> ，该方法为全局开启</p>
+<p><img alt="image-diqe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-diqe.png" srcset="/upload/image-diqe.png?width=1200 1200w, /upload/image-diqe.png?width=400 400w, /upload/image-diqe.png?width=1600 1600w, /upload/image-diqe.png?width=800 800w"/></p>
+<h3 id="11--查看SQL的执行计划">11. 查看SQL的执行计划</h3>
+<p>选择待分析的SQL，点击SQL编辑器的工具栏中的</p>
+<p><img alt="image-cpuc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-cpuc.png" srcset="/upload/image-cpuc.png?width=1200 1200w, /upload/image-cpuc.png?width=400 400w, /upload/image-cpuc.png?width=1600 1600w, /upload/image-cpuc.png?width=800 800w"/><br/>
+根据需要勾选相关的选项，点击提交</p>
+<p><img alt="image-dnhj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-dnhj.png" srcset="/upload/image-dnhj.png?width=1200 1200w, /upload/image-dnhj.png?width=400 400w, /upload/image-dnhj.png?width=1600 1600w, /upload/image-dnhj.png?width=800 800w"/></p>
+<p><img alt="image-njif.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-njif.png" srcset="/upload/image-njif.png?width=1200 1200w, /upload/image-njif.png?width=400 400w, /upload/image-njif.png?width=1600 1600w, /upload/image-njif.png?width=800 800w"/></p>
+<p>注意如果勾选了 <code>ANALYSE</code>,SQL会真实执行一次</p>
+<h3 id="12--查看输出">12. 查看输出</h3>
+<p>点击SQL编辑器的工具栏中的</p>
+<p><img alt="image-iyhh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iyhh.png" srcset="/upload/image-iyhh.png?width=1200 1200w, /upload/image-iyhh.png?width=400 400w, /upload/image-iyhh.png?width=1600 1600w, /upload/image-iyhh.png?width=800 800w"/></p>
+<p>该窗口会显示 <code>raise notice</code>、<code>raise warning</code>以及 <code>dbms_output</code>返回到客户端的字符串</p>
+<p><img alt="image-wlju.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wlju.png" srcset="/upload/image-wlju.png?width=1200 1200w, /upload/image-wlju.png?width=400 400w, /upload/image-wlju.png?width=1600 1600w, /upload/image-wlju.png?width=800 800w"/></p>
+<h3 id="13--定位执行SQL的错误位置">13. 定位执行SQL的错误位置</h3>
+<p>执行SQL报错后，可以点击下方报错信息右边的 <code>Go To The Error</code>按钮，将光标自动移动到报错的位置。（注意该方式仅限于查看当前SQL文本的错误，不含SQL调用的存储过程内部的错误）</p>
+<p><img alt="image-jnrf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jnrf.png" srcset="/upload/image-jnrf.png?width=1200 1200w, /upload/image-jnrf.png?width=400 400w, /upload/image-jnrf.png?width=1600 1600w, /upload/image-jnrf.png?width=800 800w"/></p>
+<h3 id="14--存储过程报错行数解读-以及找到对应代码">14. 存储过程报错行数解读，以及找到对应代码</h3>
+<p>创建一个语法正确，但执行必定会报错的package,并执行它</p>
+<p><img alt="image-libt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-libt.png" srcset="/upload/image-libt.png?width=1200 1200w, /upload/image-libt.png?width=400 400w, /upload/image-libt.png?width=1600 1600w, /upload/image-libt.png?width=800 800w"/></p>
+<p>报错信息显示</p>
+<pre><code>ERROR: invalid input syntax for type numeric: "a"
+  在位置：PL/pgSQL function pkg_test.p2() line 5 at assignment
+SQL statement "CALL p2()"
+PL/pgSQL function pkg_test.p1() line 6 at PERFORM
+</code></pre>
+<p>此处 <code>ERROR:</code>表示消息级别为ERROR，后面接的 <code> invalid input syntax for type numeric: "a"</code>就是报错原因;</p>
+<p><code>在位置：PL/pgSQL function pkg_test.p2() line 5</code> 意为这个报错是在pkg_test.p2()的第5行被触发</p>
+<p>调用pkg_test.p2()的是 <code>PL/pgSQL function pkg_test.p1() line 6</code>，即pkg_test.p1()的第6行。</p>
+<p>我们可以打开这个package的p1和p2，根据行号找到对应的位置</p>
+<p><img alt="image-aijy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aijy.png" srcset="/upload/image-aijy.png?width=1200 1200w, /upload/image-aijy.png?width=400 400w, /upload/image-aijy.png?width=1600 1600w, /upload/image-aijy.png?width=800 800w"/></p>
+<p><img alt="image-smqs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-smqs.png" srcset="/upload/image-smqs.png?width=1200 1200w, /upload/image-smqs.png?width=400 400w, /upload/image-smqs.png?width=1600 1600w, /upload/image-smqs.png?width=800 800w"/></p>
+<p><img alt="image-vbgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vbgz.png" srcset="/upload/image-vbgz.png?width=1200 1200w, /upload/image-vbgz.png?width=400 400w, /upload/image-vbgz.png?width=1600 1600w, /upload/image-vbgz.png?width=800 800w"/></p>
+<p>注意Mogeaver支持查看package内单个procedure的代码，也支持按package查看代码。执行报错时返回的行号是单个procedure的行号，而非package的行号</p>
+<p><img alt="image-oggn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-oggn.png" srcset="/upload/image-oggn.png?width=1200 1200w, /upload/image-oggn.png?width=400 400w, /upload/image-oggn.png?width=1600 1600w, /upload/image-oggn.png?width=800 800w"/></p>
+<p><img alt="image-rlko.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rlko.png" srcset="/upload/image-rlko.png?width=1200 1200w, /upload/image-rlko.png?width=400 400w, /upload/image-rlko.png?width=1600 1600w, /upload/image-rlko.png?width=800 800w"/></p>
+<h2 id="六-数据查看-编辑器">六、数据查看/编辑器</h2>
+<h3 id="1--日期时间格式">1. 日期时间格式</h3>
+<p>默认情况下，Mogeaver查询结果显示的日期时间会格式化成保留秒后三位小数，不一定和数据库原始值一致，可以在 菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>数据编辑器</code>-<code>数据格式</code>，勾选 <code>禁用日期/时间格式</code>，或者在下方自定义期望的格式</p>
+<p><img alt="image-qsyf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qsyf.png" srcset="/upload/image-qsyf.png?width=1200 1200w, /upload/image-qsyf.png?width=400 400w, /upload/image-qsyf.png?width=1600 1600w, /upload/image-qsyf.png?width=800 800w"/></p>
+<h3 id="2--数字格式">2. 数字格式</h3>
+<p>默认情况下，Mogeaver查询结果显示的数值会格式化成按3位分组，如果不想要分组，可以在 菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>数据编辑器</code>-<code>数据格式</code>，勾选 <code>禁用数字格式化</code>，或者在下方自定义期望的格式</p>
+<p><img alt="image-wear.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wear.png" srcset="/upload/image-wear.png?width=1200 1200w, /upload/image-wear.png?width=400 400w, /upload/image-wear.png?width=1600 1600w, /upload/image-wear.png?width=800 800w"/></p>
+<h3 id="3--查看游标">3. 查看游标</h3>
+<p>切换成手动提交</p>
+<p><img alt="image-tiij.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tiij.png" srcset="/upload/image-tiij.png?width=1200 1200w, /upload/image-tiij.png?width=400 400w, /upload/image-tiij.png?width=1600 1600w, /upload/image-tiij.png?width=800 800w"/></p>
+<p>执行存储过程，鼠标选中需要查看的游标名称，右侧即可显示游标内的数据</p>
+<p><img alt="image-jved.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jved.png" srcset="/upload/image-jved.png?width=1200 1200w, /upload/image-jved.png?width=400 400w, /upload/image-jved.png?width=1600 1600w, /upload/image-jved.png?width=800 800w"/></p>
+<h3 id="4--导出数据">4. 导出数据</h3>
+<ul>
+<li>导出方法一：</li>
+</ul>
+<p>点击数据查看器下面的 <code>导出数据</code></p>
+<p><img alt="image-gzyn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-gzyn.png" srcset="/upload/image-gzyn.png?width=1200 1200w, /upload/image-gzyn.png?width=400 400w, /upload/image-gzyn.png?width=1600 1600w, /upload/image-gzyn.png?width=800 800w"/></p>
+<p>如果点击此处的 <code>Excel</code>或者 <code>网页浏览器</code>，会直接调用本地程序打开导出到本地临时目录中的文件；<br/>
+如果点击导出数据，则会弹出导出选项，可以选择需要导出的文件格式</p>
+<p><img alt="image-ziof.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ziof.png" srcset="/upload/image-ziof.png?width=1200 1200w, /upload/image-ziof.png?width=400 400w, /upload/image-ziof.png?width=1600 1600w, /upload/image-ziof.png?width=800 800w"/></p>
+<ul>
+<li>导出方法二：<br/>
+在查询的数据上鼠标右键-<code>高级复制</code>，此时会复制到操作系统剪贴板，可以粘贴到其他文本中。这在生成json/markdown格式数据时很方便。</li>
+</ul>
+<p><img alt="image-kafq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kafq.png" srcset="/upload/image-kafq.png?width=1200 1200w, /upload/image-kafq.png?width=400 400w, /upload/image-kafq.png?width=1600 1600w, /upload/image-kafq.png?width=800 800w"/></p>
+<ul>
+<li>导出方法三：</li>
+</ul>
+<p>在查询的数据上鼠标右键-<code>生成SQL</code>，可以快速生成对应数据的insert语句，方便测试时复制数据到其他环境</p>
+<p><img alt="image-fybm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fybm.png" srcset="/upload/image-fybm.png?width=1200 1200w, /upload/image-fybm.png?width=400 400w, /upload/image-fybm.png?width=1600 1600w, /upload/image-fybm.png?width=800 800w"/></p>
+<ul>
+<li>导出方法四：</li>
+</ul>
+<p>在数据库导航中，表上也可以点击鼠标右键，选择 <code>导出数据</code>或 <code>生成SQL</code>,操作和前面几种方法一致</p>
+<p><img alt="image-tezm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tezm.png" srcset="/upload/image-tezm.png?width=1200 1200w, /upload/image-tezm.png?width=400 400w, /upload/image-tezm.png?width=1600 1600w, /upload/image-tezm.png?width=800 800w"/></p>
+<h3 id="5--修改记录">5. 修改记录</h3>
+<p>查询表，然后直接编辑单元格内的数据，保存即可</p>
+<p><img alt="image-jnns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jnns.png" srcset="/upload/image-jnns.png?width=1200 1200w, /upload/image-jnns.png?width=400 400w, /upload/image-jnns.png?width=1600 1600w, /upload/image-jnns.png?width=800 800w"/></p>
+<p>注意在本机通过执行SQL的方式创建的表，mogeaver中的元数据不会立即更新，如果出现查询的数据为readonly状态，需要在数据库导航中手动刷新一下</p>
+<p><img alt="image-yinv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-yinv.png" srcset="/upload/image-yinv.png?width=1200 1200w, /upload/image-yinv.png?width=400 400w, /upload/image-yinv.png?width=1600 1600w, /upload/image-yinv.png?width=800 800w"/></p>
+<h3 id="6--粘贴多行记录">6. 粘贴多行记录</h3>
+<ul>
+<li>从查询结果中选定希望复制的数据，按 <code>ctrl+c</code></li>
+</ul>
+<p><img alt="image-afjy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-afjy.png" srcset="/upload/image-afjy.png?width=1200 1200w, /upload/image-afjy.png?width=400 400w, /upload/image-afjy.png?width=1600 1600w, /upload/image-afjy.png?width=800 800w"/></p>
+<ul>
+<li>将光标移到行末尾，点击下方的 <code>添加行</code>，会自动插入一个空行</li>
+</ul>
+<p><img alt="image-aqjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aqjd.png" srcset="/upload/image-aqjd.png?width=1200 1200w, /upload/image-aqjd.png?width=400 400w, /upload/image-aqjd.png?width=1600 1600w, /upload/image-aqjd.png?width=800 800w"/></p>
+<ul>
+<li>在空行上鼠标右键，<code>高级粘贴</code>，勾选 <code>插入多行</code>，点击 <code>OK</code></li>
+</ul>
+<p><img alt="image-iljn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iljn.png" srcset="/upload/image-iljn.png?width=1200 1200w, /upload/image-iljn.png?width=400 400w, /upload/image-iljn.png?width=1600 1600w, /upload/image-iljn.png?width=800 800w"/></p>
+<ul>
+<li>粘贴效果如下，点击 <code>保存</code>即可确认粘贴结果</li>
+</ul>
+<p><img alt="image-tfby.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tfby.png" srcset="/upload/image-tfby.png?width=1200 1200w, /upload/image-tfby.png?width=400 400w, /upload/image-tfby.png?width=1600 1600w, /upload/image-tfby.png?width=800 800w"/></p>
+<h2 id="七-调试">七、调试</h2>
+<h3 id="1--调试步骤">1. 调试步骤</h3>
+<ul>
+<li>在导航栏打开需要调试的入口存储过程，如果需要调试的package内的存储过程，也要打开到package内的这个存储过程</li>
+</ul>
+<p><img alt="image-nsrb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nsrb.png" srcset="/upload/image-nsrb.png?width=1200 1200w, /upload/image-nsrb.png?width=400 400w, /upload/image-nsrb.png?width=1600 1600w, /upload/image-nsrb.png?width=800 800w"/></p>
+<ul>
+<li>切换到 <code>源</code></li>
+</ul>
+<p><img alt="image-shph.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-shph.png" srcset="/upload/image-shph.png?width=1200 1200w, /upload/image-shph.png?width=400 400w, /upload/image-shph.png?width=1600 1600w, /upload/image-shph.png?width=800 800w"/></p>
+<ul>
+<li>点击上方工具栏的瓢虫按钮</li>
+</ul>
+<p><img alt="image-nqxe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nqxe.png" srcset="/upload/image-nqxe.png?width=1200 1200w, /upload/image-nqxe.png?width=400 400w, /upload/image-nqxe.png?width=1600 1600w, /upload/image-nqxe.png?width=800 800w"/></p>
+<p><img alt="image-etfn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-etfn.png" srcset="/upload/image-etfn.png?width=1200 1200w, /upload/image-etfn.png?width=400 400w, /upload/image-etfn.png?width=1600 1600w, /upload/image-etfn.png?width=800 800w"/></p>
+<ul>
+<li>输入参数（若有），点击 <code>OK</code>,进入调试</li>
+</ul>
+<p><img alt="image-ffpk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ffpk.png" srcset="/upload/image-ffpk.png?width=1200 1200w, /upload/image-ffpk.png?width=400 400w, /upload/image-ffpk.png?width=1600 1600w, /upload/image-ffpk.png?width=800 800w"/></p>
+<p>此时可以进行添加断点、单步执行、单步进入、查看变量、执行到最后等操作</p>
+<p>详细请参考演示视频<br/>
+https://www.bilibili.com/video/BV1vw4m1Q7LM</p>
+<h3 id="2--调试时的各种报错">2. 调试时的各种报错</h3>
+<ul>
+<li>输入字符类型参数时未加单引号，导致语法错误<br/>
+调试时输入的参数是字面量，甚至可以支持写比较长的表达式，因此输入的字符参数也必须要加单引号，否则可能会被认为是字段名或对象名</li>
+<li>之前本来可以调试的存储过程在没有进行任何修改情况下无法进行调试了<br/>
+两种情况，一种是本地操作非常多，缓存比较大了；另一种是变更了Mogeaver的版本，但Mogeaver的缓存未成功更新（比如有占用）。这两种情况都可以通过删除本地缓存的元数据目录解决。在Windows上的路径是</li>
+</ul>
+<pre><code>C:\Users\{用户名}\AppData\Roaming\MogeaverData\workspace6\.metadata
+</code></pre>
+<h2 id="八-其他">八、其他</h2>
+<h3 id="1--拖动各种后缀的文件到mogeaver里打开">1. 拖动各种后缀的文件到mogeaver里打开</h3>
+<p>默认情况下，可以拖动sql后缀的文件到Mogeaver的SQL编辑器中，但是拖动其他文件可能会变成调用操作系统的默认打开方式中的软件。Mogeaver支持自定义配置对应后缀的文件需要的打开方式。<br/>
+以 <code>*.pck</code>为例，在菜单栏-窗口-首选项-用户界面-Editors-File Associations ,在上面增加 <code>*.pck</code>的文件类型，并对应在下面关联上 <code>SQL编辑器</code></p>
+<p><img alt="image-uhhm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uhhm.png" srcset="/upload/image-uhhm.png?width=1200 1200w, /upload/image-uhhm.png?width=400 400w, /upload/image-uhhm.png?width=1600 1600w, /upload/image-uhhm.png?width=800 800w"/></p>
+<p>此时拖动pck文件到mogeaver中，即可自动创建一个SQL编辑器窗口打开这个文件</p>
+<h3 id="2--变更运行软件的版本时需要执行的操作">2. 变更运行软件的版本时需要执行的操作</h3>
+<p>一般情况下，变更Mogeaver的版本，只需要删除旧版本程序目录，启动新版本程序即可，但某些情况下，Mogeaver的java缓存可能更新异常，因此建议在变更Mogeaver版本时，手动删除以下目录</p>
+<pre><code>C:\Users\{用户名}\AppData\Roaming\MogeaverData\workspace6\.metadata
+</code></pre>
+<h3 id="3--多开如何避免目录冲突">3. 多开如何避免目录冲突</h3>
+<p>有些运维机是单个用户多个会话同时登录，此时多个操作系统会话不能同时打开Mogeaver程序，会提示有文件被占用。<br/>
+此时可以通过以下方式解决</p>
+<ul>
+<li>打开软件所在目录，鼠标右键 <code>mogeaver.exe</code>文件,点击 <code>创建快捷方式</code></li>
+<li>鼠标右键刚刚生成的快捷方式，点击 <code>属性</code></li>
+<li>在目标的最后输入 <code> -data data1</code>，点击 <code>确定</code></li>
+<li>此时通过打开此快捷方式启动的mogeaver，会使用 <code>data1</code>目录作为数据目录，和默认目录不冲突了</li>
+</ul>
+<p>当然也可以把data1改成其他路径，支持相对路径和绝对路径</p>
+<h3 id="4--设置JVM内存大小">4. 设置JVM内存大小</h3>
+<p>有些数据库内创建的对象非常多，存储过程代码量也非常大，有时候操作着会提示java虚拟机内存不足，需要经常重启软件才可以继续操作。<br/>
+可以打开程序目录下的mogeaver.ini文件，将下面两个参数改大（注意操作系统本身可用内存）</p>
+<pre><code>-Xms64m
+-Xmx1024m
+</code></pre>
+<p>重启mogeaver生效</p>
+<h3 id="5--设置mogeaver日志级别">5. 设置mogeaver日志级别</h3>
+<p>有时候某些SQL在gsql执行没有问题，但在mogeaver执行有问题，难以排查，可以通过设置客户端日志级别来记录更详细的日志<br/>
+打开程序目录下的mogeaver.ini文件，新增以下配置</p>
+<pre><code>-Ddbeaver.jdbc.trace=true
+</code></pre>
+<p>重启mogeaver生效，之后日志会生成在以下目录中</p>
+<pre><code>C:\Users\{用户名}\AppData\Roaming\MogeaverData\workspace6\.metadata
+</code></pre>
+<h3 id="6--执行SQL脚本容易犯错的情况">6. 执行SQL脚本容易犯错的情况</h3>
+<p>常见错误操作是，SQL编辑器里写了多条语句，或者写了一段plsql代码，然后光标在随机位置，直接点击执行单条语句按钮。根据plsql developer中的默认配置，一般是整个窗口的SQL语句全执行了，但是在Mogeaver中，默认是执行光标附近的，截止到右侧最近的一个分号所对应的这条SQL。因此一般建议用鼠标选定单个语句后执行。</p>
+<h3 id="7--命令行方式启动连接-集成进堡垒机-">7. 命令行方式启动连接（集成进堡垒机）</h3>
+<p>在堡垒机场景，一般是禁止用户输入用户名密码，由管理员预先在堡垒机系统中配置好连接，将连接直接授权给堡垒机用户，可以减少密码泄露的风险，也有利于对密码进行统一管理。<br/>
+一般堡垒机对于应用程序的支持，只要应用程序支持命令行启动即可，Mogeaver也可以支持命令行启动。</p>
+<pre><code>mogeaver -con "driver=MogDB|url=jdbc:opengauss://192.168.163.134:26200/testdb|user=system|password=oracle|save=false|name=mogdb_node1" -data tmpdata
+</code></pre>
+<h3 id="8--数据导入时自动给表增加了字段">8. 数据导入时自动给表增加了字段</h3>
+<p>在导入时如果没有进行好字段映射，那么对于文件中有字段，而未映射到数据库表中的，默认会自动新建字段，建议看清界面选项再进行操作</p>
+<p><img alt="image-odtm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-odtm.png" srcset="/upload/image-odtm.png?width=1200 1200w, /upload/image-odtm.png?width=400 400w, /upload/image-odtm.png?width=1600 1600w, /upload/image-odtm.png?width=800 800w"/></p>
+<h3 id="9--在kylin-v10-桌面版上使用Mogeaver">9. 在kylin v10 桌面版上使用Mogeaver</h3>
+<p>x86_64环境</p>
+<pre><code>wget https://cdn-mogdb.enmotech.com/mogeaver/23.3.1/mogeaver-ce-23.3.1-linux.gtk.x86_64.tar.gz
+wget https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jre-17.0.11-linux-x64.tar.gz
+tar -xf mogeaver-ce-23.1.1-linux.gtk.x86_64.tar.gz
+mkdir mogeaver/jre
+tar -xf bisheng-jre-17.0.11-linux-x64.tar.gz -C mogeaver/jre --strip-components 1
+#启动（也可以在文件管理器中双击mogeaver启动）
+mogeaver/mogeaver
+</code></pre>
+<p>arm64环境介质下载地址</p>
+<pre><code>https://cdn-mogdb.enmotech.com/mogeaver/23.3.1/mogeaver-ce-23.3.1-linux.gtk.aarch64.tar.gz
+https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jre-17.0.11-linux-aarch64.tar.gz
+</code></pre>
+<h3 id="10--在UOS桌面版上使用Mogeaver">10. 在UOS桌面版上使用Mogeaver</h3>
+<ul>
+<li>
+<p>已打开开发者模式的，可以参考上面kylin v10的操作方式；</p>
+</li>
+<li>
+<p>未打开开发者模式的，需要手动打包deb，并且添加签名。</p>
+<p>本人已打包好一个UOS桌面x86_64版本的Mogeaver，带签名，已上传到网盘，下载后可双击deb包进行安装<br/>
+<a href="https://pan.baidu.com/s/18axPwThaFMvb8XYmijff5g?pwd=mjej">mogeaver 23.3.1 for uos desktop(x86_64) download</a></p>
+</li>
+</ul>
+<h3 id="11--多个人在修改同一个数据库内的某个package-有人看到的不是最新的代码">11. 多个人在修改同一个数据库内的某个package，有人看到的不是最新的代码</h3>
+<p>在之前版本版本的Mogeaver中，本地获取到的数据库元数据，如果是不是通过本机的图形化界面修改的，就不会自动刷新，关闭对象重新再打开也不会刷新，包括本机用SQL语句的方式直接执行DDL操作也不会刷新，需要手动刷新数据库导航列表。<br/>
+从23.3.1版本开始，在每次打开package的时候，会判断该package本地缓存是否与服务器一致，如果不一致则从服务器重新获取，如果一致则仍然使用缓存。所以只需要及时关闭package即可避免使用过旧的代码。这种方式还优化了package列表显示速度，因为不再需要首次获取列表就把所有package的代码全部缓存下来</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

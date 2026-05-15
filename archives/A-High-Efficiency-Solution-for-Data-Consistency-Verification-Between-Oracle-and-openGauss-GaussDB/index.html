@@ -153,7 +153,655 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="一种快速进行oracle和opengaussgaussdb之间数据一致性核对的方案">一种快速进行ORACLE和openGauss/GaussDB之间数据一致性核对的方案</h1>
+<h2 id="背景">背景</h2>
+<p>应用软件的信创改造中，在数据迁移后，对数据进行一致性核对是非常重要的一个环节。数据核对需要面对的考验有且不限于：</p>
+<ol>
+<li>核对巨量数据的性能</li>
+<li>异构数据库不同数据类型的统一格式化</li>
+<li>源库和目标库可能使用不同的字符集</li>
+<li>核对工具对源库和目标库之间的网络带宽</li>
+<li>能否找到差异的行</li>
+</ol>
+<p>但是一个反复测试多次且成熟的数据迁移软件，不应该在迁移后还存在数据不一致的情况。</p>
+<p>想象一下，某个线上的软件项目，准备正式切换到国产数据库，一切准备就绪，源端和目标端的数据都是静止的，使用软件迁移数据后，如果发现存在数据差异，是去找差异原因，还是终止切换，进行回退呢？</p>
+<p>所以，这种静态数据迁移，宁愿在项目上线前期，多次进行数据迁移及数据核对的测试，找到数据不一致的原因并进行相关软件和实施方案的调整，确保上线时能保证数据符合预期的一致性标准，而不是在时间窗口极度有限的上线那天，靠着数据核对工具强大的算法去精确找到那行数据有差异。</p>
+<p>所以，这种场景下，客户更需要的是，上线的时候，核对工具用最快的速度，直接告诉我，这两边数据是不是一致的，而不是经过很长一段时间的数据核对后，精确地告诉我差异在哪。</p>
+<p>在这种背景下，催生出了下文的这种数据核对方案。</p>
+<h2 id="分析思路">分析思路</h2>
+<p>抛开那种直接count算行数的极不精确算法，现有的异构数据库的数据核对工具，一般是把数据都查到工具的内存里，对日期时间数字等非文本类型，进行统一的格式化处理，将一行的所有字段拼成一个长字符串，然后hash一下，得到一个值，比较两个库这行数据得到的这个hash值是否一致，则可以知道这行数据是否一致。<br/>
+但是这种方式需要把数据全部取到工具里，消耗了大量的网络带宽以及内存；而且假设表上没有主键，就只能把所有字段作为主键；如果数据量超大，需要分批核对，就必然要排序，遇上没有主键的表就是全字段排序，性能就极差了。</p>
+<p>而我们设计的核对方案，需要规避上述的这些缺点，所以：</p>
+<ol>
+<li>禁止排序</li>
+<li>禁止将原表数据全部取到工具里</li>
+<li>不按每行数据核对，直接按表级核对</li>
+</ol>
+<p>也就是说，我们需要在两个数据库中，设计一种相同的计算方式，将整个表的所有列所有行的数据，浓缩成一个值，且这个值的计算不依赖数据行在表中的顺序。<br/>
+不依赖顺序，最简单的就是加法，也就是说，我们可以针对每行数据，转换成一个数值，然后把数值相加，得到整个表的特征值（checksum）。</p>
+<p>然后就是要解决如何把一行数据按照相同的格式拼成一个字符串。</p>
+<p>在ORACLE里写过用存储过程导出数据的大多应该都知道，识别字段数据类型来进行不同的格式化处理其实很简单，用dbms_sql就行，但是难点在于管道符拼接。SQL里最长只能拼4000字节，PLSQL里最长只能拼32767字节，再长就只能在plsql里用dbms_lob去拼lob了。这样甚至可能需要在两边数据库创建相同的存储过程，而且整个拼接过程是在plsql里，需要逐行逐个字段循环，性能也不会好到哪去。</p>
+<p>所以我需要找到ORACLE和openGauss是否有自带的函数，能实现把格式化好的后一行多列的数据转换成一个值，而且这一列能超过4000字节长度的限制。这个时候我自然就想到了ORACLE 19C里的json_object和openGauss中的row_to_json这两个函数。</p>
+<p>json_object是ORACLE12C引入的，但是当时并不完善，只能返回成varchar2类型，即限制了一个json的长度，但在19C中，可以直接返回成CLOB/BLOB类型，这样放下一整行数据就基本不在话下了。<br/>
+但是 <code>json_object</code>和 <code>row_to_json</code>存在一些差异，<code>json_object(*)</code>返回的key是大写，而 <code>row_to_json</code>返回的key是小写，这是由于两个数据库对标识符的默认大小写差异引起的。所以格式化字段时，需要强制指定别名并带上双引号，来确保两边的字段名也是一致的。</p>
+<p>openGauss里也有json_object，为什么不用呢？一是因为openGauss里的json_object不支持直接传 <code>*</code>，得自己按指定的语法传key和value;二是因为它返回的json里，中间穿插了空格，而ORACLE里并不会有这些空格，这一点点的格式差异对于数据核对来说是致命的。</p>
+<p>一行拼成一个长文本串了，下一步就是把这个值转换成一个数字。这个转换方式需要尽量避免自己在plsql里写算法细节，因为肯定性能会不如数据库自带函数。但是我并没有找到两个数据库里有哪个相同的函数能直接把一个长字符串转换成一个数字的。</p>
+<p>只能退而求其次，把这个长字符串转换成md5值，然后再把这个md5用某种算法转换成数字。</p>
+<p>我之前刚好做过类似的事，把md5拆成4段，每段就是一个int32的十六进制，然后把这4段加起来就得到了一个数字。再把每行的数字加起来，就得到了整个表的数字。</p>
+<h2 id="方案梳理">方案梳理</h2>
+<ol>
+<li>指定需要核对的一个表或者一段select查询语句</li>
+<li>使用dbms_sql对这个表的查询进行字段类型解析，组装格式化的SQL</li>
+<li>组装时，把每种数据类型都格式化成字符串，且用双引号指定字段名</li>
+<li>生成ORACLE的SQL时，用 <code>select  json_object(t.* returning blob) from (select 格式化字段列表 from (表或查询)) t</code>，生成opengauss的SQL时，用 <code>select row_to_json(t) from (select 格式化字段列表 from （表或查询）) t</code></li>
+<li>对这两个查询再套个md5，oracle用 <code>dbms_crypto.hash(:value,2)</code>,opengauss用 <code>md5(:value)</code></li>
+<li>把md5值拆成四段，每段分别转换成对应的整型数值，然后相加</li>
+<li>用sum函数聚合md5转换出来的数值，SQL拼接完成</li>
+<li>在两个库分别执行对应的SQL，各自返回一个数值</li>
+<li>比较这两个数值是否相等</li>
+<li>如果相等，则被查的表数据一致；否则，不一致</li>
+</ol>
+<p>补充：这整个方案其实可以不需要再在数据库中创建对象，调用dbms_sql是可以使用匿名块的，ORACLE绑定变量出来很容易，至于md5转换成数字的算法也非常简单，直接内联到sql里即可。</p>
+<h2 id="编写工具">编写工具</h2>
+<p>思路原理出来了，接下来就是开发工具。<br/>
+首先我把SQL组装的匿名块写出来了，因为我知道这是AI目前可能不太擅长但我非常擅长的事。然后就把思路告诉AI，让它使用java开发出了一个工具（promot不小心删了，里面主要说明了配置文件里可以配置什么东西，以及程序运行的机制）。</p>
+<p>然后AI就把工具写好了，下面是AI生成的readme</p>
+<blockquote>
+<h1 id="oracle与gaussdb数据一致性校验工具">Oracle与GaussDB数据一致性校验工具</h1>
+<h2 id="概述">概述</h2>
+<p>本工具是一款用于校验Oracle与GaussDB之间数据一致性的工具。通过MD5算法，对两个数据库中的相同表进行哈希计算和并比较结果，从而判断数据是否一致。</p>
+<h2 id="原理">原理</h2>
+<ol>
+<li>连接ORACLE，使用ORACLE的dbms_sql解析每个字段的字段名和字段类型</li>
+<li>将每个字段按照不同的数据类型进行格式化，拼接成长文本（ORACLE中使用json returning blob，可超4000长度）</li>
+<li>计算长文本的MD5，并切割成4个有符号整型值相加，将整列进行sum求和</li>
+<li>在两个数据库中分别执行相同逻辑的SQL，比较结果数值</li>
+<li>如果两个数值相等，则数据一致；否则数据不一致</li>
+</ol>
+<h2 id="文件说明">文件说明</h2>
+<ul>
+<li><code>DataConsistencyChecker.java</code> - 主程序文件</li>
+<li><code>config.yml</code> - YAML格式配置文件</li>
+<li><code>config.yml.example</code> - 详细的YAML配置示例</li>
+<li><code>build.sh</code> / <code>build.bat</code> - 编译脚本</li>
+<li><code>run.sh</code> / <code>run.bat</code> - 执行脚本</li>
+<li><code>README.md</code> - 说明文档</li>
+</ul>
+<h2 id="环境要求">环境要求</h2>
+<ul>
+<li>JDK 1.8 或更高版本</li>
+<li>cmd（Windows）或 Bash（Linux）</li>
+<li>Oracle数据库连接权限（需要DBA_TABLES视图访问权限，dbms_crypto执行权限）</li>
+<li>GaussDB数据库连接权限</li>
+<li>相应的JDBC驱动jar包</li>
+<li>SnakeYAML库（放置在lib目录下）</li>
+<li>ORACLE服务端 19c以上 (12c实测不支持)</li>
+</ul>
+<h2 id="安装步骤">安装步骤</h2>
+<ol>
+<li>
+<p><strong>准备依赖库</strong></p>
+</li>
+</ol>
+<ul>
+<li>
+<p>创建lib目录</p>
+</li>
+<li>
+<p>下载并放置SnakeYAML库到lib目录</p>
+</li>
+<li>
+<p>下载并放置Oracle JDBC驱动到lib目录</p>
+</li>
+<li>
+<p>下载并放置GaussDB JDBC驱动到lib目录</p>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>配置数据库连接</strong></p>
+</li>
+</ol>
+<ul>
+<li>
+<p>复制 <code>config.yml.example</code> 为 <code>config.yml</code></p>
+</li>
+<li>
+<p>编辑 <code>config.yml</code> 文件</p>
+</li>
+<li>
+<p>填写Oracle和GaussDB的连接信息</p>
+</li>
+<li>
+<p>配置需要检查的表名（支持schema.table格式）或自定义SQL</p>
+</li>
+</ul>
+<ol start="3">
+<li><strong>编译程序</strong></li>
+</ol>
+<pre><code class="language-bash"># Windows
+build.bat
+
+# Linux
+./build.sh
+</code></pre>
+<ol start="4">
+<li><strong>运行程序</strong></li>
+</ol>
+<pre><code class="language-bash"># Windows - 使用默认config.yml
+run.bat
+
+# Windows - 使用指定配置文件
+run.bat my_config.yml
+
+# Linux - 使用默认config.yml
+./run.sh
+
+# Linux - 使用指定配置文件
+./run.sh my_config.yml
+</code></pre>
+<h2 id="命令行参数">命令行参数</h2>
+<p>工具支持通过命令行参数指定配置文件：</p>
+<pre><code class="language-bash"># 直接使用Java运行
+java -cp ".;lib/*" DataConsistencyChecker [config_file]
+
+# 使用脚本运行
+.\run.bat [config_file]     # Windows
+./run.sh [config_file]      # Linux
+</code></pre>
+<p>如果不指定配置文件参数，将默认使用 <code>config.yml</code>。</p>
+<h2 id="配置文件说明">配置文件说明</h2>
+<p>配置文件使用YAML格式，具有更好的可读性和灵活性：</p>
+<h3 id="数据库连接配置">数据库连接配置</h3>
+<pre><code class="language-yaml">databases:
+ oracle:
+   url: "jdbc:oracle:thin:@localhost:1521:orcl"
+   user: "username"
+   password: "password"
+   driver_jar: "ojdbc8-12.2.0.1.jar"
+ 
+ gauss:
+   url: "jdbc:postgresql://localhost:5432/dbname"
+   user: "username"
+   password: "password"
+   driver_jar: "gsjdbc4-1.1.jar"
+</code></pre>
+<h3 id="检查范围配置">检查范围配置</h3>
+<pre><code class="language-yaml">performance:
+ thread_count: 4
+
+check_scope:
+ # Schema映射配置：Oracle schema -&gt; GaussDB schema
+ schema_mapping:
+   system: public        # Oracle的system schema映射到GaussDB的public schema
+   hr: hr_schema         # Oracle的hr schema映射到GaussDB的hr_schema
+ 
+ # Schema列表：自动从Oracle中查询指定schema下的所有表
+ schemas:
+   - system              # 自动查询system schema下的所有表并加入检查范围
+   - hr                  # 自动查询hr schema下的所有表并加入检查范围
+ 
+ # 表列表（支持换行，支持schema.table格式）
+ tables:
+   - hr.employees
+   - hr.departments
+   - sales.customers
+ 
+ # 自定义SQL（支持多行，不受分号影响）
+ custom_sqls:
+   - name: "近期订单数据"
+     sql: |
+       SELECT * FROM finance.orders 
+       WHERE order_date &gt;= '2023-01-01' 
+         AND status IN ('PENDING', 'PROCESSING')
+   
+   - name: "包含分号的查询"
+     sql: |
+       SELECT 
+         CASE 
+           WHEN price &gt; 100 THEN 'High; Premium'
+           ELSE 'Low; Basic'
+         END as category
+       FROM products
+</code></pre>
+<h2 id="使用示例">使用示例</h2>
+<h3 id="1-检查指定schema下的所有表">1. 检查指定schema下的所有表</h3>
+<pre><code class="language-yaml">check_scope:
+ schema_mapping:
+   system: public
+   hr: hr_schema
+ 
+ schemas:
+   - system              # 自动发现system schema下的所有表
+   - hr                  # 自动发现hr schema下的所有表
+ 
+ tables: []              # 可为空，由schemas自动填充
+ custom_sqls: []
+</code></pre>
+<h3 id="2-检查特定表">2. 检查特定表</h3>
+<pre><code class="language-yaml">check_scope:
+ schema_mapping:
+   hr: hr_schema
+   system: public
+ 
+ schemas: []             # 不使用自动发现
+ 
+ tables:
+   - hr.employees
+   - hr.departments
+   - sales.customers
+ 
+ custom_sqls: []
+</code></pre>
+<h3 id="3-检查自定义查询">3. 检查自定义查询</h3>
+<pre><code class="language-yaml">check_scope:
+ schemas: []
+ tables: []
+ custom_sqls:
+   - name: "大表分区数据"
+     sql: |
+       SELECT * FROM large_table 
+       WHERE partition_key = '2023'
+   - name: "汇总统计"
+     sql: "SELECT count(*) FROM summary_table"
+</code></pre>
+<h3 id="4-混合检查推荐">4. 混合检查（推荐）</h3>
+<pre><code class="language-yaml">check_scope:
+ schema_mapping:
+   system: public
+   hr: hr_schema
+ 
+ schemas:
+   - system              # 自动发现system schema下的所有表
+ 
+ tables:
+   - hr.specific_table   # 另外指定特定表
+ 
+ custom_sqls:
+   - name: "近期数据"
+     sql: |
+       SELECT * FROM sales.large_table 
+       WHERE create_time &gt; sysdate - 30
+</code></pre>
+<h2 id="执行流程">执行流程</h2>
+<ol>
+<li><strong>Schema扩展</strong>: 如果配置了schema列表，从Oracle中查询并自动添加表到检查列表</li>
+<li><strong>表排序</strong>: 根据Oracle统计信息按表大小排序（从大到小）</li>
+<li><strong>SQL生成</strong>: 为每个表和自定义SQL生成格式化的checksum查询</li>
+<li><strong>并发执行</strong>: 同时在Oracle和GaussDB中执行相应的查询</li>
+<li><strong>结果比较</strong>: 比较两个数据库的checksum结果</li>
+<li><strong>报告生成</strong>: 生成详细报告和汇总报告</li>
+</ol>
+<h2 id="错误处理">错误处理</h2>
+<p>工具具有强大的错误处理能力：</p>
+<ul>
+<li><strong>不中断执行</strong>: 即使某些表或SQL执行失败，程序会继续处理其他项目</li>
+<li><strong>详细错误记录</strong>: 所有错误都会记录在日志和报告中</li>
+<li><strong>错误分类</strong>: 区分SQL生成错误和执行错误</li>
+<li><strong>graceful degradation</strong>: 程序在遇到错误时优雅降级，而不是崩溃</li>
+</ul>
+<h3 id="错误类型">错误类型</h3>
+<ol>
+<li><strong>SQL生成错误</strong>: 表不存在、字段无效、语法错误等</li>
+<li><strong>执行错误</strong>: 数据库连接问题、权限不足、查询超时等</li>
+<li><strong>配置错误</strong>: 配置文件格式错误、连接参数无效等</li>
+</ol>
+<h2 id="报告说明">报告说明</h2>
+<p>工具会在 <code>reports</code> 目录下生成两种报告：</p>
+<h3 id="详细报告-detail_report_yyyymmdd_hhmmsstxt">详细报告 (detail_report_yyyyMMdd_HHmmss.txt)</h3>
+<ul>
+<li>每个检查项目的具体结果</li>
+<li>Oracle和GaussDB的checksum值</li>
+<li>一致性状态</li>
+<li>错误信息（如有）</li>
+</ul>
+<h3 id="汇总报告-summary_report_yyyymmdd_hhmmsstxt">汇总报告 (summary_report_yyyyMMdd_HHmmss.txt)</h3>
+<ul>
+<li>总配置项目数</li>
+<li>SQL生成失败项目数</li>
+<li>数据一致、不一致、执行失败的统计</li>
+<li>数据一致性率（基于有效SQL的一致性百分比）</li>
+<li>各类问题项目列表</li>
+</ul>
+<h2 id="注意事项">注意事项</h2>
+<ol>
+<li>
+<p><strong>权限要求</strong>: 确保Oracle用户有DBA_TABLES及查询表的权限</p>
+</li>
+<li>
+<p><strong>网络连接</strong>: 确保可以同时连接到Oracle和GaussDB</p>
+</li>
+<li>
+<p><strong>资源使用</strong>: 并发线程数建议根据数据库性能调整</p>
+</li>
+<li>
+<p><strong>数据类型</strong>: 工具会跳过某些不支持的数据类型（如BLOB、CLOB等）</p>
+</li>
+<li>
+<p><strong>时间格式</strong>: 日期时间字段会被格式化为统一格式进行比较</p>
+</li>
+<li>
+<p><strong>YAML格式优势</strong>:</p>
+</li>
+</ol>
+<ul>
+<li>支持多行SQL，便于阅读和维护</li>
+<li>不受SQL中分号影响</li>
+<li>支持注释，便于文档化</li>
+<li>层次结构清晰，易于理解</li>
+<li>表名支持换行列表，便于管理</li>
+<li>支持schema级别的自动表发现功能</li>
+</ul>
+<h2 id="故障排除">故障排除</h2>
+<h3 id="常见错误">常见错误</h3>
+<ol>
+<li>
+<p><strong>编译失败</strong></p>
+</li>
+</ol>
+<ul>
+<li>
+<p>检查JDK版本是否为1.8+</p>
+</li>
+<li>
+<p>确保源文件编码为UTF-8</p>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>连接失败</strong></p>
+</li>
+</ol>
+<ul>
+<li>
+<p>检查数据库连接字符串是否正确</p>
+</li>
+<li>
+<p>确保JDBC驱动jar包和SnakeYAML库存在且正确</p>
+</li>
+<li>
+<p>验证用户名密码是否正确</p>
+</li>
+</ul>
+<ol start="3">
+<li>
+<p><strong>权限错误</strong></p>
+</li>
+</ol>
+<ul>
+<li>
+<p>确保Oracle用户有dbms_crypto的执行权限</p>
+</li>
+<li>
+<p>确保Oracle用户有DBA_TABLES视图的SELECT权限</p>
+</li>
+<li>
+<p>检查对所有需要校验表的SELECT权限</p>
+</li>
+</ul>
+<ol start="4">
+<li>
+<p><strong>内存不足</strong></p>
+</li>
+</ol>
+<ul>
+<li>减少并发线程数</li>
+<li>分批处理大表</li>
+</ul>
+<h3 id="日志查看">日志查看</h3>
+<p>程序运行时会在控制台输出详细的执行信息，包括：</p>
+<ul>
+<li>初始化状态</li>
+<li>各项检查的执行进度</li>
+<li>错误信息</li>
+<li>最终结果统计</li>
+</ul>
+<h2 id="技术支持">技术支持</h2>
+<p>如遇到问题，请检查：</p>
+<ol>
+<li>配置文件是否正确</li>
+<li>数据库连接是否正常</li>
+<li>权限是否充足</li>
+<li>JDBC驱动是否匹配</li>
+</ol>
+<p>更多技术细节请参考源代码注释。</p>
+</blockquote>
+<p><strong>执行流程：</strong></p>
+<p><img alt="image-lzjy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lzjy.png" srcset="/upload/image-lzjy.png?width=1200 1200w, /upload/image-lzjy.png?width=400 400w, /upload/image-lzjy.png?width=1600 1600w, /upload/image-lzjy.png?width=800 800w"/></p>
+<p><strong>项目开源地址：</strong><a href="https://gitee.com/darkathena/data-check-tool">https://gitee.com/darkathena/data-check-tool</a><br/>
+<strong>源码解读wiki (en):</strong> <a href="https://deepwiki.com/Dark-Athena/data-check-tool">https://deepwiki.com/Dark-Athena/data-check-tool</a><br/>
+<strong>源码解读wiki (cn):</strong> <a href="https://gitee.com/darkathena/data-check-tool/wikis">https://gitee.com/darkathena/data-check-tool/wikis</a></p>
+<p>vibe coding过程中，其实还有不少细节调整,在本文中没有全部列出来。而且对于数据库内的SQL算法性能，AI似乎帮不了什么忙，最终组装的格式化SQL是我自己花了不少时间，换了很多方案才试出来的,最能满足准确性、稳定性、性能的一种写法。甚至那个 <code>with function</code>也是为了性能不得不这么写，创建函数或者直接内联到SQL里,性能都不如这个 <code>with function</code>。</p>
+<h2 id="实测">实测</h2>
+<h3 id="编译">编译</h3>
+<pre><code class="language-powershell">PS E:\gitee\data_check_tool&gt; .\build.bat
+=== Oracle and GaussDB Data Consistency Checker - Build Script ===
+Java environment detected
+openjdk version "17.0.5" 2022-10-18
+OpenJDK Runtime Environment Temurin-17.0.5+8 (build 17.0.5+8)
+OpenJDK 64-Bit Server VM Temurin-17.0.5+8 (build 17.0.5+8, mixed mode, sharing)
+
+Compiling DataConsistencyChecker.java...
+Compilation successful Generated DataConsistencyChecker.class
+
+Compilation completed
+1. Configuration file config.yml is properly set
+2. Oracle and GaussDB JDBC driver jar files are placed in lib directory
+3. Use run.bat command to run the program
+</code></pre>
+<h3 id="修改配置文件">修改配置文件</h3>
+<pre><code class="language-yaml"># Oracle与GaussDB数据一致性校验工具配置文件
+
+# 数据库连接配置
+databases:
+  oracle:
+    url: "jdbc:oracle:thin:@192.168.1.227:1527:pdb1"
+    user: "system"
+    password: "oracle"
+    driver_jar: "ojdbc8-12.2.0.1.jar"
+  
+  gauss:
+    url: "jdbc:postgresql://192.168.1.131:7456/testdb?loggerLevel=off"
+    user: "root"
+    password: "admin@123"
+    driver_jar: "gsjdbc4-1.1.jar"
+
+# 性能配置
+performance:
+  thread_count: 10
+
+# 检查范围配置
+check_scope:
+  # Schema映射配置：Oracle schema -&gt; GaussDB schema
+  schema_mapping:
+    system: public        # Oracle的system schema映射到GaussDB的public schema
+    hr: hr_schema         # Oracle的hr schema映射到GaussDB的hr_schema
+    # oracle_schema: gauss_schema
+  
+  # Schema列表：自动从Oracle中查询指定schema下的所有表
+  schemas:
+    # - hr                # 将自动查询hr schema下的所有表
+    # - sales             # 将自动查询sales schema下的所有表
+  
+  # 需要对比的表列表（支持 schema.table 格式）
+  tables:
+    - system.test_checksum_table
+    - schema.table_name
+    - SYSTEM.t_big_table
+  
+  # 剔除表清单：从自动发现和手动配置的表中排除指定表
+  exclude_tables:
+    # - system.unwanted_table     # 排除不需要检查的表
+    # - hr.temp_table             # 排除临时表
+    # - "*.log$"                  # 支持通配符模式（以log结尾的表）
+  
+  # 自定义SQL查询列表
+  custom_sqls:
+     - name: "test"
+       sql: |
+         SELECT * FROM system.test_checksum_table 
+         WHERE rownum&lt;=10 
+           AND id&gt;4
+  
+    # - name: "活跃用户统计"
+    #   sql: |
+    #     SELECT user_id, count(*) as order_count
+    #     FROM orders 
+    #     WHERE create_time &gt; sysdate - 30
+    #     GROUP BY user_id
+    #     HAVING count(*) &gt; 5
+  
+    # - name: "包含分号的查询示例"
+    #   sql: |
+    #     SELECT product_name,
+    #            CASE 
+    #              WHEN price &gt; 100 THEN 'High; Premium'
+    #              WHEN price &gt; 50 THEN 'Medium; Standard'
+    #              ELSE 'Low; Basic'
+    #            END as price_category
+    #     FROM products
+    #     WHERE description LIKE '%special; offer%'
+</code></pre>
+<h3 id="执行">执行</h3>
+<p>特意在配置清单里写了个不存在的表，还构造了10万行的大表</p>
+<pre><code class="language-powershell">PS E:\gitee\data_check_tool&gt; .\run.bat  
+=== Oracle and GaussDB Data Consistency Checker ===
+Using config file: config.yml
+Using Java version:
+openjdk version "17.0.5" 2022-10-18
+OpenJDK Runtime Environment Temurin-17.0.5+8 (build 17.0.5+8)
+OpenJDK 64-Bit Server VM Temurin-17.0.5+8 (build 17.0.5+8, mixed mode, sharing)
+Found dependency library: lib\gsjdbc4-1.1.jar
+Found dependency library: lib\ojdbc8-12.2.0.1.jar
+Found dependency library: lib\snakeyaml-2.3.jar
+
+Starting data consistency checker...
+Classpath: .;lib\gsjdbc4-1.1.jar;lib\ojdbc8-12.2.0.1.jar;lib\snakeyaml-2.3.jar
+Config file: config.yml
+
+Using YAML config file: config.yml
+Loaded schema mapping config: {hr=hr_schema, system=public}
+=== Oracle and GaussDB Data Consistency Checker ===
+Start time: 2025-08-22 16:01:46
+Step 2: Getting table statistics...
+Found table in statistics: SYSTEM.T_BIG_TABLE
+Found table in statistics: SYSTEM.TEST_CHECKSUM_TABLE
+Adding configured table not found in statistics: schema.table_name
+Total tables to process: 3
+Step 3: Generating check SQL...
+Generated check task for table: SYSTEM.T_BIG_TABLE
+Generated check task for table: SYSTEM.TEST_CHECKSUM_TABLE
+SQL generation failed for: SELECT * FROM schema.table_name
+Error details: ORA-00942: 表或视图不存在
+ORA-06512: 在 "SYS.DBMS_SQL", line 1134
+ORA-06512: 在 line 14
+
+Error: Failed to process table schema.table_name: ORA-00942: 表或视图不存在
+ORA-06512: 在 "SYS.DBMS_SQL", line 1134
+ORA-06512: 在 line 14
+
+Generated check task for custom SQL: test
+Total check tasks generated: 3
+Step 4: Executing data validation concurrently...
+Starting concurrent execution with 5 threads per database
+Oracle [CUSTOM:test]: count=1, checksum=516418948 (644ms)
+Oracle [TABLE:SYSTEM.TEST_CHECKSUM_TABLE]: count=5, checksum=3853631922 (667ms)
+GaussDB [TABLE:SYSTEM.TEST_CHECKSUM_TABLE]: count=5, checksum=3853631922 (909ms)
+GaussDB [CUSTOM:test]: count=1, checksum=516418948 (909ms)
+GaussDB [TABLE:SYSTEM.T_BIG_TABLE]: count=100000, checksum=-204314652642 (2559ms)
+Oracle [TABLE:SYSTEM.T_BIG_TABLE]: count=100000, checksum=-204314652642 (3514ms)
+Concurrent execution completed
+Step 5: Generating validation reports...
+Detail report generated: reports/detail_report_20250822_160151.txt
+Summary report generated: reports/summary_report_20250822_160151.txt
+Validation completed at: 2025-08-22 16:01:51
+
+Program execution completed
+Please check report files in reports directory
+
+Latest generated report files:
+  - summary_report_20250822_160151.txt
+
+Execution script completed
+</code></pre>
+<p><strong>输出汇总报告:</strong></p>
+<pre><code class="language-log">=== Oracle and GaussDB Data Consistency Validation Summary Report ===
+Generated at: 2025-08-22 16:01:51
+
+Total configured items: 4
+SQL generation failed: 1 items
+Data consistent: 3 items
+Data inconsistent: 0 items
+Execution failed: 0 items
+
+SQL generation failed items:
+  - TABLE:schema.table_name
+
+Data consistency rate: 100.00% (based on 3 items with valid SQL)
+</code></pre>
+<p><strong>输出明细报告:</strong></p>
+<pre><code class="language-log">=== Oracle and GaussDB Data Consistency Validation Detail Report ===
+Generated at: 2025-08-22 16:01:51
+
+Check item: TABLE:schema.table_name
+==========================================================================
+  Status: [ERROR] SQL generation failed
+  Error: ORA-00942: 表或视图不存在
+ORA-06512: 在 "SYS.DBMS_SQL", line 1134
+ORA-06512: 在 line 14
+
+
+Check item: CUSTOM:test
+==============================================================
+Oracle Database:
+  SQL: with function uf_raw2int(input raw,pos number,len number) return number is begin return utl_raw.cast_to_binary_integer(utl_raw.substr(input,pos,len)); end; select count(1) as cnt,sum(uf_raw2int(a,0,4)/4+uf_raw2int(a,5,4)/4+uf_raw2int(a,9,4)/4+uf_raw2int(a,13,4)/4) as cksum from(select dbms_crypto.hash(JSON_OBJECT(T.* RETURNING blob),2) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",NAME AS "NAME",rtrim(BU) AS "BU",rtrim(BU) AS "DESCRIPTION",to_char(UPDATE_DATE,'yyyymmddhh24missff6') AS "UPDATE_DATE",L1 AS "L1",L2 AS "L2",L3 AS "L3" from (SELECT * FROM system.test_checksum_table WHERE rownum&lt;=10 AND id&gt;4) )t )
+  Result: count=1, checksum=516418948
+  Execution time: 644 ms
+
+GaussDB Database:
+  SQL: select count(1) as cnt,sum(('x'||substr(a,1,8))::bit(32)::int4::numeric/4 +('x'||substr(a,9,8))::bit(32)::int4::numeric/4 +('x'||substr(a,17,8))::bit(32)::int4::numeric/4 +('x'||substr(a,25,8))::bit(32)::int4::numeric/4 ) as cksum from (select /*+no_expand*/ md5(row_to_json(t)::text) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",NAME AS "NAME",rtrim(BU) AS "BU",rtrim(BU) AS "DESCRIPTION",to_char(UPDATE_DATE,'yyyymmddhh24missff6') AS "UPDATE_DATE",L1 AS "L1",L2 AS "L2",L3 AS "L3" from (SELECT * FROM public.test_checksum_table WHERE rownum&lt;=10 AND id&gt;4) )t )
+  Result: count=1, checksum=516418948
+  Execution time: 909 ms
+
+  Status: [PASS] Consistent
+
+Check item: TABLE:SYSTEM.T_BIG_TABLE
+===========================================================================
+Oracle Database:
+  SQL: with function uf_raw2int(input raw,pos number,len number) return number is begin return utl_raw.cast_to_binary_integer(utl_raw.substr(input,pos,len)); end; select count(1) as cnt,sum(uf_raw2int(a,0,4)/4+uf_raw2int(a,5,4)/4+uf_raw2int(a,9,4)/4+uf_raw2int(a,13,4)/4) as cksum from(select dbms_crypto.hash(JSON_OBJECT(T.* RETURNING blob),2) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",to_char(NUM1,'fm99999999999999999999999999999.00000000') AS "NUM1",to_char(NUM2,'fm99999999999999999999999999999.00000000') AS "NUM2",STR1 AS "STR1",rtrim(STR2) AS "STR2",to_char(DT,'yyyymmddhh24miss')||'000000' AS "DT",to_char(TS,'yyyymmddhh24missff6') AS "TS" from (SELECT * FROM SYSTEM.T_BIG_TABLE) )t )
+  Result: count=100000, checksum=-204314652642
+  Execution time: 3514 ms
+
+GaussDB Database:
+  SQL: select count(1) as cnt,sum(('x'||substr(a,1,8))::bit(32)::int4::numeric/4 +('x'||substr(a,9,8))::bit(32)::int4::numeric/4 +('x'||substr(a,17,8))::bit(32)::int4::numeric/4 +('x'||substr(a,25,8))::bit(32)::int4::numeric/4 ) as cksum from (select /*+no_expand*/ md5(row_to_json(t)::text) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",to_char(NUM1,'fm99999999999999999999999999999.00000000') AS "NUM1",to_char(NUM2,'fm99999999999999999999999999999.00000000') AS "NUM2",STR1 AS "STR1",rtrim(STR2) AS "STR2",to_char(DT,'yyyymmddhh24miss')||'000000' AS "DT",to_char(TS,'yyyymmddhh24missff6') AS "TS" from (SELECT * FROM public.T_BIG_TABLE) )t )
+  Result: count=100000, checksum=-204314652642
+  Execution time: 2559 ms
+
+  Status: [PASS] Consistent
+
+Check item: TABLE:SYSTEM.TEST_CHECKSUM_TABLE
+===================================================================================
+Oracle Database:
+  SQL: with function uf_raw2int(input raw,pos number,len number) return number is begin return utl_raw.cast_to_binary_integer(utl_raw.substr(input,pos,len)); end; select count(1) as cnt,sum(uf_raw2int(a,0,4)/4+uf_raw2int(a,5,4)/4+uf_raw2int(a,9,4)/4+uf_raw2int(a,13,4)/4) as cksum from(select dbms_crypto.hash(JSON_OBJECT(T.* RETURNING blob),2) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",NAME AS "NAME",rtrim(BU) AS "BU",rtrim(BU) AS "DESCRIPTION",to_char(UPDATE_DATE,'yyyymmddhh24missff6') AS "UPDATE_DATE",L1 AS "L1",L2 AS "L2",L3 AS "L3" from (SELECT * FROM SYSTEM.TEST_CHECKSUM_TABLE) )t )
+  Result: count=5, checksum=3853631922
+  Execution time: 667 ms
+
+GaussDB Database:
+  SQL: select count(1) as cnt,sum(('x'||substr(a,1,8))::bit(32)::int4::numeric/4 +('x'||substr(a,9,8))::bit(32)::int4::numeric/4 +('x'||substr(a,17,8))::bit(32)::int4::numeric/4 +('x'||substr(a,25,8))::bit(32)::int4::numeric/4 ) as cksum from (select /*+no_expand*/ md5(row_to_json(t)::text) a from (select to_char(ID,'fm99999999999999999999999999999.00000000') AS "ID",NAME AS "NAME",rtrim(BU) AS "BU",rtrim(BU) AS "DESCRIPTION",to_char(UPDATE_DATE,'yyyymmddhh24missff6') AS "UPDATE_DATE",L1 AS "L1",L2 AS "L2",L3 AS "L3" from (SELECT * FROM public.TEST_CHECKSUM_TABLE) )t )
+  Result: count=5, checksum=3853631922
+  Execution time: 909 ms
+
+  Status: [PASS] Consistent
+</code></pre>
+<h2 id="后续待办">后续待办</h2>
+<p>关于报告格式，目前还没想好，其实可以再生成一个html和一个excel的，方便筛选过滤，以后需要再弄吧，现在这个程度已经够用了。看一眼汇总报告里有没有报错的任务，最后一致性是不是100%，核对任务就完成了，真正上线的时候就可以进行下一步了。</p>
+<p>其实这个工具，也可以对比ORACLE和PG、ORACLE和GaussDB，只要目标数据库是OG/PG系的都行，换个jdbc驱动，改下连接串就好了。</p>
+<p>目前这个工具还处于原型阶段，能用，但后续可以增加更多个性化配置，比如是否需要核对LOB字段、是否需要支持映射 <code>\0</code>、是否需要支持表名映射、字段名映射，大表是否进行拆分、能否定位到明细行等等...再接着如果能再支持更多种数据库，增加图形化操作界面，那么这就是一个功能齐全的通用数据库数据核对工具了。（挖了个大坑，什么时候填再说--！）</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

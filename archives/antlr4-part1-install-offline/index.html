@@ -153,7 +153,180 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>最近遇到个项目，打算做ORACLE应用系统里的PLSQL重构，将一些ORACLE独有的高级语法改写成指定的通用语法，以便能支持在更多的数据库上运行，但该应用系统里的PLSQL代码量实在太大，人工改写或者正则替换都不是那么容易，数据库厂家的自动改写工具也只能提供一种规则的自动转换，不能定制转换规则，所以还是期望借助语法树解析工具来做一些个性化定制的改写。<br/>
+几年前我就有写过antlr4这个工具怎么用，但是隔了这么多年，这个工具的有了一点点变化。另外，python相关的东西经常要解决一些pip依赖，在没有外网的环境非常不方便，所以本文通过不使用任何在线安装命令的方式来装这个环境，以整理出必须下载的文件。</p>
+<h2 id="一-安装PYTHON和JAVA-11或以上-">一、安装PYTHON和JAVA(11或以上)</h2>
+<p>https://www.python.org/ftp/python/3.13.0/python-3.13.0-amd64.exe<br/>
+https://download.java.net/java/ga/jdk11/openjdk-11_windows-x64_bin.zip (以后可能会用到jdk，就不单独弄jre了)</p>
+<p>python安装很简单，没什么说的。<br/>
+JAVA只需要解压，然后把解压后的目录配置到环境变量 <code>JAVA_HOME</code>，再在环境变量 <code>PATH</code>里加入 <code>%JAVA_HOME%\bin</code>即可。<br/>
+用11的原因是后文下载的 <code>antlr-4.13.2-complete.jar</code>这个文件是用11编译的，实测用17也行，但用8就会报错。</p>
+<h2 id="二-创建工作目录">二、创建工作目录</h2>
+<pre><code>md c:\antlr
+pushd c:\antlr
+</code></pre>
+<h2 id="三-下载必要文件">三、下载必要文件</h2>
+<pre><code>wget https://www.antlr.org/download/antlr-4.13.2-complete.jar
+</code></pre>
+<pre><code>git clone https://github.com/antlr/grammars-v4
+#或
+wget https://codeload.github.com/antlr/grammars-v4/zip/refs/heads/master
+unzip grammars-v4-master.zip
+</code></pre>
+<h2 id="四-生成解析器">四、生成解析器</h2>
+<p>1.复制必要文件</p>
+<pre><code>pushd C:\antlr
+copy C:\antlr\grammars-v4-master\sql\plsql\*.g4 .
+copy C:\antlr\grammars-v4-master\sql\plsql\Python3\* .
+</code></pre>
+<p>2.生成</p>
+<pre><code>pushd C:\antlr
+SET CLASSPATH=.;C:\antlr\antlr-4.13.2-complete.jar;
+doskey antlr4vpy3=java org.antlr.v4.Tool -Dlanguage=Python3 -no-listener -visitor $*
+antlr4vpy3 PlSqlLexer.g4
+antlr4vpy3 PlSqlParser.g4
+</code></pre>
+<p>执行后，会生成这么几个文件</p>
+<pre><code>PlSqlLexer.interp
+PlSqlLexer.tokens
+PlSqlLexer.py
+PlSqlParser.interp
+PlSqlParser.tokens
+PlSqlParser.py
+PlSqlParserVisitor.py
+</code></pre>
+<h2 id="五-安装antlr4-python3-runtime">五、安装antlr4_python3_runtime</h2>
+<p>方法一：通过poetry进行源码安装</p>
+<pre><code>pip install poetry
+pushd C:\antlr\antlr4-dev\runtime\Python3
+poetry install
+</code></pre>
+<p>注：poetry本身的离线安装非常麻烦，建议使用方法二</p>
+<p>方法二：直接下载发行版本安装<br/>
+<a href="https://pypi.org/project/antlr4-python3-runtime/#files">antlr4-python3-runtime · PyPI</a></p>
+<pre><code>pip install antlr4_python3_runtime-4.13.2-py3-none-any.whl
+</code></pre>
+<h2 id="六-测试">六、测试</h2>
+<p>注意参数为 <code>-t</code>或 <code>--tree</code>，不是 <code>-tree</code></p>
+<pre><code>pygrun PlSql sql_script --tree
+</code></pre>
+<p>输入sql，<code>ctrl+z</code>，回车</p>
+<pre><code>C:\antlr&gt;pygrun PlSql sql_script --tree
+SELECT 1 A FROM DUAL;
+^Z
+(sql_script
+   (unit_statement
+      (data_manipulation_language_statements
+         (select_statement
+            (select_only_statement
+               (subquery
+                  (subquery_basic_elements
+                     (query_block SELECT
+                        (selected_list
+                           (select_list_elements
+                              (expression
+                                 (logical_expression
+                                    (unary_logical_expression
+                                       (multiset_expression
+                                          (relational_expression
+                                             (compound_expression
+                                                (concatenation
+                                                   (model_expression
+                                                      (unary_expression
+                                                         (atom
+                                                            (constant
+                                                               (numeric 1))))))))))))
+                              (column_alias
+                                 (identifier
+                                    (id_expression
+                                       (regular_id A))))))
+                        (from_clause FROM
+                           (table_ref_list
+                              (table_ref
+                                 (table_ref_aux
+                                    (table_ref_aux_internal
+                                       (dml_table_expression_clause
+                                          (tableview_name
+                                             (identifier
+                                                (id_expression
+                                                   (regular_id DUAL))))))))))))))))) ; &lt;EOF&gt;)
+
+C:\antlr&gt;
+</code></pre>
+<h2 id="七-JAVA版">七、JAVA版</h2>
+<p>上面是基于python语言进行开发做准备，但antlr4其实还支持使用其他开发语言，比如C/CPP/C#/JAVA/GO/JS/SWIFT/DART,下面就简单说了使用JAVA开发需要准备的内容。</p>
+<p>1.安装jdk(11或以上)</p>
+<p>2.生成解析器</p>
+<pre><code>SET CLASSPATH=.;C:\antlr\antlr-4.13.2-complete.jar;
+doskey antlr4vjava=java org.antlr.v4.Tool -Dlanguage=Java -no-listener -visitor $*
+doskey grun =java org.antlr.v4.gui.TestRig $*
+antlr4vjava PlSqlParser.g4
+antlr4vjava PlSqlLexer.g4
+javac PlSqlLexer.java
+javac PlSqlParserVisitor.java
+javac PlSqlParserBaseVisitor.java
+javac PlSqlParser.java
+</code></pre>
+<p>3.测试生成语法树<br/>
+注意参数为 <code>-tree</code>，不是 <code>-t</code>,也不是 <code>--tree</code></p>
+<pre><code>doskey grun =java org.antlr.v4.gui.TestRig $*
+grun PlSql sql_script  -tree
+</code></pre>
+<p>输入sql，<code>ctrl+z</code>，回车</p>
+<pre><code>C:\antlr&gt;SET CLASSPATH=.;C:\antlr\antlr-4.13.2-complete.jar;
+
+C:\antlr&gt;doskey grun =java org.antlr.v4.gui.TestRig $*
+
+C:\antlr&gt;grun PlSql sql_script  -tree
+SELECT 1 A FROM DUAL;
+^Z
+(sql_script (unit_statement (data_manipulation_language_statements (select_statement (select_only_statement (subquery (subquery_basic_elements (query_block SELECT (selected_list (select_list_elements (expression (logical_expression (unary_logical_expression (multiset_expression (relational_expression (compound_expression (concatenation (model_expression (unary_expression (atom (constant (numeric 1)))))))))))) (column_alias (identifier (id_expression (regular_id A)))))) (from_clause FROM (table_ref_list (table_ref (table_ref_aux (table_ref_aux_internal (dml_table_expression_clause (tableview_name (identifier (id_expression (regular_id DUAL))))))))))))))))) ; &lt;EOF&gt;)
+
+C:\antlr&gt;
+</code></pre>
+<p>4.语法树图形化</p>
+<pre><code>grun PlSql sql_script  -gui
+</code></pre>
+<p>输入sql，<code>ctrl+z</code>，回车</p>
+<p><img alt="image-edub.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-edub.png" srcset="/upload/image-edub.png?width=1200 1200w, /upload/image-edub.png?width=400 400w, /upload/image-edub.png?width=1600 1600w, /upload/image-edub.png?width=800 800w"/></p>
+<h2 id="八-离线环境需准备的最少文件列表">八、离线环境需准备的最少文件列表</h2>
+<p>1.java版</p>
+<ul>
+<li>https://www.antlr.org/download/antlr-4.13.2-complete.jar</li>
+<li>https://download.java.net/java/ga/jdk11/openjdk-11_windows-x64_bin.zip</li>
+<li>https://github.com/antlr/grammars-v4
+<ul>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/PlSqlLexer.g4</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/PlSqlParser.g4</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/Java/PlSqlLexerBase.java</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/Java/PlSqlParserBase.java</li>
+</ul>
+</li>
+</ul>
+<p>2.python版</p>
+<ul>
+<li>https://www.antlr.org/download/antlr-4.13.2-complete.jar</li>
+<li>https://download.java.net/java/ga/jdk11/openjdk-11_windows-x64_bin.zip (或者用手上有的jre)</li>
+<li>https://www.python.org/ftp/python/3.13.0/python-3.13.0-amd64.exe</li>
+<li>https://files.pythonhosted.org/packages/89/03/a851e84fcbb85214dc637b6378121ef9a0dd61b4c65264675d8a5c9b1ae7/antlr4_python3_runtime-4.13.2-py3-none-any.whl</li>
+<li>https://github.com/antlr/grammars-v4
+<ul>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/PlSqlLexer.g4</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/PlSqlParser.g4</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/Python3/PlSqlLexerBase.py</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/Python3/PlSqlParserBase.py</li>
+<li>https://github.com/antlr/grammars-v4/sql/plsql/Python3/transformGrammar.py</li>
+</ul>
+</li>
+</ul>
+<p>至于怎么使用antlr4进行语法转换的开发，下一篇再说<br/>
+<a href="https://www.darkathena.top/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战</a></p>
+</div>
+</article>
     </div>
     
 </article>

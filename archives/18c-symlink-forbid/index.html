@@ -149,13 +149,101 @@
         
         <span>2021-11-29</span>
         
-        <span>912 阅读</span>
+        <span>913 阅读</span>
         
         <a href="/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>事情的起因是这样的，我在我的21c数据库环境中尝试做一些与操作系统的交互，比如读写文件，但遇上了之前没有遇到过的报错。</p>
+<p>先看下面这个例子：</p>
+<h2 id="案例">案例</h2>
+<p>先查一个目录</p>
+<pre><code class="language-sql">SELECT DIRECTORY_PATH
+  FROM DBA_DIRECTORIES H
+ WHERE H.directory_name = 'DATA_PUMP_DIR';
+
+---
+/u01/app/oracle/admin/cdb1/dpdump/D1F166B4357F093BE053040011AC4C08
+</code></pre>
+<p>然后进操作系统，在这个目录生成一个文件</p>
+<pre><code class="language-bash">echo "123" &gt; /u01/app/oracle/admin/cdb1/dpdump/D1F166B4357F093BE053040011AC4C08/test.tst
+cat /u01/app/oracle/admin/cdb1/dpdump/D1F166B4357F093BE053040011AC4C08/test.tst
+
+123
+
+</code></pre>
+<p>在数据库中用bfilename函数查这个文件，并打开</p>
+<pre><code class="language-sql">select bfilename('DATA_PUMP_DIR','test.tst') from dual;
+</code></pre>
+<p>报错</p>
+<blockquote>
+<p>ORA-22288: 文件或 LOB 操作FILEOPEN失败<br/>
+soft link in path</p>
+</blockquote>
+<p>再在数据库中执行删除文件</p>
+<pre><code class="language-sql">begin
+utl_file.fremove('DATA_PUMP_DIR','test.tst');
+end;
+/
+</code></pre>
+<p>报错</p>
+<blockquote>
+<p>ORA-29283: 无效的文件操作 : 路径遍历符号链接 [29433]<br/>
+ORA-06512: 在 "SYS.UTL_FILE", line 251<br/>
+ORA-06512: 在 "SYS.UTL_FILE", line 1230<br/>
+ORA-06512: 在 line 2</p>
+</blockquote>
+<h2 id="分析">分析</h2>
+<p>根据提示来看，“soft link in path”这个指的是软链接，我又联想到，我这个目录的确是在一个软链接下面，但以前玩11g和12c这都是基操呀，咋会出现这情况？于是我在oracle官网上开始搜索一些关键词，搜到了这篇<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/rnrdm/enterprise-edition-bugs.html#GUID-3D1D4E57-416B-4AC9-9637-72D2BAE554C5">https://docs.oracle.com/en/database/oracle/oracle-database/19/rnrdm/enterprise-edition-bugs.html#GUID-3D1D4E57-416B-4AC9-9637-72D2BAE554C5</a></p>
+<blockquote>
+<p>2.5.5.2 Bug 24291322<br/>
+Symbolic links are not allowed in the directory object paths or filenames when opening BFILEs. The entire directory path and filename is checked and the following error is returned if any symbolic link is found:</p>
+</blockquote>
+<blockquote>
+<p>ORA-22288: file or LOB operation FILEOPEN failed soft link in path<br/>
+Workaround:</p>
+</blockquote>
+<blockquote>
+<p>If the database directory object or filename that you are trying to open contains symbolic links, then change it to provide the real path and filename.</p>
+</blockquote>
+<p>说是有个BUG?但为什么解决方案却是要我们用真实路径而不是去修复它？</p>
+<p>问题肯定没这么简单，因为我记得我早前在看dbms_utility包的时候，有发现一个directory_has_symlink函数，用来判断一个目录是不是软链接的，以前没有这个，ORACLE这波呀，肯定是有备而来！</p>
+<h2 id="原因">原因</h2>
+<p>于是我继续在bing上搜索，看到了这2篇文章<br/>
+<a href="https://christian-gohmann.de/2019/05/19/symbolic-links-in-directory-objects-not-permitted-with-oracle-18c-19c/">《Symbolic Links in DIRECTORY Objects not permitted with Oracle 18c/19c》</a><br/>
+<a href="https://mikedietrichde.com/2019/07/15/behavior-change-in-oracle-18c-19c-no-symbolic-links-for-data-pump-directories/">《Behavior Change in Oracle 18c/19c: No symbolic links for Data Pump directories》</a></p>
+<p>果然，文中提到ORACLE基于安全角度考虑，取消了对软链接目录的支持，受这个影响的相关功能有</p>
+<ul>
+<li>Data Pump</li>
+<li>PL/SQL package UTL_FILE</li>
+<li>BFILEs</li>
+<li>External Tables</li>
+</ul>
+<p>并且在18c预升级程序执行时，会有提示，当前数据库存在哪些软链接目录，请手工用真实路径重建。<br/>
+<a href="https://support.oracle.com/epmos/faces/DocumentDisplay?id=2380601.1">MOS Note: 2380601.1 (Database Preupgrade tool check list):</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png" srcset="/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1200 1200w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=400 400w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1600 1600w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=800 800w"/></p>
+<h2 id="疑惑">疑惑</h2>
+<p>"WARNING"、"MANUAL"，这么重要的事情，有关18c的新特性介绍文章里咋没见到呢。。。搜相关报错信息，国内几大技术网站里也没搜到。</p>
+<p>难道国内就没人用oracle做软链接下的文件读写操作？还是都停留在12c之前？</p>
+<p>我想起我以前所在的公司，如果要升级数据库，这个问题可能会很难搞。我对那些package无比熟悉，几乎都刻在脑海里了，有大量各种各样的文件操作。</p>
+<p>眼下我也不用急着解决我研究中遇到的这个问题，反正有其他方式可以实现。</p>
+<h2 id="临时解决方案">临时解决方案</h2>
+<p>当然，ORACLE不可能在如此重大的修改上留一手，其实可以修改相关参数来实现软链接依旧可用：</p>
+<pre><code class="language-sql">ALTER SYSTEM SET "_disable_directory_link_check" = TRUE SCOPE=SPFILE;
+ALTER SYSTEM SET "_kolfuseslf" = TRUE SCOPE=SPFILE;
+</code></pre>
+<p>修改后重启数据库即可。这只是临时解决方案，而正确的解决方案依然还是把软链接目录修改成实际的目录。</p>
+<h2 id="附检查哪些目录是软链接的脚本">附:检查哪些目录是软链接的脚本</h2>
+<pre><code class="language-sql">@?/rdbms/admin/utldirsymlink.sql
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,272 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb用ai解析ugo中的sql审核模块的实现">【GaussDB】用AI解析UGO中的SQL审核模块的实现</h1>
+<h2 id="背景">背景</h2>
+<p>目前GaussDB没有公开自己的语法树规则，那么第三方工具如果想基于GaussDB的SQL去做一些解析来实现特定的一些功能，就可能比较麻烦，所以我就想到UGO里有SQL审核模块，那么一定有做了语法树生成。<br/>
+所以这篇尝试用AI来解析一下UGO里对于SQL审核的基本实现。</p>
+<h2 id="ai-chat">AI CHAT</h2>
+<blockquote>
+<p><strong>Dark-Athena</strong>: 分析 software\services\UGO_SqlAudit\sql-audit.war 的处理逻辑</p>
+</blockquote>
+<blockquote>
+<p><strong>Github-Copilot</strong>: 已梳理完 sql-audit 内的整体逻辑，下面按“架构概览 → 接口层 → 服务与数据流 → 规则与上下文 → 数据与配置 → 安全与线程 → 质量 → 建议”的顺序说明。</p>
+</blockquote>
+<blockquote>
+<h2 id="架构概览">架构概览</h2>
+<ul>
+<li>该 WAR 解压后包含标准 META-INF 与 <code>WEB-INF</code>;入口类 <code>WEB-INF/classes/com/huawei/gauss/dsc/audit/SqlAuditApplication.class</code> 启动 Spring Boot（嵌入式端口 server.properties 里为 9000，绑定 <code>127.0.0.1</code>）。</li>
+<li>代码包划分：</li>
+<li><code>business</code> 下含 <code>controller</code>、<code>service/impl</code>、<code>mapper</code>、<code>model</code>、<code>threadpool</code> 等，承载 HTTP → Service → DAO 全链路。</li>
+<li><code>gauss</code>、<code>mysql</code>、<code>autoexplain</code>、<code>context</code>、<code>handler</code> 等包实现规则引擎、依赖分析与 Explain 转换。</li>
+<li><code>config</code> 提供运行参数（application.properties、system_table.yaml、ugosql.properties、version.properties）。</li>
+<li><code>rules</code> 目录自带 rule_template_gauss.xml、<code>rule_template_mysql.xml</code> 作为默认规则模板。</li>
+<li><code>mybatis/mapper/*.xml</code> 映射了所有 <code>AUDIT_*</code> 表，配合 <code>org.mariadb.jdbc.Driver</code>（ugosql.properties）访问数据库。</li>
+</ul>
+<h2 id="控制层接口覆盖">控制层接口覆盖</h2>
+<p>所有 v1 控制器均挂在 <code>/v1/ugo-audit-service</code>（除 pipeline 专用路由），并携带 <code>@AccessKey</code> 与 <code>@RequiredPermission</code> 注解：</p>
+<ul>
+<li><code>CommonTaskController</code>：<code>/tasks</code> CRUD、<code>/tasks/{task_id}/sqls</code> 列表、<code>/export</code>、<code>/restart</code>、统计接口 <code>/statistic/objects | risk-sqls | violation-rules</code>、异常对象查询等。</li>
+<li><code>SingleSqlAuditController</code>：<code>/audit-sql</code> 提交单条 SQL，<code>/sqls/history</code> 查询与 <code>DELETE</code> 清理历史。</li>
+<li><code>AuditDatabaseController</code>：<code>/datasources</code> 列表、创建、校验重名、测试连接、删除、拉取 schema 名等。</li>
+<li><code>AuditRuleController</code>、<code>AuditTemplateController</code>、<code>AuditTemplateRuleController</code>：提供规则/模板查询、导入导出、增删改（模板相关操作需要 <code>projectadmin</code> 权限）。</li>
+<li><code>KafkaAuditController</code>：上传 Kafka 证书 <code>/tasks/kafka/cert-file</code> 和测试连接 <code>/tasks/kafka/test-connection</code>，用于日志实时捕获任务。</li>
+<li><code>PipelineAuditController</code>：暴露 <code>/ugo-migration-service/ugo-audit-service/v1/pipeline/task</code> 入口供迁移流水线编排创建/查询任务。</li>
+<li><code>PlsqlExplainTaskController</code>：<code>/tasks/{task_id}/plsql-evaluation/sqls/{sql_id}/sql-text|sql-explain|sub-sqls</code> 与 <code>re-evaluation</code>，调用 AutoExplain/PLSQL 解析。</li>
+<li>V2 控制器 <code>CommonTaskControllerV2</code>、<code>SingleSqlAuditControllerV2</code> 切到 <code>/v2/ugo-audit-service</code>，主要给 UGO 其它模块复用，权限依旧是 <code>common</code>。</li>
+</ul>
+<h2 id="核心服务与数据流">核心服务与数据流</h2>
+<ol>
+<li><strong>任务创建</strong></li>
+</ol>
+<ul>
+<li><code>CommonTaskController#createAuditTask</code> 组装 <code>CreateAuditTaskRequestBody</code>（含项目、模板、数据库 ID、上传 SQL 文件等），交给 <code>AuditTaskServiceImpl.createAuditTask</code>。</li>
+<li>Service 先写入 <code>AUDIT_TASK</code>（AuditTaskMapper.xml），再批量写入 SQL 文本到 <code>AUDIT_SQL</code>/<code>AUDIT_TASK_SQL</code>，并把任务置为 <code>new/wait/run</code> 状态。</li>
+</ul>
+<ol start="2">
+<li><strong>SQL 审核执行</strong></li>
+</ol>
+<ul>
+<li>工作线程池（<code>auditThreadPool*</code> 系列参数）从队列中取任务；每条 SQL 构造 <code>SqlAuditContext</code>（包含 taskId、sqlId、SQL 文本、DB 元信息、模板选定的规则、依赖缓存等）。</li>
+<li>针对 Gauss/MySQL 数据源分别调用 <code>com.huawei.gauss.dsc.audit.gauss.*</code> 或 <code>mysql.*</code> 下的规则实现（<code>rule_template_*.xml</code> 中的 <code>javaClassName</code> 与规则类一一对应）。</li>
+<li><code>SqlAuditContext.loadSqlAuditRules</code> 会把模板规则 + 系统默认规则整合，并结合 system_table.yaml 过滤系统对象。</li>
+<li>规则运行后由 <code>AuditTaskSqlServiceImpl.saveAuditResult</code> 把结果写入 <code>AUDIT_SQL_VIOLATION</code>、<code>AUDIT_SQL_DEPENDENCE</code>、<code>AUDIT_SQL_META_INFO</code> 等表，同时更新 <code>AUDIT_TASK_SQL</code> 状态（<code>new → done/analyze_error</code>）。</li>
+</ul>
+<ol start="3">
+<li><strong>结果查询与导出</strong></li>
+</ol>
+<ul>
+<li>AuditTaskSqlMapper.xml/AuditSqlMapper.xml 提供多维过滤（状态、SQL 文本、严重级别、SQL 类型、Violation 规则 Top N 等）。</li>
+<li>导出接口将查询结果分页写 Excel，受 <code>exportPerExcelMaxRecord</code>、<code>exportExcelSqlMaxLength</code> 限制。</li>
+<li><code>StatisticServiceImpl</code>（由 <code>CommonTaskController</code> 调用）组合 <code>AUDIT_TASK_SQL</code> 与 <code>AUDIT_SQL_VIOLATION</code> 统计对象数量、风险级别分布、违规规则排行榜。</li>
+</ul>
+<ol start="4">
+<li><strong>单 SQL 审核/历史</strong></li>
+</ol>
+<ul>
+<li><code>SingleSqlAuditServiceImpl.processAuditResult</code> 直接在请求线程中构建 <code>SqlAuditContext</code>、运行规则并返回结果，同时把请求写入 <code>AUDIT_SINGLE_SQL_HISTORY</code>，供历史查询/删除使用。</li>
+</ul>
+<ol start="5">
+<li><strong>Kafka/Pipeline 任务</strong></li>
+</ol>
+<ul>
+<li>Kafka 入口经 <code>KafkaAuditController</code> 上传 truststore（字段 <code>CERT_FILE_JKS</code>）并验证服务器、SASL、Topic 名；<code>AuditTaskCaptureDao</code> 将 <code>AUDIT_TASK_CAPTURE</code> 与 <code>AUDIT_TASK</code> 绑定，用 <code>KafkaCaptureHandle</code> + <code>KafkaClient</code> 消费 JSON（<code>CapTureJsonParser</code>），再复用同一套 <code>SqlAuditContext</code> 流程。</li>
+<li>Pipeline API 则面向自动化迁移场景：可批量触发任务并查询状态。</li>
+</ul>
+<ol start="6">
+<li><strong>PL/SQL Explain</strong></li>
+</ol>
+<ul>
+<li><code>PlsqlExplainTaskController</code> 通过 <code>IAuditPlsqlSimplifyDdlService</code> 和 <code>IAuditAutoExplainService</code> 拉取 SQL 文本、 explain 结果或重新评估，底层依赖 <code>autoexplain</code> 包和 <code>AuditPlsqlSimplifyDdlMapper.xml</code>。</li>
+</ul>
+<h2 id="规则与上下文">规则与上下文</h2>
+<ul>
+<li>rule_template_gauss.xml &amp; <code>rule_template_mysql.xml</code> 定义了数百条内置规则（命名风格、索引限制、DML 约束、join 用法等），含 <code>ruleId/Name/Severity/auditObjectType/javaClassName/threshold</code> 信息，可映射到 <code>AUDIT_RULES</code> 表和模板规则。</li>
+<li>system_table.yaml 维护系统对象白名单，解析依赖时可忽略 <code>pg_catalog/sys/information_schema</code> 等。</li>
+<li><code>SqlAuditContext</code> 提供审计过程所需的所有状态：数据库部署模式、SQL 语法树 (<code>TSqlStatement</code>)、依赖对象缓存、Explain 结果、命中规则与未匹配规则 (<code>NoMatchRules</code>)、PL/SQL 堆栈等。</li>
+<li>数据库特定的 <code>AbstractAuditSourceDbInfo</code>、<code>CommonSqlAuditRule</code>、<code>TableStructureInfo</code> 等 POJO 在 <code>context</code>、<code>gauss/model</code>、<code>mysql/model</code> 下定义，供规则引擎访问。</li>
+</ul>
+<h2 id="数据持久化--mybatis">数据持久化 &amp; MyBatis</h2>
+<p>主要表与 mapper：</p>
+<ul>
+<li><code>AUDIT_TASK</code> / <code>AUDIT_TASK_SQL</code> / <code>AUDIT_SQL</code>（AuditTaskMapper.xml, AuditTaskSqlMapper.xml, AuditSqlMapper.xml）：记录任务、单条 SQL、状态与 SQL 文本。</li>
+<li><code>AUDIT_SQL_VIOLATION</code>、<code>AUDIT_SQL_DEPENDENCE</code>、<code>AUDIT_SQL_META_INFO</code>（AuditSqlViolationMapper.xml, AuditSqlDependenceMapper.xml, <code>AuditSqlMetaInfoMapper.xml</code>, AuditSqlDependValueMapper.xml）：存储命中规则片段、对象依赖及其附加值。</li>
+<li><code>AUDIT_DATABASES</code>（AuditDatabaseDao.xml）：数据源（IP/Port/User/SSL/状态）管理；含测试连接时间、ServiceName、SID 等字段。</li>
+<li><code>AUDIT_RULES</code>、<code>AUDIT_TEMPLATES</code>/<code>AUDIT_USER_TEMPLATES</code>、<code>AUDIT_TEMPLATE_RULES</code>（AuditRuleDao.xml, AuditTemplateDao.xml, AuditTemplateRuleDao.xml）：规则仓库与模板定制，模板规则支持覆盖严重级别/阈值/建议。</li>
+<li><code>AUDIT_TASK_CAPTURE</code>（AuditTaskCaptureMapper.xml）：Kafka 捕获任务（topic、groupId、offset、SASL、证书）。</li>
+<li>其它：<code>AUDIT_ERROR_FILES</code>（Zip 上传失败记录）、<code>AUDIT_SQL_NO_MATCH_RULE</code>、<code>AUDIT_SQL_DEPEND_VALUE</code>、<code>AUDIT_PROJECT</code> 等，用于文件导入与统计。<br/>
+MyBatis 自定义 <code>CustomEnumTypeHandler</code> 将 <code>DbType/AuditStatus/Severity/AuditObjectType</code> 等枚举和字符串互转，SQL 广泛使用 <code>sysdate()</code>、<code>INSTR</code>、<code>limit/offset</code>（推测底层是 MariaDB/MySQL）。</li>
+</ul>
+<h2 id="配置线程与运行参数">配置、线程与运行参数</h2>
+<p>核心配置位于 application.properties：</p>
+<ul>
+<li>审核任务线程池：<code>auditThreadPool*</code>（核心/最大/队列/keepAlive）、<code>auditTaskSqlThreadPool*</code>，以及用于任务删除的 <code>deleteTaskThreadPoolSize</code>。</li>
+<li>IO 限制：上传 ZIP/其他文件大小、压缩包内 SQL 数量 (<code>fileUploadCountInZip</code>)、<code>maxSqlTextSize=102400</code>、<code>sqlDescLength=512</code>。</li>
+<li>存储位置：<code>fileAuditTempPath</code>, <code>cloudFileAuditTempPath</code>, <code>reservedSpaceSize=50MB</code>。</li>
+<li>任务清理策略：<code>deleteTaskOperationCron=0 0 3 * * ?</code> 每日凌晨清理，单次 <code>deleteTaskIdStep=10</code>，超时与总时长阈值可控。</li>
+<li>导出/模板/导入限制：<code>maxTemplateSize=1000</code>, <code>sqlAuditSaveRecordsNumber=10</code>, <code>exportPerExcelMaxRecord=5000</code>, <code>exportExcelSqlMaxLength=30000</code>。</li>
+<li>其它：<code>analysisPackageDefinition</code>（PL/SQL 包分析开关）、<code>taskCacheInitialDelay/delay</code>（缓存刷新间隔）、<code>databaseMaxSchemaSize=10000</code>。<br/>
+数据库连接使用 ugosql.properties（MariaDB 驱动、连接串凭证、连接池大小 20、查询超时 900s）。<br/>
+Spring 端口在 server.properties 中配置（应用 9000，IAM 服务 9001）；CORS 白名单 <code>corsUrls=http://localhost:9040</code>。版本信息在 version.properties。</li>
+</ul>
+<h2 id="安全与鉴权">安全与鉴权</h2>
+<ul>
+<li>控制器均使用 <code>com.huawei.gauss.dsc.common.accesskey.AccessKey</code> 注解，结合 <code>accessKeySignatureTimeout=300000</code> 进行接口签名校验。</li>
+<li><code>@RequiredPermission</code> 约束权限等级：<code>common</code> 可读多数字段，<code>projectadmin</code> 才能改数据源/模板/Kafka 等高危操作。</li>
+<li>application.properties 里 <code>isAuthNeeded=false</code>，但接口实参仍包括 <code>AuthToken</code>（IDAM 集成）。</li>
+<li>us.config.properties 定义 Validator 白名单、日志脱敏（正则匹配大量敏感字段）、<code>wushan.security.validator.*</code> 防御配置，并允许 <code>MultipartFile/Boolean/AuthToken</code> 等类型跳过严格校验。</li>
+<li>日志使用 <code>WEB-INF/classes/log4j2.xml</code>，含敏感信息过滤器。</li>
+</ul>
+<h2 id="线程与定时任务">线程与定时任务</h2>
+<ul>
+<li>审核执行线程池与 SQL 处理池通过配置可调；<code>threadProcessSqlNumber=200</code> 控制单线程 SQL 批处理量。</li>
+<li><code>taskCache</code> 定期刷新任务缓存；<code>deleteTaskOperationCron</code> 驱动任务数据清理（含 <code>deleteTaskByProjectId</code> 等 DAO）。</li>
+<li>Kafka 消费使用 <code>ConsumerTaskCache</code> 缓存 offset，<code>KafkaClient</code> 管理连接，<code>KafkaCaptureHandle</code> 负责将消息切分并投递到审核线程。</li>
+<li>PL/SQL explain 与 auto explain 任务依赖独立线程（在 <code>business/threadpool</code> 包中实现）以避免阻塞主线程。</li>
+</ul>
+<h2 id="质量状态">质量状态</h2>
+<ul>
+<li>Build：PASS（仅做架构分析，无代码改动，未触发构建）。</li>
+<li>Lint/Typecheck：PASS（未修改源代码，未触发新的类型检查）。</li>
+<li>Tests：PASS（无代码变更，无需执行用例）。</li>
+</ul>
+<h2 id="后续建议">后续建议</h2>
+<ol>
+<li><strong>配置可观测</strong>：将 application.properties 中的线程池/文件阈值暴露到配置中心，便于不同部署环境按需缩放；同时监控 Kafka <code>PARTITION_OFFSET</code> 与任务队列长度。</li>
+<li><strong>规则可视化</strong>：结合 <code>AUDIT_TEMPLATE_RULES</code> 与 <code>rules/*.xml</code>，提供导出的 JSON/报告，方便跨环境对齐自定义规则。</li>
+<li><strong>清理策略</strong>：<code>deleteTaskOperationCron</code> 与 <code>deleteTaskIdStep</code> 固定，长期运行时建议结合任务总量动态调节，或暴露内部 API 供运维触发。</li>
+<li><strong>安全</strong>：虽然 <code>isAuthNeeded=false</code>，但接口依赖 AccessKey/RequiredPermission；若未来开放更多对外 API，需同步审计 AccessKey 分发与权限模型。</li>
+</ol>
+<p>通过以上信息即可快速理解 <code>sql-audit.war</code> 在 UGO 平台中的职责、接口、运行参数及其 SQL 审核处理链路。</p>
+<p>每种规则都需要写一段java代码去做识别和判断</p>
+<pre><code class="language-java">package com.huawei.gauss.dsc.audit.gauss.rule;
+
+import com.huawei.gauss.dsc.audit.annotation.Rule;
+import com.huawei.gauss.dsc.audit.gauss.builder.WhereConditionInfoHandler;
+import com.huawei.gauss.dsc.audit.gauss.nodes.WhereConditionInfoItem;
+import com.huawei.gauss.dsc.audit.po.AuditResult;
+import com.huawei.gauss.dsc.audit.po.CommonSqlAuditRule;
+import com.huawei.gauss.dsc.audit.utils.AuditResultUtils;
+import com.huawei.gauss.dsc.sqlparser.nodes.StringNode;
+import com.huawei.gauss.dsc.sqlparser.stmt.gauss.GaussDeleteSqlStatement;
+import com.huawei.gauss.dsc.sqlparser.stmt.gauss.GaussSelectStatement;
+import com.huawei.gauss.dsc.sqlparser.stmt.gauss.GaussUpdateSqlStatement;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Stack;
+import java.util.regex.Pattern;
+
+@Rule(
+  name = "GaussNotEqualNullAudit",
+  auditName = "禁止使用“!= NULL”，应使用 IS NULL或IS NOT NULL"
+)
+public class GaussNotEqualNullAudit extends CommonSqlAuditRule {
+  public static final Pattern NO_EQ_PATTERN = Pattern.compile("[!]?\\s*(=)|(&lt;\\s*&gt;)");
+
+  public GaussNotEqualNullAudit() {
+  }
+
+  public List&lt;AuditResult&gt; audit(Object sqlClause, Stack&lt;Object&gt; sqlRootContext, String sqlText, Object sqlAuditContext) {
+     List&lt;WhereConditionInfoItem&gt; columnsAndValue = this.getColumnsAndValue(sqlClause);
+     StringNode containNull = this.isContainNull(columnsAndValue);
+     return containNull != null ? AuditResultUtils.createErrorAuditResults(this, containNull.getStartToken(), containNull.getEndToken()) : AuditResult.successResultList();
+  }
+
+  public boolean isApply(Object sqlClause) {
+     return sqlClause instanceof GaussSelectStatement || sqlClause instanceof GaussDeleteSqlStatement || sqlClause instanceof GaussUpdateSqlStatement;
+  }
+
+  private StringNode isContainNull(List&lt;WhereConditionInfoItem&gt; whereConditionInfoItems) {
+     Iterator var2 = whereConditionInfoItems.iterator();
+
+     StringNode operator;
+     boolean isNotEqNull;
+     do {
+        if (!var2.hasNext()) {
+           return null;
+        }
+
+        WhereConditionInfoItem whereConditionInfoItem = (WhereConditionInfoItem)var2.next();
+        operator = whereConditionInfoItem.getOperator();
+        StringNode value = whereConditionInfoItem.getValue();
+        isNotEqNull = operator != null &amp;&amp; value != null &amp;&amp; NO_EQ_PATTERN.matcher(operator.getValue().toUpperCase(Locale.ROOT)).find() &amp;&amp; value.getValue().equalsIgnoreCase("null");
+     } while(!isNotEqNull);
+
+     return operator;
+  }
+
+  private List&lt;WhereConditionInfoItem&gt; getColumnsAndValue(Object sqlClause) {
+     WhereConditionInfoHandler handler = new WhereConditionInfoHandler();
+     return handler.getWhereColumnsAndValue(sqlClause);
+  }
+}
+</code></pre>
+<p>sqlparser类库并不是打包在WAR文件内部，而是由UGO_lib目录下的共享解析组件提供。每种数据库方言都自带其对应的解析器JAR文件，这些JAR文件都包含com.huawei.gauss.dsc.sqlparser包：</p>
+<p>parser-api-24.7.30.jar<br/>
+parser-common-24.7.30.jar<br/>
+parser-db2-24.7.30.jar<br/>
+parser-gaussdbv5-24.7.30.jar<br/>
+parser-informix-24.7.30.jar<br/>
+parser-mysql-24.7.30.jar<br/>
+parser-oracle-24.7.30.jar<br/>
+parser-postgresql-24.7.30.jar<br/>
+parser-sqlserver-24.7.30.jar</p>
+</blockquote>
+<blockquote>
+<p><strong>Dark-Athena</strong>: 解析gaussdb语法的jar包 software\services\UGO_Common_Lib\UGO_lib\parser-gaussdbv5-24.7.30.jar</p>
+<p><strong>Github-Copilot</strong>: 先把 Jar 的定位说清楚：<code>parser-gaussdbv5-24.7.30.jar</code> 位于 UGO_lib，是 gaussdbv5 方言专用的 SQL 解析插件。它依赖同目录下的 <code>parser-api</code>、<code>parser-common</code> 等通用库，一起构成 SqlAudit 的语法解析层。</p>
+<h2 id="结构拆解">结构拆解</h2>
+<ul>
+<li><strong><code>com/huawei/gauss/dsc/sqlparser/gaussdb/</code></strong></li>
+<li>大量 <code>a$xx.class</code>、<code>b.class</code>、<code>c.class</code> 等文件是 ANTLR 生成的 Lexer/Parser 及其内部状态机，名称被混淆，但可视为词法/语法自动机的各个状态节点。</li>
+<li><code>GaussLexer.class</code> 是词法分析入口，负责把 SQL 字符流切成 Token。</li>
+<li><strong><code>.../stmt/common</code> 与 <code>.../stmt/gauss</code></strong></li>
+<li>这些是“语句对象模型”，每个类代表一种 SQL 语句或片段，例如 <code>GaussSelectStatement</code>、<code>GaussCreateTableStatement</code>、<code>GaussGrantStatement</code>、<code>GaussLoopStatement</code> 等。</li>
+<li><code>stmt/common</code> 提供跨方言复用的基础类型（如 <code>GaussColumnDefinition</code>、<code>GaussDataType</code>），<code>stmt/gauss</code> 则实现 GaussDB 特有的语法元素（控制块、存储过程、分区语句等）。</li>
+<li><strong><code>.../nodes</code></strong></li>
+<li>这里放的是更细粒度的语法节点（Node/Clause），用于描述列约束、分区、触发器、角色权限等。解析后，语句会引用这些节点来呈现树状结构。</li>
+<li><strong><code>.../factory</code> 与 <code>.../walker</code></strong></li>
+<li><code>GaussSqlStatementParser</code> 负责 orchestrate：创建 <code>GaussLexer</code>、挂载 <code>GaussParserErrorListener</code>、使用 <code>CustomGaussCommonTokenStream</code>（自定义 TokenStream，用于处理大小写敏感、关键字冲突等问题），最后驱动语法树遍历。</li>
+<li><code>walker/GaussParserListenerImpl</code> 是 ANTLR Listener，用来把解析树转换成自定义节点/语句对象。</li>
+<li><strong><code>.../stmntbuilder</code></strong></li>
+<li>这一层把 Listener 得到的节点组装成最终的 Statement 对象。</li>
+<li><code>handle/*</code> 主要负责表达式、DML、DDL 等基础构建；<code>stmntbuilder/gauss/*</code> 处理 GaussDB 特定语法，如包、函数、分区、存储过程等。</li>
+<li>常见模式：<code>GaussParserListenerImpl</code> 获得 parse tree → 调用对应的 handler（如 <code>ExpressionHandler</code>、<code>DMLStatementHandler</code>）→ 生成 <code>stmt/gauss</code> 下的语句类。</li>
+<li><strong><code>.../gaussutil</code></strong></li>
+<li>工具类（例如关键字、内置函数映射、大小写规则）。</li>
+</ul>
+<h2 id="核心逻辑流程">核心逻辑流程</h2>
+<ol>
+<li><strong>词法分析</strong>：<code>GaussLexer</code> 根据 GaussDB 语法定义识别关键字、标识符、常量、注释等；Lexer 的各个内部状态（<code>a$xx.class</code>）决定非法字符/组合的报错策略。</li>
+<li><strong>语法分析</strong>：由 Parser（<code>gaussdb/a.class</code> 及其内部类）把 Token 序列构造成 parse tree。<code>GaussParserErrorListener</code> 捕获语法错误，抛出 <code>GaussSQLSyntaxError</code>。</li>
+<li><strong>自定义 Token Stream</strong>：<code>CustomGaussCommonTokenStream</code> 对原始 Token 进行再处理，解决 GaussDB 特定的关键字歧义或大小写问题，保证后续 Builder 获取的 Token 序列一致。</li>
+<li><strong>Parse Tree → 对象模型</strong>：<code>GaussParserListenerImpl</code> 按 Listener 回调顺序遍历 parse tree，将节点缓存到 <code>StatementContainer</code>；<code>stmntbuilder</code> 中的 handler 识别不同语句类型并创建 <code>Gauss*Statement</code> 对象。</li>
+<li><strong>语义补充</strong>：很多节点（如 <code>GaussTableOption</code>、<code>GaussPartitionClause</code>）会在 Builder 阶段设置默认值、做简单校验，保证生成的语句对象含义完整。</li>
+<li><strong>输出接口</strong>：最终 <code>GaussSqlStatementParser</code> 会返回语句对象或抛出异常，供上层（如 SqlAudit 的规则引擎）分析 SQL 结构、抽取对象依赖、判断安全规则。</li>
+</ol>
+<h2 id="实际用途结合-sqlaudit">实际用途（结合 SqlAudit）</h2>
+<ul>
+<li>SqlAudit 在抽取待审核的 SQL 时，会根据数据库类型选择对应 parser（Gauss=本 Jar）。</li>
+<li>解析结果用于：</li>
+<li>规则引擎：判断是否使用了禁用语法、未加 where、未命名表空间等。</li>
+<li>元数据采集：抽取表/列/函数依赖，匹配 <code>system_table.yaml</code>。</li>
+<li>自动修复建议：借助语句对象树，定位问题位置并生成建议 SQL。</li>
+</ul>
+<h2 id="说明与建议">说明与建议</h2>
+<ul>
+<li>Jar 已被混淆，若需深度理解具体算法，可用 <code>javap -c</code> 或反编译器查看 <code>GaussSqlStatementParser</code>、<code>GaussParserListenerImpl</code>、<code>stmntbuilder/gauss/*</code>。</li>
+<li>在调试 SqlAudit 时，确认 <code>UGO_lib</code> 目录已加进 classpath，否则 Gauss SQL 将无法解析。</li>
+<li>如果要扩展新规则，可以直接消费该 Jar 输出的 <code>Gauss*Statement</code> 模型，不必重写语法解析。</li>
+</ul>
+</blockquote>
+<h2 id="声明">声明</h2>
+<p>暂不确定如果第三方直接引用GaussDB UGO的这些语法解析jar包是否会被华为告侵权，因此不建议商业软件在未经授权许可的情况下，直接引入这些jar包。但是UGO的这个设计思路是值得参考的。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -156,7 +156,198 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>在迁移某些ORACLE的存储过程或者SQL到MogDB时，有时候会出现这样的报错</p>
+<pre><code class="prism language-sql"> ERROR: syntax error at or near "wellformed"
+</code></pre>
+<p>找到触发这个报错的SQL，一般长这样</p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlagg(xmlparse(content FIRST_NAME || ',' wellformed ) order by FIRST_NAME).getclobval() AGGSTR
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4   group by JOB_ID
+  5  ;
+
+JOB_ID     AGGSTR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,Ismael,John,Jose Manuel,Luis,
+IT_PROG    Alexander,Bruce,David,Diana,Valli,
+
+SQL&gt; 
+</code></pre>
+<h2 id="分析">分析</h2>
+<h3 id="拆sql">拆SQL</h3>
+<p>我们先一层一层拨开这个SQL,<br/>
+1.去掉<code>.getclobval()</code></p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlagg(xmlparse(content FIRST_NAME || ',' wellformed ) order by FIRST_NAME) AGGSTR
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4   group by JOB_ID
+  5  ;
+
+JOB_ID     AGGSTR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,Ismael,John,Jose Manuel,Luis,
+IT_PROG    Alexander,Bruce,David,Diana,Valli,
+
+SQL&gt; 
+</code></pre>
+<p>看上去和上面一样，其实是有区别的，带<code>.getclobval</code>时,该列返回的是clob类型，不带则是返回xml类型。</p>
+<p>2.去掉<code>order by FIRST_NAME</code></p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlagg(xmlparse(content FIRST_NAME || ',' wellformed )) aggstr
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4   group by JOB_ID
+  5  ;
+
+JOB_ID     AGGSTR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,Luis,Jose Manuel,Ismael,John,
+IT_PROG    Alexander,Diana,Valli,David,Bruce,
+
+SQL&gt; 
+</code></pre>
+<p>xmlagg是一个聚合函数，输入xml类型，返回xml类型，并且可以指定排序。这里可以观察到人名出现的顺序发生了变化。</p>
+<p>3.去掉<code>xmlagg</code>函数</p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlparse(content FIRST_NAME || ',' wellformed ) str
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4  ;
+
+JOB_ID     STR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,
+FI_ACCOUNT John,
+FI_ACCOUNT Ismael,
+FI_ACCOUNT Jose Manuel,
+FI_ACCOUNT Luis,
+IT_PROG    Alexander,
+IT_PROG    Bruce,
+IT_PROG    David,
+IT_PROG    Valli,
+IT_PROG    Diana,
+
+10 rows selected
+</code></pre>
+<p>没有聚合时，人名就是一个一行了</p>
+<p>4.去掉 <code>wellformed</code></p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlparse(content FIRST_NAME || ','  ) str
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4  ;
+
+JOB_ID     STR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,
+FI_ACCOUNT John,
+FI_ACCOUNT Ismael,
+FI_ACCOUNT Jose Manuel,
+FI_ACCOUNT Luis,
+IT_PROG    Alexander,
+IT_PROG    Bruce,
+IT_PROG    David,
+IT_PROG    Valli,
+IT_PROG    Diana,
+
+10 rows selected
+</code></pre>
+<p>可以看到这里加不加 <code>wellformed</code>没有任何区别，但其实，这个是用来校验xml串是否符合xml格式，加了就不校验，不加就会校验。在该字段中不包含xml的保留符号时，加或者不加<code>wellformed</code>都是一样的</p>
+<p>5.去掉<code>|| ','</code></p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         xmlparse(content FIRST_NAME) str
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4  ;
+
+JOB_ID     STR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel
+FI_ACCOUNT John
+FI_ACCOUNT Ismael
+FI_ACCOUNT Jose Manuel
+FI_ACCOUNT Luis
+IT_PROG    Alexander
+IT_PROG    Bruce
+IT_PROG    David
+IT_PROG    Valli
+IT_PROG    Diana
+
+10 rows selected
+</code></pre>
+<p>纯粹是硬拼一个逗号罢了</p>
+<p>6.剩下的xmlparse就不用再去了，再去就是查原始字段，和上面显示的值是一样的了，只是返回的数据类型不一样罢了</p>
+<h3 id="分析报错">分析报错</h3>
+<p>原始SQL不进行修改放到openGauss执行报错，<code>sql ERROR: syntax error at or near "wellformed"</code> ,但经过我们上面的分析，这个<code>wellformed</code>只在特定的数据环境下才有用，一般不需要加，于是去掉它再尝试执行</p>
+<pre><code class="prism language-sql">MogDB=&gt; select JOB_ID,
+MogDB-&gt;        xmlagg(xmlparse(content FIRST_NAME || ',' ) order by FIRST_NAME asc).getclobval() aggstr
+MogDB-&gt;   from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+MogDB-&gt;  group by JOB_ID;
+ERROR:  syntax error at or near "."
+LINE 2: ...ntent FIRST_NAME || ',' ) order by FIRST_NAME asc).getclobva...
+                                                             ^
+</code></pre>
+<p>这里是<code>getclobval</code>前面的<code>.</code>语法错误，应该数据库语法文件里并没有处理这种场景，于是去掉这个<code>getclobval</code>看看</p>
+<pre><code class="prism language-sql">MogDB=&gt; select JOB_ID,
+MogDB-&gt;        xmlagg(xmlparse(content FIRST_NAME || ',' ) order by FIRST_NAME asc) aggstr
+MogDB-&gt;   from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+MogDB-&gt;  group by JOB_ID
+MogDB-&gt; ;
+   job_id   |                aggstr
+------------+--------------------------------------
+ FI_ACCOUNT | Daniel,Ismael,John,Jose Manuel,Luis,
+ IT_PROG    | Alexander,Bruce,David,Diana,Valli,
+(2 rows)
+</code></pre>
+<p>没有报错了，而且看上去也和ORACLE里的保持一致，不过这里返回的类型也仍然是xml类型，我们需要让它再转成clob。<br/>
+转clob最简单的方式就是直接强转了，但是ORACLE中的xmltype却不能使用cast的方式转换成clob。<br/>
+目前已知原始SQL是不能在MogDB中运行了，但最好还是有一种改法，让改了后的SQL，能同时支持在ORACLE和MogDB中运行，且结果一致。所以我们得找一种通用方式，能让xml转成clob<br/>
+<a href="https://docs.mogdb.io/zh/mogdb/v5.0/xml-functions">#MogDB XML类型函数文档</a><br/>
+运气好，第二个函数<code>xmlserialize</code>看上去满足我们的需要，于是我们可以把SQL改成这样</p>
+<pre><code class="prism language-sql">MogDB=&gt; select JOB_ID,
+MogDB-&gt;        XMLSerialize(content xmlagg(xmlparse(content FIRST_NAME || ',' ) order by FIRST_NAME) as clob) aggstr
+MogDB-&gt;   from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+MogDB-&gt;  group by JOB_ID
+MogDB-&gt; ;
+   job_id   |                aggstr
+------------+--------------------------------------
+ FI_ACCOUNT | Daniel,Ismael,John,Jose Manuel,Luis,
+ IT_PROG    | Alexander,Bruce,David,Diana,Valli,
+(2 rows)
+</code></pre>
+<p>我们再把改后的SQL拿到ORACLE里执行</p>
+<pre><code class="prism language-sql">SQL&gt; select JOB_ID,
+  2         XMLSerialize(content xmlagg(xmlparse(content FIRST_NAME || ',' ) order by FIRST_NAME) as clob) aggstr
+  3    from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+  4   group by JOB_ID
+  5  ;
+
+JOB_ID     AGGSTR
+---------- --------------------------------------------------------------------------------
+FI_ACCOUNT Daniel,Ismael,John,Jose Manuel,Luis,
+IT_PROG    Alexander,Bruce,David,Diana,Valli,
+</code></pre>
+<p>完美！执行结果完全一致！</p>
+<h2 id="思考">思考</h2>
+<p>这条SQL里有两个xml函数，还有一个getclobval，看上去很唬人，以至于有些甲方的数据库采购标准里有一条要支持xml函数，但实际上这条SQL只是为了把字符串聚合拼接，原始数据和目标结果都与xml没有任何关系（的确某些软件需要数据库处理xml文档，但非常少见）。</p>
+<p>为什么很多ORACLE数据库中会有这样的SQL被执行呢？我在网上按这个SQL的一些关键字查找，查到了一些行列转换的文章，于是猜想，有很多开发者不知道如何在ORACLE里进行行列转换，就去网上搜，找到后直接复制粘贴使用，也没去想这么长一节SQL里面，每个词分别是什么含义，我遇到的所有软件系统中出现的这个语句都带上了这个无意义的<code>wellformed</code>。</p>
+<p>这条SQL最终执行的结果，其实是按照job_id字段分组，把first_name这个字段聚合，按逗号分割，拼接成一个长字符串，最后还多了个多余的逗号。ORACLE里其实有更简单的函数wm_concat、listagg能实现这个功能，不需要写得这么复杂。而且listagg和wm_concat在MogDB里也是支持的。</p>
+<pre><code class="prism language-sql">select JOB_ID,
+       listagg( FIRST_NAME , ',' order by FIRST_NAME )  aggstr
+  from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+ group by JOB_ID
+;
+select JOB_ID,
+       wm_concat( FIRST_NAME || ',' )  aggstr
+  from hr.employees where job_id in ('FI_ACCOUNT','IT_PROG')
+ group by JOB_ID
+;
+</code></pre>
+<p>但是ORACLE中的listagg函数，拼接后长度的长度不能超过4000，超过会报错，而且wm_concat函数本身就不是ORACLE提供给用户使用的函数，ORACLE也不推荐使用，wm_concat的排序和distinct也会有问题（可能有些人用的时候压根就没打算要排序，直接从网上复制了就用了）。</p>
+<p>所以能理解开发者们为什么要借用xml函数写一个这么拗的语句。</p>
+<p>按本文的方式，把<code>getclobval</code>去掉改成用<code>XMLSerialize</code>函数来转换成clob，是否会遇到listagg的4000字节超长报错的问题呢？答案是不会报错，大家可以自己通过实验尝试一下</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

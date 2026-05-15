@@ -157,7 +157,127 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>其实这是我在修改ORACLE官方包dbms_cloud时想出来的,<br/>
+<a href="https://www.darkathena.top/archives/dbmscloufix20211207">【ORACLE】骚操作，个人修改oracle官方dbms_cloud包来支持本地数据库导出数据到云存储</a></p>
+<p>在DBMS_CLOUD.EXPORT_DATA中,oracle自治数据库先将一个sql的多个字段进行拼接,变成一个字段,然后再把此游标发到C函数里输出成一个文本内容。由于本地数据库不包含这个C函数,于是我需要解决如何在数据库中将多行数据放在一个变量中。</p>
+<p>目前网上大多数的方案都是逐个字段拼接,然后逐行写入文件,如果数据量大,数据库需要遍历每一个值进行操作,就像小鸡啄米一样让人着急。</p>
+<p>于是我想到了上次我使用xslt转换一个sql到html中的方案,<br/>
+<a href="https://www.darkathena.top/archives/oraclesqltohtmlxlst">【ORACLE】在数据库中使用xml和xlst来实现sql查询转换成HTML表格</a><br/>
+想着是不是也可以用这种方式生成csv,于是开搞。</p>
+<h2 id="分析及修改">分析及修改</h2>
+<p>我先把上次转html的xslt模板拿出来</p>
+<pre><code class="language-xml">&lt;xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+    &lt;xsl:template match="/"&gt;
+    &lt;table border="1"&gt;
+    &lt;xsl:apply-templates select="ROWSET/ROW[1]" /&gt;
+    &lt;/table&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="ROW"&gt;
+    &lt;tr&gt;&lt;xsl:apply-templates mode="th" /&gt;&lt;/tr&gt;
+    &lt;xsl:apply-templates select="../ROW" mode="td" /&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="ROW/*" mode="th"&gt;
+    &lt;th&gt;&lt;xsl:value-of select="local-name()" /&gt;&lt;/th&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="ROW" mode="td"&gt;
+    &lt;tr&gt;&lt;xsl:apply-templates /&gt;&lt;/tr&gt;
+    &lt;/xsl:template&gt;
+    &lt;xsl:template match="ROW/*"&gt;
+    &lt;td&gt;&lt;xsl:apply-templates /&gt;&lt;/td&gt;
+    &lt;/xsl:template&gt;
+    &lt;/xsl:stylesheet&gt;
+</code></pre>
+<ol>
+<li>把&lt;table&gt;和&lt;/table&gt;去掉</li>
+<li>在 &lt;/td&gt; 和 &lt;/th&gt; 后面加上逗号</li>
+<li>在td前面加上回车和换行</li>
+<li>去掉所有的td/tr/th标签</li>
+</ol>
+<p>得到一个这样子的</p>
+<pre><code class="language-xml">&lt;xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+  &lt;xsl:template match="/"&gt;
+  &lt;xsl:apply-templates select="ROWSET/ROW[1]" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW"&gt;
+  &lt;xsl:apply-templates mode="th" /&gt;
+  &lt;xsl:apply-templates select="../ROW" mode="td" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*" mode="th"&gt;
+  &lt;xsl:value-of select="local-name()" /&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW" mode="td"&gt;
+  &lt;xsl:text&gt;&amp;#xd;&lt;/xsl:text&gt;&lt;xsl:text&gt;&amp;#xa;&lt;/xsl:text&gt;
+  &lt;xsl:apply-templates /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*"&gt;
+  &lt;xsl:apply-templates /&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:template&gt;
+  &lt;/xsl:stylesheet&gt;
+</code></pre>
+<p>但是,每行后面多了一个逗号,于是搜索了一下"xslt 逗号",想看看相关的一些例子,<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-70a5789081fa4afc87811b179f5364c6.png" srcset="/upload/2021/12/image-70a5789081fa4afc87811b179f5364c6.png?width=1200 1200w, /upload/2021/12/image-70a5789081fa4afc87811b179f5364c6.png?width=400 400w, /upload/2021/12/image-70a5789081fa4afc87811b179f5364c6.png?width=1600 1600w, /upload/2021/12/image-70a5789081fa4afc87811b179f5364c6.png?width=800 800w"/><br/>
+<a href="https://www.javaroad.cn/questions/21377">https://www.javaroad.cn/questions/21377</a></p>
+<p>真幸运,第一个就是我想要的。</p>
+<p>我先尝试了这个问答中说的 separator,但是由于这是xml2.0的,oracle不识别这个属性,然后选择了下面这个方案</p>
+<pre><code class="language-xml">&lt;xsl:if test="position() != last()"&gt;
+      &lt;xsl:text&gt;,&lt;/xsl:text&gt;
+   &lt;/xsl:if&gt;
+</code></pre>
+<p>然后我又想到可能会有自定义分隔符的需求,就加了个自定义分隔符的可选参数。</p>
+<p>所以模板代码修改为</p>
+<pre><code class="language-xml">&lt;xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+  &lt;xsl:template match="/"&gt;
+  &lt;xsl:apply-templates select="ROWSET/ROW[1]" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW"&gt;
+  &lt;xsl:apply-templates mode="th" /&gt;
+  &lt;xsl:apply-templates select="../ROW" mode="td" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*" mode="th"&gt;
+  &lt;xsl:value-of select="local-name()" /&gt;
+  &lt;xsl:if test="position() != last()"&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:if&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW" mode="td"&gt;
+  &lt;xsl:text&gt;&amp;#xd;&lt;/xsl:text&gt;&lt;xsl:text&gt;&amp;#xa;&lt;/xsl:text&gt;&lt;xsl:apply-templates /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*"&gt;
+  &lt;xsl:apply-templates /&gt;
+  &lt;xsl:if test="position() != last()"&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:if&gt;
+  &lt;/xsl:template&gt;
+  &lt;/xsl:stylesheet&gt;
+</code></pre>
+<p>最后把通过此模板生成的clob文本信息,通过dbms_lob.clob2file保存到操作系统即可。</p>
+<h2 id="成品">成品</h2>
+<pre><code class="language-sql">--example 1:
+begin
+  sql_to_csv_xslt('select a,b,c from tab',
+                  'demo.csv',
+                  'DATA_PUMP_DIR');
+END;
+/
+--example 2:
+begin
+  sql_to_csv_xslt('select a,b,c from tab',
+                  'demo.csv',
+                  'DATA_PUMP_DIR',
+                  '|');
+END;
+/
+</code></pre>
+<p>完整代码见我的github<br/>
+<a href="https://github.com/Dark-Athena/sql_to_csv_xslt-oracle">https://github.com/Dark-Athena/sql_to_csv_xslt-oracle</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

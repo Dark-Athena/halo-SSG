@@ -153,7 +153,266 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一-背景">一、背景</h2>
+<p>ORACLE的SQL优化器非常强大，但是仍然会在某些情况下，ORACLE自动生成的执行计划并不是很好，此时可以通过在SQL中增加HINT来人工控制执行计划应该怎么走。在ORACLE迁移到国产库的过程中，由于部分国产库并不支持ORACLE的HINT名称，因此以前在ORACLE加的这些HINT到了国产库并不生效，导致有些SQL执行变得很慢。一般情况下认为迁移到国产库需要重新进行SQL调优是无可避免的事，但是，如果一套应用系统使用ORACLE迭代开发十几年，积累了大量的SQL，使用了数不清的hint，一次性迁移到国产库，所有SQL都得重新进行性能分析和优化，这对SQL开发人员来说，会是一个巨大的工作量！<br/>
+MogDB考虑到这种情况，决定采取以对内核影响最少的方式，尽可能多兼容一些Oracle的hint。</p>
+<h2 id="二-支持的hint列表">二、支持的hint列表</h2>
+<table>
+<thead>
+<tr>
+<th>hint名称</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CARDINALITY</td>
+<td>映射为rows(#)</td>
+</tr>
+<tr>
+<td>FULL</td>
+<td>映射为TableScan</td>
+</tr>
+<tr>
+<td>INDEX_JOIN</td>
+<td>映射为IndexOnlyScan</td>
+</tr>
+<tr>
+<td>INDEX</td>
+<td>映射为IndexScan</td>
+</tr>
+<tr>
+<td>NO_INDEX</td>
+<td>映射为No_Index</td>
+</tr>
+<tr>
+<td>NO_UNNEST</td>
+<td>映射为No_expand</td>
+</tr>
+<tr>
+<td>OPTARAM</td>
+<td>映射为set</td>
+</tr>
+<tr>
+<td>PARALLEL(dop)</td>
+<td>映射为set(query_dop dop)</td>
+</tr>
+<tr>
+<td>QB_NAME</td>
+<td>映射为BlockName</td>
+</tr>
+<tr>
+<td>USE_HASH</td>
+<td>映射为HashJoin</td>
+</tr>
+<tr>
+<td>NO_USE_HASH</td>
+<td>映射为 no HashJoin</td>
+</tr>
+<tr>
+<td>USE_MERGE</td>
+<td>映射为MergeJoin</td>
+</tr>
+<tr>
+<td>NO_USE_MERGE</td>
+<td>映射为 no MergeJoin</td>
+</tr>
+<tr>
+<td>USE_NL</td>
+<td>映射为NestLoop</td>
+</tr>
+<tr>
+<td>NO_USE_NL</td>
+<td>映射为 no NestLoop</td>
+</tr>
+<tr>
+<td>APPEND</td>
+<td>新增，仅做语法支持，不影响其他同时使用的hint</td>
+</tr>
+</tbody>
+</table>
+<h2 id="三-用法示例">三、用法示例</h2>
+<pre><code class="language-sql">DROP SCHEMA IF EXISTS test_oracle_hints CASCADE;
+CREATE SCHEMA test_oracle_hints;
+SET current_schema='test_oracle_hints';
+DROP TABLE IF EXISTS oracle_hints_01;
+CREATE TABLE oracle_hints_01(a int, b int);
+CREATE INDEX hint01_index on oracle_hints_01(a);
+INSERT INTO oracle_hints_01 VALUES (generate_series(1, 1000), generate_series(1, 1000));
+ANALYZE oracle_hints_01;
+SET smp_thread_cost = 0;
+
+-- cardinality hints
+explain (costs off) select /*+ cardinality(t1 100) cardinality(t2, 100) cardinality(t1, t2, 100) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                 QUERY PLAN
+--------------------------------------------
+ Hash Join
+   Hash Cond: (t1.a = t2.a)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+   -&gt;  Hash
+         -&gt;  Seq Scan on oracle_hints_01 t2
+(5 rows)
+
+-- full hints
+explain (costs off) select /*+ full(t1) */ * from oracle_hints_01 t1 where t1.a = 1;
+           QUERY PLAN       
+--------------------------------
+ Seq Scan on oracle_hints_01 t1
+   Filter: (a = 1)
+(2 rows)
+
+-- index join hints
+explain (costs off) select /*+ index_join(t1, hint01_index) */ a from oracle_hints_01 t1 where t1.a &gt; 1;
+                        QUERY PLAN                    
+----------------------------------------------------------
+ [Bypass]
+ Index Only Scan using hint01_index on oracle_hints_01 t1
+   Index Cond: (a &gt; 1)
+(3 rows)
+
+-- index hints
+explain (costs off) select /*+ index(t1, hint01_index) */ * from oracle_hints_01 t1 where t1.a &gt; 1;
+                     QUERY PLAN                  
+-----------------------------------------------------
+ [Bypass]
+ Index Scan using hint01_index on oracle_hints_01 t1
+   Index Cond: (a &gt; 1)
+(3 rows)
+
+explain (costs off) select /*+ no_index(t1, hint01_index) */ * from oracle_hints_01 t1 where t1.a = 1;
+               QUERY PLAN            
+-----------------------------------------
+ Bitmap Heap Scan on oracle_hints_01 t1
+   Recheck Cond: (a = 1)
+   -&gt;  Bitmap Index Scan on hint01_index
+         Index Cond: (a = 1)
+(4 rows)
+
+-- no_unnest hints
+explain (costs off) select * from oracle_hints_01 t1 where t1.a in (select /*+ no_unnest() */ t2.a from oracle_hints_01 t2);
+               QUERY PLAN           
+----------------------------------------
+ Seq Scan on oracle_hints_01 t1
+   Filter: (hashed SubPlan 1)
+   SubPlan 1
+     -&gt;  Seq Scan on oracle_hints_01 t2
+(4 rows)
+
+-- opt params hints
+explain (costs off) select /*+ opt_param('query_dop', 4) */ a from oracle_hints_01 t1 where t1.a &gt; 1;
+               QUERY PLAN           
+----------------------------------------
+ Streaming(type: LOCAL GATHER dop: 1/4)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+         Filter: (a &gt; 1)
+(3 rows)
+
+explain (costs off) select /*+ opt_param(query_dop, 4) */ a from oracle_hints_01 t1 where t1.a &gt; 1;
+               QUERY PLAN           
+----------------------------------------
+ Streaming(type: LOCAL GATHER dop: 1/4)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+         Filter: (a &gt; 1)
+(3 rows)
+
+-- parallel hints
+explain (costs off) select /*+ parallel(4) */ a from oracle_hints_01 t1 where t1.a &gt; 1;
+               QUERY PLAN           
+----------------------------------------
+ Streaming(type: LOCAL GATHER dop: 1/4)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+         Filter: (a &gt; 1)
+(3 rows)
+
+-- qb_name hints
+explain (costs off) select /*+nestloop(t1 tt) */ * from oracle_hints_01 t1 where t1.a in (select /*+ qb_name(tt) */ t2.a from oracle_hints_01 t2 group by t2.a);
+                        QUERY PLAN                     
+-----------------------------------------------------------
+ Nested Loop
+   -&gt;  HashAggregate
+         Group By Key: t2.a
+         -&gt;  Seq Scan on oracle_hints_01 t2
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t1
+         Index Cond: (a = t2.a)
+(6 rows)
+
+-- join hints
+explain (costs off) select /*+ use_hash(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                 QUERY PLAN             
+--------------------------------------------
+ Hash Join
+   Hash Cond: (t1.a = t2.a)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+   -&gt;  Hash
+         -&gt;  Seq Scan on oracle_hints_01 t2
+(5 rows)
+
+explain (costs off) select /*+ no_use_hash(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                        QUERY PLAN                     
+-----------------------------------------------------------
+ Merge Join
+   Merge Cond: (t1.a = t2.a)
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t1
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t2
+(4 rows)
+
+explain (costs off) select /*+ use_merge(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                        QUERY PLAN                     
+-----------------------------------------------------------
+ Merge Join
+   Merge Cond: (t1.a = t2.a)
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t1
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t2
+(4 rows)
+
+explain (costs off) select /*+ no_use_merge(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                 QUERY PLAN             
+--------------------------------------------
+ Hash Join
+   Hash Cond: (t1.a = t2.a)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+   -&gt;  Hash
+         -&gt;  Seq Scan on oracle_hints_01 t2
+(5 rows)
+
+explain (costs off) select /*+ use_nl(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                        QUERY PLAN                     
+-----------------------------------------------------------
+ Nested Loop
+   -&gt;  Seq Scan on oracle_hints_01 t1
+   -&gt;  Index Scan using hint01_index on oracle_hints_01 t2
+         Index Cond: (a = t1.a)
+(4 rows)
+
+explain (costs off) select /*+ no_use_nl(t1, t2) */ * from oracle_hints_01 t1, oracle_hints_01 t2 where t1.a = t2.a;
+                 QUERY PLAN             
+--------------------------------------------
+ Hash Join
+   Hash Cond: (t1.a = t2.a)
+   -&gt;  Seq Scan on oracle_hints_01 t1
+   -&gt;  Hash
+         -&gt;  Seq Scan on oracle_hints_01 t2
+(5 rows)
+
+DROP SCHEMA test_oracle_hints;
+</code></pre>
+<h2 id="四-差异点">四、差异点</h2>
+<p>对于这些和ORACLE相同名称的HINT，MogDB仍然有一些差异。<br/>
+在MogDB 5.2.0版本中：</p>
+<ul>
+<li>CARDINALITY 不支持CARDINALITY(n)的形式，即必须指定表或者表别名</li>
+<li>PARALLEL 不支持PARALLEL(t n)的形式，即不能指定单表的并行度</li>
+<li>USE_HASH 不支持只填写一个表，至少需要两个表</li>
+<li>use_hash(t1,t2,t3,t4) 可以直接控制连接顺序，即 (t1(t2 (t3 t4)))</li>
+<li>leading保留原本MogDB支持的用法，未做修改，比较明显的一个差异就是MogDB的leading里不能只放一个表</li>
+</ul>
+<h2 id="五-总结">五、总结</h2>
+<p>ORACLE里支持的hint其实远不止这些，但由于底层原理上存在一些差异，任何非ORACLE数据库都不可能做到和ORACLE的hint全兼容，每种数据库都应该有自己特有的SQL优化器。因此，就算做了一些ORACLE的兼容HINT，也不能说性能就能和ORACLE一样，如果想要得到最佳性能表现，仍然离不开数据库内核自身的优化能力。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

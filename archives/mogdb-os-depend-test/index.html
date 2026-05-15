@@ -155,7 +155,631 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="背景">背景</h1>
+<p>原生openGauss为了确保其依赖的第三方动态库的确定性，因此在数据库编译打包时，把这些第三方动态库都放进了lib目录，并且在数据库安装时，还要至少在数据库用户下，全局设置LD_LIBRARY_PATH，其中数据库自带的额部分lib文件会和操作系统的重名，虽然不影响数据库内核功能，但有可能导致部分操作系统命令无法使用。而且OM工具由于也打包了特定版本的python三方库，导致变更操作系统默认的python3版本后，也会无法使用。<br/>
+类似下面这两种报错就是经常有用户反馈的，墨天轮上搜，大把大把的这些报错</p>
+<pre><code>cp: cannot stat '/opt/opengauss/tool/script/gspylib/common/./../../../lib/psutil/_psutil_linux.so_3.9': No such file or directory
+</code></pre>
+<pre><code>ssh: /opt/opengauss/app/lib/libcrypto.so.1.1: version `OPENSSL_1_1_1f' not found (required by ssh)
+</code></pre>
+<pre><code>symbol SSLv3_method version OPENSSL_1_1_0 not defined in file libssl.so.1.1 with link time reference
+</code></pre>
+<pre><code>undefined symbol EVP_KDF_ctrl
+</code></pre>
+<p>在这个社区issue中对有关openssl冲突的讨论，最后结论还是"无法避免"<br/>
+<a href="https://gitee.com/opengauss/openGauss-server/issues/I786FG">https://gitee.com/opengauss/openGauss-server/issues/I786FG</a></p>
+<p>而作为openGauss的商业发行版之一MogDB，在其最新发布的5.0.1版本中，完整解决了数据库服务端的上述动态库冲突问题。</p>
+<h1 id="测试">测试</h1>
+<h2 id="一、kylin-v10-sp2-sp3-sp1.1">一、kylin v10 sp2 sp3 sp1.1</h2>
+<p>从麒麟官方了解到，从kylin v10 sp1.1 的openssh-8.2p1-9.p03.ky10.x86_64之后（不含）,openssl相关的依赖库，都会携带symbol versioning编译，虽然openssl本身的版本仍然是1.1.1f，但由于openGauss数据库自带openssl及依赖库不是这个版本，所以执行ssh/scp等命令时，会报错</p>
+<blockquote>
+<p>version ‘OPENSSL_1_1_1f’ not found</p>
+</blockquote>
+<h3 id="环境说明">环境说明</h3>
+<p>两台配置完全一样的虚拟机<br/>
+OS：</p>
+<pre><code>[root@nas-kylin-v10-sp3-node1 ~]# cat /etc/.kyinfo
+[dist]
+name=Kylin
+milestone=Server-V10-SP3-General-Release-2303
+arch=x86_64
+beta=False
+time=2023-03-24 14:53:53
+dist_id=Kylin-Server-V10-SP3-General-Release-2303-x86_64-2023-03-24 14:53:53
+
+[servicekey]
+key=0230044
+
+[os]
+to=
+term=2024-07-01
+</code></pre>
+<p>cpu:</p>
+<pre><code>[root@nas-kylin-v10-sp3-node1 ~]# lscpu
+架构：                           x86_64
+CPU 运行模式：                   32-bit, 64-bit
+字节序：                         Little Endian
+Address sizes:                   39 bits physical, 48 bits virtual
+CPU:                             3
+在线 CPU 列表：                  0-2
+每个核的线程数：                 1
+每个座的核数：                   3
+座：                             1
+NUMA 节点：                      1
+厂商 ID：                        GenuineIntel
+CPU 系列：                       6
+型号：                           156
+型号名称：                       Intel(R) Celeron(R) N5095 @ 2.00GHz
+步进：                           0
+CPU MHz：                        1996.799
+BogoMIPS：                       3993.59
+超管理器厂商：                   KVM
+虚拟化类型：                     完全
+L1d 缓存：                       96 KiB
+L1i 缓存：                       96 KiB
+L2 缓存：                        4.5 MiB
+L3 缓存：                        12 MiB
+NUMA 节点0 CPU：                 0-2
+Vulnerability Itlb multihit:     KVM: Vulnerable
+Vulnerability L1tf:              Mitigation; PTE Inversion
+Vulnerability Mds:               Mitigation; Clear CPU buffers; SMT Host state unknown
+Vulnerability Meltdown:          Mitigation; PTI
+Vulnerability Mmio stale data:   Mitigation; Clear CPU buffers; SMT Host state unknown
+Vulnerability Spec store bypass: Vulnerable
+Vulnerability Spectre v1:        Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:        Mitigation; Retpolines, STIBP disabled, RSB filling, PBRSB-eIBRS Not affected
+Vulnerability Srbds:             Unknown: Dependent on hypervisor status
+Vulnerability Tsx async abort:   Not affected
+标记：                           fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid
+                                  tsc_known_freq pni pclmulqdq ssse3 cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave rdrand hypervisor lahf_lm 3dnowprefetch pti fsgsbase rdseed clflushopt md_clear flush_l1d a
+                                 rch_capabilities
+[root@nas-kylin-v10-sp3-node1 ~]#
+</code></pre>
+<h3 id="安装">安装</h3>
+<h4 id="安装ptk-1.0.3或以上版本">安装ptk (1.0.3或以上版本)</h4>
+<pre><code>curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+source /root/.bash_profile
+</code></pre>
+<p>确认ptk版本</p>
+<pre><code>[root@nas-kylin-v10-sp3-node1 ~]# ptk -v
+PTK Version:    v1.0.3 release
+Go Version:     go1.19.4
+Build Date:     2023-08-16T18:51:37
+Git Hash:       a2a45b8
+OS/Arch:        linux/amd64
+</code></pre>
+<h4 id="编写ptk安装配置文件">编写ptk安装配置文件</h4>
+<ol>
+<li>加密root密码</li>
+</ol>
+<pre><code>ptk encrypt password
+password: pTk6MjcxN2RkNGM8RD1CPj8+P0IxVzZWeG1KY0FmYjRIN2NhWFpiNXdXMTlkTHlqWnFtbzltc0hBT1BYR0E=
+</code></pre>
+<ol start="2">
+<li>编写config.yaml文件</li>
+</ol>
+<pre><code>global:
+  cluster_name: mogdb501
+  user: mogdb501
+  db_port: 36300
+  base_dir: /opt/mogdb501
+  ssh_option:
+      port: 22
+      user: root
+      password: "pTk6MjcxN2RkNGM8RD1CPj8+P0IxVzZWeG1KY0FmYjRIN2NhWFpiNXdXMTlkTHlqWnFtbzltc0hBT1BYR0E="
+
+db_servers:
+  - host: 192.168.163.129
+    role: primary
+  - host: 192.168.163.130
+    role: standby
+</code></pre>
+<h4 id="检查操作系统并修复">检查操作系统并修复</h4>
+<pre><code>ptk checkos -f config.yaml
+## 当前目录下会生成自动修复脚本
+./root_fix************.sh
+</code></pre>
+<h4 id="安装数据库">安装数据库</h4>
+<p>从20230817起，ptk1.0.3或更高版本会默认安装MogDB 5.0.1或更高版本</p>
+<pre><code>ptk install -f config.yaml -p MogDB-5.0.1-Kylin-x86_64-all.tar.gz
+</code></pre>
+<p>中间输出日志省略,最后日志输出如下</p>
+<pre><code>INFO[2023-08-16T23:42:24.757] 用时: 2m21s
+
+  cluste_name |      host       |   user   | port  |    status     | message
+--------------+-----------------+----------+-------+---------------+----------
+  mogdb501    | 192.168.163.129 | mogdb501 | 36300 | start_success | success
+              | 192.168.163.130 | mogdb501 | 36300 | start_success | success |
+              | --------------- | -------- | ----- | ------------- | ------- |
+              |                 |          |       |               |         |
+</code></pre>
+<h3 id="检查">检查</h3>
+<ol>
+<li>查看数据库用户下LD_LIBRARY_PATH环境变量</li>
+</ol>
+<pre><code>[root@nas-kylin-v10-sp3-node1 ptk-config]# su - mogdb501
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$ echo $LD_LIBRARY_PATH
+
+</code></pre>
+<p>预期返回空，实际返回空（旧版本会有值）</p>
+<ol start="3">
+<li>测试数据库用户下gsql命令</li>
+</ol>
+<pre><code>[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gsql -r
+gsql ((MogDB 5.0.1 build ae6d2ada) compiled at 2023-08-16 09:07:39 commit 0 last mr 1804 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+MogDB=#\q
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$
+</code></pre>
+<p>能正常连接数据库</p>
+<ol start="4">
+<li>测试数据库用户下gs_ctl命令</li>
+</ol>
+<pre><code>[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gs_ctl query
+[2023-08-16 23:47:52.101][348258][][gs_ctl]: gs_ctl query ,datadir is /opt/mogdb501/data
+ HA state:
+        local_role                     : Primary
+        static_connections             : 1
+        db_state                       : Normal
+        detail_information             : Normal
+
+ Senders info:
+        sender_pid                     : 347856
+        local_role                     : Primary
+        peer_role                      : Standby
+        peer_state                     : Normal
+        state                          : Streaming
+        sender_sent_location           : 0/40005C8
+        sender_write_location          : 0/40005C8
+        sender_flush_location          : 0/40005C8
+        sender_replay_location         : 0/40005C8
+        receiver_received_location     : 0/40005C8
+        receiver_write_location        : 0/40005C8
+        receiver_flush_location        : 0/40005C8
+        receiver_replay_location       : 0/40005C8
+        sync_percent                   : 100%
+        sync_state                     : Sync
+        sync_priority                  : 1
+        sync_most_available            : Off
+        channel                        : 192.168.163.129:36301--&gt;192.168.163.130:35026
+
+ Receiver info:
+No information
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$
+</code></pre>
+<p>能正常返回同步信息</p>
+<ol start="5">
+<li>测试数据库用户下ssh命令</li>
+</ol>
+<pre><code>[mogdb501@nas-kylin-v10-sp3-node1 ~]$ ssh -V
+OpenSSH_8.2p1, OpenSSL 1.1.1f  31 Mar 2020
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$ ssh nas-kylin-v10-sp3-node2
+Warning: Permanently added 'nas-kylin-v10-sp3-node2,192.168.163.130' (ECDSA) to the list of known hosts.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+[mogdb501@nas-kylin-v10-sp3-node2 ~]$ exit
+注销
+Connection to nas-kylin-v10-sp3-node2 closed.
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$
+</code></pre>
+<p>ssh命令不报错，并且能免密连到备节点</p>
+<ol start="7">
+<li>测试数据库用户下gs_om命令</li>
+</ol>
+<pre><code>[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gs_om -t status
+-----------------------------------------------------------------------
+
+cluster_name    : mogdb501
+cluster_state   : Normal
+redistributing  : No
+
+-----------------------------------------------------------------------
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gs_om -t status --detail
+[   Cluster State   ]
+
+cluster_state   : Normal
+redistributing  : No
+current_az      : AZ_ALL
+
+[  Datanode State   ]
+
+    node                   node_ip         port      instance                   state
+-----------------------------------------------------------------------------------------------------
+1  nas-kylin-v10-sp3-node1 192.168.163.129 36300      6001 /opt/mogdb501/data   P Primary Normal
+2  nas-kylin-v10-sp3-node2 192.168.163.130 36300      6002 /opt/mogdb501/data   S Standby Normal
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gs_om -t restart
+Stopping cluster.
+=========================================
+Successfully stopped cluster.
+=========================================
+End stop cluster.
+Starting cluster.
+=========================================
+[SUCCESS] nas-kylin-v10-sp3-node1
+2023-08-16 23:50:55.045 [unknown] [unknown] localhost 23077870674944 0[0:0#0]  0 [BACKEND] WARNING:  could not create any HA TCP/IP sockets
+[SUCCESS] nas-kylin-v10-sp3-node2
+2023-08-16 23:50:59.997 [unknown] [unknown] localhost 22937887319040 0[0:0#0]  0 [BACKEND] WARNING:  could not create any HA TCP/IP sockets
+=========================================
+Successfully started.
+[mogdb501@nas-kylin-v10-sp3-node1 ~]$
+</code></pre>
+<p>gs_om 能正常查看集群状态，并且能执行重启集群命令</p>
+<ol start="9">
+<li>测试数据库用户下gs_guc命令</li>
+</ol>
+<pre><code>[mogdb501@nas-kylin-v10-sp3-node1 ~]$ gs_guc set -I all -N all -c "cstore_buffers=16MB"
+The gs_guc run with the following arguments: [gs_guc -I all -N all -c cstore_buffers=16MB set ].
+Begin to perform the total nodes: 2.
+Popen count is 2, Popen success count is 2, Popen failure count is 0.
+Begin to perform gs_guc for datanodes.
+Command count is 2, Command success count is 2, Command failure count is 0.
+
+Total instances: 2. Failed instances: 0.
+ALL: Success to perform gs_guc!
+</code></pre>
+<p>能正常执行多节点的gs_guc命令</p>
+<h2 id="二、openeular-22.02">二、openEular 22.02</h2>
+<p>opengauss5.0针对openEular22.02(Linux5.x内核，默认python版本为3.9)的适配方式是，额外再编译了一个基于openEular 22.02的版本，所以官网下载页面出现了两个openEular的下载介质。在此之前，openGauss 只支持使用python3.6(centos7等Linux3.x内核)和python3.7(openEular20.22等Linux4.x内核)。<br/>
+但实际测试，下载openGauss5.0.0 for openeular20.02版本的介质，是可以手动安装到openeular 22.02上的,只是gs_om由于python版本不匹配而无法使用。<br/>
+不过，openGauss官方也提供了解除python强依赖的方案</p>
+<blockquote>
+<p>若用户修改过系统python版本，则在安装数据库之前，还需手动安装下列python模块（pip安装即可）。<br/>
+psutil	netifaces	cffi	pycparser	cryptography	pynacl	bcrypt	paramiko<br/>
+并且在预安装时，需要加上–unused-third-party选项。</p>
+</blockquote>
+<p>这里原理是，openGauss预安装如果加上了–unused-third-party，就会把lib目录里的文件都删掉，这样找不到数据库自带的，就会使用操作系统的，只是这里仍然需要额外使用pip3 install命令来安装文档中说的这些模块。</p>
+<p>MogDB5.0.1提供的方案其实是类似的</p>
+<h3 id="环境说明-1">环境说明</h3>
+<p>两台配置完全一样的虚拟机<br/>
+OS:</p>
+<pre><code>[root@openeular22 etc]# cat /etc/os-release
+NAME="openEuler"
+VERSION="22.03 (LTS-SP2)"
+ID="openEuler"
+VERSION_ID="22.03"
+PRETTY_NAME="openEuler 22.03 (LTS-SP2)"
+ANSI_COLOR="0;31"
+</code></pre>
+<p>CPU:</p>
+<pre><code>[root@openeular22 etc]# lscpu
+Architecture:            x86_64
+  CPU op-mode(s):        32-bit, 64-bit
+  Address sizes:         45 bits physical, 48 bits virtual
+  Byte Order:            Little Endian
+CPU(s):                  2
+  On-line CPU(s) list:   0,1
+Vendor ID:               GenuineIntel
+  BIOS Vendor ID:        GenuineIntel
+  Model name:            Intel(R) Core(TM) i3-9100F CPU @ 3.60GHz
+    BIOS Model name:     Intel(R) Core(TM) i3-9100F CPU @ 3.60GHz
+    CPU family:          6
+    Model:               158
+    Thread(s) per core:  1
+    Core(s) per socket:  1
+    Socket(s):           2
+    Stepping:            11
+    BogoMIPS:            7199.99
+    Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon nopl xtopology tsc_reliable
+                         nonstop_tsc cpuid pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch invpcid_single p
+                         ti ssbd ibrs ibpb stibp fsgsbase tsc_adjust bmi1 avx2 smep bmi2 invpcid rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat md_clear flush_l1d arch_capabilities
+Virtualization features:
+  Hypervisor vendor:     KVM
+  Virtualization type:   full
+Caches (sum of all):
+  L1d:                   64 KiB (2 instances)
+  L1i:                   64 KiB (2 instances)
+  L2:                    512 KiB (2 instances)
+  L3:                    12 MiB (2 instances)
+NUMA:
+  NUMA node(s):          1
+  NUMA node0 CPU(s):     0,1
+Vulnerabilities:
+  Itlb multihit:         KVM: Mitigation: VMX unsupported
+  L1tf:                  Mitigation; PTE Inversion
+  Mds:                   Mitigation; Clear CPU buffers; SMT Host state unknown
+  Meltdown:              Mitigation; PTI
+  Mmio stale data:       Mitigation; Clear CPU buffers; SMT Host state unknown
+  Retbleed:              Mitigation; IBRS
+  Spec store bypass:     Mitigation; Speculative Store Bypass disabled via prctl and seccomp
+  Spectre v1:            Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+  Spectre v2:            Mitigation; IBRS, IBPB conditional, STIBP disabled, RSB filling, PBRSB-eIBRS Not affected
+  Srbds:                 Unknown: Dependent on hypervisor status
+  Tsx async abort:       Not affected
+[root@openeular22 etc]#
+</code></pre>
+<h3 id="安装-1">安装</h3>
+<p>安装过程就省了，步骤和前面完全一样，数据库安装包也是同一个，只是需要额外执行两个命令</p>
+<ol>
+<li>安装python三方库</li>
+</ol>
+<pre><code>pip3 install psutil netifaces cffi pycparser cryptography pynacl bcrypt paramiko 
+</code></pre>
+<p>如果网速慢，可以指定下载源，比如</p>
+<pre><code>pip3 install psutil netifaces cffi pycparser cryptography pynacl bcrypt paramiko -i  http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+</code></pre>
+<ol start="2">
+<li>去掉OM工具自带的依赖库</li>
+</ol>
+<pre><code>ptk cluster shell -n mogdb501 -c "mv \$GPHOME/lib \$GPHOME/lib_bak"
+</code></pre>
+<p>通过ptk，一次性对集群的每个节点发送shell命令，把OM工具的默认lib目录重命名，效果和openGauss的删除文件是一样的，只是重命名相比删除更温和一点</p>
+<h3 id="检查-1">检查</h3>
+<ol>
+<li>查看数据库用户下LD_LIBRARY_PATH环境变量</li>
+</ol>
+<pre><code>[root@openeular22 etc]# su - mogdb501c3
+Last login: Thu Aug 17 00:21:35 CST 2023 on pts/0
+
+
+Welcome to 5.10.0-153.12.0.92.oe2203sp2.x86_64
+
+System information as of time:  Thu Aug 17 12:28:35 AM CST 2023
+
+System load:    0.12
+Processes:      137
+Memory used:    29.4%
+Swap used:      1.0%
+Usage On:       28%
+IP address:     192.168.163.226
+Users online:   2
+To run a command as administrator(user "root"),use "sudo &lt;command&gt;".
+[mogdb501c3@openeular22 ~]$ echo $LD_LIBRARY_PATH
+
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<p>预期返回空，实际返回空（旧版本会有值）</p>
+<ol start="3">
+<li>测试数据库用户下gsql命令</li>
+</ol>
+<pre><code>[mogdb501c3@openeular22 ~]$ gsql -r
+gsql ((MogDB 5.0.1 build 0e86ae0f) compiled at 2023-08-15 10:35:55 commit 0 last mr 1804 )
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+MogDB=# \q
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<p>能正常连接数据库</p>
+<ol start="4">
+<li>测试数据库用户下gs_ctl命令</li>
+</ol>
+<pre><code>[mogdb501c3@openeular22 ~]$ gs_ctl query
+[2023-08-17 00:29:44.831][185718][][gs_ctl]: gs_ctl query ,datadir is /opt/mogdb501c3/36200
+ HA state:
+        local_role                     : Primary
+        static_connections             : 1
+        db_state                       : Normal
+        detail_information             : Normal
+
+ Senders info:
+        sender_pid                     : 179000
+        local_role                     : Primary
+        peer_role                      : Standby
+        peer_state                     : Normal
+        state                          : Streaming
+        sender_sent_location           : 0/42F4450
+        sender_write_location          : 0/42F4450
+        sender_flush_location          : 0/42F4450
+        sender_replay_location         : 0/42F4450
+        receiver_received_location     : 0/42F4450
+        receiver_write_location        : 0/42F4450
+        receiver_flush_location        : 0/42F4450
+        receiver_replay_location       : 0/42F4450
+        sync_percent                   : 100%
+        sync_state                     : Sync
+        sync_priority                  : 1
+        sync_most_available            : Off
+        channel                        : 192.168.163.226:36201--&gt;192.168.163.227:57462
+
+ Receiver info:
+No information
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<p>能正常返回同步信息</p>
+<ol start="5">
+<li>测试数据库用户下ssh命令</li>
+</ol>
+<pre><code>[mogdb501c3@openeular22 ~]$ ssh -V
+OpenSSH_8.8p1, OpenSSL 1.1.1m  14 Dec 2021
+[mogdb501c3@openeular22 ~]$ ssh openeular22-2
+
+Authorized users only. All activities may be monitored and reported.
+
+Authorized users only. All activities may be monitored and reported.
+Last login: Wed Aug 16 15:31:50 2023
+
+
+Welcome to 5.10.0-153.12.0.92.oe2203sp2.x86_64
+
+System information as of time:  Thu Aug 17 12:30:32 AM CST 2023
+
+System load:    0.47
+Processes:      135
+Memory used:    27.1%
+Swap used:      .2%
+Usage On:       26%
+IP address:     192.168.163.227
+Users online:   3
+To run a command as administrator(user "root"),use "sudo &lt;command&gt;".
+[mogdb501c3@openeular22-2 ~]$ logout
+Connection to openeular22-2 closed.
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<p>ssh命令不报错，并且能免密连到备节点</p>
+<ol start="7">
+<li>测试数据库用户下gs_om命令</li>
+</ol>
+<pre><code>[mogdb501c3@openeular22 ~]$ gs_om -t status
+-----------------------------------------------------------------------
+
+cluster_name    : mogdb501c3
+cluster_state   : Normal
+redistributing  : No
+
+-----------------------------------------------------------------------
+[mogdb501c3@openeular22 ~]$ gs_om -t status --detail
+[   Cluster State   ]
+
+cluster_state   : Normal
+redistributing  : No
+current_az      : AZ_ALL
+
+[  Datanode State   ]
+
+    node         node_ip         port      instance                      state
+----------------------------------------------------------------------------------------------
+1  openeular22   192.168.163.226 36200      6001 /opt/mogdb501c3/36200   P Primary Normal
+2  openeular22-2 192.168.163.227 36200      6002 /opt/mogdb501c3/36200   S Standby Normal
+[mogdb501c3@openeular22 ~]$ gs_om -t restart
+Stopping cluster.
+=========================================
+Successfully stopped cluster.
+=========================================
+End stop cluster.
+Starting cluster.
+=========================================
+[SUCCESS] openeular22
+2023-08-17 00:31:43.498 [unknown] [unknown] localhost 22568825111552 0[0:0#0]  0 [BACKEND] WARNING:  could not create any HA TCP/IP sockets
+[SUCCESS] openeular22-2
+2023-08-17 00:31:47.722 [unknown] [unknown] localhost 22954672440320 0[0:0#0]  0 [BACKEND] WARNING:  could not create any HA TCP/IP sockets
+=========================================
+Successfully started.
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<p>gs_om 能正常查看集群状态，并且能执行重启集群命令</p>
+<ol start="9">
+<li>测试数据库用户下gs_guc命令</li>
+</ol>
+<pre><code>[mogdb501c3@openeular22 ~]$ gs_guc set -I all -N all -c "cstore_buffers=16MB"
+The gs_guc run with the following arguments: [gs_guc -I all -N all -c cstore_buffers=16MB set ].
+Begin to perform the total nodes: 2.
+Popen count is 2, Popen success count is 2, Popen failure count is 0.
+Begin to perform gs_guc for datanodes.
+Command count is 2, Command success count is 2, Command failure count is 0.
+
+Total instances: 2. Failed instances: 0.
+ALL: Success to perform gs_guc!
+
+</code></pre>
+<p>能正常执行多节点的gs_guc命令</p>
+<h2 id="三、kylin-v10-sp3-python3.8">三、kylin v10 sp3 +python3.8</h2>
+<p>这个其实就相当于上述两个环境的混合体了，后面有时间再测吧</p>
+<h1 id="替代gs_om的工具--ptkc">替代gs_om的工具–ptkc</h1>
+<p>虽然通过上述方式，可以解决gs_om的python版本依赖问题，但是仍然需要额外安装一堆python模块，因此，MogDB的安装运维管理工具PTK，从0.8版本开始，会在数据库用户下生成ptkc命令，该命令可以替代gs_om，且不像gs_om需要那么多依赖<br/>
+<strong>ptkc，gs_ctl，gs_om 对比</strong></p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>功能点</th>
+<th>ptkc</th>
+<th>gs_ctl</th>
+<th>gs_om</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查询数据库状态</td>
+<td>支持集群/实例</td>
+<td>仅支持本地实例</td>
+<td>支持集群/实例</td>
+</tr>
+<tr>
+<td>启动数据库</td>
+<td>支持集群/实例</td>
+<td>仅支持本地实例</td>
+<td>支持集群/实例</td>
+</tr>
+<tr>
+<td>关闭数据库</td>
+<td>支持集群/实例</td>
+<td>仅支持本地实例</td>
+<td>支持集群/实例</td>
+</tr>
+<tr>
+<td>重启数据库</td>
+<td>支持集群/实例</td>
+<td>仅支持本地实例</td>
+<td>支持集群/实例</td>
+</tr>
+<tr>
+<td>重建数据库</td>
+<td>支持本地/远程</td>
+<td>仅支持本地实例</td>
+<td>支持本地/远程</td>
+</tr>
+<tr>
+<td>指定上游节点重建数据库</td>
+<td>支持</td>
+<td>支持</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>failover</td>
+<td>支持本地/远程</td>
+<td>仅支持本地实例</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>switchover</td>
+<td>支持本地/远程</td>
+<td>仅支持本地实例</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>查看数据库参数</td>
+<td>支持本地/远程</td>
+<td>不支持</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td>查看HBA内容</td>
+<td>支持本地/远程</td>
+<td>不支持</td>
+<td>不支持</td>
+</tr>
+</tbody>
+</table>
+</div><p>下面是ptkc的简单测试</p>
+<pre><code>[mogdb501c3@openeular22 ~]$ ptkc status  ##参看集群状态
+[   Cluster State   ]
+cluster_name                            : mogdb501c3
+cluster_state                           : Normal
+database_version                        : MogDB 5.0.1 (build 0e86ae0f)
+
+[  Datanode State   ]
+  cluster_name |  id  |       ip        | port  |    user    | nodename | db_role | state  | upstream
+---------------+------+-----------------+-------+------------+----------+---------+--------+-----------
+  mogdb501c3   | 6001 | 192.168.163.226 | 36200 | mogdb501c3 | dn_6001  | primary | Normal | -
+               | 6002 | 192.168.163.227 | 36200 | mogdb501c3 | dn_6002  | standby | Normal | -
+[mogdb501c3@openeular22 ~]$ ptkc restart  ## 重启
+INFO[2023-08-17T00:41:56.146] operation: stop
+INFO[2023-08-17T00:41:56.146] ========================================
+INFO[2023-08-17T00:41:56.147] stop db [192.168.163.227:36200] ...
+INFO[2023-08-17T00:41:57.427] stop db [192.168.163.227:36200] successfully
+INFO[2023-08-17T00:41:57.427] stop db [192.168.163.226:36200] ...
+INFO[2023-08-17T00:41:59.456] stop db [192.168.163.226:36200] successfully
+INFO[2023-08-17T00:41:59.456] ========================================
+INFO[2023-08-17T00:41:59.456] stop successfully
+
+INFO[2023-08-17T00:41:59.961] operation: start
+INFO[2023-08-17T00:41:59.962] ========================================
+INFO[2023-08-17T00:41:59.962] start db [192.168.163.226:36200] ...
+INFO[2023-08-17T00:42:01.012] start db [192.168.163.226:36200] successfully
+INFO[2023-08-17T00:42:01.012] start db [192.168.163.227:36200] ...
+INFO[2023-08-17T00:42:02.316] start db [192.168.163.227:36200] successfully
+INFO[2023-08-17T00:42:03.166] ========================================
+INFO[2023-08-17T00:42:03.166] start cluster successfully
+[mogdb501c3@openeular22 ~]$
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>数据库作为一类软件，用户期望的是功能越多越好，但是同时又期望越轻量化越简单越好，本身就是一种矛盾。MogDB在openGauss社区版的基础上，不断吸收来自各行各业真实用户的各种建议，结合团队丰富的开发和运维经验，对于数据库快速安装方面，摸索出其中的平衡点，即ptk+mogdb的组合，让用户不再为安装数据库而发愁。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,148 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在21c版本中，分析窗口得到了增强，支持了WINDOW子句，并且在窗口中增加支持EXCLUDE及GROUPS。<br/>
+以下以HR Schema Demo为例,可以在墨天轮在线实训环境进行验证<br/>
+<a href="https://www.modb.pro/market/243108">Oracle 21c 实训环境</a></p>
+<h2 id="1window">1.window</h2>
+<p>在21c之前，如果我们要对同一个窗口进行多次统计分析，一般是像下面这么写</p>
+<pre><code class="language-sql">select EMPLOYEE_ID,
+       FIRST_NAME,
+       LAST_NAME,
+       salary,
+       sum(salary) over(partition by DEPARTMENT_ID) sum_salary,
+       min(salary) over(partition by DEPARTMENT_ID) min_salary,
+       max(salary) over(partition by DEPARTMENT_ID) max_salary
+  from hr.employees;
+</code></pre>
+<p>其中的窗口部分“(partition by DEPARTMENT_ID)”重复出现了3次，让语句显得太过冗余，但在21c版本后，支持将window子句单独提出来，可以使sql得到很大的简化，像下面这样</p>
+<pre><code class="language-sql">select EMPLOYEE_ID,
+       FIRST_NAME,
+       LAST_NAME,
+       salary,
+       sum(salary) over w1 sum_salary,
+       min(salary) over w1 min_salary,
+       max(salary) over w1 max_salary
+  from hr.employees
+  window w1 as (partition by DEPARTMENT_ID);
+</code></pre>
+<p>还可以支持多个窗口，像下面这样</p>
+<pre><code class="language-sql">select EMPLOYEE_ID,
+       FIRST_NAME,
+       LAST_NAME,
+       salary,
+       sum(salary) over w1 sum_salary,
+       min(salary) over w1 min_salary,
+       max(salary) over w1 max_salary,
+       sum(salary) over w2 sum_salary2,
+       min(salary) over w2 min_salary2,
+       max(salary) over w2 max_salary2
+  from hr.employees
+  window w1 as (partition by DEPARTMENT_ID),
+         w2 as (partition by job_id);
+</code></pre>
+<p>你还可以定义一个窗口，然后在原有的over子句中再对此窗口缩小范围，实现“窗口中的窗口”</p>
+<pre><code class="language-sql">select row_number() over w1 as row_order,
+       salary,
+       avg(salary) over(w1 rows between unbounded preceding and current row) as avg_rolling,
+       avg(salary) over(w1 rows between unbounded preceding and unbounded following) as avg_all
+  from hr.employees 
+  window w1 as(order by salary);
+</code></pre>
+<h2 id="2groups">2.GROUPS</h2>
+<p>GROUPS是用于window子句中的，之前只有ROWS和RANGE,比如下例<br/>
+（备注：以下sql为了说明range的用法，union all了一个特别的值2401）</p>
+<pre><code class="language-sql">select row_number() over(order by salary) as row_order,
+       salary,
+       avg(salary) over w1 as avg_rows,
+       avg(salary) over w3 as avg_range,
+       avg(salary) over w2 as avg_groups
+  from (select salary
+          from hr.employees
+         where salary &lt;= 2500
+        union all
+        select 2401 from dual) 
+window w1 as(order by salary rows between 1 preceding and current row), 
+       w2 as(order by salary groups between 1 preceding and current row),
+       w3 as(order by salary range between 1 preceding and current row);
+
+</code></pre>
+<table>
+<thead>
+<tr><th>ROW_ORDER</th><th>SALARY</th><th>AVG_ROWS</th><th>AVG_GROUPS</th><th>AVG_RANGE</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>2100</td><td>2100</td><td>2100</td><td>2100</td></tr>
+<tr><td>2</td><td>2200</td><td>2150</td><td>2166.66666666667</td><td>2200</td></tr>
+<tr><td>3</td><td>2200</td><td>2200</td><td>2166.66666666667</td><td>2200</td></tr>
+<tr><td>4</td><td>2400</td><td>2300</td><td>2300</td><td>2400</td></tr>
+<tr><td>5</td><td>2400</td><td>2400</td><td>2300</td><td>2400</td></tr>
+<tr><td>6</td><td>2401</td><td>2400.5</td><td>2400.33333333333</td><td>2400.33333333333</td></tr>
+<tr><td>7</td><td>2500</td><td>2450.5</td><td>2485.85714285714</td><td>2500</td></tr>
+<tr><td>8</td><td>2500</td><td>2500</td><td>2485.85714285714</td><td>2500</td></tr>
+<tr><td>9</td><td>2500</td><td>2500</td><td>2485.85714285714</td><td>2500</td></tr>
+<tr><td>10</td><td>2500</td><td>2500</td><td>2485.85714285714</td><td>2500</td></tr>
+<tr><td>11</td><td>2500</td><td>2500</td><td>2485.85714285714</td><td>2500</td></tr>
+<tr><td>12</td><td>2500</td><td>2500</td><td>2485.85714285714</td><td>2500</td></tr>
+</tbody>
+</table>
+<ul>
+<li>avg_rows  当前行的前一行到当前行的平均</li>
+<li>avg_groups 按值相等的行进行分组，计算当前组的上一组到当前组的平均，比如第5行，当前组是2400，第4、5行为一组，上一组是同为2200的第2、3行，所以是2、3、4、5行求平均</li>
+<li>avg_range 当前行的值减1，得到的值对应的行 到当前行的平均 ，比如第6行2401-1为2400，等于2400的有第4、5行，所以是4、5、6三行求平均</li>
+</ul>
+<h2 id="3exclude">3.EXCLUDE</h2>
+<ul>
+<li>EXCLUDE NO OTHERS: 什么都不排除。相当于没有使用EXCLUDE。</li>
+<li>EXCLUDE CURRENT ROW : 仅排除当前行。</li>
+<li>EXCLUDE GROUP : 排除与当前行具有相同值的所有行和当前行。</li>
+<li>EXCLUDE TIES : 排除与当前行具有相同值的所有行，但不排除当前行。</li>
+</ul>
+<p>（备注：下面这个例子我先构造了一个1到7的数字序列，然后让数字5出现了3次）</p>
+<pre><code class="language-sql">with t1 as
+ (select rownum value from dual connect by rownum &lt;= 7 
+ union all 
+ select 5 from dual
+union all 
+select 5 from dual
+)
+select value,
+avg(value) over w1 ex_current_row,
+avg(value) over w2 ex_group,
+avg(value) over w3 ex_ties
+  from t1 
+window w1 as(order by value rows between 1 preceding and 1 following exclude current row),
+       w2 as(order by value rows between 1 preceding and 1 following exclude group),
+       w3 as(order by value rows between 1 preceding and 1 following exclude ties)
+</code></pre>
+<table>
+<thead>
+<tr><th>VALUE</th><th>EX_CURRENT_ROW</th><th>EX_GROUP</th><th>EX_TIES</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>2</td><td>2</td><td>1.5</td></tr>
+<tr><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+<tr><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>4</td><td>4</td><td>4</td><td>4</td></tr>
+<tr><td>5</td><td>4.5</td><td>4</td><td>4.5</td></tr>
+<tr><td>5</td><td>5</td><td></td><td>5</td></tr>
+<tr><td>5</td><td>5.5</td><td>6</td><td>5.5</td></tr>
+<tr><td>6</td><td>6</td><td>6</td><td>6</td></tr>
+<tr><td>7</td><td>6</td><td>6</td><td>6.5</td></tr>
+</tbody>
+</table>
+<ul>
+<li>EX_CURRENT_ROW  为前一行到后一行这三行剔除当前行后的平均值</li>
+<li>EX_GROUP_ROW  为前一行到后一行这三行剔除和当前值相等的所有行后，再算平均。比如第5行value等于5，它的前一行是4，后一行是5，剔除和它相等的行后，得4的平均值为4；而三个5中间的那个5对应的计算结果由于3行数据全部都被剔除，所以为空</li>
+<li>EX_TIES_ROW 为前一行到后一行这三行，剔除和当前值相等的所有行但不剔除当前行后，算平均。同样以第5行为例，和GROUP的区别在于，它不剔除当前行，和它相等的第6行已经被剔除，因此是第4行的4和第5行的5计算平均得4.5</li>
+</ul>
+<p>参考官方文档 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Analytic-Functions.html">Analytic Functions</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

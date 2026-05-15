@@ -155,7 +155,258 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="前言">前言</h1>
+<p>sql作为传统关系型数据一种常见语言，广泛使用在各种程序项目中。随着数据库厂商不断地更新迭代版本，sql的功能越来越丰富和强大，已经不局限于关系型查询，甚至对递归、数组、对象等都有支持。但是实际开发中，大多数开发人员对sql研究并不深，不清楚sql能支持到何种程度。虽然近几年网络上已经开始有一些技术分析文了，但总感觉受众还是不够广，所以我就开一个专题系列，分享一些sql的写法，主要针对oracle数据库，每篇根据复杂度大概介绍不超过10种，下面开始第一篇，先来点简单的</p>
+<hr/>
+<h1 id="1cast">1.cast</h1>
+<p>作用：强制或者指定查询字段的输出类型，常用于“CREATE TABLE AS SELECT ...”中<br/>
+例：</p>
+<pre><code class="language-sql">create table  tmp_table as 
+select CAST(132 as number(8, 4)) number_col,
+       CAST(132 as VARCHAR2(10)) VARCHAR2_col,
+       cast(null as date) date_null,
+       cast(null as number) number_null,
+       cast(null as VARCHAR2(10)) varchar2_null,
+       '1' char_null
+  from dual;
+</code></pre>
+<pre><code class="language-sql">desc tmp_table;
+</code></pre>
+<table>
+<thead>
+<tr><th>名称</th><th>是否为空?</th><th>类型</th></tr>
+</thead>
+<tbody>
+<tr><td>NUMBER_COL</td><td> </td><td>NUMBER(8,4)</td></tr>
+<tr><td>VARCHAR2_COL</td><td> </td><td>VARCHAR2(10)</td></tr>
+<tr><td>DATE_NULL</td><td> </td><td>DATE</td></tr>
+<tr><td>NUMBER_NULL</td><td> </td><td>NUMBER</td></tr>
+<tr><td>VARCHAR2_NULL</td><td> </td><td>VARCHAR2(10)</td></tr>
+<tr><td>CHAR_NULL</td><td> </td><td>CHAR(1)</td></tr>
+</tbody>
+</table>
+<p>注意观察char_null这个字段和varchar2_null字段的区别，varchar2是可变长字符串，在存储空间的节省上，要优于char，建议尽量避免使用char类型。</p>
+<p>而且，如果使用下面这2种写法，是会报错的，不允许长度为0的列</p>
+<pre><code class="language-sql">create table  tmp_table as 
+select 
+       '' char_null
+  from dual;
+create table  tmp_table as 
+select 
+       null char_null
+  from dual;
+</code></pre>
+<hr/>
+<h1 id="2with-as">2.with ..as</h1>
+<p>作用：将子查询提取出来作为一个虚拟表，简化sql，增强sql的可读性，有时也能在一定程度上提升sql的查询效率（这个其实还有更复杂的用法，以后再说）<br/>
+例：</p>
+<pre><code class="language-sql">with t as
+ (select null expr1, 2 expr2, 3 expr3 from dual)
+select t1.expr2 + t2.expr3 res from t t1, t t2
+</code></pre>
+<p>此例子中，对同一个子查询sql引用了两次，常规写法要重复写两个一模一样的，但使用with子句可以精简为只写一个子查询sql，而且with子句后还支持并列或者嵌套多个sql，比如</p>
+<pre><code class="language-sql">with t as
+ (select null expr1, 2 expr2, 3 expr3 from dual)，
+     t1 as
+ (select * from t where t.expr2=2)
+select * from t ,t1
+</code></pre>
+<hr/>
+<h1 id="3nvl2">3.NVL2</h1>
+<p>作用：该函数有3个参数，判断第一个参数是否为空，如果不为空则显示第二个参数，如果为空则显示第三个参数<br/>
+例：</p>
+<pre><code class="language-sql">with t as
+ (select null expr1, 2 expr2, 3 expr3 from dual)
+select NVL2(expr1, expr2, expr3) res from t;
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th></tr>
+</thead>
+<tbody>
+<tr><td>3</td></tr>
+</tbody>
+</table>
+<p>注意区分该函数和nvl的区别</p>
+<hr/>
+<h1 id="4coalesce">4.COALESCE</h1>
+<p>作用：该函数是nvl函数的升级版，可传入很多个参数，按参数输入顺序，输出第一个不为空的参数的值<br/>
+例：</p>
+<pre><code class="language-sql">with t as
+ (select null expr1, null expr2, 3 expr3 from dual)
+select COALESCE(expr1, expr2, expr3) res from t;
+
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th></tr>
+</thead>
+<tbody>
+<tr><td>3</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="5translate">5.TRANSLATE</h1>
+<p>作用：对第一个参数中的字符串进行替换，替换规则为，把第二个参数中的第N个字符替换成第三个参数中的第N个字符。可以用于字符串加密<br/>
+例：</p>
+<pre><code class="language-sql">select  TRANSLATE('A爱B，但是B不爱A','A爱','C恨') res   from dual;
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th></tr>
+</thead>
+<tbody>
+<tr><td>C恨B，但是B不恨C</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="6rpad">6.RPAD</h1>
+<p>作用：在第一个参数右边以第三个参数填充，使输出结果长度达到第二个参数的值，类似的还有LPAD，即在左边填充。常用于输出一些格式化文本的处理<br/>
+例：</p>
+<pre><code class="language-sql">select RPAD('我银行卡上的数字为100',50,'0') res  from dual;
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th></tr>
+</thead>
+<tbody>
+<tr><td>我银行卡上的数字为10000000000000000000000000000000</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="7sign">7.SIGN</h1>
+<p>作用：判断输入参数的正负号，正数返回1，负数返回-1，0返回0。在做数据统计时，如果求和的列有正有负，要分别求出正数的和和负数的和，或者说正数和负数的数据要分开处理，那么在group by 后面加上sign(求和列)则是个不错的方式。<br/>
+例：</p>
+<pre><code class="language-sql">with t as 
+(select 'A' NAME,-2 VALUE FROM DUAL UNION ALL
+select 'B',3 from dual union all
+select 'A',-1 from dual union all
+select 'A',5 from dual union all
+select 'B',2 from dual 
+)
+
+SELECT NAME ,SUM(VALUE) S FROM T GROUP BY NAME,SIGN(VALUE)
+</code></pre>
+<table>
+<thead>
+<tr><th>NAME</th><th>S</th></tr>
+</thead>
+<tbody>
+<tr><td>B</td><td>5</td></tr>
+<tr><td>A</td><td>-3</td></tr>
+<tr><td>A</td><td>5</td></tr>
+</tbody>
+</table>
+<p>我们可以猜想A和B两个人，后面的统计是拉到的客户数，正数表示成功人数，负数表示失败人数，虽然最后成功的人数一样，但B属于稳扎稳打，没有失败，但A则失败了3个，这个可能会造成一些负面影响。当然也可以用其他角度来观察，这就靠人自行想象了。</p>
+<hr/>
+<h1 id="8rollupcube">8.ROLLUP/CUBE</h1>
+<p>作用：接在group by 后面，查询结果能多出几行不同的聚合维度的数据。其中ROLLUP是按后面接的参数顺序逐级聚合，CUBE则是列出后面参数所有组合情况的聚合。<br/>
+例：</p>
+<pre><code class="language-sql">WITH T AS 
+(SELECT 'A' NAME,-2 VALUE,3 WEIGHT FROM DUAL UNION ALL
+SELECT 'B',3 , 3 FROM DUAL UNION ALL
+SELECT 'A',-1,2 FROM DUAL UNION ALL
+SELECT 'A',5,2 FROM DUAL UNION ALL
+SELECT 'B',2,4 FROM DUAL 
+)
+
+SELECT NAME ,WEIGHT,SUM(VALUE) S FROM T GROUP BY ROLLUP (NAME,WEIGHT)
+</code></pre>
+<table>
+<thead>
+<tr><th>NAME</th><th>WEIGHT</th><th>S</th></tr>
+</thead>
+<tbody>
+<tr><td>A</td><td>2</td><td>4</td></tr>
+<tr><td>A</td><td>3</td><td>-2</td></tr>
+<tr><td>A</td><td> </td><td>2</td></tr>
+<tr><td>B</td><td>3</td><td>3</td></tr>
+<tr><td>B</td><td>4</td><td>2</td></tr>
+<tr><td>B</td><td> </td><td>5</td></tr>
+<tr><td> </td><td> </td><td>7</td></tr>
+</tbody>
+</table>
+<p>这个例子中，输出结果的第三行，表示 NAME为A的汇总行，不管WEIGHT；第6行为B的汇总行；第7行为所有的汇总。在做一些报表数据时，不需要再另外针对不同的汇总维度再多写几段sql了，而且性能开销更低。结合NVL函数，可以让数据结果更直观，比如</p>
+<pre><code class="language-sql">WITH T AS 
+(SELECT 'A' NAME,-2 VALUE,3 WEIGHT FROM DUAL UNION ALL
+SELECT 'B',3 , 3 FROM DUAL UNION ALL
+SELECT 'A',-1,2 FROM DUAL UNION ALL
+SELECT 'A',5,2 FROM DUAL UNION ALL
+SELECT 'B',2,4 FROM DUAL 
+)
+
+SELECT nvl(NAME, '全员') NAME,
+       nvl(to_char(WEIGHT), '合计') WEIGHT,
+       SUM(VALUE) S
+  FROM T
+ GROUP BY ROLLUP(NAME, WEIGHT)
+</code></pre>
+<table>
+<thead>
+<tr><th>NAME</th><th>WEIGHT</th><th>S</th></tr>
+</thead>
+<tbody>
+<tr><td>A</td><td>2</td><td>4</td></tr>
+<tr><td>A</td><td>3</td><td>-2</td></tr>
+<tr><td>A</td><td>合计</td><td>2</td></tr>
+<tr><td>B</td><td>3</td><td>3</td></tr>
+<tr><td>B</td><td>4</td><td>2</td></tr>
+<tr><td>B</td><td>合计</td><td>5</td></tr>
+<tr><td>全员</td><td>合计</td><td>7</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="9listagg-within-group-order-by--wm-concat">9.LISTAGG(...,',') within GROUP (order by ...) /(WM_CONCAT)</h1>
+<p>作用：将某列数据的值放到一个值里，用指定的分隔符串起来，且支持排序（分隔符可自定义，上面是指定逗号），在某种意义上可以理解为是行转列的一种方式。<br/>
+例：</p>
+<pre><code class="language-sql">with t as 
+(select 'A' NAME,-2 VALUE FROM DUAL UNION ALL
+select 'B',3 from dual union all
+select 'A',-1 from dual union all
+select 'A',5 from dual union all
+select 'B',2 from dual 
+)
+SELECT LISTAGG(NAME,',')  within GROUP (order by NAME) res FROM t 
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th></tr>
+</thead>
+<tbody>
+<tr><td>A,A,A,B,B</td></tr>
+</tbody>
+</table>
+<p>可以看出这里的结果并没有去重，这里就要提到另一个函数了WM_CONCAT,WM_CONCAT支持WM_CONCAT(DISTINCT<br/>
+字段) 的写法，<br/>
+但是，<br/>
+一般在oralce 11g版本及之前，可以用wm_concat这个函数，使用起来更简单，但是从12C版本开始，ORACLE移除了这个函数，因为WM_CONCAT这个函数一开始并不是开放给用户使用的，所以在正式的代码里尽量使用LISTAGG而非WM_CONCAT,以免程序移植或者数据库版本升级导致程序出现异常。当然如果一定要用wm_concat，也可以自行在12C以上的版本把这个wm_concat函数给加上去，这里就不给代码了，请自行在互联网检索。<br/>
+不过，ORACLE既让我们改用LISTAGG又不给去重，这合理么？<br/>
+不合理。<br/>
+所以，ORACLE 在19C版本把这个功能加上去了，而这个功能，在众多流行的数据库中，在这个时候只有DB2和ORACLE这2款数据库支持LISTAGG里加distinct(未来可能会有更多的数据库支持)。<br/>
+而且，从oracle 18c版本开始，LISTAGG可以不需要 “within GROUP ”了，效果如下</p>
+<pre><code class="language-sql">with t as 
+(select 'A' NAME,-2 VALUE FROM DUAL UNION ALL
+select 'B',3 from dual union all
+select 'A',-1 from dual union all
+select 'A',5 from dual union all
+select 'B',2 from dual 
+)
+SELECT LISTAGG(NAME)  res,LISTAGG(NAME,',') res2  FROM t 
+</code></pre>
+<table>
+<thead>
+<tr><th>RES</th><th>RES2</th></tr>
+</thead>
+<tbody>
+<tr><td>ABAAB</td><td>A,B,A,A,B</td></tr>
+</tbody>
+</table>
+<p>另外一个要注意的点是，WM_CONCAT输出结果是4000长度以内的CLOB类型，LISTAGG是4000长度以内的varchar2类型，所以 <font size="10">别拼太长!</font></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

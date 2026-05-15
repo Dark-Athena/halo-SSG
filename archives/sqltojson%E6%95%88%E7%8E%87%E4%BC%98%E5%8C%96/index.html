@@ -155,7 +155,178 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>之前我在某篇文章中说过，pljson库支持将任意的查询sql转换成jsonlist的长字符串，比如</p>
+<p>我们先创建一个这样的函数方便使用</p>
+<pre><code class="language-plsql">create FUNCTION sql_to_json_clob(i_sql VARCHAR2) RETURN CLOB IS
+    l_clob CLOB;
+  BEGIN
+    l_clob := empty_clob();
+    dbms_lob.createtemporary(l_clob, TRUE);
+    pljson_list.to_clob(SELF       =&gt; pljson_util_pkg.sql_to_json(i_sql,
+                                                                  10000,
+                                                                  0),
+                        buf        =&gt; l_clob,
+                        erase_clob =&gt; TRUE);
+    RETURN l_clob;
+  END;
+
+</code></pre>
+<p>然后在plsql中通过以下方式调用</p>
+<pre><code class="language-plsql">l_clob:=sql_to_json_clob('select 1 col1,2 col2 from dual
+                          union all
+                          select 3,4 from dual');
+dbms_output.put_line(l_clob);
+
+</code></pre>
+<p>可以得到l_clob这个变量的值为</p>
+<pre><code class="language-json">[{"COL1":1,"COL2":2},{"COL1":3,"COL2":4}]
+</code></pre>
+<p>而且如果json的key要做驼峰命名规则，也可以直接在写sql的时候用带双引号的别名确定好，比如</p>
+<pre><code class="language-sql">select 1 "appId",2 "phoneNum" from dual
+union all
+select 3,4 from dual
+
+</code></pre>
+<pre><code class="language-json">[{"appId":1,"phoneNum":2},{"appId":3,"phoneNum":4}]
+</code></pre>
+<p>这样我们就不需要在编写程序的时候声明一大堆变量了。</p>
+<p>实际项目使用中，可以发现，在数据量比较少的时候，这个转换效率很快，但是当数据量达到某个临界点，这个效率会变得奇慢，多一行数据，耗时长度可增加几千甚至上万倍。而且有时候执行过程中无法终止，kill session也只是把状态变成killed，实际还在不断的消耗内存资源，只能在操作系统上通过orakill来终止。</p>
+<p>跟踪这个plsjon的升级，这段代码也一直没有过效率方面的优化，所以我只能自己动手了。</p>
+<p>这个程序逻辑大致如下</p>
+<blockquote>
+<p>1.sql_to_json 将sql转换成 sys_refcursor类型<br/>
+2.然后将这个sys_refcursor传入ref_cursor_to_json<br/>
+3.通过oracle自带的xml包dbms_xmlgen，将这个sys_refcursor转换成xml格式的数据<br/>
+4.再通过get_xml_to_json_stylesheet，把xml转换成jsonlist<br/>
+5.返回jsonlist，完成了</p>
+</blockquote>
+<p>这段代码中没有任何一处有loop，就算有，也只可能在ORACLE的自带的dbms_xmlgen包里，除开ORACLE自带的这个包内部的机制不清楚外，这个段代码的逻辑真是太简单了，几乎无从下手。</p>
+<p>回到问题本身，只要传入的SQL的数据量大了，执行就会变慢，其中第一步和第二步，速度是不受多少影响的，那么我们可以尝试，把这个sys_refcursor进行拆分，分多次传入ref_cursor_to_json，最后再把生成的jsonlist进行合并。</p>
+<p>所以要对sys_refcursor这种类型进行研究，可惜的是，我翻了很久的资料，都没有找到一个可以拆分sys_refcursor这种类型的案例。我也尝试自己写了很多种拆的方式，都报错。我也不可能把这个游标遍历一次再来拆分。这种游标类型很奇特，它不需要提前创建一个type对象即可直接使用，也无需声明它有哪些字段，具有通用性，要支持任意动态sql的传入，就只能使用这个。<br/>
+而且之前我另一个项目，也遇到了sys_refcursor这种类型的问题，一直也没想到方案。</p>
+<p>但这个问题很紧急，影响到了生产环境的正常业务操作，所以我只能另辟蹊径。<br/>
+既然不能在游标上下手，那么我直接在sql上下手算了。</p>
+<p>我把传入的sql，按特定的结果行数作为条件，直接拆分成多个sql，分多次传入，最后再合并，而且这个行数可以作为输入参数，由使用者自行调试至最高效率。</p>
+<p>一个固定的sql容易拆，但是一个不确定的sql就不容易拆了，会遇到几个问题：</p>
+<blockquote>
+<p>1.sql的查询结果是不带行号的，所以要自己动态拼一个rownum字段上去<br/>
+2.ORACLE的rownum排序，基于某些特性，就算是短时间内查两次同样的sql，也可能会出现两次rownum的排序结果不一样，这个会导致我们生成的json数据重复或者缺失<br/>
+3.所以我们只能用row_number() over(order by  )指定字段强制排序，不论查多少次，数据结果都不变，但是我们传入的是动态sql，每次传入的字段都不一样<br/>
+4.所以只能把所有字段都作为排序字段，直接字符串拼接所有字段</p>
+</blockquote>
+<pre><code class="language-plsql">FUNCTION sql_to_json_clob(i_sql          VARCHAR2,
+                            i_batch_rownum NUMBER DEFAULT 100) RETURN CLOB IS
+    -- Author  : DarkAthena
+  -- Created : 2019-04-25 11:10:41
+  -- Purpose : sql转json速度优化版
+  
+    l_clob         CLOB; --最终结果
+    l_sql2         VARCHAR2(30000); --排序SQL
+    l_col_name_str VARCHAR2(10000); --字段名串
+    l_sql3         VARCHAR2(30000); --分页SQL
+    l_row_count    NUMBER; --已经处理的行数
+    l_sum_count    NUMBER; --总行数
+    l_clob_tmp     CLOB; --缓存
+    l_curid        INTEGER;
+    l_cnt          NUMBER;
+    l_desctab      dbms_sql.desc_tab;
+  BEGIN
+    --统计行数
+    EXECUTE IMMEDIATE 'select count(1) from (' || i_sql || ')'
+      INTO l_sum_count;
+    --如果没数据，返回空LIST
+    IF l_sum_count = 0
+    THEN
+      RETURN '[]';
+    END IF;
+  
+    --开始取字段名称
+    l_curid := dbms_sql.open_cursor();
+    dbms_sql.parse(l_curid, i_sql, dbms_sql.native);
+    dbms_sql.describe_columns(l_curid, l_cnt, l_desctab);
+    FOR i IN 1 .. l_desctab.count LOOP
+      l_col_name_str := l_col_name_str || CASE
+                          WHEN l_col_name_str IS NULL THEN
+                           NULL
+                          ELSE
+                           ','
+                        END || '"' || l_desctab(i).col_name || '"';
+    END LOOP;
+    --取字段名称结束
+  
+    --组装排序SQL
+    l_sql2 := 'select t.*,row_number() over(order by ' || l_col_name_str ||
+              ') rn from (' || i_sql || ') t order by  ' ||
+              to_char(l_desctab.count + 1);
+    --关闭游标          
+    dbms_sql.close_cursor(l_curid);
+    -- dbms_output.put_line(l_sql2);
+  
+    --初始化处理记录数
+    l_row_count := 0;
+    --初始化CLOB对象
+    l_clob := empty_clob();
+    dbms_lob.createtemporary(l_clob, TRUE);
+  
+    --开始进行分页处理
+    LOOP
+      --组装分页SQL
+      l_sql3 := 'select ' || l_col_name_str || ' from (' || l_sql2 ||
+                ') where rn &gt; ' || to_char(l_row_count) || ' and rn&lt;=' ||
+                to_char(l_row_count + i_batch_rownum);
+      -- dbms_output.put_line(l_sql3);
+      --初始化缓存对象
+      l_clob_tmp := empty_clob();
+      dbms_lob.createtemporary(l_clob_tmp, TRUE);
+    
+      --SQL转换成JSONLIST再转换成CLOB，存入缓存
+      pljson_list.to_clob(SELF       =&gt; pljson_util_pkg.sql_to_json(l_sql3,
+                                                                    i_batch_rownum,
+                                                                    0),
+                          buf        =&gt; l_clob_tmp,
+                          erase_clob =&gt; TRUE);
+    
+      --将缓存复制到CLOB对象
+      dbms_lob.copy(dest_lob    =&gt; l_clob,
+                    src_lob     =&gt; l_clob_tmp,
+                    amount      =&gt; dbms_lob.getlength(l_clob_tmp),
+                    dest_offset =&gt; dbms_lob.getlength(l_clob) + 1,
+                    src_offset  =&gt; CASE
+                                     WHEN dbms_lob.getlength(l_clob) = 0 THEN
+                                      1
+                                     ELSE
+                                      2
+                                   END);
+    
+      --已处理行数变大
+      l_row_count := l_row_count + i_batch_rownum;
+    
+      --如果已处理行数小于总行数，把CLOB内的最后一个字符，由"]"变成"," ,否则退出循环
+      IF l_row_count &lt; l_sum_count
+      THEN
+        dbms_lob.write(lob_loc =&gt; l_clob,
+                       amount  =&gt; 1,
+                       offset  =&gt; dbms_lob.getlength(l_clob),
+                       buffer  =&gt; ',');
+      ELSE
+        EXIT;
+      END IF;
+    
+    END LOOP;
+    --返回最终结果
+    RETURN l_clob;
+  EXCEPTION
+    WHEN OTHERS THEN
+      raise_application_error(-20001, SQLERRM);
+  END;
+
+</code></pre>
+<p>由于我没有找到两个jsonlist直接合并的方法，所以暂时先用字符串拼接的方式进行合并了，之后想到更好的方法后会在我的github上更新最新的代码</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

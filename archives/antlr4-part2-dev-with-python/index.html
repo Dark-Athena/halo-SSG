@@ -153,7 +153,251 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一、前言">一、前言</h2>
+<p>前面一篇写了如何搭建环境，本文接着讲怎么使用antlr4进行开发。</p>
+<h2 id="二、实战">二、实战</h2>
+<p>根据上一篇，<a href="https://www.darkathena.top/archives/antlr4-part1-install-offline">基于语法树的SQL自动改写工具开发系列（1）-离线安装语法树解析工具antlr4-DA-技术分享-M版</a>,先在本地部署好开发环境。</p>
+<h3 id="demo-1">DEMO 1</h3>
+<p>写一段期望改写的原始SQL，使用pygrun进行解析<br/>
+比如在原生PG中不支持ORACLE中的table()函数，但有替代的unnest改写方式<br/>
+ORACLE:</p>
+<pre><code class="prism language-sql">SELECT A FROM TABLE(VAR) T
+</code></pre>
+<p>PG:</p>
+<pre><code class="prism language-sql">SELECT A FROM (SELECT * FROM UNNEST(VAR) COLUMN_VALUE) T
+</code></pre>
+<p>要实现的改写规则为，找到table函数的整个表达式，并取出它的入参，将table函数表达式的节点替换成<code>(SELECT * FROM UNNEST(入参) COLUMN_VALUE)</code><br/>
+语法树：</p>
+<pre><code>C:\antlr&gt;pygrun PlSql sql_script  --tree
+SELECT A FROM TABLE(VAR) T;
+^Z
+(sql_script
+   (unit_statement
+      (data_manipulation_language_statements
+         (select_statement
+            (select_only_statement
+               (subquery
+                  (subquery_basic_elements
+                     (query_block SELECT
+                        (selected_list
+                           (select_list_elements
+                              (expression
+                                 (logical_expression
+                                    (unary_logical_expression
+                                       (multiset_expression
+                                          (relational_expression
+                                             (compound_expression
+                                                (concatenation
+                                                   (model_expression
+                                                      (unary_expression
+                                                         (atom
+                                                            (general_element
+                                                               (general_element_part
+                                                                  (id_expression
+                                                                     (regular_id A))))))))))))))))
+                        (from_clause FROM
+                           (table_ref_list
+                              (table_ref
+                                 (table_ref_aux
+                                    (table_ref_aux_internal
+                                       (dml_table_expression_clause
+                                          (table_collection_expression TABLE (
+                                             (expression
+                                                (logical_expression
+                                                   (unary_logical_expression
+                                                      (multiset_expression
+                                                         (relational_expression
+                                                            (compound_expression
+                                                               (concatenation
+                                                                  (model_expression
+                                                                     (unary_expression
+                                                                        (atom
+                                                                           (general_element
+                                                                              (general_element_part
+                                                                                 (id_expression
+                                                                                    (regular_id VAR)))))))))))))) ))))
+                                 (table_alias
+                                    (identifier
+                                       (id_expression
+                                          (regular_id T))))))))))))))) ; &lt;EOF&gt;)
+
+C:\antlr&gt;
+</code></pre>
+<p>以下为一个完整且可以运行的demo代码，用于说明如何进行语法改写</p>
+<pre><code class="prism language-py">from antlr4 import FileStream, CommonTokenStream
+from PlSqlLexer import PlSqlLexer
+from PlSqlParser import PlSqlParser
+from PlSqlParserVisitor import PlSqlParserVisitor
+from antlr4.TokenStreamRewriter import TokenStreamRewriter
+
+class SQLTransformer(PlSqlParserVisitor):
+    def __init__(self, token_stream):
+        super().__init__()
+        self.rewriter = TokenStreamRewriter(token_stream)
+
+    def visitDml_table_expression_clause(self, ctx: PlSqlParser.Dml_table_expression_clauseContext):
+        if ctx.table_collection_expression() and ctx.table_collection_expression().getText().startswith('table'):
+            argument = ctx.table_collection_expression().expression().getText()
+            new_text = "(select * from unnest({}) column_value)".format(argument)
+            self.rewriter.replace(TokenStreamRewriter.DEFAULT_PROGRAM_NAME, ctx.table_collection_expression().start.tokenIndex, ctx.table_collection_expression().stop.tokenIndex, new_text)
+        return self.visitChildren(ctx)
+
+def main(input_file, output_file):
+    input_stream = FileStream(input_file, encoding='utf-8')
+    lexer = PlSqlLexer(input_stream)
+    stream = CommonTokenStream(lexer)
+    parser = PlSqlParser(stream)
+    tree = parser.sql_script()
+
+    transformer = SQLTransformer(stream)
+    transformer.visit(tree)
+    output_text = transformer.rewriter.getDefaultText()
+    with open(output_file, 'w', encoding='utf-8',newline='') as f:
+        f.write(output_text)
+
+if __name__ == '__main__':
+    input_file = 'input.sql'
+    output_file = 'output.sql'
+    main(input_file, output_file)
+</code></pre>
+<p>其中<code>def main</code>内的代码基本可以固定，我们直接看<code>class SQLTransformer</code>里的<code>def visitDml_table_expression_clause</code>。<br/>
+<code>visitDml_table_expression_clause</code>其实是<code>PlSqlParserVisitor.py</code>里面的一个def，这个def的名称由<code>visit</code>加上节点名组成，也就是说，语法树中的每一个节点，都有一个对应的visit。而原本PlSqlParserVisitor.py里的每个visit里面都是空的，直接就return出去了：</p>
+<pre><code class="prism language-py">def  visitDml_table_expression_clause(self, ctx:PlSqlParser.Dml_table_expression_clauseContext):
+
+return  self.visitChildren(ctx)
+</code></pre>
+<p>我们自己写的这个visit就是实现了里面的具体内容。</p>
+<p>如果我们需要修改某个语法，可以从语法树中，找到这个语法相关的上下文的最小节点，以本文前面输出的语法树为例，就应该是<code>(table_collection_expression TABLE (</code>，所以理论上，我们再写个<code>visitTable_collection_expression</code>就好了，但本文的demo代码是从<code>visitDml_table_expression_clause</code>开始，是为了说明如何引用当前节点的下级节点</p>
+<pre><code class="prism language-py">if ctx.table_collection_expression() and ctx.table_collection_expression().getText().startswith('table')
+</code></pre>
+<p>这句是一个判断，作用是，判断当前节点下，是否存在<code>table_collection_expression</code>这个节点，我们可以去对比语法树，如果没有使用table函数，是不会有这个节点的；第二个条件就是，获取<code>table_collection_expression</code>这个节点的文本，判断它是不是使用 <code>table</code>开始。这里要注意，如果不写第一个条件，在没有<code>table_collection_expression</code>节点时，对它执行<code>getText</code>会报错。</p>
+<pre><code class="prism language-py">argument = ctx.table_collection_expression().expression().getText()
+</code></pre>
+<p>这里是取出<code>table_collection_expression</code>的下一个叫<code>expression</code>的节点，对照语法树可以看到，虽然里面有很多层，但这个节点实际只包含<code>VAR</code>这个文本，因此这里就可以得到<code>argument="VAR"</code>,即前文例子中，table函数的入参。</p>
+<pre><code class="prism language-py">new_text = "(select * from unnest({}) column_value)".format(argument)
+</code></pre>
+<p>这一句很好理解，就是格式化一个字符串，把argument的值替换<code>{}</code>，得到<code>(select * from unnest(VAR) column_value)</code></p>
+<pre><code class="prism language-py">self.rewriter.replace(TokenStreamRewriter.DEFAULT_PROGRAM_NAME, ctx.table_collection_expression().start.tokenIndex, ctx.table_collection_expression().stop.tokenIndex, new_text)
+</code></pre>
+<p>这一句就是最关键的，<code>self.rewriter</code>是前面定义的<code>TokenStreamRewriter(token_stream)</code>，在<code>TokenStreamRewriter</code>里面，可以支持对节点的替换、删除、增加等操作。<br/>
+<code>TokenStreamRewriter.replace</code>有4个入参,分别为程序名，开始位置、结束位置、需要替换成的文本。<br/>
+程序名一般固定使用<code>TokenStreamRewriter.DEFAULT_PROGRAM_NAME</code>就行，如果期望一次解析，就能做多种替换，比如同时生成支持PG和MYSQL的两种语法，就可以在这里设置程序名,针对不同的程序名写不同的规则。<br/>
+开始位置和结束位置，可以使用对应节点的<code>start.tokenIndex</code>和<code>stop.tokenIndex</code>。<br/>
+至此，我们就完成了一个改写规则的开发。</p>
+<h3 id="demo-2">DEMO 2</h3>
+<p>如果需要在一次语法树解析中就完成多种规则的执行，可以再添加几个<code>def visit</code>，比如我们再针对create type语句来进行改写。</p>
+<p>ORACLE:</p>
+<pre><code class="prism language-sql">CREATE OR REPLACE TYPE TY_TEST AS OBJECT(COL1 INT,COL2 VARCHAR(20));
+</code></pre>
+<p>PG:</p>
+<pre><code class="prism language-sql">CREATE TYPE TY_TEST AS (COL1 INT,COL2 VARCHAR(20));
+</code></pre>
+<p>改写规则为，对于<code>create_type</code>的语法节点，将<code>create or replace</code> 改为<code>create</code>，并且删除<code>object</code></p>
+<p>语法树：</p>
+<pre><code>C:\antlr&gt;pygrun PlSql sql_script  --tree
+CREATE OR REPLACE TYPE TY_TEST AS OBJECT(COL1 INT,COL2 VARCHAR(20));
+^Z
+(sql_script
+   (unit_statement
+      (create_type CREATE OR REPLACE TYPE
+         (type_definition
+            (type_name
+               (id_expression
+                  (regular_id TY_TEST)))
+            (object_type_def
+               (object_as_part AS OBJECT) (
+               (object_member_spec
+                  (identifier
+                     (id_expression
+                        (regular_id COL1)))
+                  (type_spec
+                     (datatype
+                        (native_datatype_element INT)))) ,
+               (object_member_spec
+                  (identifier
+                     (id_expression
+                        (regular_id COL2)))
+                  (type_spec
+                     (datatype
+                        (native_datatype_element VARCHAR)
+                        (precision_part (
+                           (numeric 20) ))))) ))))) ; &lt;EOF&gt;)
+</code></pre>
+<p>改写代码</p>
+<pre><code class="prism language-py">    def visitCreate_type(self, ctx:PlSqlParser.Create_typeContext):
+        # 检查并修改 'create or replace' 为 'create'
+        if ctx.getChild(0).getText() == 'create' and ctx.getChild(1).getText() == 'or' and ctx.getChild(2).getText() == 'replace':
+           # print(f"Modifying: {ctx.getChild(0).getText()} {ctx.getChild(1).getText()} {ctx.getChild(2).getText()}")
+            self.rewriter.replace(
+                TokenStreamRewriter.DEFAULT_PROGRAM_NAME,
+                ctx.getChild(0).symbol.tokenIndex,
+                ctx.getChild(2).symbol.tokenIndex,
+                'create'
+            )   
+        object_as_part = ctx.type_definition().object_type_def().object_as_part()
+        #print(f"ctx.object_as_part.getText(): {object_type_def.object_as_part().getChild(1).getText()}")
+        # 删除 object关键字
+        if object_as_part.getChild(1).getText()=='OBJECT':
+            self.rewriter.delete(
+                TokenStreamRewriter.DEFAULT_PROGRAM_NAME,
+                object_as_part.getChild(1).symbol.tokenIndex,
+                object_as_part.getChild(1).symbol.tokenIndex
+            )
+        return self.visitChildren(ctx)
+</code></pre>
+<p>这里可以从<code>(create_type CREATE OR REPLACE TYPE</code>看到，<code>CREATE OR REPLACE TYPE</code>这一串都在<code>create_type</code>这个节点上，可以通过<code>getChild(n)</code>来取出中间的每一部分，而这每一部分的位置，则是通过<code>symbol.tokenIndex</code>获取。<br/>
+然后从<code>(object_as_part AS OBJECT) (</code>中可以看到，我们期望删除的object是在<code>object_as_part</code>这个节点的第二个字符串，因此使用了<code>getChild(1)</code>。这里需要注意，由于<code>object_as_part</code>这个节点是在<code>create_type</code>这个节点的下面很多层，然后后面会要多次使用这个节点，所以可以定义一个<code>object_as_part = ctx.type_definition().object_type_def().object_as_part()</code>，减少冗余代码。<br/>
+找到OBJECT后，执行<code>self.rewriter.delete</code>，就可以把OBJECT删掉了。</p>
+<h3 id="demo-3">DEMO 3</h3>
+<p>在ORACLE的sql脚本中，create type应该以<code>/</code>结尾，但是在OG中，则不能有<code>/</code>，如果一个脚本文件里混合了多种语句，就会出现有的<code>/</code>要删，有的不能删，因此我们可以写一个规则，将所有create type语句后面的<code>/</code>删掉。</p>
+<pre><code class="prism language-py">    def visitSql_script(self, ctx:PlSqlParser.Sql_scriptContext):
+        for i in range(ctx.getChildCount() - 1):
+            unit = ctx.getChild(i)
+            if isinstance(unit, PlSqlParser.Unit_statementContext):
+                create_type_stmt = unit.getChild(0)
+                # 对于create type语句
+                if isinstance(create_type_stmt, PlSqlParser.Create_typeContext):
+                    # 遍历兄弟节点，找到 `/` 进行删除
+                    for j in range(i + 1, ctx.getChildCount()):
+                        sibling = ctx.getChild(j)
+                        if sibling.getText() == '/':
+                            #print(f"Deleting: {sibling.getText()}")
+                            self.rewriter.delete(
+                                TokenStreamRewriter.DEFAULT_PROGRAM_NAME,
+                                sibling.symbol.tokenIndex,
+                                sibling.symbol.tokenIndex
+                            )
+                            break
+        return self.visitChildren(ctx)
+</code></pre>
+<p>这里没有使用visitCreate_type的原因是，在antlr4生成的语法树中，<code>/</code>这个节点并不在<code>Create_type</code>这个节点的内部，所以得对<code>Sql_script</code>这个根节点，找到所有的单条语句<code>Unit_statement</code>，然后判断里面是不是有<code>Create_type</code>，然后再回头删掉<code>/</code></p>
+<h2 id="三、注意事项">三、注意事项</h2>
+<p>antlr4目前的版本在sql语法解析规则中存在一个我认为很严重的BUG，就是SQL中如果包含有<code>pro</code>或者<code>rem</code>，解析就会报错，参考这个issue<br/>
+<a href="https://github.com/antlr/grammars-v4/issues/3817"># [PlSql] “REM”, “REMARK”, “PRO”, “PROMPT” can not be a identifier  #3817</a><br/>
+其实规避手段也很简单，删除g4文件中的PROMPT_MESSAGE和REMARK_COMMENT这两个语法定义，然后重新执行<code>antlr4vpy3 PlSqlParser.g4</code>和<code>antlr4vpy3 PlSqlLexer.g4</code>即可。不过这样就将无法解析SQLPLUS中的<code>prompt</code>和<code>remark</code>命令了</p>
+<ul>
+<li>PlSqlLexer.g4</li>
+</ul>
+<pre><code>//REMARK_COMMENT:
+//    'REM' {this.IsNewlineAtPos(-4)}? 'ARK'? (' ' ~('\r' | '\n')*)? NEWLINE_EOF -&gt; channel(HIDDEN)
+//;
+
+// https://docs.oracle.com/cd/E11882_01/server.112/e16604/ch_twelve032.htm#SQPUG052
+//PROMPT_MESSAGE: 'PRO' {this.IsNewlineAtPos(-4)}? 'MPT'? (' ' ~('\r' | '\n')*)? NEWLINE_EOF;
+</code></pre>
+<ul>
+<li>PlSqlParser.g4</li>
+</ul>
+<pre><code>//    | PROMPT_MESSAGE
+</code></pre>
+<p>20241204更新：后面找了这个项目的一些单子，发现是需要手动执行一次<code>python transformGrammar.py</code>命令来自动转换一下，参考这个单子 <a href="https://github.com/antlr/grammars-v4/issues/4338">https://github.com/antlr/grammars-v4/issues/4338</a></p>
+<h2 id="四、总结">四、总结</h2>
+<p>antlr4很强大,我们可以借助其语法树的能力，实现精准的语法改写，当然前提是我们要先想好怎么去改写，然后才能编写对应的规则。这种方式虽然比正则替换要慢很多，但是对于大量复杂的存储过程而言，使用语法树进行改写的方式无疑比正则替换更加可靠。使用高级开发语言还可以连接数据库获取元数据来推断被引用的对象类型和属性，来进行更加个性化的复杂逻辑改写。</p>
+</div>
+</article>
     </div>
     
 </article>

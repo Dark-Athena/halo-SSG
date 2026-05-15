@@ -155,7 +155,217 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一-背景">一、背景</h2>
+<p>目前仍然很多客户的运维机使用windows操作系统，开发人员也是在windows环境上进行编码测试，甚至还有一些客户管理比较严格，禁止开发人员登录服务器进行操作。在MogDB 5.2.0版本之前，没有提供windows平台的gsql，因此在windows上执行一些批处理SQL脚本会很不方便；并且由于原本客户基于oracle的sqlplus/sqlldr开发了大量的批处理脚本，如果要改成gsql支持的语法，又存在比较大的工作量。<br/>
+为了让之前客户的windows批处理脚本能无缝对接到MogDB,所以MogDB做了对sqlplus/sqlldr的语法兼容处理（注：MogDB 5.2.0版本对sqlplus的支持仅限windows版本）</p>
+<h2 id="二-兼容sqlplus语法">二、兼容sqlplus语法</h2>
+<h3 id="1-连接">1.连接</h3>
+<ul>
+<li>支持连接串为 <code>username/password@host:port:sid</code>的形式</li>
+<li>支持 <code>as sysdba</code>（实际是忽略）</li>
+<li>支持 <code>nolog</code>方式启动客户端</li>
+<li>支持在客户端中输入 <code>conn</code>+连接串的方式连接到指定数据库</li>
+<li>支持 <code>quit</code>断开连接（带不带 <code>;</code>均可）</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-sql">C:\&gt;gsql system/oracle@192.168.163.134:26200/testdb
+Warning: The client and server have different version numbers.
+gsql (5.0.0.3)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+testdb=&gt; quit
+
+C:\&gt;
+</code></pre>
+<pre><code class="language-sql">C:\&gt;gsql sys/oracle@192.168.163.134:26200/testdb as sysdba
+gsql: warning: extra command-line argument "as" ignored
+gsql: warning: extra command-line argument "sysdba" ignored
+Warning: The client and server have different version numbers.
+gsql (5.0.0.3)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+testdb=&gt; quit;
+
+C:\&gt;
+</code></pre>
+<pre><code class="language-sql">C:\&gt;gsql /nolog
+Type "help" for help.
+
+!&gt; conn system/oracle@192.168.163.134:26200/testdb
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+You are now connected to database "testdb" as user "system" on host "192.168.163.134" at port "26200".
+testdb=&gt; select version();
+                                                                       version                                    
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ (MogDB 5.2.0 build e0c9adc2) compiled at 2024-09-28 02:48:39 commit 0 last mr 1804  on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 7.3.0, 64-bit
+(1 row)
+
+
+testdb=&gt;
+</code></pre>
+<h3 id="2-执行脚本">2.执行脚本</h3>
+<ul>
+<li>支持在连接串后面 <code>@</code>sql文件的语法，</li>
+<li>支持将命令中的参数传入到sql中 (需配置环境变量 <code>PGGLOBALVARREP=true</code>）</li>
+<li>支持在sql文件里通过start命令方式调用另一个sql文件的语法，可以带文件名后缀也可以不带</li>
+<li>支持将标准错误也定向到标准输出（需配置环境变量 <code>PGERRTOOUTPUT=true</code>）</li>
+<li>支持通过 <code>execute</code>命令来执行procedure</li>
+<li>兼容ORACLE注释风格（需配置环境变量 <code>PGCOMMENT=oracle</code>,并且配合MogDB 5.2版本GUC参数 <code>enable_oracle_comment</code>)</li>
+<li>单独输入 <code>/</code>不返回报错（sqlplus中一般单独输入 <code>/</code>是重复执行上一条命令，但 <code>create type xx is table of yy</code>语法也是以斜杠结束，而MogDB是 <code>;</code>结束，再加 <code>/</code>会报错，考虑到两者的兼容性，MogDB改成了单独输入 <code>/</code>时，忽略这个字符）</li>
+</ul>
+<ul>
+<li>支持spool语法
+<ul>
+<li>set trimspool on</li>
+<li>set line 600</li>
+<li>set echo off;</li>
+<li>set heading off;</li>
+<li>set feedback off;</li>
+<li>spool sqltext.sql</li>
+<li>select xxx from xxx;</li>
+<li>spool off</li>
+</ul>
+</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-sql">C:\test&gt;gsql system/oracle@192.168.163.134:26200/testdb @test_spool.sql 2
+Warning: The client and server have different version numbers.
+ANONYMOUS BLOCK EXECUTE
+CREATE TABLE
+CREATE PROCEDURE
+CREATE TYPE
+ test_pro1
+-----------
+
+(1 row)
+
+
+Target width is 600.
+total time: 84  ms
+
+C:\test&gt;type test_spool.sql
+start test_procedure
+
+set trimspool on
+set line 600
+set heading off
+set feedback off
+set echo off
+spool out1.txt
+select name from test_t10 where id=&amp;1;
+spool off
+quit
+C:\test&gt;type test_procedure.sql
+declare
+/*2024-10-18
+/*comment*/
+l_cnt number;
+begin
+select count(1) into l_cnt from user_tables where table_name=upper('test_t10');
+if l_cnt&gt;0 then
+  /*if exist , drop*/
+   execute immediate 'drop table test_t10';
+end if;
+end;
+/
+create table test_t10 (id number,name varchar2(20));
+
+create or replace procedure test_pro1 is
+begin
+insert into test_t10 values (1,'Tom');
+insert into test_t10 values (2,'Jerry');
+end;
+/
+
+create or replace type tyt_varchar2 is table of varchar2(4000);
+/
+
+execute test_pro1;
+C:\test&gt;type out1.txt
+ Jerry
+C:\test&gt;
+</code></pre>
+<h2 id="三-兼容sqlldr语法">三、兼容sqlldr语法</h2>
+<ul>
+<li>支持命令行参数 <code>userid</code>、<code>control</code>、<code>rows</code>、<code>skip</code></li>
+</ul>
+<ul>
+<li>支持控制文件参数
+<ul>
+<li>LOAD DATA</li>
+<li>INFILE</li>
+<li>APPEND</li>
+<li>TRUNCATE</li>
+<li>INTO TABLE</li>
+<li>FIELDS TERMINATED BY</li>
+<li>OPTIONALLY ENCLOSED BY</li>
+<li>TRAILING NULLCOLS</li>
+<li>BEGINDATA</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>支持生成日志文件（<code>*.log</code>）</li>
+<li>支持生成错误数据文件（<code>*.bad</code>）</li>
+<li>支持数据本身在控制文件中 (BEGINDATA)</li>
+<li>支持设置多字符分隔符</li>
+<li>支持指定导入字段</li>
+<li>支持设置字符串包裹符</li>
+</ul>
+<p>示例：</p>
+<pre><code class="language-sql">C:\test&gt;gs_loader userid=system/oracle@192.168.163.134:26200/postgres control=Country.ctl rows=1000 skip=1
+gs_loader: version 0.1
+
+ 478 Rows successfully loaded.
+
+log file is:
+  Country.log
+
+C:\test&gt;type Country.ctl
+LOAD DATA
+INFILE 'Country.csv'
+APPEND
+INTO TABLE t_data
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+TRAILING NULLCOLS
+(col1,col2,col3,col4)
+
+C:\test&gt;type Country.log
+gs_loader: version 0.1
+
+Control File: Country.ctl
+
+There are no data files from args.
+
+Table t_enummetadata
+ 478 Rows successfully loaded.
+ 0 Rows not loaded due to data errors.
+ 0 Rows not loaded because all WHEN clauses were failed.
+ 0 Rows not loaded because all fields were null.
+ Total logical records skipped:    1
+Run began on 2024/10/18 14:59:12
+Run ended on 2024/10/18 14:59:12
+
+Elapsed time was:     0 s
+
+C:\test&gt;
+</code></pre>
+<h2 id="四-和ORACLE执行的效果对比">四、和ORACLE执行的效果对比</h2>
+<p><img alt="image-plgs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-plgs.png" srcset="/upload/image-plgs.png?width=1200 1200w, /upload/image-plgs.png?width=400 400w, /upload/image-plgs.png?width=1600 1600w, /upload/image-plgs.png?width=800 800w"/></p>
+<p><img alt="image-sozv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sozv.png" srcset="/upload/image-sozv.png?width=1200 1200w, /upload/image-sozv.png?width=400 400w, /upload/image-sozv.png?width=1600 1600w, /upload/image-sozv.png?width=800 800w"/></p>
+<p><img alt="image-drtq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-drtq.png" srcset="/upload/image-drtq.png?width=1200 1200w, /upload/image-drtq.png?width=400 400w, /upload/image-drtq.png?width=1600 1600w, /upload/image-drtq.png?width=800 800w"/></p>
+<h2 id="五-总结">五、总结</h2>
+<p>本文所列出的功能，在windows上的sqlplus和gsql、sqlldr和gs_loader的最终执行效果几乎完全一致。甚至如果本地没有sqlplus/sqlldr，把gsql.exe/gs_loader.exe改成sqlplus.exe/sqlldr.exe，批处理的脚本几乎不用改，可以把MogDB当成ORACLE去执行这些脚本。</p>
+<p>当然，其实也可以看到，有一些运维常用命令在这个版本中的gsql并没有支持，比如 <code>exit</code>退出客户端，<code>conn</code>的完整指令 <code>connect</code>,<code>execute</code>的缩写 <code>exec</code>。实现这些并不麻烦，只要选择了使用MogDB，后续都可能实现。</p>
+<p>MogDB通过"像素级模仿"，兼容了sqlplus/sqlldr的这部分典型用法，对于部分依赖于sqlplus/sqlldr的客户实现了windows端运维的无损切换。</p>
+<p>无论是底层原理，还是这种周边工具的使用细节，MogDB致力打造一个让原有ORACLE用户能真正意义上无缝切换的国产数据库。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

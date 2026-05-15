@@ -155,7 +155,172 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>最近在某客户的ORACLE开发环境(oracle 19.10)中，发现一个非常奇怪情况,<br/>
+开发人员反馈，有一条SQL，查询了两个sum函数作为两个字段，</p>
+<pre><code>select sum(c1),sum(c2) from ...
+</code></pre>
+<p>当两个sum一起出现时，第一个sum的结果不对，仅仅只是把select里第二个sum表达式整个删掉，此时第一个sum的结果就对了。从执行计划中可以明显看到两个sum一起select的时候，优化器额外添加了一个 <code>is not null</code>的条件，导致过滤掉了不该过滤的行，从而导致sum的结果不对。</p>
+<p>空值不会影响sum的结果，所以ORACLE提前做了空值行的过滤，但ORACLE没考虑到这些行的其他字段可能也要做聚合，而其他字段并不一定为空，这显然是个BUG。</p>
+<h2 id="分析和复现">分析和复现</h2>
+<p>尝试手动建表造数据来模拟这个用例，发现无法复现，就采取了直接create table as的方式复制客户的这个表到新表，可以复现。<br/>
+但是如果是create table as 仅复制原表结构，再insert into as select 复制原表数据，则无法复现。<br/>
+此时我怀疑是数据块有问题，于是让客户扫描了所有的数据文件，发现没有坏块。<br/>
+在脑海中思考现在的现象，我是不是还遗漏了什么？</p>
+<blockquote>
+<p>SQL执行计划不一样，与统计信息有关。</p>
+</blockquote>
+<p>于是去查看统计信息，发现通过create as复制表数据，会自动收集统计信息，而insert方式复制的数据，统计信息为空。<br/>
+于是对insert方式复制数据的表，收集一次统计信息，问题复现了！</p>
+<p>以下是客户DBA根据业务代码抽象化出来的简单用例</p>
+<pre><code class="prism language-sql">drop table t1;
+create table t1(COL1 NUMBER,COL2 CHAR(30),col3 char(10) ,col4 number);
+insert into  t1 values (0,'x1','y1',1);
+insert into  t1 values (1,'x2','y1',2);
+insert into  t1 values (2,'x3','y3',3);
+insert into  t1 values (3,'x4','y3',4);
+insert into  t1 values (3,'x4','y2',4);
+insert into  t1 values (4,'x4','y2',null);
+insert into  t1 values (4,'x4','y1',null);
+insert into  t1 values (5,'x4','y3',null);
+commit;
+
+--收集统计信息前，结果正确
+select sum(col1_1),sum(col1_2) from 
+(select t1.col4 as col1_1, t2.col4 as col1_2
+from t1, t1 t2
+where t2.col3(+)=t1.col3);
+
+SUM(COL1_1) SUM(COL1_2)
+----------- -----------
+         38          38
+
+begin
+dbms_stats.gather_table_stats(ownname =&gt; USER,tabname =&gt; 'T1');
+end;
+/
+--清理执行计划（注意不要在生产环境执行）
+alter system flush shared_pool;
+
+--收集统计信息后，结果错误
+select sum(col1_1),sum(col1_2) from 
+(select t1.col4 as col1_1, t2.col4 as col1_2
+from t1, t1 t2
+where t2.col3(+)=t1.col3);
+
+SUM(COL1_1) SUM(COL1_2)
+----------- -----------
+         24          38
+</code></pre>
+<p>错误结果的执行计划多了一个<code>filter("T2"."COL4" IS NOT NULL)</code></p>
+<pre><code class="prism language-sql"> Plan Hash Value  : 2151940797 
+
+------------------------------------------------------------------------
+| Id  | Operation              | Name | Rows | Bytes | Cost | Time     |
+------------------------------------------------------------------------
+|   0 | SELECT STATEMENT       |      |    1 |    28 |    4 | 00:00:01 |
+|   1 |   SORT AGGREGATE       |      |    1 |    28 |      |          |
+| * 2 |    FILTER              |      |      |       |      |          |
+| * 3 |     HASH JOIN OUTER    |      |   14 |   392 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | T1   |    8 |   112 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | T1   |    8 |   112 |    2 | 00:00:01 |
+------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 2 - filter("T2"."COL4" IS NOT NULL)
+* 3 - access("T2"."COL3"(+)="T1"."COL3")
+</code></pre>
+<p>但是，这个问题在我本地的oracle 11.2和oracle 19.13中都不能复现。</p>
+<p>客户环境，是oracle 19.10。这个环境加上hint使用oracle11的优化器，则查询结果正常。另外考虑到这个环境可能进行过参数调整，所以客户导出了ORACLE 19C上11版本的优化器参数和当前的参数进行对比，用二分法来定位是哪个参数产生的影响，最终定位到这个</p>
+<pre><code class="prism language-sql">alter session set "_fix_control"='24761824:off';
+</code></pre>
+<p>开启这个fix，查询结果错误；关闭则查询结果正确。</p>
+<p>既然定位到了24761824这个编号，自然就有了准确的关键字到MOS上找。<br/>
+虽然没找到24761824本身，但是针对24761824引起的BUG，ORACLE进行了多次修复，直到19.13才算修复好。<br/>
+<a href="https://support.oracle.com/epmos/faces/DocContentDisplay?_afrLoop=159136158074601&amp;id=29661065.8&amp;_afrWindowMode=0&amp;_adf.ctrl-state=nbqaz1uq2_228">Document 29661065.8</a><br/>
+<a href="https://support.oracle.com/epmos/faces/DocContentDisplay?_afrLoop=159186124918585&amp;id=32390629.8&amp;_afrWindowMode=0&amp;_adf.ctrl-state=nbqaz1uq2_345">Document 32390629.8</a></p>
+<p>这么严重的一个问题，之前没人发现过么？<br/>
+于是我全网搜索 “oracle”+“24761824”,却只能发现我东家云和恩墨发布的一篇文章<br/>
+<a href="https://www.sohu.com/a/390962623_505827"># 升级到Oracle 19c：你不可不知的十大SQL问题（上）</a></p>
+<p>这篇文章里的例子和MOS上类似，都是用count发现的问题，但客户遇到的问题是在sum上，不过这同样都是聚合函数。<br/>
+我在墨天轮上还搜到了一篇这个问题相关的10053跟踪报告<br/>
+<a href="https://www.modb.pro/db/22835">https://www.modb.pro/db/22835</a></p>
+<p>从报告中能发现ORACLE自动添加了这个过滤条件</p>
+<pre><code>3 - filter("EDITION_NAME" IS NOT NULL)
+</code></pre>
+<h2 id="继续深入分析">继续深入分析</h2>
+<p>已经知道了加这个过滤条件与统计信息有关，那么是与统计信息中的哪个有关呢？<br/>
+直觉就是这个字段中的空值个数，因此就有两种猜想<br/>
+1.只要空值个数大于0，就自动添加这个条件<br/>
+2.当空值个数占总行数的比例大于某个值时，自动添加这个条件</p>
+<p>客户DBA测试，发现了在该用例下，这个分界线可能是 5%,一旦空值比例高于5%，则自动添加这个条件，否则就不会添加。</p>
+<p>于是用10053分别分析了5%和6%空值的情况，得到了两份报告，从报告里体现的是空值比例不同，cost就会有差异，最终应该还是cost决定了是否自动添加这个条件。</p>
+<h2 id="蹭下deepseek的热度">蹭下deepseek的热度</h2>
+<p>遇到这种问题，deepseek能找到原因么？相信有很多DBA都在关心自己以后是不是会被AI替代，像DBA这种靠经验累积的岗位，AI经过大量的知识训练，再加上能联网搜索最新的知识进行分析，其知识丰富度会远远超过一般的DBA，所以DBA的危机感非常重。</p>
+<p>这个问题的分析过程中，我在三个不同的阶段使用了deepseek</p>
+<ol>
+<li>
+<p>原始现象<br/>
+当我把原始现象投喂给deepseek后，deepseek猜测我写的SQL有问题，也猜测了表数据的值有问题，也认为可能是表结构引起，还提到了统计信息，然后给出的解决方案是修复数据、把SQL改正确和收集统计信息。很明显，deepseek不认为我可能遇到了bug，但是这个思考过程，和我最开始的思考过程差不多，只是deepseek可能不太相信我的部分描述。</p>
+</li>
+<li>
+<p>知道ORACLE的bug号，查找相关信息<br/>
+这个阶段，我使用了官方的deepseek以及 硅基流动、火山、元宝、问小白、百度等一系列第三方满血版deepseek，并都开启了联网，但没有任何一家能找到这个bug号，思考过程中都认为我编号给错了，建议我寻求ORACLE官方的帮助。但是我用传统搜索引擎，能轻而易举找到这个BUG号的相关文章，虽然只有一篇。而且deepseek似乎由于某些版权问题，并没有学习MOS里文档，这说明私有知识库在现阶段下，仍然会是商业公司的核心资产之一。（试想，如果ORACLE把MOS里的内容都投喂给AI，是不是可能训练出一个超强的DBA？）</p>
+</li>
+<li>
+<p>分析10053报告<br/>
+10053报告非常长，人工分析其实比较费时间，我把前面生成的两份10053报告给到火山的deepseek分析两份报告中执行计划的差异原因，"她"瞬间就给出了相当专业的分析：</p>
+</li>
+</ol>
+<blockquote>
+<blockquote>
+<p>Thinking<br/>
+好的，我现在要解决的问题是为什么在两个不同的执行计划中，相同的SQL语句一个会自动添加过滤条件<code>"T2"."COL4" IS NOT NULL</code>，而另一个不会。首先，我需要仔细阅读用户提供的两个跟踪文件内容，找出它们之间的差异，然后分析这些差异可能导致执行计划变化的原因。</p>
+<p>首先，我会分别查看两个文件中的执行计划部分。根据附件内容，文件1（orcl_ora_4512.trc）的执行计划显示的是HASH JOIN OUTER，而文件2（orcl_ora_5358.trc）的执行计划中有一个额外的FILTER操作，即<code>"T2"."COL4" IS NOT NULL</code>。这表明在第二个执行计划中，优化器自动添加了这个过滤条件。</p>
+<p>接下来，我需要分析这两个跟踪文件中优化器的决策过程。查看每个文件的OPTIMIZER STATISTICS AND COMPUTATIONS部分，特别是基数估计和过滤条件的变化。在文件2中，发现当计算连接基数时，可能由于某些统计信息或列的属性，优化器决定添加额外的过滤条件。</p>
+<p>可能的差异点包括统计信息的不同，例如COL4列的NULL值数量。在文件1中，COL4的Nulls是5，而在文件2中，Nulls变为6。这可能导致优化器认为在文件2的情况下，过滤掉NULL值会更有效，从而减少处理的行数，提高查询效率。</p>
+<p>此外，检查是否有关联的约束或索引。如果COL4列在某个情况下有NOT NULL约束，而另一个情况下没有，也可能导致优化器添加该条件。但根据提供的统计信息，文件1和文件2中的COL4列都有Nulls存在，所以可能不是约束的问题，而是统计信息的变化导致优化器做出不同的选择。 另外，查看查询的结构，由于使用了外连接（OUTER JOIN），优化器可能会根据外层查询对NULL值的处理来决定是否需要过滤。例如，如果外层查询的聚合函数（如SUM）需要忽略NULL值，优化器可能自动添加该过滤条件以减少参与计算的行数。但通常SUM函数本身会忽略NULL值，所以这可能不是直接原因。</p>
+<p>再观察两个跟踪文件中的基数估计。文件1中的Join Card是3437.5，而文件2中是3231.25，减少的原因可能是因为过滤了COL4 IS NOT NULL的行。这说明在文件2中，优化器认为添加该条件后，返回的行数更少，从而选择更优的执行计划。</p>
+<p>此外，检查优化器参数是否有差异，但用户提供的参数部分显示大部分参数相同，可能排除了参数设置的影响。因此，更可能的原因是统计信息的变化，如NULL值数量、直方图信息等，导致优化器在第二个情况中推断出添加该过滤条件更有利。</p>
+<p>总结来说，根本原因可能是COL4列的统计信息在两次执行之间发生了变化，特别是NULL值的数量增加，使得优化器认为主动过滤掉NULL值能提升性能，因此自动添加了该条件。</p>
+</blockquote>
+<p>在两个跟踪文件中，相同的SQL语句生成不同执行计划的原因在于统计信息的变化，特别是<code>T2.COL4</code>列的NULL值数量不同，导致优化器在第二个执行计划中自动添加了<code>"T2"."COL4" IS NOT NULL</code>的过滤条件。以下是详细分析：</p>
+<ol>
+<li><strong>统计信息差异</strong>：</li>
+</ol>
+<ul>
+<li><strong>File 1</strong>中<code>T2.COL4</code>的统计信息：<code>Nulls: 5</code>。</li>
+<li><strong>File 2</strong>中<code>T2.COL4</code>的统计信息：<code>Nulls: 6</code>。</li>
+<li>增加的NULL值使得优化器认为过滤掉这些NULL值可以减少后续处理的数据量，从而提升查询效率。</li>
+</ul>
+<ol start="2">
+<li><strong>基数估算变化</strong>：</li>
+</ol>
+<ul>
+<li><strong>File 1</strong>的连接基数（Join Card）为3437.5。</li>
+<li><strong>File 2</strong>的连接基数减少为3231.25，这恰好是过滤掉新增的NULL值后的结果。优化器通过添加过滤条件减少了参与连接的行数，从而选择了更优的计划。</li>
+</ul>
+<ol start="3">
+<li><strong>优化器决策逻辑</strong>：</li>
+</ol>
+<ul>
+<li>当<code>COL4</code>存在较多NULL值时，优化器推断在外连接后主动过滤NULL值可以降低聚合操作（如<code>SUM(T2.COL4)</code>）的计算量，尽管<code>SUM</code>本身忽略NULL，但减少行数仍可能减少哈希连接或排序的开销。</li>
+<li>添加<code>"T2"."COL4" IS NOT NULL</code>条件后，优化器重新评估了执行成本，发现新的计划成本更低。</li>
+</ul>
+<p><strong>结论</strong>：统计信息中<code>T2.COL4</code>的NULL值数量变化是导致优化器在不同情况下自动添加过滤条件的关键原因。这种自适应行为旨在根据数据分布选择最优执行路径。</p>
+</blockquote>
+<h2 id="总结">总结</h2>
+<ol>
+<li>不要迷信ORACLE，ORACLE仍然在简单SQL的场景可能出现严重BUG，从19.1到19.12这么多补丁都没修好，所以当国产数据库遇到问题时，请也多给一些耐心。</li>
+<li>关注数据库厂商发布的版本修复列表，如果识别到自己可能会使用到的场景，及时进行处理（使用规避方案或者升级版本）。</li>
+<li>纵使deepseek已经非常智能，但由于某些企业的知识封闭，仍然可能无法得出想要的答案，而且提问的人自己也必须拥有一个清晰的逻辑并且能准确地对问题进行表述。所以对于使用方，必须快速学习如何用好大语言模型，否则仍然可能会被淘汰；而对于服务提供方，则需要利用好这个风口，使用企业自身的知识库，训练一系列知识更加深入的智能体来提供更加专业的服务，现有大量同质化竞争下必然会倒下一批无创新者。</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,408 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>接上篇<br/>
+<a href="/archives/oracle-sql-part1">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part1</a></p>
+<hr/>
+<h1 id="10connect--by">10.connect  by</h1>
+<p>作用：层次化查询（树形）或递归查询等。这个太过复杂，完全铺开来说可以写好几篇了，简单来说就是可以自己使用自己的一部分查询结果继续作为条件再执行相同的查询，然后循环下去，最终输出所有的结果。就不细讨论了，这里只给几个经典用例<br/>
+例1：生成本月每一天的日期，一个日期一行</p>
+<pre><code class="language-SQL">select trunc(sysdate, 'MM') + rownum - 1 D
+  from (select rownum
+          from dual
+        connect by rownum &lt;=
+                   LAST_DAY(trunc(sysdate)) - trunc(sysdate, 'MM') + 1);
+</code></pre>
+<table>
+<thead>
+<tr><th>D</th></tr>
+</thead>
+<tbody>
+<tr><td>2021-09-01</td></tr>
+<tr><td>2021-09-02</td></tr>
+<tr><td>2021-09-03</td></tr>
+<tr><td>2021-09-04</td></tr>
+<tr><td>2021-09-05</td></tr>
+<tr><td>....</td></tr>
+<tr><td>2021-09-27</td></tr>
+<tr><td>2021-09-28</td></tr>
+<tr><td>2021-09-29</td></tr>
+<tr><td>2021-09-30</td></tr>
+</tbody>
+</table>
+<p>上面这个SQL，我们可以拆开来看，中间有个关键部分</p>
+<pre><code class="language-sql">select rownum  from (select rownum from dual connect by rownum &lt;= 30)
+</code></pre>
+<p>这个其实就是生成30行记录，每行的值分别为1、2、3...29、30，不需要写迭代器程序也不需要写循环程序，只需要简单一行sql就能生成，这个可以应用在很多场景，举个例子：</p>
+<blockquote>
+<p>已知某项业务存在固定编号，每人只能领一个号，且用户自己无法查到哪些号没被领，总共只有100000个号，现在在系统内有记录已领99980个号，还剩20个号未领，如何用最便捷的方式来找到哪些号没被领？</p>
+</blockquote>
+<p>思路1，写个程序，从1开始，逐个去找已领记录中是否存在，但这样循环次数过多<br/>
+思路2，写个程序，生成一个100000行记录的表，用not exists 来查询,但这样又对数据库存储造成了不必要的占用<br/>
+思路3，直接用sql构造一个100000行记录的数据，用not exists或（minus) 来查询</p>
+<pre><code class="language-sql">select rownum r from (select rownum from dual connect by rownum &lt;= 100000)
+minus
+select id from id_tab
+</code></pre>
+<p>例2：某公司人事组织架构很复杂，分很多层，并且每条上下级关系链长度都是不一样的，甚至存在业务上是归属于同一个层级的两个部门，在上下级关系链中却不是在同一个层级的情况。如果要提取某个部门的所有下属部门及其下属部门的下属部门和下属部门的下属部门的下属部门直到包含最低层的部门，该如何处理？</p>
+<pre><code class="language-sql">--先准备数据
+CREATE TABLE tab1 (
+  id        NUMBER,
+  parent_id NUMBER,
+  CONSTRAINT tab1_pk PRIMARY KEY (id),
+  CONSTRAINT tab1_tab1_fk FOREIGN KEY (parent_id) REFERENCES tab1(id)
+);
+
+CREATE INDEX tab1_parent_id_idx ON tab1(parent_id);
+
+INSERT INTO tab1 VALUES (1, NULL);
+INSERT INTO tab1 VALUES (2, 1);
+INSERT INTO tab1 VALUES (3, 2);
+INSERT INTO tab1 VALUES (4, 2);
+INSERT INTO tab1 VALUES (5, 4);
+INSERT INTO tab1 VALUES (6, 4);
+INSERT INTO tab1 VALUES (7, 1);
+INSERT INTO tab1 VALUES (8, 7);
+INSERT INTO tab1 VALUES (9, 1);
+INSERT INTO tab1 VALUES (10, 9);
+INSERT INTO tab1 VALUES (11, 10);
+INSERT INTO tab1 VALUES (12, 9);
+COMMIT;
+
+--查询
+select id, sys_connect_by_path(id, '/') path, level
+  FROM tab1
+ start with PARENT_ID = '2'
+connect by PARENT_ID = prior id;
+</code></pre>
+<table>
+<thead>
+<tr><th>ID</th><th>PATH</th><th>LEVEL</th></tr>
+</thead>
+<tbody>
+<tr><td>3</td><td>/3</td><td>1</td></tr>
+<tr><td>4</td><td>/4</td><td>1</td></tr>
+<tr><td>5</td><td>/4/5</td><td>2</td></tr>
+<tr><td>6</td><td>/4/6</td><td>2</td></tr>
+</tbody>
+</table>
+<p>这个例子表示取 2 下面所有节点的值，其中sys_connect_by_path还可以把链条给显示出来，level可以显示对应的层级，另外还有CONNECT_BY_ROOT/CONNECT_BY_ISLEAF/CONNECT_BY_ISCYCLE/NOCYCLE等等结合的用法，<br/>
+这里先推荐一篇文章，以后再看要不要单独写篇<br/>
+<a href="https://blog.csdn.net/lidew521/article/details/15471709">数据库学习笔记---connect by的简单用法</a></p>
+<hr/>
+<h1 id="11minus">11.MINUS</h1>
+<p>作用：对两段查询字段一致的sql进行对比，输出在第一段中存在但第二段中不存在的行<br/>
+例：略，可参考前一条提到的例子<br/>
+用这个，再多字段都能比较出哪些行有差异，一个最实用的地方就是，如果某张表数据刚刚被修改了，但是发现有错误，现在又不知道到底哪些数据被改了，要找出来，我们可以结合 as of timestamp将这张表现在的数据和前一段时间的数据进行对比，迅速找到差异行来进行对应的修正</p>
+<pre><code class="language-sql">--正着查一次
+select * from tab
+minus
+select * from tab as of timestamp sysdate - 1/24;
+--再反着查一次
+select * from tab as of timestamp sysdate - 1/24
+minus
+select * from tab
+</code></pre>
+<p>实际上minus和union是同一种类型的，不过union是“加”，而minus是“减”。</p>
+<hr/>
+<h1 id="12-as-of-timestamp">12. as of timestamp</h1>
+<p>作用：查询某张表一段时间前的快照，时间长短由DBA在数据库中提前配置<br/>
+例：略，见上一条<br/>
+应该有不少人知道这条，但每次都忘了怎么写，要用就上网搜，其实这个一点都不难记 ，就是在表后面加上<br/>
+as of timestamp 再加时间点就行了。有处理线上数据异常的小伙伴，一定要熟记这条，有时候能在危急的时候力挽狂澜。</p>
+<hr/>
+<h1 id="13pivot">13.Pivot</h1>
+<p>作用：行转列<br/>
+例：以oracle数据库中自带的这个数据为例</p>
+<pre><code class="language-sql">select job_id, DEPARTMENT_ID, salary
+  from HR.EMPLOYEES
+ where job_id in
+       ('AC_ACCOUNT', 'AC_MGR', 'AD_ASST', 'AD_PRES', 'AD_VP', 'FI_ACCOUNT')
+
+</code></pre>
+<table>
+<thead>
+<tr><th>JOB_ID</th><th>DEPARTMENT_ID</th><th>SALARY</th></tr>
+</thead>
+<tbody>
+<tr><td>AC_ACCOUNT</td><td>110</td><td>8300</td></tr>
+<tr><td>AC_MGR</td><td>110</td><td>12008</td></tr>
+<tr><td>AD_ASST</td><td>10</td><td>4400</td></tr>
+<tr><td>AD_PRES</td><td>90</td><td>24000</td></tr>
+<tr><td>AD_VP</td><td>90</td><td>17000</td></tr>
+<tr><td>AD_VP</td><td>90</td><td>17000</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>9000</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>8200</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>7700</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>7800</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>6900</td></tr>
+</tbody>
+</table>
+<p>假设我们想要按JOB_ID和DEPARTMENT_ID汇总SALARY，一般会写成如下</p>
+<pre><code class="language-sql">select job_id, DEPARTMENT_ID, sum(salary) salary_sum
+  from HR.EMPLOYEES
+ where job_id in
+       ('AC_ACCOUNT', 'AC_MGR', 'AD_ASST', 'AD_PRES', 'AD_VP', 'FI_ACCOUNT')
+group by job_id, DEPARTMENT_ID
+</code></pre>
+<table>
+<thead>
+<tr><th>JOB_ID</th><th>DEPARTMENT_ID</th><th>SALARY_SUM</th></tr>
+</thead>
+<tbody>
+<tr><td>AC_MGR</td><td>110</td><td>12008</td></tr>
+<tr><td>AD_VP</td><td>90</td><td>34000</td></tr>
+<tr><td>AD_ASST</td><td>10</td><td>4400</td></tr>
+<tr><td>AC_ACCOUNT</td><td>110</td><td>8300</td></tr>
+<tr><td>FI_ACCOUNT</td><td>100</td><td>39600</td></tr>
+<tr><td>AD_PRES</td><td>90</td><td>24000</td></tr>
+</tbody>
+</table>
+<p>但是这个样子的数据如果做报表，就有点不够直观，一般情况下会先导出到EXCEL，然后拖个透视表，两个维度分别在横轴和纵轴，这个其实用sql就可以实现，如下</p>
+<pre><code class="language-sql">with t as 
+(select job_id,DEPARTMENT_ID,salary from  HR.EMPLOYEES 
+    where  job_id in 
+('AC_ACCOUNT', 'AC_MGR', 'AD_ASST', 'AD_PRES', 'AD_VP', 'FI_ACCOUNT')
+)
+
+select *
+  from t
+pivot(sum(salary)
+   for job_id in('AC_ACCOUNT',
+                 'AC_MGR',
+                 'AD_ASST',
+                 'AD_PRES',
+                 'AD_VP',
+                 'FI_ACCOUNT'));
+</code></pre>
+<table>
+<thead>
+<tr><th>DEPARTMENT_ID</th><th>'AC_ACCOUNT'</th><th>'AC_MGR'</th><th>'AD_ASST'</th><th>'AD_PRES'</th><th>'AD_VP'</th><th>'FI_ACCOUNT'</th></tr>
+</thead>
+<tbody>
+<tr><td>110</td><td>8300</td><td>12008</td><td> </td><td> </td><td> </td><td></td></tr>
+<tr><td>90</td><td> </td><td> </td><td> </td><td>24000</td><td>34000</td><td></td></tr>
+<tr><td>10</td><td> </td><td> </td><td>4400</td><td> </td><td> </td><td></td></tr>
+<tr><td>100</td><td> </td><td> </td><td> </td><td> </td><td> </td><td>39600</td></tr>
+</tbody>
+</table>
+<p>这样就能更接近报表的最终格式。<br/>
+关于这个写法的，有几点要注意</p>
+<h4 id="a字段别名">A.字段别名</h4>
+<pre><code class="language-sql">with t as 
+(select job_id,DEPARTMENT_ID,salary from  HR.EMPLOYEES 
+    where  job_id in 
+('AC_ACCOUNT', 'AC_MGR', 'AD_ASST', 'AD_PRES', 'AD_VP', 'FI_ACCOUNT')
+)
+
+select *
+  from t
+pivot(sum(salary)
+   for job_id in('AC_ACCOUNT' 职位1,
+                 'AC_MGR' 职位2,
+                 'AD_ASST' 职位3,
+                 'AD_PRES' 职位4,
+                 'AD_VP' 职位5,
+                 'FI_ACCOUNT' 职位6));
+</code></pre>
+<p>或者</p>
+<pre><code class="language-sql">
+with t as
+ (select job_id, DEPARTMENT_ID, salary
+    from HR.EMPLOYEES
+   where job_id in ('AC_ACCOUNT',
+                    'AC_MGR',
+                    'AD_ASST',
+                    'AD_PRES',
+                    'AD_VP',
+                    'FI_ACCOUNT'))
+
+select DEPARTMENT_ID,
+       "'AC_ACCOUNT'" 职位1,
+       "'AC_MGR'" 职位2,
+       "'AD_ASST'" 职位3,
+       "'AD_PRES'" 职位4,
+       "'AD_VP'" 职位5,
+       "'FI_ACCOUNT'" 职位6
+  from t
+pivot (sum(salary) for job_id in('AC_ACCOUNT',
+                            'AC_MGR',
+                            'AD_ASST',
+                            'AD_PRES',
+                            'AD_VP',
+                            'FI_ACCOUNT'));
+
+</code></pre>
+<h4 id="b聚合方式">B.聚合方式</h4>
+<p>除了sum以外，还支持各种常见的聚合方式，比如AVG/MAX/MIN/COUNT等等,而且支持同时聚合多个字段，比如</p>
+<pre><code class="language-sql">select *
+  from t
+pivot(sum(salary),avg(age)
+   for job_id in('AC_ACCOUNT',
+                 'AC_MGR',
+                 'AD_ASST',
+                 'AD_PRES',
+                 'AD_VP',
+                 'FI_ACCOUNT'))
+</code></pre>
+<p>这种写法会自动产生字段别名，用以区分两个不同的聚合列</p>
+<h4 id="c关于-in-后面的枚举值">C.关于 “in” 后面的枚举值</h4>
+<p>此例不能直接在“in” 后面写子查询，必须把值全部列出来，在这些值是动态时，这个问题就成了这个写法最大的缺点，一般可以结合前面提过的listagg，用动态sql拼接来生成完整sql。另外，也可以用xml的写法来直接使用子查询，但是输出结果不适合用于报表，</p>
+<pre><code class="language-sql">
+with t as 
+(select job_id,DEPARTMENT_ID,salary from  HR.EMPLOYEES 
+    where  job_id in 
+('AC_ACCOUNT', 'AC_MGR', 'AD_ASST', 'AD_PRES', 'AD_VP', 'FI_ACCOUNT')
+)
+
+select *
+  from t
+pivot xml( sum(salary)
+   for job_id in(select job_id from t))
+</code></pre>
+<table>
+<thead>
+<tr><th>DEPARTMENT_ID</th><th>JOB_ID_XML</th></tr>
+</thead>
+<tbody>
+<tr><td>10</td><td>&lt;XMLTYPE&gt;</td></tr>
+<tr><td>90</td><td>&lt;XMLTYPE&gt;</td></tr>
+<tr><td>100</td><td>&lt;XMLTYPE&gt;</td></tr>
+<tr><td>110</td><td>&lt;XMLTYPE&gt;</td></tr>
+</tbody>
+</table>
+<p>打开其中一个XML，长这个样子</p>
+<pre><code class="language-xml">&lt;?xml version="1.0"?&gt;
+-&lt;PivotSet&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;AC_ACCOUNT&lt;/column&gt;
+&lt;column name="SUM(SALARY)"/&gt;
+&lt;/item&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;AC_MGR&lt;/column&gt;
+&lt;column name="SUM(SALARY)"/&gt;
+&lt;/item&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;AD_ASST&lt;/column&gt;
+&lt;column name="SUM(SALARY)"&gt;4400&lt;/column&gt;
+&lt;/item&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;AD_PRES&lt;/column&gt;
+&lt;column name="SUM(SALARY)"/&gt;
+&lt;/item&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;AD_VP&lt;/column&gt;
+&lt;column name="SUM(SALARY)"/&gt;
+&lt;/item&gt;
+-&lt;item&gt;
+&lt;column name="JOB_ID"&gt;FI_ACCOUNT&lt;/column&gt;
+&lt;column name="SUM(SALARY)"/&gt;
+&lt;/item&gt;
+&lt;/PivotSet&gt;
+</code></pre>
+<p>这个格式如果再用sql解析动态列，就陷入死胡同了。<br/>
+至少直到我手头上的19c版本，Oracle一直没提供pivot in的子查询支持，我有尝试写个函数来弥补这个缺点，但是需要动态创建数据库对象，有点消耗资源，而且使用方式已经不像是sql了，要先调用过程创建再查询，不能一步到位。另外我还在研究sys_refcursor，可能能够支持一步查询，之后有方案了再写篇</p>
+<hr/>
+<h1 id="14unpivot">14.unpivot</h1>
+<p>作用：列转行，和pivot方向相反<br/>
+例：</p>
+<pre><code class="language-sql">
+with t as
+ (select job_id, DEPARTMENT_ID, salary
+    from HR.EMPLOYEES
+   where job_id in ('AC_ACCOUNT',
+                    'AC_MGR',
+                    'AD_ASST',
+                    'AD_PRES',
+                    'AD_VP',
+                    'FI_ACCOUNT')),
+t2 as
+ (
+  
+  select DEPARTMENT_ID,
+          "'AC_ACCOUNT'" 职位1,
+          "'AC_MGR'"     职位2,
+          "'AD_ASST'"    职位3,
+          "'AD_PRES'"    职位4,
+          "'AD_VP'"      职位5,
+          "'FI_ACCOUNT'" 职位6
+    from t
+  pivot(sum(salary)
+     for job_id in('AC_ACCOUNT',
+                   'AC_MGR',
+                   'AD_ASST',
+                   'AD_PRES',
+                   'AD_VP',
+                   'FI_ACCOUNT')))
+                   
+select *
+  from t2 unpivot(salary for job_id in(职位1,
+                                       职位2,
+                                       职位3,
+                                       职位4,
+                                       职位5,
+                                       职位6))
+
+</code></pre>
+<p>这个例子是把上面pivot处理的数据构造成t2,通过unpivot再转回去，这里要注意，unpivot in 后面的值，变成了字段名，而不是值，所以不用加引号。<br/>
+一个经典的用法就是，把一个用多列表示某个值的多个属性的表，转换成类似KEY-VALUE的形式，以便不加字段直接扩展属性，还可以方便其他程序处理，减少因程序升级造成的代码修改量</p>
+<hr/>
+<h1 id="15tableora-mining-varchar2-ntora-mining-number-nt">15.table(ora_mining_varchar2_nt())/ora_mining_number_nt</h1>
+<p>作用：将多个枚举值变成一列<br/>
+例：</p>
+<pre><code class="language-sql">select *
+  from table(ora_mining_varchar2_nt('AC_ACCOUNT',
+                                    'AC_MGR',
+                                    'AD_ASST',
+                                    'AD_PRES',
+                                    'AD_VP',
+                                    'FI_ACCOUNT'))
+</code></pre>
+<table>
+<thead>
+<tr><th>COLUMN_VALUE</th></tr>
+</thead>
+<tbody>
+<tr><td>AC_ACCOUNT</td></tr>
+<tr><td>AC_MGR</td></tr>
+<tr><td>AD_ASST</td></tr>
+<tr><td>AD_PRES</td></tr>
+<tr><td>AD_VP</td></tr>
+<tr><td>FI_ACCOUNT</td></tr>
+</tbody>
+</table>
+<p>这个其实是个取巧的做法，table后面接一个table的type，可以当成一个表用于select查询，然后oracle中自带有两个特殊的type ：ora_mining_varchar2_nt/ora_mining_number_nt ，分别用于构造字符类型的列和数字类型的列，可以让我们既不需要创建新的type对象，也不需要写一堆的union，就能实现这个效果</p>
+<hr/>
+<h1 id="16q">16.q'{}'</h1>
+<p>作用：字符串单引号转义<br/>
+例：</p>
+<pre><code class="language-sql">select * from tab where col1 =q'{I'm DarkAthena}'
+</code></pre>
+<p>一般情况下，字符串中如果有单引号，大多数人会选择使用两个单引号来转义，但是在动态sql的场景里，如果存在大量双引号，在把sql拿出来测试和写到过程里，要来来回回把引号改来该去，而用本例的方式，可以最大程度在存储过程中保留sql的原始模样，方便未来检查和修改</p>
+<hr/>
+<h1 id="17asciichr">17.ascii/chr</h1>
+<p>作用：ascii ，得到传入参数中第一个字符的ascii码；<br/>
+chr，将ascii码转换成对应的字符<br/>
+例：</p>
+<pre><code class="language-sql">select ascii('
+') from dual
+</code></pre>
+<table>
+<thead>
+<tr><th>ASCII('')</th></tr>
+</thead>
+<tbody>
+<tr><td>10</td></tr>
+</tbody>
+</table>
+<p>在实际程序中，这个函数其实极少使用，但是在目前很多系统间交互都是基于文本的情况下，难免出现一些不可见字符，不知道是什么东西，程序也无法做精确处理，另外还可能有字符集编码不匹配的情况。所以，当出现不可见字符时，我们可以使用这个函数来让这个字符变成一种“可见”的状态，然后我们就可以在程序中使用chr这个函数，结合replace来对字符串进行处理。<br/>
+比如银联mis键盘接口发送的数据中，卡号这个栏位就有一个ch(255)的不可见字符，有些客户端解析出来是个空格，有些则显示一个问号，但实际如果不进行处理直接写入数据库，那么在数据库中则无法匹配出相等卡号的数据。<br/>
+还有字符串中的回车和换行，一般也是建议拼接chr(13)和chr(10) 来替代直接敲个回车，否则在进行代码美化、压缩、迁移时，可能会改变原有程序的含义。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

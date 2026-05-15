@@ -155,7 +155,424 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="opengauss一个可能被忽视的功能--关于自定义参数的奇技淫巧">【openGauss】一个可能被忽视的功能--关于自定义参数的奇技淫巧</h1>
+<p>有一次偶然在和AI的交流中，发现openGauss（以及PostgreSQL、GaussDB、MogDB等PG/OG系数据库）在不修改内核的情况下，可以随意自定义参数。</p>
+<p>在不清楚自定义参数的概念前，对这种参数似乎无感，但一旦了解其原理和用法，就会发现这个功能极其灵活，能带来很多意想不到的玩法。</p>
+<blockquote>
+<p>注：本文中的SQL部分在GaussDB中测试，部分在openGauss中测试</p>
+</blockquote>
+<h2 id="一自定义参数的基础用法">一、自定义参数的基础用法</h2>
+<p>自定义参数的基本操作如下：</p>
+<pre><code class="language-sql">-- 设置
+set name1.name2 = value1;
+-- 查看
+show name1.name2;
+-- 重置
+reset name1.name2;
+</code></pre>
+<p>这里的<code>name1</code>、<code>name2</code>可以是任何标识符允许的字符串，而<code>value1</code>几乎可以是任何字符串（有特殊符号时要加单引号）。这个参数在当前会话中一直有效。</p>
+<p>在Postgresql 13以及之前的版本中，如果用<code>current_setting</code>和<code>set_config</code>函数来处理自定义参数，名称的前半部分或者后半部分是可以忽略的，因为当时只校验了名称里是否有点号<code>.</code>，比如：</p>
+<pre><code class="language-sql">openGauss=# select set_config('.a', '123', false);
+ set_config
+------------
+ 123
+(1 row)
+
+openGauss=# select current_setting('.a');
+ current_setting
+-----------------
+ 123
+(1 row)
+</code></pre>
+<p>甚至一个<code>.</code>都可以当成自定义参数的名称</p>
+<pre><code class="language-sql">openGauss=# select set_config('.', '123', false);
+ set_config
+------------
+ 123
+(1 row)
+
+openGauss=# select current_setting('.');
+ current_setting
+-----------------
+ 123
+(1 row)
+
+</code></pre>
+<p>从postgresql 14版本起，对参数名称进行了更严格的校验(openGauss后续会不会加上这个校验还不得而知)</p>
+<pre><code class="language-sql">ERROR:  invalid configuration parameter name ".a"
+DETAIL:  Custom parameter names must be two or more simple identifiers separated by dots.
+</code></pre>
+<blockquote>
+<p>这种自定义参数功能在PG/OPENGAUSS/GAUSSDB/MOGDB等基于PG/OG的数据库里都支持，但自PG 9.1后，已不能将其写入<code>postgresql.conf</code>，只能作为会话级参数。</p>
+</blockquote>
+<p>官方文档：<a href="https://www.postgresql.org/docs/9.1/runtime-config-custom.html">PostgreSQL 9.1 Customized Options</a></p>
+<h2 id="二官方说明与原理">二、官方说明与原理</h2>
+<p>官方文档对自定义参数的说明如下：</p>
+<blockquote>
+<p>该功能设计初衷是允许通过附加模块（如过程式语言）添加PostgreSQL通常未知的参数，从而以标准方式配置附加模块。</p>
+<p>早期版本（如PG9.1及以前）可通过<code>custom_variable_classes</code>参数在<code>postgresql.conf</code>中注册自定义参数前缀，之后的版本则只能作为会话级参数。</p>
+<p>例如：</p>
+<pre><code>custom_variable_classes = 'plpgsql,plperl'
+plpgsql.variable_conflict = use_variable
+plperl.use_strict = true
+plruby.use_strict = true        # 这行会报错：未知类名
+</code></pre>
+</blockquote>
+<p>openGauss是从PG 9.2.4开始的，自然没有这个<code>custom_variable_classes</code>了</p>
+<h2 id="三与oracle的对比">三、与Oracle的对比</h2>
+<p>在Oracle中，若想实现类似功能，通常只能建package并声明全局变量（openGauss 从2.1版本起支持package），且全局变量的赋值和使用仅限于PL/SQL中。虽然Oracle的全局变量可以直接select，但在PostgreSQL的PLPGSQL中，自定义参数只能通过<code>current_setting</code>函数获取，不能直接在SQL中当变量用。这并不影响我们用它来做很多灵活的事情。</p>
+<h2 id="四典型应用场景与案例">四、典型应用场景与案例</h2>
+<h3 id="1-sql间上下文传递">1. SQL间上下文传递</h3>
+<p>自定义参数可以用于多条SQL执行时进行上下文传递。例如，第二条SQL依赖第一条SQL的查询结果，如果合并SQL可能导致性能下降，而拆开执行又需要传递中间结果。自定义参数就能优雅地解决这个问题：</p>
+<pre><code class="language-sql">-- 创建测试表
+set enable_bitmapscan to off;
+create table user_table(id text primary key, name text);
+insert into user_table values ('1', 'abc');
+create table user_scores(id text, course text, score number, primary key(id, course));
+insert into user_scores values ('1', 'ENGLISH', 90);
+
+-- 传递上下文
+select set_config('cust.username', id, false) from user_table where name = 'abc';
+
+ set_config 
+------------
+ 1
+(1 row)
+</code></pre>
+<pre><code class="language-sql">select * from user_scores where id = current_setting('cust.username');
+
+ id | course  | score
+----+---------+-------
+ 1  | ENGLISH |    90
+(1 row)
+</code></pre>
+<pre><code class="language-sql">explain select * from user_scores where id = current_setting('cust.username');
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Index Scan using user_scores_pkey on user_scores  (cost=0.00..16.31 rows=3 width=96)
+   Index Cond: (id = current_setting('cust.username'::text))
+(2 rows)
+</code></pre>
+<p>这样既不依赖PL/SQL，也不依赖客户端指令，更不需要建临时表，普通SQL就能实现上下文传递。</p>
+<h3 id="2-行级访问控制">2. 行级访问控制</h3>
+<p>假设有多个用户访问同一张视图，期望不同用户看到的数据不同（行级权限）。常规做法要么建一张用户与数据关联表，要么用行级安全策略功能（<code>CREATE POLICY</code>），都有一定复杂度,且存在一些限制。自定义参数可以在不新建对象的情况下，让实现变得非常简单：</p>
+<pre><code class="language-sql">-- 创建用户并设置参数
+create user hunan_query password 'Enmo@123';
+create user jiangxi_query password 'Enmo@123';
+alter user hunan_query set cust.province = '01';
+alter user jiangxi_query set cust.province = '02';
+
+-- 创建表和视图
+create table total_sale (province text, sale_amount number);
+insert into total_sale values ('01', 1234);
+insert into total_sale values ('02', 5678);
+create view v_total_sale as
+  select * from total_sale where province = current_setting('cust.province');
+
+grant select on v_total_sale to hunan_query;
+grant select on v_total_sale to jiangxi_query;
+</code></pre>
+<p>不同用户登录后，直接查询视图即可自动过滤出各自的数据。</p>
+<p>hunan_query用户查询：</p>
+<pre><code class="language-sql">select * from v_total_sale;
+
+ province | sale_amount
+----------+-------------
+ 01       |        1234
+(1 row)
+</code></pre>
+<p>jiangxi_query用户查询：</p>
+<pre><code class="language-sql">select * from v_total_sale;
+
+ province | sale_amount
+----------+-------------
+ 02       |        5678
+(1 row)
+</code></pre>
+<blockquote>
+<p>注意：PG 9.6起，<code>current_setting</code>支持第二参数，若参数名称不存在且第二参数为true，返回null，否则报错。不过可以通过为数据库设置默认参数避免报错：</p>
+</blockquote>
+<pre><code class="language-sql">alter database postgres set cust.province = '';
+
+select * from total_sale 
+where province = case coalesce(length(current_setting('cust.province')), 0)
+                 when 0 then province else current_setting('cust.province') end;
+</code></pre>
+<h3 id="3-替代oracle全局变量常量">3. 替代Oracle全局变量/常量</h3>
+<p>虽然OG支持PACKAGE，但原生PG不支持，可用自定义参数模拟Oracle package中的全局变量/常量。例如：</p>
+<pre><code class="language-sql">-- Oracle 
+--- 定义
+CREATE OR REPLACE PACKAGE dbms_lob IS
+  file_readonly CONSTANT BINARY_INTEGER := 0;
+  PROCEDURE fileopen(file_loc IN OUT BFILE, open_mode IN BINARY_INTEGER := file_readonly);
+END;
+/
+--- 使用
+begin
+...
+dbms_lob.fileopen(v1);
+...
+dbms_lob.fileopen(v2,dbms_lob.file_readonly);
+end;
+/
+
+-- PG/OG中的模拟
+--- 定义
+gsql -r -d postgres
+create schema dbms_lob;
+grant usage on schema dbms_lob to public;
+create type dbms_lob.bfile is (dir text,filename text,fd int4);
+alter database postgres set dbms_lob.file_readonly=0;
+\c postgres
+create function  dbms_lob.fileopen(file_loc in out bfile,
+                          open_mode IN      int := current_setting('dbms_lob.file_readonly')::int) returns void is $$
+begin
+    /*......*/
+end;
+$$language plpgsql;
+
+--- 使用
+do $$
+declare
+v1 bfile;
+v2 bfile;
+begin
+dbms_lob.fileopen(v1);
+...
+dbms_lob.fileopen(v2,current_setting('dbms_lob.file_readonly')::int);
+end;
+$$language plpgsql;
+</code></pre>
+<p>类似的，还有在获取对象DDL语句时，可以跨语句设置DDL格式的<code>DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM,'STORAGE',false);</code>这种场景，在用SQL和PLSQL模拟实现时，也可以用自定义变量来记录这种格式设置，而无需再建表。</p>
+<h3 id="4存储任意类型数据">4、存储任意类型数据</h3>
+<p>由于OG/PG里的各种类型几乎都可以和字符串互转（有时候需要使用函数），自定义参数还能存储JSON、数组等复杂类型：</p>
+<pre><code class="language-sql">create table test_cc (id number, name text);
+insert into test_cc values (1, 'ccc');
+insert into test_cc values (2, 'ddd');
+select set_config('json.ddd', (select json_agg(row_to_json(t)) from test_cc t)::text, false);
+
+                   set_config
+------------------------------------------------
+ [{"id":1,"name":"ccc"}, {"id":2,"name":"ddd"}]
+(1 row)
+</code></pre>
+<pre><code class="language-sql">select current_setting('json.ddd')::json;
+
+                current_setting
+------------------------------------------------
+ [{"id":1,"name":"ccc"}, {"id":2,"name":"ddd"}]
+(1 row)
+</code></pre>
+<pre><code class="language-sql">select current_setting('json.ddd')::json-&gt;1-&gt;'name';
+
+ ?column?
+----------
+ "ddd"
+(1 row)
+</code></pre>
+<p>-- 存储复合类型数组</p>
+<pre><code class="language-sql">select set_config('array.ddd', array(select t from test_cc t)::text, false);
+
+      set_config
+-----------------------
+ {"(1,ccc)","(2,ddd)"}
+(1 row)
+</code></pre>
+<pre><code class="language-sql">select * from unnest(current_setting('array.ddd')::_test_cc);
+
+ id | name
+----+------
+  1 | ccc
+  2 | ddd
+(2 rows)
+</code></pre>
+<h3 id="5实现行号功能mysql风格">5、实现行号功能（MySQL风格）</h3>
+<p>MySQL常用自定义变量生成行号：</p>
+<pre><code class="language-sql">select (@rownum := @rownum + 1) AS rownum, a.* 
+from (select * from test_table) a, (SELECT @rownum := 0) r;
+</code></pre>
+<p>PG/OG中可用自定义参数实现类似效果：</p>
+<pre><code class="language-sql">create function rownum2 returns int as
+$$select set_config('cust.rownum2', (current_setting('cust.rownum2')::int + 1)::text, false)::int$$ language sql;
+
+create table t_test_rownum (a int, b text);
+insert into t_test_rownum select id, id || 'sss' from generate_series(1, 10) id;
+
+select rownum2, t.* from t_test_rownum t, (select set_config('cust.rownum2', 0, false));
+
+ rownum2 | a |   b
+---------+---+--------
+       1 | 1 | 1sss
+       2 | 2 | 2sss
+       3 | 3 | 3sss
+       4 | 4 | 4sss
+       5 | 5 | 5sss
+       6 | 6 | 6sss
+       7 | 7 | 7sss
+       8 | 8 | 8sss
+       9 | 9 | 9sss
+      10 |10 |10sss
+(10 rows)
+</code></pre>
+<p>当然openGauss本身已经支持<code>rownum</code>，也就没必要弄这种了，不过这种方式可以让多个select 查询的rownum不重置，来实现能在<strong>会话级</strong>随意控制的自增序列，比如把rownum插入主键，多个insert语句依次执行也不会主键冲突。或者多并发时，确保每个会话里都不会跳号（各会话间互不影响）</p>
+<pre><code class="language-sql">openGauss=# set cust.rownum2=0;
+SET
+openGauss=# select rownum2, t.* from t_test_rownum t limit 3;
+ rownum2 | a |  b
+---------+---+------
+       1 | 1 | 1sss
+       2 | 2 | 2sss
+       3 | 3 | 3sss
+(3 rows)
+
+openGauss=# select rownum2, t.* from t_test_rownum t limit 4;
+ rownum2 | a |  b
+---------+---+------
+       4 | 1 | 1sss
+       5 | 2 | 2sss
+       6 | 3 | 3sss
+       7 | 4 | 4sss
+(4 rows)
+</code></pre>
+<h3 id="6匿名块绑定变量出参">6、匿名块绑定变量出参</h3>
+<p>这在使用其他开发语言进行自动化测试中经常遇到，尤其是对于流程比较复杂的带出参的存储过程调用。<br/>
+举个例子</p>
+<pre><code class="language-sql">set behavior_compat_options to proc_outparam_override;
+create table t_test_procout(a int);
+insert into t_test_procout select id from generate_series(1,1000) id;
+create type tyt_int is table of int;
+create procedure p_test_procout (i1 tyt_int,o1 out int) is
+begin
+o1:=1;
+end;
+/
+declare
+v_int_list tyt_int;
+o1 int;
+begin
+select a bullk collect into v_int_list from t_test_procout;
+p_test_procout(v_int_list,o1);
+end;
+/
+</code></pre>
+<p>如果在执行完最后这个匿名块后，想要在匿名块外面拿到o1的值，在ORACLE里一般是把o1的位置改成绑定变量占位符，然后变量在外层语言进行定义，执行完匿名块后，外层语言里的这个变量就直接赋值上去了，外层开发语言就知道了变量的值，从而可以根据这个变量来执行后续不同的逻辑。但是在openGauss中，这似乎变得很困难，因为openGauss对匿名块绑定变量的支持并不是很好，尤其是要传出变量的场景。如果用<code>raise notice</code>输出，外层语言仍旧无法感知，而且解析输出也非常麻烦。可能有人想到在匿名块里把o1插入到某个表，然后在匿名块外面再去查这个表，就可以知道o1的值了，但如果有多个出参的场景，有很多不同的存储过程要测，一个表很难满足要求。</p>
+<p>如果使用自定义参数，那么这个问题似乎就简单多了，只需要在匿名块里把o1的值设置到自定义参数里去，就可以在匿名块外面通过普通的SQL语句获取这个自定义参数的值了。</p>
+<pre><code class="language-sql">declare
+v_int_list tyt_int;
+o1 int;
+begin
+select a bullk collect into v_int_list from t_test_procout;
+p_test_procout(v_int_list,o1);--由于入参不是简单的值，因此不能直接call这个存储过程
+raise notise '%',set_config('.o1',o1,false);
+end;
+/
+
+select current_setting('.o1');
+</code></pre>
+<h2 id="五会话级buffer与内存限制">五、会话级Buffer与内存限制</h2>
+<p>如果把自定义参数视为会话级buffer，在GaussDB中其最大长度与参数名和用户权限有关：</p>
+<ul>
+<li>普通用户+开启<code>audit_enabled</code>时，参数名最短（如<code>.</code>）时，值最大为969字节。</li>
+</ul>
+<pre><code class="language-sql">select length(set_config('.', rpad('0', 969, '0'), false));
+
+ length 
+--------
+    969
+(1 row)
+</code></pre>
+<pre><code class="language-sql">select length(set_config('.', rpad('0', 970, '0'), false));
+
+ERROR: security_auditfuncs.cpp : 2465 : The destination buffer or format is a NULL pointer or the invalid parameter handle is invoked.
+</code></pre>
+<ul>
+<li>关闭<code>audit_enabled</code>或使用初始用户或者使用openGauss时，rpad最大可达268,435,454字节（256MB-2B）。</li>
+</ul>
+<pre><code class="language-sql">gaussdb=# select length(set_config('.a', rpad('0', 268435455, '0'), false));
+ERROR:  requested length too large
+CONTEXT:  referenced column: length
+gaussdb=# select length(set_config('.a', rpad('0', 268435454, '0'), false));
+  length
+-----------
+ 268435454
+(1 row)
+</code></pre>
+<blockquote>
+<p>注意：大buffer会占用当前会话内存，且参数本质只能覆盖，不能追加。实际内存消耗可能比参数值更大。</p>
+</blockquote>
+<pre><code class="language-sql">gaussdb=# select pid,sessionid from pg_stat_activity where pid=pg_backend_pid();
+ sessionid |       pid
+-----------+-----------------
+        118 | 140273173067520
+(1 row)
+gaussdb=# select * from  gs_session_memory_context where sessid like '%.118' order by usedsize desc;
+</code></pre>
+<pre><code class="language-sql">CBBTopMemoryContext 268703400
+CachedPlan 268440376
+</code></pre>
+<p>可能因为是用SQL执行的，还套了个length函数，所以占用的内存其实是翻倍的，参数本身是在CBBTopMemoryContext里，缓存计划也占了内存，实测对不同参数设置时，CachedPlan不会增加，但CBBTopMemoryContext会增加。<br/>
+在内存汇总里，这些内存会体现在dynamic_used_memory里，即动态内存。<br/>
+但是要注意，上面这个语句执行过程中所消耗的内存还不止这么些,我跟踪观察到执行中，这几个内存上下文的大小是这样的，合起来就是6倍</p>
+<pre><code class="language-sql">ExprContext 805306704
+CBBTopMemoryContext 537138936
+CachedPlan 268440376
+</code></pre>
+<blockquote>
+<p>openGauss执行时的上下文和GaussDB有所差异，会占用更多内存</p>
+<pre><code>IudExprReuseContext 1073741992
+ExprContext 805307944
+CBBTopMemoryContext 537097728
+QueryRewriteContext_1 268439456
+</code></pre>
+</blockquote>
+<p>但256MB只是rpad的上限，不是set_config的上限，下面这个测试可以证明能超过256MB</p>
+<pre><code class="language-sql">openGauss=# create table test_large_text (a text);
+CREATE TABLE
+openGauss=# insert into test_large_text values (rpad('0', 268435454, '0'));
+INSERT 0 1
+openGauss=# explain analyze select set_config('a.a',a||a,false) from test_large_text;
+                                                     QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------
+ Seq Scan on test_large_text  (cost=0.00..29.76 rows=1317 width=32) (actual time=4393.241..4702.178 rows=1 loops=1)
+ Total runtime: 4702.331 ms
+(2 rows)
+
+openGauss=# explain analyze select set_config('a.a',a||a||a||a,false) from test_large_text;
+ERROR:  text_to_cstring() could not support larger than 1GB clob/blob data
+CONTEXT:  referenced column: set_config
+
+openGauss=# explain analyze select set_config('a.a',a||a||a||substr(a,1,268427000),false) from test_large_text;
+                                                      QUERY PLAN
+----------------------------------------------------------------------------------------------------------------------
+ Seq Scan on test_large_text  (cost=0.00..39.63 rows=1317 width=32) (actual time=20148.194..20880.741 rows=1 loops=1)
+ Total runtime: 20880.982 ms
+(2 rows)
+
+openGauss=# select length(current_setting('a.a'));
+   length
+------------
+ 1073733362
+(1 row)
+</code></pre>
+<p>上限竟然接近1GB！</p>
+<p>想象一下，有时候想要模拟大内存占用率的极端环境，就可以利用这个自定义参数了，比如执行下面这个SQL，能以一个"舒适"的速度使内存占用持续上升，想要占用多少内存都可以精准控制，必要时还可以模拟把内存全部吃完的环境</p>
+<pre><code class="language-sql">openGauss=# explain analyze select set_config('cust.a'||oid::text,rpad('0',268435453,'0'),false) from pg_class ;
+ERROR:  memory is temporarily unavailable
+DETAIL:  Failed on request of size 268435457 bytes under queryid 1407374883553580 in varlena.cpp:172.
+CONTEXT:  referenced column: set_config
+Time: 12457.870 ms
+</code></pre>
+<p>如果觉得pg_class行数不够，用cte递归绝对能让数据库撑爆。这样看来GaussDB在审计里做的buffer大小校验倒是意外让数据库更安全可靠了。</p>
+<h2 id="六遗憾与展望">六、遗憾与展望</h2>
+<p>目前PG/OG没有直接查看当前会话所有自定义参数的功能，参数管理略显不便，或许是因为该功能用得较少，尚未引起足够重视。</p>
+<hr/>
+<p>自定义参数为openGauss/postgresql/GaussDB等数据库带来了极大的灵活性，无论是上下文传递、自动过滤数据、模拟全局变量、模拟大内存占用等，都有广泛应用空间。但是本文所提到的这些纯属本人对这个功能在使用上的一些探索，切不可在不清楚其机制的情况下随意使用！</p>
+<p>如需进一步探讨或有其他更多的奇思妙想，欢迎交流！</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,406 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb数据静止状态下同一个sql或同一个存储过程执行第6次报错的问题排查">【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查</h1>
+<h2 id="背景">背景</h2>
+<p>最近有客户遇到了一个问题，原始反馈是</p>
+<ul>
+<li>客户：“我在GaussDB里调用这个sp报错，相同sp在ORACLE里调用不报错”</li>
+<li>我：“报什么错？”</li>
+<li>客户：“invalid input syntax for type numeric: "xxx"”</li>
+</ul>
+<p>然后我连接上这个报错的GaussDB数据库，执行客户提供的调用sp的例子，却没有报错。<br/>
+数据库版本：506.0.0.SPC0100</p>
+<h2 id="定位过程">定位过程</h2>
+<ul>
+<li>我到客户工位上，已经开好的连接上执行，的确报错</li>
+<li>我还是在客户工位上，客户端新开了一个连接，执行不报错</li>
+<li>检查sp，里面没有使用到任何动态的东西，就是一些局部变量的赋值和判断，连表都没有查</li>
+<li>难道是sp局部变量有cache没清理？但按sp逻辑来看，就算没清理，也不应该会报这个错。</li>
+<li>然后客户提供一个重要信息：“前面执行也有没报错的时候”</li>
+<li>我意识到，难道是同一个会话循环调用n次后报错？</li>
+<li>然后我写了个匿名块循环执行，第6次报错了</li>
+<li>新开一个窗口再测，同样是第6次就报错了。</li>
+</ul>
+<p>为了快速精确定位报错的SQL，我在mogeaver里单步调试这个循环6次调用存储过程的匿名块，前5次step over，第6次step into，跟踪到了一个select case when into语句执行后跳到了exception，其中的else 分支里有to_number(字符串变量)，这个字符串变量是可能不能转换成数字的，但所有不能转换成数字的情况，会被前面的case捕获掉，因此真实业务情况下，这个to_number一定不会报错的。</p>
+<h2 id="复现用例">复现用例</h2>
+<p>下面是简单的复现用例：</p>
+<pre><code class="language-sql">declare
+v1 varchar2(20);
+v2 number;
+begin
+    v1:='a';
+    for i in 1..6 loop
+        select case when v1='a' then 1 else to_number(v1) end from dual into v2;
+    raise notice '%',v2;
+    end loop;
+exception when others then 
+    raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+end;
+</code></pre>
+<pre><code class="language-sql">gaussdb=# declare
+gaussdb-# v1 varchar2(20);
+gaussdb-# v2 number;
+gaussdb-# begin
+gaussdb$#     v1:='a';
+gaussdb$#     for i in 1..6 loop
+gaussdb$#         select case when v1='a' then 1 else to_number(v1) end from dual into v2;
+gaussdb$#     raise notice '%',v2;
+gaussdb$#     end loop;
+gaussdb$# exception when others then
+gaussdb$#     raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  v1:a,sqlerrm:invalid input syntax for type numeric: "a"
+ANONYMOUS BLOCK EXECUTE
+gaussdb=#
+</code></pre>
+<h2 id="原因分析">原因分析</h2>
+<p>在PG/OG系数据库中，6是一个必须要记住的数字，同一个SQL从cplan变到gplan的次数正是6次。</p>
+<p>加上强制gplan的hint，第一次就会报错</p>
+<pre><code class="language-sql">gaussdb=# declare
+gaussdb-# v1 varchar2(20);
+gaussdb-# v2 number;
+gaussdb-# begin
+gaussdb$#     v1:='a';
+gaussdb$#     for i in 1..6 loop
+gaussdb$#         select /*+use_gplan*/ case when v1='a' then 1 else to_number(v1) end from sys_dummy into v2;
+gaussdb$#     raise notice '%',v2;
+gaussdb$#     end loop;
+gaussdb$# exception when others then
+gaussdb$#     raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  v1:a,sqlerrm:invalid input syntax for type numeric: "a"
+ANONYMOUS BLOCK EXECUTE
+gaussdb=#
+</code></pre>
+<p>加上强制cplan的hint,则一直都不报错</p>
+<pre><code class="language-sql">gaussdb=# declare
+gaussdb-# v1 varchar2(20);
+gaussdb-# v2 number;
+gaussdb-# begin
+gaussdb$#     v1:='a';
+gaussdb$#     for i in 1..6 loop
+gaussdb$#         select /*+use_cplan*/ case when v1='a' then 1 else to_number(v1) end from sys_dummy into v2;
+gaussdb$#     raise notice '%',v2;
+gaussdb$#     end loop;
+gaussdb$# exception when others then
+gaussdb$#     raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+NOTICE:  1
+ANONYMOUS BLOCK EXECUTE
+gaussdb=#
+</code></pre>
+<p>对于同一个SQL，前5次会根据实际的参数值去生成计划执行(cplan)，到第6次(gplan)就不管参数值是什么了，因此对于case when所有的分支都会去判断，此时对于实际不会执行的分支to_number(v1)也执行了计算，因此产生了报错。</p>
+<p>使用不报错的参数，跟踪第6次的执行计划和前5次的区别</p>
+<pre><code class="language-sql">gaussdb=# set auto_explain_level=notice;
+SET
+gaussdb=# set enable_auto_explain=on;
+SET
+gaussdb=#
+gaussdb=# declare
+gaussdb-# v1 varchar2(20);
+gaussdb-# v2 number;
+gaussdb-# begin
+gaussdb$#     v1:='1';
+gaussdb$#     for i in 1..6 loop
+gaussdb$#         select case when v1='1' then 1 else to_number(v1) end from sys_dummy into v2;
+gaussdb$#     raise notice '%',v2;
+gaussdb$#     end loop;
+gaussdb$# exception when others then
+gaussdb$#     raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.02 rows=1 width=0)
+  Output: 1::numeric, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.02 rows=1 width=0)
+  Output: 1::numeric, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.02 rows=1 width=0)
+  Output: 1::numeric, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.02 rows=1 width=0)
+  Output: 1::numeric, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.02 rows=1 width=0)
+  Output: 1::numeric, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text: select case when v1='1' then 1 else to_number(v1) end from sys_dummy
+Name: primary
+Subquery Scan on sys_dummy  (cost=0.00..0.03 rows=1 width=0)
+  Output: CASE WHEN (($10 &lt;param value: 1 type: varchar&gt;)::text = '1'::text) THEN 1::numeric ELSE numeric_in(textout(($10 &lt;param value: 1 type: varchar&gt;)::text), 0::oid, (-1)) END, (Expression Flatten Optimized)
+  -&gt;  Result  (cost=0.00..0.01 rows=1 width=0)
+        Output: NULL::text, (Expression Flatten Optimized)
+
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:
+----------------------------NestLevel:0----------------------------
+duration: 0.000 s
+
+CONTEXT:  SQL statement "select case when v1='1' then 1 else to_number(v1) end from sys_dummy"
+PL/pgSQL function inline_code_block line 7 at SQL statement
+NOTICE:  1
+ANONYMOUS BLOCK EXECUTE
+gaussdb=#
+</code></pre>
+<p>从前5次的执行计划中可以发现，output已经把结果值算出来了，投影列是<code>1::numeric</code>，但第6次的投影列则是带参数的case when表达式<code>CASE WHEN (($10 &lt;param value: 1 type: varchar&gt;)::text = '1'::text) THEN 1::numeric ELSE numeric_in(textout(($10 &lt;param value: 1 type: varchar&gt;)::text), 0::oid, (-1)) END</code></p>
+<p>不过这个用例在openGauss及基于openGauss的商业发行版、还有原生的postgresql上，都不会报错，只有华为的GaussDB会报这个错。</p>
+<p>看下报错堆栈</p>
+<pre><code class="language-c">(gdb) bt
+#0  errstart (elevel=20, filename=0x5648320cb206 "numeric_util.cpp", lineno=175, funcname=0x5648320cb270 &lt;adt_set_var_from_str(char const*, char const*, AdtNumericVar*)::__func__&gt; "adt_set_var_from_str", domain=0x564831dc0004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+#1  0x000056482dae8ac8 in adt_set_var_from_str (str=0x7fdeea6be2a0 "a", cp=0x7fdeea6be2a0 "a", dest=0x7fdfda7c3e90) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/numeric_util.cpp:171
+#2  0x000056482dac2a31 in numeric_in (fcinfo=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/numeric.cpp:343
+#3  0x000056482dd18bf6 in exec_eval_func_expr_strict (op=0x7fdfd402ad90) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_interp_external.cpp:676
+#4  0x000056482dd0fe56 in exec_interp_expr (state=0x7fdfd402a470, econtext=&lt;optimized out&gt;, isnull=&lt;optimized out&gt;, is_done=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_interp.cpp:279
+#5  0x000056482dd8d6bd in exec_eval_switch_exprcxt (is_done=0x0, is_null=0x7fdfda7c407c, econtext=&lt;optimized out&gt;, expression=0x7fdfd402a470) at /usr1/GaussDBKernel/server/opengauss/src/include/executor/executor.h:427
+#6  optbase_evaluate_expr (expr=&lt;optimized out&gt;, result_type=1700, result_typmod=-1, result_collation=0, can_ignore=&lt;optimized out&gt;, max_length=0, decimals=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:5654
+#7  0x000056482dd90391 in optbase_evaluate_function (context=0x7fdfda7c4340, func_tuple=0x7fdfcdab30d8, args=0x7fdeea6be398, decimals=0, max_length=0, input_collid=0, result_collid=0, result_typmod=-1, result_type=1700, funcid=1701) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:5069
+#8  optbase_simplify_function (funcid=1701, result_type=1700, result_typmod=-1, result_collid=0, input_collid=0, max_length=0, decimals=0, args_p=0x7fdfda7c42b8, process_args=true, allow_non_const=true, context=0x7fdfda7c4340) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:4235
+#9  0x000056482dd91127 in optbase_eval_const_expressions_funcexpr (node=0x7fdfd2067bd8, context=0x7fdfda7c4340) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:2795
+#10 0x000056482dd91265 in optbase_eval_funcexpr_mutator (node=&lt;optimized out&gt;, context=0x7fdfda7c4340) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:2421
+#11 0x000056482dd912d2 in optbase_eval_plan_funcexpr (root=0x0, node=&lt;optimized out&gt;, estate=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:2412
+#12 0x000056482dd0e24b in exec_init_expr_rec (node=0x7fdfd2fd79f0, state=0x7fdfd2066b10, resv=0x7fdfd2066c38, resnull=0x7fdfd2066c31, parent_node=0x7fdfd2fd7530) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_internal.cpp:342
+#13 0x000056482dd0d29b in exec_init_expr_rec (node=&lt;optimized out&gt;, state=0x7fdfd2066b10, resv=&lt;optimized out&gt;, resnull=&lt;optimized out&gt;, parent_node=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_internal.cpp:817
+#14 0x000056482dd09c22 in exec_build_projinfo_byflt (target_list=&lt;optimized out&gt;, econtext=&lt;optimized out&gt;, slot=&lt;optimized out&gt;, parent=0x7fdfd2066050, input_desc=0x7fdfd3f28610) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_external.cpp:373
+#15 0x000056482dd64efe in exec_assign_projinfo (planstate=0x7fdfd2066050, input_desc=0x7fdfd3f28610) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_utils.cpp:940
+#16 0x000056482eb73041 in exec_assign_scanprojinfo (node=0x7fdfd2066050) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/framework/executor_framework_execscan.cpp:217
+#17 0x000056482eb558db in SubqueryScanOperator::init (this=0x7fdfd2066050, node=0x7fdfd2fd7050, estate=0x7fdfd3f52050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_subqueryscan.cpp:74
+#18 0x000056482eb55954 in exec_init_subqueryscan (node=0x7fdfd2fd7050, estate=0x7fdfd3f52050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/executor/rowengine/executor_rowopr_subqueryscan.cpp:87
+#19 0x000056482dd2d9df in ExecInitNodeByType (node=0x7fdfd2fd7050, estate=0x7fdfd3f52050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:3913
+#20 0x000056482dd2e658 in ExecInitNode (node=0x7fdfd2fd7050, estate=0x7fdfd3f52050, e_flags=16, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:4153
+#21 0x000056482dd2f2bc in exec_init_plan (queryDesc=0x7fdfd3f50050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:1840
+#22 0x000056482dd2fa92 in exec_standard_executor_start (queryDesc=0x7fdfd3f50050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:572
+#23 0x00007fe144da177a in gs_audit_executor_start_hook (queryDesc=0x7fdfd3f50050, eflags=0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/security_plugin/security_policy_plugin.cpp:1849
+#24 0x000056482e4fe1a3 in sqlcmd_explain_executor_start (query_desc=0x7fdfd3f50050, eflags=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/auto_explain.cpp:80
+#25 0x000056482dd2ffec in exec_executor_start (queryDesc=0x7fdfd3f50050, eflags=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:328
+#26 0x000056482ebb03d7 in spi_pquery (from_lock=false, tcount=2, fire_triggers=&lt;optimized out&gt;, query_desc=0x7fdfd3f50050, cplan=0x7fdeea4fb518) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/spi/spi.cpp:2662
+#27 spi_execute_plan0 (plan=0x7fdfd3f42450, param_list=0x7fdfd3fad1a0, snapshot=0x0, crosscheck_snapshot=0x0, read_only=false, fire_triggers=true, tcount=2, from_lock=false, dfx_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/spi/spi.cpp:2210
+#28 0x000056482ebb0a53 in spi_execute_plan (plan=0x7fdfd3f42450, param_list=0x7fdfd3fad1a0, snapshot=0x0, crosscheck_snapshot=0x0, read_only=false, fire_triggers=true, tcount=2, from_lock=false, dfx_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/spi/spi.cpp:2535
+#29 0x000056482ebb207a in SPI_execute_plan_with_paramlist (plan=0x7fdfd3f42450, params=0x7fdfd3fad1a0, read_only=&lt;optimized out&gt;, tcount=2) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/spi/spi.cpp:502
+#30 0x000056482e070f22 in gsplsql_exec_stmt_execsql (estate=0x7fdfd3f5e5d0, stmt=0x7fdfd3ee22d0, dfx_state=0x7fe140ab0470, is_open_satetement=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_sql.cpp:972
+#31 0x000056482e058144 in gsplsql_exec_stmt (estate=0x7fdfd3f5e5d0, stmt=0x7fdfd3ee22d0, dfx_state=0x7fe140ab0470) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:712
+#32 0x000056482e058682 in gsplsql_exec_stmts (estate=0x7fdfd3f5e5d0, stmts=0x7fdfd3ee24a0, dfx_state=0x7fdfd3faf490) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#33 0x000056482e067c0e in gsplsql_exec_stmt_fori (estate=0x7fdfd3f5e5d0, stmt=0x7fdfd3ee1d90, dfx_state=0x7fdfd3faf490) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_loop.cpp:492
+#34 0x000056482e05830a in gsplsql_exec_stmt (estate=0x7fdfd3f5e5d0, stmt=0x7fdfd3ee1d90, dfx_state=0x7fdfd3faf490) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:681
+#35 0x000056482e058682 in gsplsql_exec_stmts (estate=0x7fdfd3f5e5d0, stmts=0x7fdfd3ee16b8, dfx_state=0x7fdfd3faea00) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#36 0x000056482e056ec4 in gsplsql_exec_stmt_block (estate=0x7fdfd3f5e5d0, block=0x7fdfd3ee3420, dfx_state=0x7fdfd3faea00) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:295
+#37 0x000056482e058452 in gsplsql_exec_stmt (estate=0x7fdfd3f5e5d0, stmt=0x7fdfd3ee3420, dfx_state=0x7fdfd3faea00) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:648
+#38 0x000056482e058682 in gsplsql_exec_stmts (estate=0x7fdfd3f5e5d0, stmts=0x7fdfd3ee1328, dfx_state=0x7fdfd3fad5c0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#39 0x000056482e058fb0 in gsplsql_exec_stmts_save_cursor (estate=0x7fdfd3f5e5d0, stmts=0x7fdfd3ee1328, dfx_state=0x7fdfd3fad5c0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_cursor.cpp:66
+#40 0x000056482e057b36 in gsplsql_exec_stmt_block (estate=0x7fdfd3f5e5d0, block=0x7fdfd3ee3828, dfx_state=0x7fdfd3fad5c0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:428
+#41 0x0000564830230ec5 in gsplsql_exec_function (func=0x7fdfd3f5e170, fcinfo=0x7fdfda7c6230, dynexec_anonymous_block=false, func_runtime_state=0x0, isDstoreAutonomous=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_exec.cpp:698
+#42 0x0000564830242bea in plpgsql_inline_handler (fcinfo=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_handler.cpp:1124
+#43 0x000056482de839c1 in OidFunctionCall2Coll (function_id=&lt;optimized out&gt;, collation=0, arg1=140599276921936, arg2=0, is_null=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/fmgr/fmgr.cpp:2355
+#44 0x000056482e635b39 in sqlcmd_execute_do_stmt (stmt=0x7fdfd1f28ec0, atomic=&lt;optimized out&gt;, is_pkg_anonymous_block=97) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/functioncmds.cpp:4242
+#45 0x000056482ea0f27e in sqlcmd_standard_process_utility (parse_tree=0x7fdfd1f28ec0, query_string=0x7fdfd3f34ab8 "declare\nv1 varchar2(20);\nv2 number;\nbegin\n    v1:='a';\n    for i in 1..6 loop\n        select case when v1='a' then 1 else to_number(v1) end from dual into v2;\n    raise notice '%',v2;\n    end loop;\nexception when others then \n    raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;\nend;", params=0x0, is_top_level=true, dest=0x7fdfd3f34fd8, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fdfda7ca260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:7283
+#46 0x00007fe144da3759 in gsaudit_ProcessUtility_hook (parsetree=0x7fdfd1f28ec0, queryString=0x7fdfd3f34ab8 "declare\nv1 varchar2(20);\nv2 number;\nbegin\n    v1:='a';\n    for i in 1..6 loop\n        select case when v1='a' then 1 else to_number(v1) end from dual into v2;\n    raise notice '%',v2;\n    end loop;\nexception when others then \n    raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;\nend;", params=0x0, isTopLevel=&lt;optimized out&gt;, dest=0x7fdfd3f34fd8, sentToRemote=&lt;optimized out&gt;, completionTag=0x7fdfda7ca260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/security_plugin/security_policy_plugin.cpp:856
+#47 0x000056482ef7ff52 in audit_process_utility (parsetree=0x7fdfd1f28ec0, query_string=0x7fdfd3f34ab8 "declare\nv1 varchar2(20);\nv2 number;\nbegin\n    v1:='a';\n    for i in 1..6 loop\n        select case when v1='a' then 1 else to_number(v1) end from dual into v2;\n    raise notice '%',v2;\n    end loop;\nexception when others then \n    raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;\nend;", params=&lt;optimized out&gt;, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fdfda7ca260 "", is_ctas=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/audit/security_auditfuncs.cpp:1512
+#48 0x000056482ea1b71d in sqlcmd_process_utility (parse_tree=0x7fdfd1f28ec0, query_string=0x7fdfd3f34ab8 "declare\nv1 varchar2(20);\nv2 number;\nbegin\n    v1:='a';\n    for i in 1..6 loop\n        select case when v1='a' then 1 else to_number(v1) end from dual into v2;\n    raise notice '%',v2;\n    end loop;\nexception when others then \n    raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;\nend;", params=0x0, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fdfda7ca260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:1974
+#49 0x000056482e9fc83f in PortalRunUtility (portal=0x7fdfcfa7a050, utilityStmt=0x7fdfd1f28ec0, isTopLevel=true, dest=0x7fdfd3f34fd8, completionTag=0x7fdfda7ca260 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2140
+#50 0x000056482e9fe0be in PortalRunMulti (portal=0x7fdfcfa7a050, isTopLevel=true, dest=0x7fdfd3f34fd8, altdest=0x7fdfd3f34fd8, completionTag=0x7fdfda7ca260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2326
+#51 0x000056482ea022dc in PortalRun (portal=0x7fdfcfa7a050, count=9223372036854775807, isTopLevel=true, dest=0x7fdfd3f34fd8, altdest=0x7fdfd3f34fd8, completionTag=0x7fdfda7ca260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1501
+#52 0x000056482e9e8276 in exec_simple_query (query_string=&lt;optimized out&gt;, msg=0x7fdfda7ca530, messageType=QUERY_MESSAGE) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:3513
+#53 0x000056482e9f4e38 in gs_process_command (firstchar=&lt;optimized out&gt;, input_message=0x7fdfda7ca530, send_ready_for_query=0x7fdfda7ca526) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11743
+#54 0x000056482e9fa9c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7fdfd59f5b20, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#55 0x000056482e97e2df in backend_run (port=0x7fdfda7ca890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#56 0x000056482e9bd1b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#57 0x000056482e97e39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#58 0x00007fe14516ff1b in ?? () from /usr/lib64/libpthread.so.0
+#59 0x00007fe1450a7320 in clone () from /usr/lib64/libc.so.6
+</code></pre>
+<p>f 21里找到了出错的sql</p>
+<pre><code class="language-c">(gdb) f 21
+#21 0x000056482dd2f2bc in exec_init_plan (queryDesc=0x7fdfd3f50050, eflags=16) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp:1840
+1840    /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_main.cpp: No such file or directory.
+(gdb) p *queryDesc
+$1 = {operation = CMD_SELECT, plannedstmt = 0x7fdfd405e050, utilitystmt = 0x0, sourceText = 0x7fdfd2fc3778 "select case when v1='a' then 1 else to_number(v1) end from dual", snapshot = 0x7fdfd3f3ca90, crosscheck_snapshot = 0x0, dest = 0x7fe140767020, params = 0x7fdfd3fad1a0, instrument_options = 0, pstmt_idx = 0, tupDesc = 0x0, estate = 0x7fdfd3f52050, planstate = 0x0, aj_states = 0x0, totaltime = 0x0, executed = false, opteval = false, plan_collecting = false, is_parameterized = false, support_operator_reuse = false, psrc_version = -1, stmt_name = '\000' &lt;repeats 63 times&gt;, bii_state = 0x0}
+</code></pre>
+<p>从 <code>#19 0x000056482dd2d9df in ExecInitNodeByType</code>起，往里层的栈就在openGauss源码里搜不到了，这意味着GaussDB可能做了特殊的优化</p>
+<p>f 12 里跟到了T_FuncExpr节点，它的上一个节点是T_CaseExpr</p>
+<pre><code class="language-c">(gdb) f 12
+#12 0x000056482dd0e24b in exec_init_expr_rec (node=0x7fdfd2fd79f0, state=0x7fdfd2066b10, resv=0x7fdfd2066c38, resnull=0x7fdfd2066c31, parent_node=0x7fdfd2fd7530) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_internal.cpp:342
+342     /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_internal.cpp: No such file or directory.
+(gdb) p *node
+$3 = {type = T_FuncExpr, selec = 0}
+(gdb) p *parent_node
+$4 = {type = T_CaseExpr, selec = 0}
+</code></pre>
+<p>f 9 里<code>optbase_eval_const_expressions_funcexpr </code>这里有个关键字<code>const</code>,猜测可能是常量表达式，这里需要提到一个概念，叫常量折叠，即如果一个函数是immutable/stable的，如果入参是固定的常量，不是来自于表，那么就只用计算一次，将这个函数提前算出来，得到一个新的常量，避免每行都要去进行重复的函数计算。虽然复现用例里是个plsql的变量，但是当这个查询sql执行时，它肯定是不会发生变化的，可以视为这个查询sql的常量。</p>
+<p>从</p>
+<pre><code>#8  optbase_simplify_function (funcid=1701, result_type=1700, result_typmod=-1, result_collid=0, input_collid=0, max_length=0, decimals=0, args_p=0x7fdfda7c42b8, process_args=true, allow_non_const=true, context=0x7fdfda7c4340) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/opt_clauses.cpp:4235
+</code></pre>
+<p>可以看到这里调用了optbase_simplify_function (简单函数？),funcid=1701是numeric_in，即to_number(text)里调用的函数</p>
+<pre><code class="language-sql">gaussdb=# select prosrc from pg_proc where proname='to_number' and proargtypes::text='25';
+                               prosrc
+--------------------------------------------------------------------
+  select pg_catalog.numeric_in(pg_catalog.textout($1), 0::Oid, -1)
+(1 row)
+
+gaussdb=# select proname from pg_proc where oid=1701;
+  proname
+------------
+ numeric_in
+(1 row)
+
+</code></pre>
+<p>到这里，大概能猜到GaussDB做了什么优化了，即在plsql中，对于单条sql语句里出现的plsql变量，也可以视为常量，使用常量折叠的优化逻辑。</p>
+<p>把测试用例稍微改改，to_number里传入字面量，放openGauss里执行,触发openGauss的常量折叠逻辑，看是否会出现报错</p>
+<pre><code class="language-sql">openGauss=# declare
+openGauss-# v1 varchar2(20);
+openGauss-# v2 number;
+openGauss-# begin
+openGauss$#     v1:='a';
+openGauss$#     for i in 1..6 loop
+openGauss$#         select case when v1='a' then 1 else to_number('a') end from sys_dummy into v2;
+openGauss$#     raise notice '%',v2;
+openGauss$#     end loop;
+openGauss$# exception when others then
+openGauss$#     raise notice 'v1:%,sqlerrm:%',v1,sqlerrm;
+openGauss$# end;
+openGauss$# /
+NOTICE:
+QueryPlan
+
+----------------------------NestLevel:0----------------------------
+Query Text:  select pg_catalog.numeric_in(pg_catalog.textout($1), 0::Oid, -1)
+Name: dn_6001
+Result  (cost=0.00..0.01 rows=1 width=0)
+  Output: numeric_in(textout($1), 0::oid, (-1))
+param1 value: a type: text
+
+
+CONTEXT:  SQL function "to_number" statement 1
+referenced column: to_number
+SQL statement "select case when v1='a' then 1 else to_number('a') end from sys_dummy"
+PL/pgSQL function inline_code_block line 6 at SQL statement
+NOTICE:  v1:a,sqlerrm:invalid input syntax for type numeric: "a"
+ANONYMOUS BLOCK EXECUTE
+</code></pre>
+<p>果不其然，<code>v1='a'</code>的值不确定，没有先进行计算，但因为<code>to_number('a')</code>一定是个明确的值，就先进行了常量折叠，触发了报错。</p>
+<h2 id="根因总结">根因总结</h2>
+<p>GaussDB相较于openGauss，新增支持了对于含有plsql变量的表达式也能支持常量折叠的优化逻辑，以此优化了存储过程内包含函数的sql执行性能，但是由于常量折叠发生在实际执行甚至执行计划生成之前，导致case when 语句里不会执行到的分支逻辑也会提前进行折叠，从而报错。<br/>
+这不算BUG，因为如果不结合实际业务、不结合上下文，单看SQL，有时候的确无法判断case when会走哪个分支，这种SQL其实算是不规范SQL了。只是由于GaussDB引入了这个性能优化的特性，可能会导致之前不报错的sql在多执行几次后也会报错了。</p>
+<h2 id="规避措施">规避措施</h2>
+<p>目前观测到在 505.2.0.SPC0100、506.0.0.SPC0100 版本里均存在这个现象，在503.1.0.SPC1700版本里无此现象。</p>
+<p>两种处理方法：<br/>
+1.去掉 <code>from dual</code> ,让其走单个表达式执行，而非可能有多行结果的完整SQL执行。不过如果是select into 两个变量，就变成了单行执行，此时去掉<code>from dual</code>依然还会报错。<br/>
+2.加上hint <code>/*+use_cplan*/</code> ,使其每次都强制走cplan</p>
+<p>上面两种推荐用1，即去掉from dual 的方式，这样性能最好，但如果的确是要查询表或者into多个变量的情况，则只能使用加hint的方式了。</p>
+<p>但是，最理想的代码，还是不要出现这种类型转换，无论是表里的数据作为参数还是使用变量作为参数，只要值可能为不能转换成数字的字符串，就不要尝试去对其转换成数字！</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

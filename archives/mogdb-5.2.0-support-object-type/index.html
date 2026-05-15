@@ -156,7 +156,319 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【MogDB】MogDB5.2.0重磅发布第六篇-支持自定义复杂对象类型</p>
+<h2 id="一前言">一、前言</h2>
+<p>在期货行业的ORACLE数据库中，经常可以看到有大量的自定义复杂对象类型,类似以下代码</p>
+<pre><code class="language-sql">CREATE OR REPLACE TYPE Ty_test as OBJECT
+(
+  col1 NUMBER(8),
+  COL2 CHAR(8),
+  CONSTRUCTOR FUNCTION Ty_test RETURN SELF AS RESULT,
+  MEMBER FUNCTION UF_2STRING RETURN VARCHAR2
+);
+/
+create or replace type body Ty_test as 
+  CONSTRUCTOR FUNCTION Ty_test RETURN SELF AS RESULT is
+  begin
+  return;
+  end;
+  MEMBER FUNCTION UF_2STRING RETURN VARCHAR2 is
+  begin
+  return 'Ty_test('||
+          'col1 =&gt;'''||col1||','||
+          'col2 =&gt;'''||col2||''')';
+  end;
+end;
+/
+
+create or replace type tyt_test as table of  Ty_test ;
+/
+
+CREATE OR REPLACE TYPE Ty_R_test as OBJECT
+(
+  col1 NUMBER(8),
+  COL2 CHAR(8),
+  col3 char(8),
+  CONSTRUCTOR FUNCTION Ty_R_test RETURN SELF AS RESULT,
+  MEMBER PROCEDURE up_copy(i_ty_test IN ty_test),
+  MEMBER FUNCTION UF_2STRING RETURN VARCHAR2
+);
+/
+create or replace type body Ty_R_test as 
+  CONSTRUCTOR FUNCTION Ty_R_test RETURN SELF AS RESULT is
+  begin
+  return;
+  end;
+  MEMBER PROCEDURE up_copy(i_ty_test IN ty_test) is
+  begin
+  col1:=i_ty_test.col1;
+  end;
+  MEMBER FUNCTION UF_2STRING RETURN VARCHAR2 is
+  begin
+  return 'Ty_R_test('||
+          'col1 =&gt;'''||col1||','||
+          'col2 =&gt;'''||col2||''')';
+  end;
+end;
+/
+
+create or replace type tyt_r_test as table of  Ty_R_test ;
+/
+</code></pre>
+<p>ORACLE甚至专门为这种对象类型弄了一整本文档:<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/adobj/index.html">《Object-Relational Developer's Guide》</a><br/>
+而openGauss并不支持创建这种对象，只能支持不带type body的复合类型。截止到20240930的openGauss 6.0版本发布，也仍旧不支持（不过从2024年10月14号起，openGauss源码中已经有部分支持了）。</p>
+<p>所以早期openGauss/MogDB在适配有这种对象类型的应用时，需要进行非常多的人工改写（可以批量正则替换），虽然改了后的确能用，但是这些应用的开发模式本来就是围绕着这些对象类型来的，直接颠覆了十多年的开发模式所造成的影响可能会非常深远。</p>
+<p>因此MogDB在5.2.0版本中，引入了对象类型的实现，新增的功能涉及SQL引擎/PLSQL引擎/JDBC驱动/客户端工具等。</p>
+<h2 id="二sql引擎">二、SQL引擎</h2>
+<h3 id="1ddldcl">1.ddl/dcl</h3>
+<ul>
+<li>
+<p>增加 <code>or replace</code>语法<br/>
+原本openGauss5.0版本中，不支持对任何的type进行replace，如果要修改自定义的type，必须先drop原有的，再创建新的（在没有被其他对象依赖时，支持<code>alter</code>）。在MogDB 5.2.0版本中，支持对object-type和嵌套表类型（table of）执行<code>create or replace type</code></p>
+</li>
+<li>
+<p>grant /revoke 权限时，相应的type/function同步处理<br/>
+在创建一个object-type时，会自动创建一个复合类型，并且逐个创建type内定义的构造函数、成员函数、成员过程，因此执行<code>grant</code> /<code>revoke</code>时需要进行自动的级联授权（和openGauss中的package相关逻辑类似）</p>
+</li>
+</ul>
+<h3 id="2查询构造">2.查询构造</h3>
+<ul>
+<li>支持直接执行 <code>select typename(col1_name,col2_name) from tablename</code>，或作为游标</li>
+</ul>
+<h2 id="三plsql引擎">三、PLSQL引擎</h2>
+<h3 id="1默认值构造">1.默认值构造</h3>
+<ul>
+<li>不带new</li>
+<li>带new</li>
+<li>默认构造函数</li>
+<li>自定义构造函数</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test :=Ty_test();
+v2 Ty_test :=new Ty_test();
+v3 Ty_test :=new Ty_test(1,'a');
+BEGIN
+NULL;
+END;
+</code></pre>
+<h3 id="2赋值构造">2.赋值构造</h3>
+<ul>
+<li>不带new</li>
+<li>带new</li>
+<li>默认构造函数</li>
+<li>自定义构造函数</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test ;
+begin
+v1:=Ty_test();
+v1:=new Ty_test();
+v1:=new Ty_test(1,'a');
+BEGIN
+NULL;
+END;
+
+</code></pre>
+<h3 id="3查询构造-into">3.查询构造 into</h3>
+<ul>
+<li>单行单个对象 into</li>
+<li>单行多个对象  into</li>
+<li>多行 bulk collect into</li>
+</ul>
+<pre><code class="language-sql">create table tab_a(col1 number,col2 varchar2(20));
+create table tab_b(col1 number,col2 varchar2(20));
+insert into tab_a values(1,'a');
+insert into tab_b values(1,'a');
+
+declare
+v1 Ty_test;
+v2 Ty_test;
+v3 tyt_test;
+v4 tyt_test;
+begin
+select Ty_test(1,'a') into v1 from dual;
+select Ty_test(1,'a'),Ty_test(2,'b') into v1,v2 from dual;
+select Ty_test(tab_a.col1,tab_a.col2),Ty_test(tab_b.col1,tab_b.col2) bulk collect into v3,v4 from tab_a,tab_b;
+
+</code></pre>
+<h3 id="4引用成员属性">4.引用成员属性</h3>
+<ul>
+<li>单对象的成员属性</li>
+<li>集合内某个对象的成员属性</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test:=new Ty_test(1,'a');
+v2 number;
+v3 tyt_test:=new tyt_test();
+begin
+v2:=v1.col1;
+v3.extend;
+v3(1):=v1;
+v2:=v3(1).col1;
+end;
+</code></pre>
+<h3 id="5引用成员函数">5.引用成员函数</h3>
+<ul>
+<li>单对象的成员函数</li>
+<li>集合内某个对象的成员函数</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test:=new Ty_test(1,'a');
+v2 varchar2(100);
+v3 tyt_test:=new tyt_test();
+begin
+v2:=v1.UF_2STRING();
+v3.extend;
+v3(1):=v1;
+v2:=v3(1).UF_2STRING;
+</code></pre>
+<h3 id="6调用成员过程">6.调用成员过程</h3>
+<ul>
+<li>单对象的成员过程</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test:=new Ty_test(1,'a');
+v2 ty_r_test:=new ty_r_test();
+begin
+v2.up_copy(v1);
+END;
+</code></pre>
+<h3 id="7对象是否为空的判断">7.对象是否为空的判断</h3>
+<ul>
+<li>object是否为空</li>
+<li>collection是否为空</li>
+</ul>
+<pre><code class="language-sql">declare
+v1 Ty_test;
+v2 tyt_test;
+begin
+if v1 is null then 
+dbms_output.put_line('1');
+end if;
+if v1 is not null then 
+dbms_output.put_line('2');
+end if;
+v1:=new Ty_test();
+if v1 is null then 
+dbms_output.put_line('3');
+end if;
+if v1 is not null then 
+dbms_output.put_line('4');
+end if;
+-----
+if v2 is null then 
+dbms_output.put_line('5');
+end if;
+if v2 is not null then 
+dbms_output.put_line('6');
+end if;
+v2:=new Tyt_test();
+if v2 is null then 
+dbms_output.put_line('7');
+end if;
+if v2 is not null then 
+dbms_output.put_line('8');
+end if;
+end;
+/
+
+1
+4
+5
+8
+
+</code></pre>
+<h3 id="8重载">8.重载</h3>
+<ul>
+<li>成员函数重载</li>
+<li>构造函数重载</li>
+<li>作为重载函数的参数类型</li>
+</ul>
+<h3 id="9集合方法">9.集合方法</h3>
+<ul>
+<li>first</li>
+<li>last</li>
+</ul>
+<p>支持table of object的变量使用table of object的first/last属性作为下标</p>
+<pre><code class="language-sql">declare
+v2 tyt_test;
+begin
+......
+where col1 = v2(v2.First).col1
+</code></pre>
+<ul>
+<li>delete</li>
+<li>extend</li>
+<li>count</li>
+</ul>
+<p>对齐ORACLE里的计数及判空逻辑</p>
+<h3 id="10支持自治事务">10.支持自治事务</h3>
+<p>（非特性，略，修复openGauss中相关BUG）</p>
+<h2 id="四jdbc驱动">四、JDBC驱动</h2>
+<ul>
+<li>createStruct</li>
+<li>createArrayOf</li>
+</ul>
+<p>云和恩墨已将该功能部分贡献至openGauss社区，可能是目前PG/OG系唯一的对obejct-type调用的jdbc开源代码（注：最佳体验建议使用MogDB的官方jdbc驱动5.0.0.9版本）</p>
+<p>源码中的测试用例：<br/>
+<a href="https://gitee.com/opengauss/openGauss-connector-jdbc/blob/master/pgjdbc/src/test/java/org/postgresql/test/jdbc2/PGStructTest.java">https://gitee.com/opengauss/openGauss-connector-jdbc/blob/master/pgjdbc/src/test/java/org/postgresql/test/jdbc2/PGStructTest.java</a><br/>
+<a href="https://gitee.com/opengauss/openGauss-connector-jdbc/blob/master/pgjdbc/src/test/java/org/postgresql/test/jdbc2/PgCallableStatementArrayTypeTest.java">https://gitee.com/opengauss/openGauss-connector-jdbc/blob/master/pgjdbc/src/test/java/org/postgresql/test/jdbc2/PgCallableStatementArrayTypeTest.java</a></p>
+<h2 id="五元数据">五、元数据</h2>
+<h3 id="1元数据视图">1.元数据视图</h3>
+<ul>
+<li>新增 <code>gs_object</code>视图，用于查询object-type列表以及定义</li>
+</ul>
+<pre><code class="language-sql">MogDB=# \dS+ gs_object
+               View "pg_catalog.gs_object"
+    Column    | Type | Modifiers | Storage  | Description
+--------------+------+-----------+----------+-------------
+ oid          | oid  |           | plain    |
+ objnamespace | oid  |           | plain    |
+ objowner     | oid  |           | plain    |
+ objname      | name |           | plain    |
+ objspecsrc   | text |           | extended |
+ objbodysrc   | text |           | extended |
+</code></pre>
+<ul>
+<li>dba_arguments视图中能识别存储过程中的object及table参数类型</li>
+</ul>
+<h3 id="2定义查询函数">2.定义查询函数</h3>
+<ul>
+<li>新增pg_get_typedef(text) 函数，可查询所有type的ddl定义语句，包括object-type，支持<code>schemaname.typename</code>以及<code>typename</code> 两种格式的传参</li>
+</ul>
+<h2 id="六客户端工具">六、客户端工具</h2>
+<h3 id="1命令行工具">1.命令行工具</h3>
+<ul>
+<li>
+<p>gs_dump/gs_restore (逻辑备份/还原)</p>
+<ul>
+<li>全备时增加object-type的定义语句生成</li>
+<li>在指定 <code>--type</code>参数时，可以导出或导入指定名称的type，包括object-type</li>
+</ul>
+</li>
+<li>
+<p>在执行 <code>create or replace type {typename} is|as object</code>以及<code>create or replacee type body</code>语句时，语句结束符自动切换到 <code>/</code>，保持和sqlplus一致</p>
+</li>
+<li>
+<p>为了兼容 <code>create type {typename} is table of {typename}</code>语句的结束符 <code>/</code>，可配置操作系统环境变量 <code>export PGENABLESQLPLUS=true</code>忽略单独执行的 <code>/</code></p>
+</li>
+</ul>
+<h3 id="2图形化开发工具">2.图形化开发工具</h3>
+<p>注：从 mogeaver  23.3.1.202409290624 版本开始支持</p>
+<ul>
+<li>查询定义：在数据库导航中，在数据类型目录下，双击需要查看定义的数据类型名称，切换到源，即可查看定义</li>
+</ul>
+<h2 id="七总结">七、总结</h2>
+<p>MogDB 5.2.0版本引入的对象类型，支持了对象类型最常用的语法，并且在这些语法的执行结果上，保持了和ORACLE一致；周边工具和连接驱动也都做了相应的功能的修改及新增，全链条保障功能的可用性。自此，对于大量使用对象类型的ORACLE应用系统，迁移到MogDB将变得更加无损。</p>
+<p>附：部分常见国产数据库支持object-type的情况（标记<code>?</code>的由于获取不到介质或文档，暂无法确认）</p>
+<table><thead><tr><th>数据库</th><th>是否支持创建object type</th><th>本文中特性是否全部支持</th></tr></thead><tbody><tr><td>DM8</td><td>Y</td><td>N</td></tr><tr><td>KINGBASE 8</td><td>Y</td><td>N</td></tr><tr><td>OCENABASE 4.0</td><td>Y</td><td>?</td></tr><tr><td>POLARDB-O 2.0</td><td>Y</td><td>?</td></tr><tr><td>TDSQL-PG(Oracle兼容版）</td><td>Y</td><td>?</td></tr><tr><td>UXDB</td><td>N</td><td>N</td></tr><tr><td>GAUSSDB 503.1.0.SPC1700</td><td>N</td><td>N</td></tr><tr><td>OPENGAUSS 6.0.0</td><td>N</td><td>N</td></tr><tr><td>GBase8cV5 S5.0.0B28</td><td>N</td><td>N</td></tr><tr><td>VASTBASE G100 V2.2 BUILD 16</td><td>Y</td><td>N</td></tr><tr><td>翰高 6.0.4</td><td>N</td><td>N</td></tr><tr><td>崖山</td><td>Y</td><td>N</td></tr><tr><td>神通</td><td>?</td><td>?</td></tr><tr><td>海盒</td><td>?</td><td>?</td></tr><tr><td>MogDB 5.2.0</td><td>Y</td><td>Y</td></tr></tbody></table>
+<p>注：ORACLE中的object-type远不止本文中的这些功能，MogDB5.2.0也仅仅只是根据实际客户项目中的所有用法做了实现。而有几家国产数据库的文档中描述的功能列表几乎和ORACLE保持一致，但是仍然无法全部通过本文中的测试用例。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

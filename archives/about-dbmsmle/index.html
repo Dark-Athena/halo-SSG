@@ -155,7 +155,173 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>在前几年偶然间找到过一篇文章<br/>
+<a href="https://www.jdon.com/51121" target="_blank">使用JavaScript和Python实现Oracle数据库的存储过程？</a></p>
+<p>当时这篇文章中就是用的dbms_mle包，但是oracle中当时实际上并没有这个包，这篇文章应该是相关开发者在开发这个包时的测试记录，可以看到这篇文章中，可以在plsql中使用python或者javascirpt的语法来编写过程。其原理是使用了GraalVM (<a href="https://www.graalvm.org" target="_blank">https://www.graalvm.org</a>)</p>
+<p>GraalVM是个相当有意思的项目，它自称全栈虚拟机，可以让你跨平台使用多种开发语言，下面这张图，框框里面的就是它能跑的开发语言，框框外的就是运行它的环境，按照这张图描述的，你甚至可以在node.js里面跑python，在oracle里面跑ruby等等<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png" srcset="/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1200 1200w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=400 400w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1600 1600w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=800 800w"/></p>
+<p>这比我"AIO"的想法更疯狂，我还只是想让ORACLE能支持更多内容，而GraalVM这个项目是朝着大一统的方向走。</p>
+<h2 id="%E7%9B%AE%E5%89%8D%E4%BB%85%E6%94%AF%E6%8C%81javascirpt" tabindex="-1">目前仅支持javascirpt</h2>
+<p>然后oracle在21c版本，正式在数据库中集成了GraalVM，对应plsql的api就是dbms_mle，在此之前，mle只是作为apex插件存在。<br/>
+另外我还搜索到老版本dbms_mle和新版本的一个官方解答<br/>
+<a href="https://community.oracle.com/tech/developers/discussion/4348385/oracle-mle-is-dead" target="_blank">https://community.oracle.com/tech/developers/discussion/4348385/oracle-mle-is-dead</a></p>
+<p>的确之前dbms_mle作为测试版，在github上进行过开源，但是原页面目前已经404了，现在只能使用21c版本的了。</p>
+<p>然而在官方文档中<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/dbms_mle.html#GUID-3F5B47A5-2C73-4317-ACD7-E93AE8B8E301" target="_blank">DBMS_MLE</a>只有javascirpt的示例，没有python。<br/>
+而且拿早期那篇测试文章和官方示例比较，包内的函数名及过程名是有差异的，比如</p>
+<ol>
+<li>“SCRIPT” 都被替换成了"context"</li>
+<li>“BIND_VARIABLE"变成了"export_to_mle”</li>
+<li>“CREATE_SCRIPT"变成了"eval”</li>
+<li>“VARIABLE_VALUE"变成了"import_from_mle”</li>
+</ol>
+<p>但程序的基本结构还是差不多的，于是我尝试使用早期测试文中python的例子，然后替换这些名称进行测试，结果提示</p>
+<blockquote>
+<p>ORA-04101: unsupported language PYTHON<br/>
+ORA-06512: at “SYS.DBMS_MLE”, line 385<br/>
+ORA-06512: at line 26</p>
+</blockquote>
+<p>说是不支持python，那么它除了javascirpt以外，还支持哪些开发语言呢？</p>
+<p>在DBMS_MLE包中，有一个函数get_available_languages，</p>
+<pre><code class="language-sql">FUNCTION GET_AVAILABLE_LANGUAGES RETURN LANGUAGES_T IS
+    RESULT DBMS_MLE.LANGUAGES_T := DBMS_MLE.LANGUAGES_T();
+  BEGIN
+    ICD_MLEGAL;
+    RESULT.EXTEND();
+    RESULT(1) := 'JAVASCRIPT';
+    RETURN RESULT;
+  END;
+</code></pre>
+<p>其中“ICD_MLEGAL”是c里面的，plsql中看不了，但按照这个写法，很难不让人觉得，它目前的确就只支持JAVASCRIPT。</p>
+<p>看样子要使用oracle官方提供的在plsql中运行python代码的方式目前只有oml4py了。<br/>
+<a href="https://www.darkathena.top/archives/oml4py-server-setup" target="_blank">【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行（研究中）</a><br/>
+<a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html" target="_blank">OML4PY:SQL for Embedded Python Execution</a></p>
+<h2 id="%E8%B0%83%E7%94%A8javascirpt%E7%9A%84%E8%AF%AD%E6%B3%95%E5%88%86%E6%9E%90" tabindex="-1">调用javascirpt的语法分析</h2>
+<p>既然支持不了python ,那就来看看要怎么写代码才能让它执行JAVASCRIPT代码。</p>
+<p>(国内其实有Eygle大佬简单介绍了这个包，但是并没有对这个包进行分析。 <a href="https://www.modb.pro/db/43023" target="_blank">https://www.modb.pro/db/43023</a> )</p>
+<p>来看看官方示例</p>
+<pre><code class="language-sql">set serveroutput on;
+declare
+  ctx dbms_mle.context_handle_t;
+  source clob;
+  greeting varchar2(100);
+begin
+  ctx := dbms_mle.create_context(); -- Create execution context for MLE execution
+  dbms_mle.export_to_mle(ctx, 'person', 'World'); -- Export value from PL/SQL
+  source := q'~
+    var bindings = require("mle-js-bindings");
+    var person = bindings.importValue("person"); // Import value previously exported from PL/SQL
+    var greeting = "Hello, " + person + "!";
+    bindings.exportValue("greeting", greeting); // Export value to PL/SQL
+  ~';
+  dbms_mle.eval(ctx, 'JAVASCRIPT', source); -- Evaluate the source code snippet in the execution context
+  dbms_mle.import_from_mle(ctx, 'greeting', greeting); -- Import value previously exported from MLE
+  dbms_output.put_line('Greetings from MLE: ' || greeting);
+  dbms_mle.drop_context(ctx); -- Drop the execution context once no longer required
+end;
+/
+</code></pre>
+<blockquote>
+<p>1.create_context() 生成一个context_handle_t(RAW(16))<br/>
+2.export_to_mle，将参数传到mle里面，此例为，把参数’person’的值赋成’World’<br/>
+3.定义js代码的字符串</p>
+<blockquote>
+<p>3.1 js代码需要"mle-js-bindings"这个外部模块来定义一个对象？先继续往下看<br/>
+3.2 变量person赋值，用importValue，这个就对应上面的export_to_mle<br/>
+3.3 字符串"Hello, "拼接变量person<br/>
+3.4 使用exportValue导出变量greeting</p>
+</blockquote>
+</blockquote>
+<blockquote>
+<p>4.使用eval执行这段js脚本<br/>
+5.使用import_from_mle，将参数greeting从mle中导入回plsql<br/>
+6.打印greeting ，是 “Hello, World!”<br/>
+7.最后删掉最开始生成的context_handle_t</p>
+</blockquote>
+<p>仔细看完才发现，这个功能不是把随便写点js代码放进去就行的，就算js里面写了return值，默认情况下也不会传回到plsql。它实际上是在js环境中提前嵌入了一个"mle-js*"的库，这个库可以在运行时和oracle进行参数传递，</p>
+<ol>
+<li>plsql要传入js，则plsql执行export_to_mle，js执行require(“mle-js-bindings”).importValue(“person”)</li>
+<li>js要传回plsql，则js执行require(“mle-js-bindings”).exportValue，plsql执行import_from_mle</li>
+</ol>
+<p>当然如果不进行参数传递，只进行纯粹的js执行，倒也不用管这个，直接一个eval就好了.</p>
+<p>也就是说，常规的js函数要能和plsql进行交互，就必须改造一下js代码，使用mle的功能来进行参数的输入及输出。当然理论上也可以在外层进行引用，只是，如果要执行的代码依赖多个js文件，这个又该怎么写呢？</p>
+<h2 id="%E5%A6%82%E4%BD%95%E5%BC%95%E7%94%A8%E5%A4%96%E9%83%A8js%E6%A8%A1%E5%9D%97" tabindex="-1">如何引用外部js模块</h2>
+<p>（先补充一下，js中写的"console.log();"也会出现在plsql的output池里，可以通过get_line获取内容，这点和那篇早期测试文一致，这个功能其实可以方便我们调试js代码的部分，但oracle官方的正式文档中没有提到。）</p>
+<p>单一js代码要实现很复杂的功能会是件麻烦事，一般的js项目都会创建多个js文件，这样可以让代码更整洁，功能区分更明确，oracle官方的目的是，会js开发的程序员，也可以在plsql里写代码了，但是实际上这个功能更靠谱的场景应该是plsql程序员遇到了一个复杂功能的需求，刚好有外部开源的js程序，期望能直接在plsql里用上这个外部js程序。</p>
+<p>突破点应该就在 require(“mle-js-bindings”) 这里，如果能在os上找到mle-js-bindings文件，那么理论上就能直接引用外部文件，<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png" srcset="/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1200 1200w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=400 400w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1600 1600w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=800 800w"/><br/>
+然而啥都没有，那么如果直接写绝对引用呢？</p>
+<p>写了一小段js，保存在了“/home/oracle/test.js”，然后在上面的js代码中插入一行</p>
+<pre><code class="language-js">var test = require("/home/oracle/test");
+</code></pre>
+<p>运行报错</p>
+<blockquote>
+<p>ORA-04103: module /home/oracle/test does not exist<br/>
+ORA-06512: at “SYS.DBMS_MLE”, line 385<br/>
+ORA-06512: at line 16</p>
+</blockquote>
+<p>也就是说，它其实不是在os上运行js的，回到这个篇文章的起点，“GraalVM”，其实是个虚拟机，也就是说，它只能使用它内部已经有的东西。</p>
+<p>那么，问题就变成了，怎么给这个虚拟机添加文件？<br/>
+require(“path”)，提示没有这个module,用import也会报错，把文件后缀改成"mjs"也不行。<br/>
+还有很多js和node.js自带的一些module也没有。</p>
+<p>翻阅了GraalVM的官方网站，所有有关dbms_mle的例子中，require的只有两个，"mle-js-bindings"用于传递参数，"mle-js-oracledb"用于连接oracle数据库执行sql，完全没提到引用其他js，反倒是有说apex的mle功能更为强大和通用。<br/>
+也难怪现在没几篇文章说这个东西。</p>
+<p><a href="https://mle-databaseraalvm/mle-executing-javascript-in-oracle-database-c545feb1a010" target="_blank">https://mle-databaseraalvm/mle-executing-javascript-in-oracle-database-c545feb1a010</a> （有墙）<br/>
+这篇文章算是说得最全的了，连架构图都来了，<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png" srcset="/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1200 1200w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=400 400w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1600 1600w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png" srcset="/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1200 1200w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=400 400w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1600 1600w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=800 800w"/><br/>
+但是依旧没说到怎么引用其他js文件，也没说怎么接触到GraalVM在ORACLE中的runtime。</p>
+<p>毕竟21c是创新者版本，估计更多的功能要等以后完善了吧.</p>
+<p><a href="https://github.com/oracle/graaljs" target="_blank">https://github.com/oracle/graaljs</a></p>
+<p>完整版的GraalVM其本身是可以导入其他js模块的，但是oracle版本的没有说怎么弄。</p>
+<p>但既然已经研究到了这里，不拿点实际的应用出来，有人会说这个玩意不实用了吧？我自己写几个例子试试。</p>
+<h2 id="%E5%86%99%E7%82%B9%E4%BB%A3%E7%A0%81%E8%AF%95%E8%AF%95" tabindex="-1">写点代码试试</h2>
+<p>首先来个简单的</p>
+<pre><code class="language-sql">declare
+  ctx dbms_mle.context_handle_t;
+  source clob;
+  r number;
+begin
+  ctx := dbms_mle.create_context(); 
+    dbms_mle.export_to_mle(ctx, 'a', 5); 
+    dbms_mle.export_to_mle(ctx, 'b', 6); 
+  source := q'~
+function myFunction(p1, p2) {
+    return p1 * p2;
+}
+var bindings = require("mle-js-bindings");
+var a = bindings.importValue("a");
+var b = bindings.importValue("b");
+var r = myFunction(a, b);
+bindings.exportValue("r", r);
+  ~';
+  dbms_mle.eval(ctx, 'JAVASCRIPT', source); 
+  dbms_mle.import_from_mle(ctx, 'r', r);
+    dbms_output.put_line('r: ' || r);
+  dbms_mle.drop_context(ctx); 
+end;
+/
+
+r: 30
+</code></pre>
+<p>/<br/>
+这是个简单的js函数，证实我前面的分析没错。这段可以改成plsql的函数，那么就可以在plsql中无感使用js了。</p>
+<p>接下来再写个更复杂的例子<br/>
+在网上找到了一个生成二维码的js<br/>
+<a href="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" target="_blank">https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js</a><br/>
+然后封装成plsql的函数，效果如下<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png" srcset="/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1200 1200w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=400 400w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1600 1600w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=800 800w"/><br/>
+大概思路是用utl_http获取这个js文件的内容，然后再在后面拼接上调用它的js代码，执行这个拼接后的js，会返回一个base64字符串，然后再使用utl_encode转回成二进制数据。</p>
+<p>因为js是可以混淆、压缩、打包的，所以，如果某个外部js模块有很多个零散的js的文件，可以用一些工具比如webpack把它做成一个js文件，然后再用。如果数据库不方便连外网，我们可以把这个js的内容保存到数据库表的clob字段中，并给它命名，以方便使用不同js模块的时候调用。</p>
+<p>这个生成二维码的plsql函数代码我已经做成了单文件版，并已上传到github<br/>
+<a href="https://github.com/Dark-Athena/qrcode_plsql" target="_blank">https://github.com/Dark-Athena/qrcode_plsql</a></p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>虽然DBMS_MLE功能目前不够完善，但的确可以使用了，未来可期。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -155,7 +155,212 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境</p>
+<h2 id="背景">背景</h2>
+<p>虽然现在都在搞国产数据库了，但是迁移阶段仍然有不少ORACLE的特性机制需要验证，目前安装单机ORACLE很方便了，ORACLE官方也提供了单机的DOCKER容器，但是如果测试ADG的特性，就会只能安装ADG环境了。尤其对于开发数据库生态工具（比如数据复制软件）以及编写并行上线等方案的人来说，ORACLE ADG环境是必须要考虑的因素。<br/>
+我在github上有搜到两个使用docker搭建adg环境的仓库，但是实测下来在我的机器上都无法正常启动，手动改改还是遇到了各种问题，于是我就重新写了个。</p>
+<p>刚好最近开始用Qoder,就试试AI能不能把这玩意弄出来</p>
+<h2 id="vibe-coding">vibe coding</h2>
+<p>一开始我使用模型是Qoder免费的轻量，那叫一个惨不忍睹，连ORACLE安装包解压这步操作都是一直失败。好不容易解压好了，不知道哪里来的幻觉，总自以为知道解压后的目录长啥样，执行安装命令总是找不到文件。就连docker命令的参数都搞不对。怕读者犯高血压，所以前面免费模型这部分内容就不贴出来了，后面还是用付费模型玩吧。</p>
+<p>我最终的思路是：</p>
+<ol>
+<li>先把TIM HALL的oracle dockerfile脚本喂给AI，确保AI知道docker里单机ORACLE的完整安装流程，而且这个脚本是我自己验证过没有问题的</li>
+<li>使用docker-compose同时拉起主备两个容器</li>
+<li>主备容器启动需要协同，安装执行到某个阶段时需要暂停，等待对端容器执行到特定阶段，然后再继续</li>
+<li>主备容器网络使用docker内部网络，减少网络开销</li>
+<li>由于这是一个新的尝试，必然中间会出现各种问题需要重来，因此需要尽可能复用已执行过的工作，并且减少上下文大小，AI不会根据特定环境来平衡时间和空间的需要，所以这一块建议还是人工设计，具体表现在以下方面：</li>
+</ol>
+<ul>
+<li>由于ORACLE LINUX的dnf下载在国内非常不稳定，有时候快，有时候连不上直接超时，所以最好先构建一个已经安装好了所需要的dnf包的镜像，后续以这个镜像作为基础镜像构建，就不再需要联网了</li>
+<li>ORACLE安装包很大，如果主备节点做两个不同的镜像，会让磁盘空间占用翻倍，而且构建两个镜像也非常耗时，因此考虑主备节点使用同一个镜像，在创建容器时传入参数来确定主备角色</li>
+<li>ORACLE安装包解压也非常耗时，在内存不足的时候很容易解压失败，而且软件安装也非常耗时，因此考虑镜像里先解压并安装好ORACLE软件，运行容器时再去创建数据库</li>
+</ul>
+<p>我用的是远程开发，Qoder对麒麟v10的兼容性非常好，不像vscode和cursor对glibc版本有那么高要求。我让Qoder自己写代码自己测试验证，它真能从创建文件夹开始一步一步完成任务。只是需要注意的是，由于ORACLE安装是个非常耗时的过程，qoder执行命令后不会一直等待，而是隔几秒就去看下终端输出或者日志，就算它生成的命令里写了sleep 2分钟，实际上还是会被自动掐断，然后重新检查，每跳一次就会消耗2 credits,因此建议遇到执行耗时长的，打断Qoder检查日志的操作，等执行完了再让它去检查日志。</p>
+<p>vibe coding中让人惊叹的点是，我没有投喂任何有关ORACLE ADG的知识，主备启动过程中有各种各样的问题，Qoder竟然自己连进去主备容器做了各种专业的ORACLE运维操作，来使不正常的主备关系变得正常，并且在确认主备正确搭建后且能同步后，它就把相关调整都放到了镜像脚本里。我敢说，现在把几台服务器的操作权给到AI，AI绝对有能力搭建各种复杂的ORACLE集群环境。有很多ORACLE DBA就是靠搭DG搭RAC赚钱的，可见这种技术还是具有一定门槛，但现在AI也能做到。</p>
+<p>docker容器启动时，经常遇到各种奇怪的权限的问题无法启动，AI尝试过很多方案也无法解决，后来我联想到docker版本是不是太高了，对权限做了一些管控？还有GaussDB的TPOPS也要求要卸载操作系统里的runc组件才能装。所以我尝试把我环境里的runc卸载了，结果真的大部分权限问题都解决了，这个真是巨汗😓。为什么runc会造成权限问题，这里就不介绍了。</p>
+<h2 id="readmemd">readme.md</h2>
+<p>我也不把所有东西都列举了，看看Qoder生成的readme吧，这个项目的完整性还是相当不错的。</p>
+<blockquote>
+<h1 id="oracle-active-data-guard-docker-环境">Oracle Active Data Guard Docker 环境</h1>
+<p>基于 Docker Compose 的 Oracle 19c 一主一备 ADG（Active Data Guard）环境，支持<strong>近实时同步</strong>。</p>
+<h2 id="特性">特性</h2>
+<ul>
+<li><strong>分层镜像构建</strong>：oracle-base（系统依赖） → oracle-installed（Oracle软件）</li>
+<li><strong>LGWR ASYNC 实时传输</strong>：主库变更秒级同步到备库</li>
+<li><strong>Active Data Guard</strong>：备库 READ ONLY WITH APPLY 模式，可同时查询和应用日志</li>
+<li><strong>自动化部署</strong>：一键启动，自动完成主库创建、备库克隆、DG配置</li>
+</ul>
+<h2 id="系统要求">系统要求</h2>
+<ul>
+<li>Docker 18.06+, Docker Compose 1.22+ （本项目开发环境： Docker 27.0.3 ,Docker Compose v2.28.1）</li>
+<li>内存 ≥ 16GB（推荐 48GB+）</li>
+<li>磁盘 ≥ 100GB</li>
+<li>Oracle 安装包：<code>LINUX.X64_193000_db_home.zip</code></li>
+</ul>
+<h2 id="快速开始">快速开始</h2>
+<h3 id="1-准备安装包">1. 准备安装包</h3>
+<p>将 Oracle 19c 安装包放入 <code>oracle-install/</code> 目录：</p>
+<pre><code class="language-bash">ls oracle-install/
+# LINUX.X64_193000_db_home.zip
+</code></pre>
+<h3 id="2-构建镜像">2. 构建镜像</h3>
+<pre><code class="language-bash">chmod +x scripts/*.sh build.sh
+docker-compose build
+</code></pre>
+<h3 id="3-启动环境">3. 启动环境</h3>
+<pre><code class="language-bash">docker-compose up -d oracle-primary oracle-standby
+</code></pre>
+<p>首次启动需要约 15-20 分钟完成数据库创建和备库克隆。</p>
+<h3 id="4-查看日志">4. 查看日志</h3>
+<pre><code class="language-bash">docker logs -f oracle-primary   # 主库日志
+docker logs -f oracle-standby   # 备库日志
+</code></pre>
+<h2 id="连接信息">连接信息</h2>
+<table><thead><tr><th>角色</th><th>主机</th><th>端口</th><th>SID</th><th>密码</th></tr></thead><tbody><tr><td>主库</td><td>localhost</td><td>1521</td><td>ORCL</td><td>Oradoc_db1</td></tr><tr><td>备库</td><td>localhost</td><td>1522</td><td>ORCL</td><td>Oradoc_db1</td></tr></tbody></table>
+<h3 id="sqlplus-连接示例">sqlplus 连接示例</h3>
+<pre><code class="language-bash"># 本机连接主库
+sqlplus sys/Oradoc_db1@localhost:1521/ORCL as sysdba
+
+# 本机连接备库（只读）
+sqlplus sys/Oradoc_db1@localhost:1522/ORCL as sysdba
+
+# 远程连接（将 &lt;HOST_IP&gt; 替换为实际 IP 地址）
+sqlplus sys/Oradoc_db1@&lt;HOST_IP&gt;:1521/ORCL as sysdba
+sqlplus sys/Oradoc_db1@&lt;HOST_IP&gt;:1522/ORCL as sysdba
+
+# 使用普通用户连接（需先创建用户）
+sqlplus username/password@&lt;HOST_IP&gt;:1521/ORCL
+</code></pre>
+<h3 id="easy-connect-格式">Easy Connect 格式</h3>
+<pre><code>sqlplus user/password@host:port/service_name
+</code></pre>
+<p>示例：</p>
+<pre><code class="language-bash"># 完整格式
+sqlplus sys/Oradoc_db1@//192.168.1.100:1521/ORCL as sysdba
+
+# 简化格式
+sqlplus sys/Oradoc_db1@192.168.1.100:1521/ORCL as sysdba
+</code></pre>
+<h2 id="状态检查">状态检查</h2>
+<pre><code class="language-bash"># 使用脚本
+./scripts/check_status.sh
+
+# 或手动检查主库状态
+docker exec -u oracle oracle-primary bash -c 'sqlplus -s / as sysdba &lt;&lt;EOF
+SELECT DATABASE_ROLE, OPEN_MODE FROM V\$DATABASE;
+EOF'
+
+# 检查备库状态
+docker exec -u oracle oracle-standby bash -c 'sqlplus -s / as sysdba &lt;&lt;EOF
+SELECT DATABASE_ROLE, OPEN_MODE FROM V\$DATABASE;
+EOF'
+
+# 检查同步延迟
+docker exec -u oracle oracle-standby bash -c 'sqlplus -s / as sysdba &lt;&lt;EOF
+SELECT NAME, VALUE FROM V\$DATAGUARD_STATS WHERE NAME IN ('"'"'transport lag'"'"', '"'"'apply lag'"'"');
+EOF'
+</code></pre>
+<p>正常状态：</p>
+<ul>
+<li>主库：<code>PRIMARY</code> / <code>READ WRITE</code></li>
+<li>备库：<code>PHYSICAL STANDBY</code> / <code>READ ONLY WITH APPLY</code></li>
+<li>同步延迟：<code>+00 00:00:00</code>（秒级）</li>
+</ul>
+<h2 id="常用命令">常用命令</h2>
+<pre><code class="language-bash"># 停止
+docker-compose stop
+
+# 启动
+docker-compose start
+
+# 重启
+docker-compose restart
+
+# 删除（包括数据）
+docker-compose down -v
+
+# 查看容器状态
+docker-compose ps
+</code></pre>
+<h2 id="目录结构">目录结构</h2>
+<pre><code>docker-oracledg/
+├── docker-compose.yml      # 服务编排
+├── build.sh                # 构建脚本
+├── oracle-base/            # 基础镜像（系统依赖）
+│   └── Dockerfile
+├── oracle-installed/       # 应用镜像（Oracle软件）
+│   └── Dockerfile
+├── oracle-install/         # 安装包目录
+│   └── LINUX.X64_193000_db_home.zip
+└── scripts/
+   ├── startup.sh          # 容器启动脚本
+   ├── check_*.sh/sql      # 状态检查脚本
+   └── switchover_*.sh/sql # 主备切换脚本
+</code></pre>
+<h2 id="主备切换">主备切换</h2>
+<pre><code class="language-bash">./scripts/switchover_test.sh
+</code></pre>
+<blockquote>
+<p>注意：主备切换是高风险操作，请先确认同步正常。</p>
+</blockquote>
+<h2 id="故障排除">故障排除</h2>
+<h3 id="备库同步延迟">备库同步延迟</h3>
+<pre><code class="language-bash"># 检查 DEST_2 状态
+docker exec -u oracle oracle-primary bash -c 'sqlplus -s / as sysdba &lt;&lt;EOF
+SELECT DEST_ID, STATUS, ERROR FROM V\$ARCHIVE_DEST WHERE DEST_ID=2;
+EOF'
+
+# 如果 ERROR，重新启用
+docker exec -u oracle oracle-primary bash -c 'sqlplus -s / as sysdba &lt;&lt;EOF
+ALTER SYSTEM SET LOG_ARCHIVE_DEST_STATE_2=ENABLE;
+ALTER SYSTEM SWITCH LOGFILE;
+EOF'
+</code></pre>
+<h3 id="容器启动失败">容器启动失败</h3>
+<pre><code class="language-bash"># 查看详细日志
+docker logs oracle-primary 2&gt;&amp;1 | tail -100
+docker logs oracle-standby 2&gt;&amp;1 | tail -100
+</code></pre>
+<h3 id="重新部署">重新部署</h3>
+<pre><code class="language-bash">docker-compose down -v
+docker-compose up -d oracle-primary oracle-standby
+</code></pre>
+<h3 id="关于内网构建">关于内网构建</h3>
+<p>需要先在外网构建 oracle-adg-base 镜像，然后导出，再放到内网继续构建</p>
+<ol>
+<li>外网</li>
+</ol>
+<pre><code class="language-bash">docker-compose build oracle-base
+docker save oracle-adg-base | bzip2 &gt; oracle-adg-base.tar.bz2
+</code></pre>
+<ol start="2">
+<li>内网</li>
+</ol>
+<pre><code class="language-bash">docker load -i oracle-adg-base.tar.bz2
+docker-compose build oracle-installed
+docker-compose up -d oracle-primary oracle-standby
+
+# 监控日志
+docker logs -f oracle-primary   # 主库日志
+docker logs -f oracle-standby   # 备库日志
+</code></pre>
+<blockquote>
+<p><strong>注意：该方案仅能用于简单测试，禁止用于生产环境！</strong><br/>
+<strong>本项目不提供ORACLE安装包，请自行从ORACLE官方网站获取！</strong></p>
+</blockquote>
+</blockquote>
+<h2 id="代码">代码</h2>
+<p>代码已开源：<a href="https://gitee.com/darkathena/docker-oracledg">https://gitee.com/darkathena/docker-oracledg</a></p>
+<h2 id="总结">总结</h2>
+<p>本次用Qoder成功编写了oracle adg一主一备的docker-compose构建代码，免费模型几乎傻得不能用，但付费模型是质的飞跃。<br/>
+AI能比任何人想象的还要做得更多，而且进化速度之快令人乍舌，自动写计划自动写代码自动测试自动写文档，还能做一些高级运维操作。不过绝对不要连到生产环境自动执行！<br/>
+欢迎使用我的链接注册Qoder，现在首月pro订阅只要2美金<br/>
+<a href="https://qoder.com/referral?referral_code=zoaOJRCcnsKa1p1WlF2P3OI4UU9WS7YD">https://qoder.com/referral?referral_code=zoaOJRCcnsKa1p1WlF2P3OI4UU9WS7YD</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

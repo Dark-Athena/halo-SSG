@@ -149,13 +149,146 @@
         
         <span>2023-07-11</span>
         
-        <span>536 阅读</span>
+        <span>537 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>在从oracle迁移到openGauss中，创建函数索引的时候，偶尔会出现此类报错</p>
+<blockquote>
+<p>functions in index expression must be marked IMMUTABLE</p>
+</blockquote>
+<p>大概意思是,函数索引里的函数，必须是“IMMUTABLE”的，如果不是"IMMUTABLE",比如是“STABLE”,就会出现这个报错。<br/>
+其中最常见的就是使用to_char/to_date这两个与日期有关的函数，而此限制，在原生PG中也同样存在。<br/>
+本篇就来说说，为什么to_char()不能在openGauss/postgresql中作为函数索引，并且会举Oracle中的一个反常识的现象来进行举证,说明使用此类函数作为索引所造成的风险。</p>
+<h2 id="为什么要使用函数索引">为什么要使用函数索引？</h2>
+<p>首先，函数索引无论在哪个数据库中，都不是推荐用法，往往是应用开发过程中，开发人员没有遵循最优的表结构设计以及SQL编写规则，在表的数据量积累到一定阶段时，SQL性能变慢，而不愿意去修改SQL或者修改表字段类型，然后就建立了这样的函数索引，尤其是与日期相关的字段。<br/>
+下面是一个经典的不合理用法</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">create</span> <span class="hljs-keyword">table</span> test_table(id <span class="hljs-type">int</span>,b <span class="hljs-type">date</span>);
+<span class="hljs-keyword">create</span> index test_table_i1 <span class="hljs-keyword">on</span> test_table(b);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> test_table <span class="hljs-keyword">values</span> (<span class="hljs-number">1</span>,to_date(<span class="hljs-string">'2023-07-11'</span>,<span class="hljs-string">'yyyy-mm-dd'</span>));
+
+<span class="hljs-keyword">select</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">from</span> test_table <span class="hljs-keyword">where</span> to_char(b,<span class="hljs-string">'yyyy-mm-dd'</span>)<span class="hljs-operator">=</span><span class="hljs-string">'2023-07-11'</span>;
+</code></pre>
+<p>像这个查询sql，就用不上对于字段b的索引，正确的sql应该为</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">select</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">from</span> test_table <span class="hljs-keyword">where</span> b<span class="hljs-operator">=</span><span class="hljs-type">date</span><span class="hljs-string">'2023-07-11'</span>;
+</code></pre>
+<p>或</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">select</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">from</span> test_table <span class="hljs-keyword">where</span> b<span class="hljs-operator">=</span>to_date(<span class="hljs-string">'2023-07-11'</span>,<span class="hljs-string">'yyyy-mm-dd'</span>)
+</code></pre>
+<p>即，在索引字段所在的这一侧，不要通过函数去转换，因为数据库在函数转换前，不知道函数会转换成什么值，就只能把表里这列所有的值都转换一次，然后再去匹配条件另一侧的值。按照正确的sql改写方式，则会将右侧一个确定的值通过索引去进行检索，能更快地返回所需要的记录。<br/>
+当开发不愿意修改SQL时，就会在表上再创建一个函数索引，比如</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">create</span> index test_table_i2 <span class="hljs-keyword">on</span> test_table(to_char(b,<span class="hljs-string">'yyyy-mm-dd'</span>));
+</code></pre>
+<p>此时那个不合理用法，就也可以使用上索引了。<br/>
+但这种索引，其实是将转换后的值，额外再存储了一列，所以，一旦出现有某种函数，在不同的环境变量下，存储的值是可能会不一样的，就会出现数据和索引不一致的情况，下面举个很多人会认为是BUG的例子。</p>
+<h2 id="oracle支持to_char函数作为函数索引所带来的问题">ORACLE支持to_char函数作为函数索引所带来的问题</h2>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">select</span> sessiontimezone <span class="hljs-keyword">from</span> dual; <span class="hljs-comment">--查询当前会话时区</span>
+
+SESSIONTIMEZONE
+<span class="hljs-comment">---------------------------------------------------------------------------</span>
+<span class="hljs-operator">+</span><span class="hljs-number">08</span>:<span class="hljs-number">00</span>
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">create</span> <span class="hljs-keyword">table</span> test_func_index_t2 (a <span class="hljs-type">timestamp</span> <span class="hljs-keyword">with</span> <span class="hljs-keyword">local</span> <span class="hljs-type">time</span> zone);  <span class="hljs-comment">--建表</span>
+
+<span class="hljs-keyword">Table</span> created
+
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> test_func_index_t2 <span class="hljs-keyword">values</span> (systimestamp); <span class="hljs-comment">--插入一行数据</span>
+
+<span class="hljs-number">1</span> <span class="hljs-type">row</span> inserted
+
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> test_func_index_t2;
+
+A
+<span class="hljs-comment">--------------------------------------------------------------------------------</span>
+<span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">10.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">CREATE</span> INDEX I1_test_func_index_t2 <span class="hljs-keyword">ON</span> test_func_index_t2(TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DD HH24'</span>)); <span class="hljs-comment">--创建函数索引</span>
+
+Index created
+
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t;
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+<span class="hljs-number">2023</span><span class="hljs-number">-07</span><span class="hljs-number">-11</span> <span class="hljs-number">22</span>               <span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">10.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> <span class="hljs-comment">/*+ full(t) */</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t <span class="hljs-keyword">WHERE</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>) <span class="hljs-operator">=</span> <span class="hljs-string">'2023-07-11 22'</span>;<span class="hljs-comment">--使用全表扫描查询</span>
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+<span class="hljs-number">2023</span><span class="hljs-number">-07</span><span class="hljs-number">-11</span> <span class="hljs-number">22</span>               <span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">10.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> <span class="hljs-comment">/*+index(t I1_test_func_index_t2)*/</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t <span class="hljs-keyword">WHERE</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>) <span class="hljs-operator">=</span> <span class="hljs-string">'2023-07-11 22'</span>;<span class="hljs-comment">--使用索引扫描查询</span>
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+<span class="hljs-number">2023</span><span class="hljs-number">-07</span><span class="hljs-number">-11</span> <span class="hljs-number">22</span>               <span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">10.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">ALTER</span> SESSION <span class="hljs-keyword">SET</span> TIME_ZONE<span class="hljs-operator">=</span><span class="hljs-string">'+00:00'</span>; <span class="hljs-comment">--修改会话时区，下面的查询都不再修改时区</span>
+
+Session altered
+
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">select</span> sessiontimezone <span class="hljs-keyword">from</span> dual;
+
+SESSIONTIMEZONE
+<span class="hljs-comment">---------------------------------------------------------------------------</span>
+<span class="hljs-operator">+</span><span class="hljs-number">00</span>:<span class="hljs-number">00</span>
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> <span class="hljs-comment">/*+ full(t) */</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t <span class="hljs-keyword">WHERE</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>) <span class="hljs-operator">=</span> <span class="hljs-string">'2023-07-11 22'</span>; <span class="hljs-comment">--全表查询查不到</span>
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span> <span class="hljs-comment">/*+index(t I1_test_func_index_t2)*/</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t <span class="hljs-keyword">WHERE</span> TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>) <span class="hljs-operator">=</span> <span class="hljs-string">'2023-07-11 22'</span>;<span class="hljs-comment">--索引扫描可以查到</span>
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+<span class="hljs-number">2023</span><span class="hljs-number">-07</span><span class="hljs-number">-11</span> <span class="hljs-number">22</span>               <span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">02.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> <span class="hljs-keyword">SELECT</span>  TO_CHAR(A, <span class="hljs-string">'YYYY-MM-DD HH24'</span>), A  <span class="hljs-keyword">FROM</span> test_func_index_t2 t ; <span class="hljs-comment">--不带条件可以查到，但查询结果的第一个字段，和上面索引扫描不一致</span>
+
+TO_CHAR(A,<span class="hljs-string">'YYYY-MM-DDHH24'</span>) A
+<span class="hljs-comment">--------------------------- --------------------------------------------------------------------------------</span>
+<span class="hljs-number">2023</span><span class="hljs-number">-07</span><span class="hljs-number">-11</span> <span class="hljs-number">14</span>               <span class="hljs-number">11</span><span class="hljs-operator">-</span>JUL<span class="hljs-number">-23</span> <span class="hljs-number">02.03</span><span class="hljs-number">.15</span><span class="hljs-number">.282534</span> PM
+
+<span class="hljs-keyword">SQL</span><span class="hljs-operator">&gt;</span> 
+</code></pre>
+<p>从上面这个例子中可以看到，在Oracle数据库里，对于同一个表的同一条记录，在环境变量确定的情况下，使用完全相同的查询条件，有时能查到，有时不能查到，而且to_char函数所返回的值，对于同一个确定的入参，返回的结果都可能不一样！如果开发人员随意使用函数索引，极有可能引起数据混乱！至于函数索引所带来的存储问题，本文不再提及，存储问题对于应用开发人员来说，感知不大。</p>
+<h2 id="无论如何就是要怎么处理">无论如何就是要，怎么处理？</h2>
+<p>前文已说过，不建议使用函数索引，但如果就是要用，那么该如何处理呢？<br/>
+答案是，再建一个自定义函数，标记为"immutable"，并且对应的sql中，where 条件里也改成使用这个自定义函数</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">OR</span> REPLACE <span class="hljs-keyword">FUNCTION</span> pg_catalog.to_char2(<span class="hljs-type">timestamp</span> <span class="hljs-keyword">without</span> <span class="hljs-type">time</span> zone, text)
+ <span class="hljs-keyword">RETURNS</span> text
+ <span class="hljs-keyword">LANGUAGE</span> internal
+ immutable STRICT <span class="hljs-keyword">NOT</span> FENCED SHIPPABLE
+<span class="hljs-keyword">AS</span> $<span class="hljs-keyword">function</span>$timestamp_to_char$<span class="hljs-keyword">function</span>$;
+</code></pre>
+<p>但显然，本来就是因为不愿意改sql，才用的函数索引，可是由于函数同名会冲突，要改函数名，sql里就得跟着改，又绕回去了。。。</p>
+<p>然而，此问题并非无解，此时就要提到openGauss的插件框架了。<br/>
+<a href="https://gitee.com/opengauss/Plugin">https://gitee.com/opengauss/Plugin</a><br/>
+在openGauss中，有两个比较特殊的插件，分别是dolphin和whale。其中dolphin能实现的能力，在我以前的文章也有介绍过，我只能用太强了来描述其对MYSQL的兼容性；另外一个whale，目前社区版本没有什么内容，但框架是在的。openGauss的商业发行版之一，MogDB,就在whale插件中做了大量的oracle兼容特性。<br/>
+这个插件框架能做到什么？从dolphin来看，它甚至可以覆盖原有数据库自带的数据类型、语法、操作符、函数等，那么whale里同样可以做到，其原理之一就是内置的search_path，插件的schema比内置pg_catalog的优先级还要高。于是，我们可以创建一个这样的函数</p>
+<pre><code class="hljs language-sql"><span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">OR</span> REPLACE <span class="hljs-keyword">FUNCTION</span> whale.to_char(<span class="hljs-type">timestamp</span> <span class="hljs-keyword">without</span> <span class="hljs-type">time</span> zone, text)
+ <span class="hljs-keyword">RETURNS</span> text
+ <span class="hljs-keyword">LANGUAGE</span> internal
+ immutable STRICT <span class="hljs-keyword">NOT</span> FENCED SHIPPABLE
+<span class="hljs-keyword">AS</span> $<span class="hljs-keyword">function</span>$timestamp_to_char$<span class="hljs-keyword">function</span>$;
+</code></pre>
+<p>然后用常规的方式去创建函数索引，就会自动使用到whale下的这个函数了。当然，使用不当造成本文中oracle出现的那个异常数据，只能由开发人员自己负责了。</p>
+<h2 id="后记">后记</h2>
+<p>在做国产数据库替代时，大家经常会发现oracle/mysql这些数据库中设计不合理的一些地方，那么国产数据库是应该去"兼容"这些不合理的行为？还是应该坚守初心，打造一个各方面设计都合理的产品？当然这种问题不是非黑即白，如何把握好其中的度，会是每个国产数据库都要去考虑的事。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

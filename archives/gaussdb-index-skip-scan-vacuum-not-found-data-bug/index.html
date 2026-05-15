@@ -153,7 +153,572 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb执行索引跳扫时如果遇到该索引正在执行autovacuum可能会导致数据查询不到">【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</h1>
+<h2 id="现场问题现象">现场问题现象</h2>
+<p>数据库版本：506.0.0SPC0100<br/>
+串行业务：</p>
+<ol>
+<li>开启事务，对表A执行delete全表，然后一次性插入一批数据，提交事务</li>
+<li>对表A执行skip index scan查询，条件值取自表A任意行相同字段的值，偶发出现空结果集，导致业务执行失败</li>
+</ol>
+<h2 id="日志排查">日志排查</h2>
+<ol>
+<li>从statement_history中可以确认，对A表执行查询晚于插入A表的提交时间，因此A表数据本身应该是可见的。</li>
+<li>从pg_stat_all_tables.last_data_changed中可以确认，在A表数据插入提交后，A表的数据没有再次修改</li>
+<li>从pg_stat_all_tables.last_autoanalyze观察到，业务报错的时间点和A表的最后自动分析时间点几乎一致</li>
+<li>gs_log中业务报错时间点之前的日志如下(log_error_verbosity=verbose)</li>
+</ol>
+<pre><code>2025-12-04 09:13:55.743 dn_6001_6002_6003 xxx xxx localhost 140124949247744 0[0:0#0] 0 dn_6001 0 [BACKEND] LOG:  vacuum fired empty queue for relation t_d_xxx's index idx_t_d_xxx, 1524 pages vacuumed, cost 15ms
+2025-12-04 09:13:55.743 dn_6001_6002_6003 xxx xxx localhost 140124949247744 0[0:0#0] 0 dn_6001 0 [BACKEND] LOCATION: vacuum_normal_or_gpi_urq, storeage_ubtree_pcr_fsm.cpp:1895
+2025-12-04 09:13:55.743 dn_6001_6002_6003 xxx xxx localhost 140124949247744 0[0:0#0] 0 dn_6001 0 [BACKEND] LOG:  vacuum relation t_d_xxx's index cost 15ms
+2025-12-04 09:13:55.743 dn_6001_6002_6003 xxx xxx localhost 140124949247744 0[0:0#0] 0 dn_6001 0 [BACKEND] LOCATION: vacuum_normal_or_gpi_urq, storeage_ubtree_pcr_fsm.cpp:1907
+</code></pre>
+<p>因此猜测该问题可能与autovacuum索引维护有关。另外，索引跳扫也是在506.0.0SPC0100版本引入的新特性（比原生PG要早），考虑该新特性可能存在问题。</p>
+<p>当日已自查业务逻辑，没有问题，但华为仍然猜测是业务逻辑错误导致。不过华为工程师到了现场也未找到业务逻辑的问题。而且使用基于时间点的恢复，还原出了现场业务执行之前的状态，检查数据是存在的，执行业务逻辑也并未出现报错。另外还解析了WAL日志，确认了当时数据应该是没有问题的。</p>
+<p>实际业务逻辑太复杂，重复构造数据去执行代价太大，因此只能基于怀疑点，尝试构造用例进行复现。</p>
+<h2 id="模拟复现">模拟复现</h2>
+<ol>
+<li>数据准备</li>
+</ol>
+<pre><code class="language-sql">create table t_c_xxx(id varchar2(20),name varchar2(20),c1 varchar2(20),c2 varchar2(20),c3 varchar2(20),c4 varchar2(20),c5 varchar2(20),c6 varchar2(20),c7 varchar2(20),c8 varchar2(20),c9 varchar2(20),c20 varchar2(20));
+
+--c1列固定为'c1',c2列固定为'c2'，id 为 1~5000
+insert into t_c_xxx 
+select id,id,'c1','c2',id,id,id,id,id,id,id,id from pg_catalog.generate_series(1, 5000) id; 
+
+create table t_d_xxx(id varchar2(20),name varchar2(20),c1 varchar2(20),c2 varchar2(20),c3 varchar2(20),c4 varchar2(20),c5 varchar2(20),c6 varchar2(20),c7 varchar2(20),c8 varchar2(20),c9 varchar2(20),c20 varchar2(20));
+
+create index idx_t_d_xxx on t_d_xxx(c1,c2,id);
+
+insert into t_d_xxx(id,name,c1,c2,c3,c4,c5,c6,c7,c8,c9,c20) select id,name,c1,c2,c3,c4,c5,c6,c7,c8,c9,c20 from t_c_xxx;
+</code></pre>
+<ol start="2">
+<li>记录表和索引的oid及filenode</li>
+</ol>
+<pre><code>gaussdb=# select oid,relfilenode from pg_class where relname='t_d_xxx';
+  oid   | relfilenode
+--------+-------------
+ 148393 |      148393
+(1 row)
+
+gaussdb=# select oid,relfilenode from pg_class where relname='idx_t_d_xxx';
+  oid   | relfilenode
+--------+-------------
+ 148396 |      148396
+(1 row)
+</code></pre>
+<ol start="3">
+<li>创建 deleteinsertselect.sql 文件<br/>
+注意每次插入的索引列的值需要变化（华为内核研发提醒的），这样索引页才一定会发生变化，这里把c1进行了修改；<br/>
+循环查询时，条件不带索引的前导列，且索引前导列的值都是全部为相同的值，以使用索引跳扫</li>
+</ol>
+<pre><code class="language-sql">--全表删，然后再插入5000行，id仍然是1~5000
+declare
+v number:=random();
+begin
+delete from t_d_xxx ;
+insert into t_d_xxx(id,name,c1,c2,c3,c4,c5,c6,c7,c8,c9,c20) select id,name,v,c2,c3,c4,c5,c6,c7,c8,c9,c20 from t_c_xxx;
+commit;
+exception when others then
+raise exception '%',sqlerrm;
+end;
+/
+select 'deleteinsert finish';
+
+--下面这段理论上不可能走到exception，如果进到exception则说明触发了数据库的问题
+declare
+x varchar2(20);
+y varchar2(20);
+begin
+for i in 1..5000 loop
+select c3 ,c4 into x,y from t_d_xxx t where id=i::text ;
+end loop;
+exception when others then
+raise notice '%',sqlerrm;
+end;
+/
+select 'select finish';
+
+</code></pre>
+<ol start="4">
+<li>创建 main_1.sh 并授权可执行</li>
+</ol>
+<pre><code class="language-bash">#!/bin/bash
+while ((1==1)) ;do
+  gsql -r -d postgres -p 8000 -f deleteinsertselect.sql
+done
+</code></pre>
+<pre><code class="language-bash">chmod +x  main_1.sh
+</code></pre>
+<ol start="5">
+<li>调整autovacuum频率，加快问题复现</li>
+</ol>
+<pre><code class="language-bash"> gs_guc reload -I all -N all -c "autovacuum_naptime=10s"
+</code></pre>
+<ol start="6">
+<li>执行</li>
+</ol>
+<pre><code class="language-bash">[Ruby@gaussdb-dn2 ~]$ ./main_1.sh
+ANONYMOUS BLOCK EXECUTE
+      ?column?
+---------------------
+ deleteinsert finish
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+   ?column?
+---------------
+ select finish
+(1 row)
+
+total time: 2040  ms
+ANONYMOUS BLOCK EXECUTE
+      ?column?
+---------------------
+ deleteinsert finish
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+   ?column?
+---------------
+ select finish
+(1 row)
+
+total time: 1392  ms
+...
+...
+...
+ANONYMOUS BLOCK EXECUTE
+      ?column?
+---------------------
+ deleteinsert finish
+(1 row)
+
+gsql:deleteinsertselect.sql:23: NOTICE:  Query does not return rows when INTO is processed.
+ANONYMOUS BLOCK EXECUTE
+   ?column?
+---------------
+ select finish
+(1 row)
+
+total time: 1368  ms
+ANONYMOUS BLOCK EXECUTE
+      ?column?
+---------------------
+ deleteinsert finish
+(1 row)
+
+ANONYMOUS BLOCK EXECUTE
+   ?column?
+---------------
+ select finish
+(1 row)
+
+total time: 2345  ms
+</code></pre>
+<p>观察执行输出，一段时间后会出现<code>NOTICE:  Query does not return rows when INTO is processed</code> 即为问题触发。</p>
+<h2 id="gdb跟踪">gdb跟踪</h2>
+<p>在全局ERROR发生时断点</p>
+<pre><code class="language-bash">b elog.cpp:238 if (elevel &gt; 19) 
+handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGPIPE nostop
+set pagi off
+set print elements 300
+c
+</code></pre>
+<p>main_1.sh继续执行，等待断点被触发，如下，70号线程触发断点</p>
+<pre><code class="language-c">Thread 70 "TPLworker" hit Breakpoint 1, errstart (elevel=20, filename=0x55d93b6c68e1 "pl_exec_stmt_sql.cpp", lineno=1120, funcname=0x55d93b6c6be0 &lt;gsplsql_exec_stmt_execsql(GSPLSQLExecState*, GSPLSQLStmtExecSql*, PLSQLDFXState*, bool)::__func__&gt; "gsplsql_exec_stmt_execsql", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+238     /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp: No such file or directory.
+(gdb) bt
+#0  errstart (elevel=20, filename=0x55d93b6c68e1 "pl_exec_stmt_sql.cpp", lineno=1120, funcname=0x55d93b6c6be0 &lt;gsplsql_exec_stmt_execsql(GSPLSQLExecState*, GSPLSQLStmtExecSql*, PLSQLDFXState*, bool)::__func__&gt; "gsplsql_exec_stmt_execsql", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+#1  0x000055d93756eda7 in gsplsql_exec_stmt_execsql (estate=0x7f88b6cfe648, stmt=0x7f8b3955c050, dfx_state=0x7f8b392c4580, is_open_satetement=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_sql.cpp:1116
+#2  0x000055d937555144 in gsplsql_exec_stmt (estate=0x7f88b6cfe648, stmt=0x7f8b3955c050, dfx_state=0x7f8b392c4580) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:712
+#3  0x000055d937555682 in gsplsql_exec_stmts (estate=0x7f88b6cfe648, stmts=0x7f8b3955c220, dfx_state=0x7f8b392c3910) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#4  0x000055d937564c0e in gsplsql_exec_stmt_fori (estate=0x7f88b6cfe648, stmt=0x7f88b6eb3a10, dfx_state=0x7f8b392c3910) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_loop.cpp:492
+#5  0x000055d93755530a in gsplsql_exec_stmt (estate=0x7f88b6cfe648, stmt=0x7f88b6eb3a10, dfx_state=0x7f8b392c3910) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:681
+#6  0x000055d937555682 in gsplsql_exec_stmts (estate=0x7f88b6cfe648, stmts=0x7f8b3955c360, dfx_state=0x7f8b392c30f0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#7  0x000055d937553ec4 in gsplsql_exec_stmt_block (estate=0x7f88b6cfe648, block=0x7f8b3955c9f8, dfx_state=0x7f8b392c30f0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:295
+#8  0x000055d937555452 in gsplsql_exec_stmt (estate=0x7f88b6cfe648, stmt=0x7f8b3955c9f8, dfx_state=0x7f8b392c30f0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:648
+#9  0x000055d937555682 in gsplsql_exec_stmts (estate=0x7f88b6cfe648, stmts=0x7f88b6eb3458, dfx_state=0x7f8b392c1cb0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:856
+#10 0x000055d937555fb0 in gsplsql_exec_stmts_save_cursor (estate=0x7f88b6cfe648, stmts=0x7f88b6eb3458, dfx_state=0x7f8b392c1cb0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_cursor.cpp:66
+#11 0x000055d937554b36 in gsplsql_exec_stmt_block (estate=0x7f88b6cfe648, block=0x7f8b3955cd60, dfx_state=0x7f8b392c1cb0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_block.cpp:428
+#12 0x000055d93972dec5 in gsplsql_exec_function (func=0x7f88ae698170, fcinfo=0x7f88e7531230, dynexec_anonymous_block=false, func_runtime_state=0x0, isDstoreAutonomous=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_exec.cpp:698
+#13 0x000055d93973fbea in plpgsql_inline_handler (fcinfo=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_handler.cpp:1124
+#14 0x000055d9373809c1 in OidFunctionCall2Coll (function_id=&lt;optimized out&gt;, collation=0, arg1=140225091951696, arg2=0, is_null=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/fmgr/fmgr.cpp:2355
+#15 0x000055d937b32b39 in sqlcmd_execute_do_stmt (stmt=0x7f88b2ca8dc0, atomic=&lt;optimized out&gt;, is_pkg_anonymous_block=242) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/functioncmds.cpp:4242
+#16 0x000055d937f0c27e in sqlcmd_standard_process_utility (parse_tree=0x7f88b2ca8dc0, query_string=0x7f88b6eb64b0 "declare\nx varchar2(20);\ny varchar2(20);\nbegin\nfor i in 1..5000 loop\nselect c3 ,c4 into x,y from t_d_xxx t where id=i::text ;\nend loop;\nexception when others then\nraise notice '%',sqlerrm;\nend;", params=0x0, is_top_level=true, dest=0x7f88b6eb67d0, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f88e7535260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:7283
+#17 0x00007f8b3d8df759 in gsaudit_ProcessUtility_hook(Node*, char const*, ExecParamListInfoData*, bool, _DestReceiver*, bool, char*, bool) () from /opt/cluster/usr/local/core/app/lib/gaussdb/security_plugin.so
+#18 0x000055d93847cf52 in audit_process_utility (parsetree=0x7f88b2ca8dc0, query_string=0x7f88b6eb64b0 "declare\nx varchar2(20);\ny varchar2(20);\nbegin\nfor i in 1..5000 loop\nselect c3 ,c4 into x,y from t_d_xxx t where id=i::text ;\nend loop;\nexception when others then\nraise notice '%',sqlerrm;\nend;", params=&lt;optimized out&gt;, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f88e7535260 "", is_ctas=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/audit/security_auditfuncs.cpp:1512
+#19 0x000055d937f1871d in sqlcmd_process_utility (parse_tree=0x7f88b2ca8dc0, query_string=0x7f88b6eb64b0 "declare\nx varchar2(20);\ny varchar2(20);\nbegin\nfor i in 1..5000 loop\nselect c3 ,c4 into x,y from t_d_xxx t where id=i::text ;\nend loop;\nexception when others then\nraise notice '%',sqlerrm;\nend;", params=0x0, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7f88e7535260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:1974
+#20 0x000055d937ef983f in PortalRunUtility (portal=0x7f88b6eba050, utilityStmt=0x7f88b2ca8dc0, isTopLevel=true, dest=0x7f88b6eb67d0, completionTag=0x7f88e7535260 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2140
+#21 0x000055d937efb0be in PortalRunMulti (portal=0x7f88b6eba050, isTopLevel=true, dest=0x7f88b6eb67d0, altdest=0x7f88b6eb67d0, completionTag=0x7f88e7535260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2326
+#22 0x000055d937eff2dc in PortalRun (portal=0x7f88b6eba050, count=9223372036854775807, isTopLevel=true, dest=0x7f88b6eb67d0, altdest=0x7f88b6eb67d0, completionTag=0x7f88e7535260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1501
+#23 0x000055d937ee5276 in exec_simple_query (query_string=&lt;optimized out&gt;, msg=0x7f88e7535530, messageType=QUERY_MESSAGE) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:3513
+#24 0x000055d937ef1e38 in gs_process_command (firstchar=&lt;optimized out&gt;, input_message=0x7f88e7535530, send_ready_for_query=0x7f88e7535526) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11743
+#25 0x000055d937ef79c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7f88bf935b50, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#26 0x000055d937e7b2df in backend_run (port=0x7f88e7535890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#27 0x000055d937eba1b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#28 0x000055d937e7b39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#29 0x00007f8b3dcabf1b in ?? () from /usr/lib64/libpthread.so.0
+#30 0x00007f8b3dbe31c0 in clone () from /usr/lib64/libc.so.6
+</code></pre>
+<p>打印该线程相关信息，得到正在执行<code>select into</code>语句</p>
+<pre><code>(gdb) f 1
+#1  0x000055d93756eda7 in gsplsql_exec_stmt_execsql (estate=0x7f88b6cfe648, stmt=0x7f8b3955c050, dfx_state=0x7f8b392c4580, is_open_satetement=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_sql.cpp:1116
+1116    /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_exec_stmt_sql.cpp: No such file or directory.
+(gdb) info locals
+tuptab = &lt;optimized out&gt;
+n = &lt;optimized out&gt;
+rec = 0x0
+row = 0x7f88b6eb3b50
+param_list = &lt;optimized out&gt;
+tcount = &lt;optimized out&gt;
+rc = &lt;optimized out&gt;
+expr = &lt;optimized out&gt;
+saved_cursor_data = 0x0
+stmt_state = &lt;optimized out&gt;
+lc = &lt;optimized out&gt;
+mod_stmt = @0x7f8b3955c068: false
+strict = @0x7f8b3955c06b: true
+old_transaction_id = &lt;optimized out&gt;
+dfx_stack = {dfx_state = 0x7f8b392c4580, unique_sql = 0x7f8b392c4598, old_unique_sql_id = 3496278630, old_parent_unique_sql_id = 0, old_is_top_unique_sql = true, old_is_multi_unique_sql = true, old_force_gen_unique_sql = false, old_multi_sql_offset = 0, n_soft_parse = 2546, n_hard_parse = 8, n_return_rows = 0, parent_handler = 0x7f8b39502050, push_succ = true, err_context = {previous = 0x7f88e7530ef0, callback = 0x55d9375796f0 &lt;plsql_stmt_track_error_callback(void*)&gt;, arg = 0x7f88e752ff20}, exception = false, poped = false, current_plsql_level = 1}
+__func__ = "gsplsql_exec_stmt_execsql"
+query = 0x7f88b2cbb4f0
+l = &lt;optimized out&gt;
+isforbid = &lt;optimized out&gt;
+savedis_allow_commit_rollback = &lt;optimized out&gt;
+need_reset_err_msg = &lt;optimized out&gt;
+saved_cursor_numbers = 0
+row_data = &lt;optimized out&gt;
+old_estate = &lt;optimized out&gt;
+startTime = &lt;optimized out&gt;
+opfusionResult = &lt;optimized out&gt;
+(gdb) p *stmt
+$11 = {&lt;GSPLSQLDecl&gt; = {cmd_type = 16, lineno = 6, offset_line = 0}, sqlstmt = 0x7f88b6eb3e68, mod_stmt = false, into = true, bulk_collect = false, strict = true, rec = 0x0, row = 0x7f88b6eb3b50, placeholders = 0, multi_func = false, sqlString = 0x7f8b3955c0f0 "select c3 ,c4 into x,y from t_d_xxx t where id=i::text ;", idx = 0}
+(gdb) p *stmt-&gt;sqlstmt
+$13 = {&lt;GSPLSQLDatum&gt; = {dtype = GSPLSQL_DTYPE_EXPR, dno = 0, ispkg = false}, query = 0x7f88b6eb3f88 "select c3 ,c4          from t_d_xxx t where id=i::text", expr_simple_mutable = false, expr_simple_need_snapshot = true, isouttype = false, is_funccall = false, is_have_tableof_index_func = false, is_diff_pkg_cursor = false, expr_simple_in_use = false, is_cachedplan_shared = false, is_have_tableof_index_var = false, is_out_func_expr = false, ret_typ_type = 0 '\000', out_param_dno = -1, expr_simple_generation = 0, expr_simple_type = 0, expr_simple_typmod = 0, idx = 4294967295, tableof_var_dno = 0, tableof_func_dno = 0, cmd_type = 16, unique_sql_id = 603400979, plan = 0x7f88b2cbb450, paramnos = 0x7f88b6eb3fe8, func = 0x7f88ae698170, datum_context = 0x7f8b39705330, ns = 0x7f88b6eb39b0, expr_simple_expr = 0x0, expr_simple_execsql = GSPLSQL_EXECSQL_SIMPLE_NOTALLOW, expr_simple_plansource = 0x0, expr_simple_plan = 0x0, expr_simple_state = 0x0, expr_plstate = 0x0, func_runtime_state = 0x0, expr_simple_plan_lxid = 0, expr_simple_lxid = 0, simple_estate_id = 0, mask_string = 0x7f8b3955ccc0 "current level: inline_code_block, lineno: 6, execute stmt: select c3 ,c4          from t_d_xxx t where id=i::text", mask_string_inited = false, plan_memory_size = 0, parent_unique_sql_id = 3496278630}
+</code></pre>
+<p>查看当前全局线程，可以发现409号线程"AVCworker"正在输出LOG级别（elevel=15）日志，源码位置为"storage_ubtree_pcr_fsm.cpp"的第1895行，和gs_log中该文件第一次日志输出匹配</p>
+<pre><code class="language-c">(gdb) info threads
+  Id   Target Id                     Frame
+  1    LWP 1335372 "gaussdb"         0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  2    LWP 1335384 "jemalloc_bg_thd" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  3    LWP 1335529 "gaussdb"         0x00007f8b3db251dc in sigtimedwait () from /usr/lib64/libc.so.6
+  4    LWP 1335531 "gaussdb"         0x00007f8b3dbb0bf0 in nanosleep () from /usr/lib64/libc.so.6
+  5    LWP 1335532 "syslogger"       0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  6    LWP 1335533 "alarm"           0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  7    LWP 1335534 "reaper"          0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  8    LWP 1335535 "jemalloc_bg_thd" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  9    LWP 1335537 "jemalloc_bg_thd" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  10   LWP 1335538 "TPLlistener"     0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  11   LWP 1335539 "jemalloc_bg_thd" 0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  12   LWP 1335540 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  13   LWP 1335541 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  14   LWP 1335542 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  15   LWP 1335543 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  16   LWP 1335544 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  17   LWP 1335545 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  18   LWP 1335546 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  19   LWP 1335547 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  20   LWP 1335548 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  21   LWP 1335549 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  22   LWP 1335550 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  23   LWP 1335551 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  24   LWP 1335552 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  25   LWP 1335553 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  26   LWP 1335554 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  27   LWP 1335555 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  28   LWP 1335556 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  29   LWP 1335557 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  30   LWP 1335558 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  31   LWP 1335559 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  32   LWP 1335560 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  33   LWP 1335561 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  34   LWP 1335562 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  35   LWP 1335563 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  36   LWP 1335564 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  37   LWP 1335565 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  38   LWP 1335566 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  39   LWP 1335567 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  40   LWP 1335568 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  41   LWP 1335569 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  42   LWP 1335570 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  43   LWP 1335571 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  44   LWP 1335572 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  45   LWP 1335573 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  46   LWP 1335574 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  47   LWP 1335575 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  48   LWP 1335576 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  49   LWP 1335577 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  50   LWP 1335578 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  51   LWP 1335579 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  52   LWP 1335580 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  53   LWP 1335581 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  54   LWP 1335582 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  55   LWP 1335583 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  56   LWP 1335584 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  57   LWP 1335585 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  58   LWP 1335586 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  59   LWP 1335587 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  60   LWP 1335588 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  61   LWP 1335589 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  62   LWP 1335590 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  63   LWP 1335591 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  64   LWP 1335592 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  65   LWP 1335593 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  66   LWP 1335594 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  67   LWP 1335595 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  68   LWP 1335596 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  69   LWP 1335597 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+* 70   LWP 1335598 "TPLworker"       errstart (elevel=20, filename=0x55d93b6c68e1 "pl_exec_stmt_sql.cpp", lineno=1120, funcname=0x55d93b6c6be0 &lt;gsplsql_exec_stmt_execsql(GSPLSQLExecState*, GSPLSQLStmtExecSql*, PLSQLDFXState*, bool)::__func__&gt; "gsplsql_exec_stmt_execsql", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+  71   LWP 1335599 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  72   LWP 1335600 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  73   LWP 1335601 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  74   LWP 1335602 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  75   LWP 1335603 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  76   LWP 1335604 "TPLlistener"     0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  77   LWP 1335605 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  78   LWP 1335606 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  79   LWP 1335607 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  80   LWP 1335608 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  81   LWP 1335609 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  82   LWP 1335610 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  83   LWP 1335611 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  84   LWP 1335612 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  85   LWP 1335613 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  86   LWP 1335614 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  87   LWP 1335615 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  88   LWP 1335616 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  89   LWP 1335617 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  90   LWP 1335618 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  91   LWP 1335619 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  92   LWP 1335620 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  93   LWP 1335621 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  94   LWP 1335622 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  95   LWP 1335623 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  96   LWP 1335624 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  97   LWP 1335625 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  98   LWP 1335626 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  99   LWP 1335627 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  100  LWP 1335628 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  101  LWP 1335629 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  102  LWP 1335630 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  103  LWP 1335631 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  104  LWP 1335632 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  105  LWP 1335633 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  106  LWP 1335634 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  107  LWP 1335635 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  108  LWP 1335636 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  109  LWP 1335637 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  110  LWP 1335638 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  111  LWP 1335639 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  112  LWP 1335640 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  113  LWP 1335641 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  114  LWP 1335642 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  115  LWP 1335643 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  116  LWP 1335644 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  117  LWP 1335645 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  118  LWP 1335646 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  119  LWP 1335647 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  120  LWP 1335648 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  121  LWP 1335649 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  122  LWP 1335650 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  123  LWP 1335651 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  124  LWP 1335652 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  125  LWP 1335653 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  126  LWP 1335654 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  127  LWP 1335655 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  128  LWP 1335656 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  129  LWP 1335657 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  130  LWP 1335658 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  131  LWP 1335659 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  132  LWP 1335660 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  133  LWP 1335661 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  134  LWP 1335662 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  135  LWP 1335663 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  136  LWP 1335664 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  137  LWP 1335665 "TPLworker"       0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  138  LWP 1335666 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  139  LWP 1335667 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  140  LWP 1335668 "TPLworker"       0x00007f8b3dcb1a0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  141  LWP 1335669 "TPLscheduler"    0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  142  LWP 1336721 "timer"           0x00007f8b3dcb5980 in nanosleep () from /usr/lib64/libpthread.so.0
+  143  LWP 1336789 "dcf_daemon_proc" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  144  LWP 1336796 "mes_recv_0_0"    0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  145  LWP 1336797 "mes_recv_1_0"    0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  146  LWP 1336798 "mes_recv_8_0"    0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  147  LWP 1336799 "tcp_lsnr"        0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  148  LWP 1336800 "mes_heartbeat_2" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  149  LWP 1336801 "mes_heartbeat_3" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  150  LWP 1336802 "dcf_stg_disk_wr" 0x00007f8b3dcb5827 in fsync () from /usr/lib64/libpthread.so.0
+  151  LWP 1336804 "dcf_stg_recycle" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  152  LWP 1336805 "dcf_stg_timed_t" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  153  LWP 1336806 "dcf_elc_status_" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  154  LWP 1336807 "dcf_status_noti" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  155  LWP 1336809 "dcf_rep_accept"  0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  156  LWP 1336812 "dcf_rep_leader_" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  157  LWP 1336816 "dcf_rep_appendl" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  158  LWP 1336817 "dcf_rep_appendl" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  159  LWP 1336871 "mes_worker_0"    0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  160  LWP 1337030 "mes_worker_1"    0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  161  LWP 1337170 "mes_sender_0"    0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  162  LWP 1337171 "mes_sender_11"   0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  163  LWP 1337172 "mes_sender_16"   0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  164  LWP 1337188 "dcf_block_node"  0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  165  LWP 1337189 "dcf_stat"        0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  166  LWP 1337190 "dcf_exception_r" 0x00007f8b3dcb1cf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  167  LWP 1337568 "checkpointer"    0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  168  LWP 1337569 "Spbgwriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  169  LWP 1337571 "pagewriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  170  LWP 1337573 "pagewriter"      0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  171  LWP 1337575 "pagewriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  172  LWP 1337577 "pagewriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  173  LWP 1337578 "pagewriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  174  LWP 1337580 "pagewriter"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  175  LWP 1337581 "WALwriteraux"    0x00007f8b3dbe5047 in semop () from /usr/lib64/libc.so.6
+  176  LWP 1337582 "aiwatchdog"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  177  LWP 1337886 "statscollector"  0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  178  LWP 1337913 "auditor"         0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  179  LWP 1337915 "LicenseMonitor"  0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  180  LWP 1337916 "COMMstatuscheck" 0x00007f8b3dbe34e7 in epoll_wait () from /usr/lib64/libc.so.6
+  181  LWP 1337917 "ashworker"       0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  182  LWP 1337919 "perfworker"      0x00007f8b3dcb5612 in recvfrom () from /usr/lib64/libpthread.so.0
+  183  LWP 1337920 "BlackBoxWorker"  0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  184  LWP 1337923 "abnormal sql"    0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  185  LWP 1337924 "TrackStmtWorker" 0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  186  LWP 1337925 "percentworker"   0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  187  LWP 1337926 "WLMworker"       0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  188  LWP 1337927 "WLMmonitor"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  189  LWP 1337929 "CompileMaster"   0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  190  LWP 1337930 "CompileWorker"   0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  192  LWP 1338087 "worker"          0x00007f8b3dcb554e in recv () from /usr/lib64/libpthread.so.0
+  193  LWP 1339897 "worker"          0x00007f8b3dcb554e in recv () from /usr/lib64/libpthread.so.0
+  194  LWP 1371020 "wlrworker"       0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  195  LWP 1371087 "WALwriter"       0x00007f8b3dbdb047 in fdatasync () from /usr/lib64/libc.so.6
+  196  LWP 1371088 "AVClauncher"     0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  197  LWP 1371089 "asyncundolaunch" 0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  198  LWP 1371090 "globalstats"     0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  199  LWP 1371091 "applylauncher"   0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  200  LWP 1371092 "txnsnapcapturer" 0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  201  LWP 1371093 "txnlsnworker"    0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  202  LWP 1371094 "2pccleaner"      0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  203  LWP 1371095 "spmworker"       0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  204  LWP 1371097 "faultmonitor"    0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  205  LWP 1371098 "WLMarbiter"      0x00007f8b3dbdad9f in select () from /usr/lib64/libc.so.6
+  206  LWP 1371099 "undorecycler"    undo::get_zone_id (idx=321931, upersistence=UNDO_UNLOGGED) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/heapam/ustore/undo/storage_undo_am.cpp:482
+  207  LWP 1371100 "abolauncher"     0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  208  LWP 1371101 "Jobscheduler"    0x00007f8b3dbd86e9 in poll () from /usr/lib64/libc.so.6
+  232  LWP 1396742 "worker"          0x00007f8b3dcb554e in recv () from /usr/lib64/libpthread.so.0
+  409  LWP 1425385 "AVCworker"       0x000055d93734db26 in errstart (elevel=15, filename=0x55d93bbea1f3 "storage_ubtree_pcr_fsm.cpp", lineno=1895, funcname=0x55d93bbea910 &lt;UBTreePCRFSM::vacuum_normal_or_gpi_urq(RelationData*, VacuumStmt*, int)::__func__&gt; "vacuum_normal_or_gpi_urq", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+  410  LWP 1425478 "worker"          0x00007f8b3dcb554e in recv () from /usr/lib64/libpthread.so.0
+</code></pre>
+<p>切换到409号线程，打印相关变量和参数，可以发现该线程进行了单表(onerel)relnode = 148393的索引148396的FSM文件执行了操作(多试几次，AVCworker会停在不同的位置，但的确都是处于活动状态)</p>
+<pre><code class="language-c">(gdb) thread 409
+[Switching to thread 409 (LWP 1425385)]
+#0  0x000055d93734db26 in errstart (elevel=15, filename=0x55d93bbea1f3 "storage_ubtree_pcr_fsm.cpp", lineno=1895, funcname=0x55d93bbea910 &lt;UBTreePCRFSM::vacuum_normal_or_gpi_urq(RelationData*, VacuumStmt*, int)::__func__&gt; "vacuum_normal_or_gpi_urq", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+238     /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp: No such file or directory.
+(gdb) bt
+#0  0x000055d93734db26 in errstart (elevel=15, filename=0x55d93bbea1f3 "storage_ubtree_pcr_fsm.cpp", lineno=1895, funcname=0x55d93bbea910 &lt;UBTreePCRFSM::vacuum_normal_or_gpi_urq(RelationData*, VacuumStmt*, int)::__func__&gt; "vacuum_normal_or_gpi_urq", domain=0x55d93b2bd004 "plpgsql-9.2") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/error/elog.cpp:238
+#1  0x000055d9394d75ef in UBTreePCRFSM::vacuum_normal_or_gpi_urq (this=0x7f8780dc8c40, onerel=0x7f87afd125d8, vacstmt=&lt;optimized out&gt;, lockmode=4) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_pcr_fsm.cpp:1893
+#2  0x000055d93686f832 in sqlcmd_ustore_vacuum (rel=0x7f87afd125d8, vacstmt=0x7f8780dc9dc0, lockmode=4, vacstrategy=0x7f87af14a050) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/vacuum.cpp:4024
+#3  0x000055d937cc51ab in sqlcmd_table_relation_vacuum (vacStrategy=&lt;optimized out&gt;, lockmode=4, vacstmt=0x7f8780dc9dc0, rel=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/vacuum.cpp:1920
+#4  sqlcmd_vacuum_rel (relid=148393, vacstmt=0x7f8780dc9dc0, do_toast=false, online_vacuum_desc=0x7f87b06da100) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/vacuum.cpp:2995
+#5  0x000055d937cc6e59 in sqlcmd_vacuum (vacstmt=0x7f8780dc9dc0, relid=&lt;optimized out&gt;, do_toast=false, bstrategy=&lt;optimized out&gt;, isTopLevel=true) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/vacuum.cpp:563
+#6  0x000055d937e427ed in autovacuum_local_vac_analyze (tab=0x7f87affeff60, bstrategy=0x7f87af14a050) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/autovacuum.cpp:4211
+#7  0x000055d937e4cc31 in do_autovacuum () at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/autovacuum.cpp:3417
+#8  0x000055d937e4dbc1 in autovac_worker_main () at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/autovacuum.cpp:1798
+#9  0x000055d937eb9c11 in gauss_db_storage_thread_main&lt;(knl_thread_role)21&gt; (arg=0x7f896e8de410) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19191
+#10 0x000055d937e7b39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#11 0x00007f8b3dcabf1b in ?? () from /usr/lib64/libpthread.so.0
+#12 0x00007f8b3dbe31c0 in clone () from /usr/lib64/libc.so.6
+(gdb) f 1
+#1  0x000055d9394d75ef in UBTreePCRFSM::vacuum_normal_or_gpi_urq (this=0x7f8780dc8c40, onerel=0x7f87afd125d8, vacstmt=&lt;optimized out&gt;, lockmode=4) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_pcr_fsm.cpp:1893
+1893    /usr1/GaussDBKernel/server/opengauss/src/gausskernel/storage/index/ubtree/storage_ubtree_pcr_fsm.cpp: No such file or directory.
+(gdb) info locals
+cost = 58
+vacuum_pages = 438
+index_oid = &lt;optimized out&gt;
+start_time = &lt;optimized out&gt;
+irel = 0x7f87afd16f58
+index_oid_list = 0x7f87b06d8cf0
+index_cell = 0x7f87b06d8cc0
+total_vacuumed_pages = &lt;optimized out&gt;
+ubt_fsm = {&lt;No data fields&gt;}
+ubt = {&lt;No data fields&gt;}
+stats = 0x7f87b06d8808
+vacrelstats = 0x7f87b06d85a0
+enter_time = 818497675500510
+__func__ = "vacuum_normal_or_gpi_urq"
+(gdb) p *onerel
+$19 = {rd_node = {spcnode = 1663, dbnode = 13153, relnode = 148393, bucketnode = -1, opt = 0}, rd_smgr = 0x7f87b0159a28, rd_refcnt = 1, rd_backend = -1, rd_isscannable = true, rd_isnailed = false, rd_isvalid = true, rd_indexvalid = 1 '\001', rd_gsivalid = 0 '\000', rd_islocaltemp = false, rd_createSubid = 0, rd_newRelfilenodeSubid = 0, rd_rel = 0x7f87afd129f8, rd_att = 0x7f87afd12b18, rd_id = 148393, rd_isblockchain = false, relreplident = 100 'd', rd_lockInfo = {lockRelId = {relId = 148393, dbId = 13153, bktId = 0}}, rd_rules = 0x0, rd_rulescxt = 0x0, trigdesc = 0x0, rd_rlsdesc = 0x0, rd_indexlist = 0x7f87afd16f18, rd_gsilist = 0x0, rd_oidindex = 0, rd_pkindex = 0, rd_refSynOid = 0, rd_ref_nestsynoid = 0x0, rd_indexattr = 0x0, rd_keyattr = 0x0, rd_pkattr = 0x0, rd_idattr = 0x0, rd_pubactions = 0x0, rd_replidindex = 0, rd_options = 0x7f87afd13338, rd_partHeapOid = 0, rd_index = 0x0, rd_indextuple = 0x0, rd_am = 0x0, rd_amroutine = 0x0, rd_indnkeyatts = 0, rd_tam_type = TAM_USTORE, rd_indexsplit = 0 '\000', rd_indversion = 0 '\000', rd_indexcxt = 0x0, rd_aminfo = 0x0, rd_opfamily = 0x0, rd_opcintype = 0x0, rd_support = 0x0, rd_supportinfo = 0x0, rd_indoption = 0x0, rd_indexprs = 0x0, rd_indpred = 0x0, rd_exclops = 0x0, rd_exclprocs = 0x0, rd_exclstrats = 0x0, rd_amcache = 0x0, rd_indcollation = 0x0, rd_rootcache = 0, rd_ind_partition_all_usable = false, is_including_index = false, rd_fdwroutine = 0x0, rd_toastoid = 0, rd_bucketoid = 0, rd_changecsn = 225221, rd_createcsn = 225216, xmin_csn = 0, storage_type = HEAP_DISK, rd_bucketkey = 0x0, seghead_lsn = 0, partMap = 0x0, parentId = 0, grandparentId = 0, partitiontype = 0 '\000', pgstat_info = 0x7f87b065d8d8, rd_locator_info = 0x0, sliceMap = 0x0, parent = 0x0, node = {prev = 0x0, next = 0x0}, rd_mlogoid = 0, newcbi = false, is_compressed = false, come_from_partrel = false, rel_dblink_data = 0x0, entry = 0x7f87afd13758, tdeinfo = 0x0, rd_imcv = 0x0, rel_dict_state = REL_UNKNOWN}
+(gdb) p *onerel-&gt;rd_indexlist
+$20 = {type = T_OidList, length = 1, head = 0x7f87b056fff0, tail = 0x7f87b056fff0}
+(gdb) p *onerel-&gt;rd_indexlist-&gt;head
+$21 = {data = {ptr_value = 0x243ac, int_value = 148396, oid_value = 148396, uint64_value = 148396}, next = 0x0}
+(gdb) p *stats
+$25 = {num_pages = 0, pages_removed = 0, estimated_count = false, num_index_tuples = 0, tuples_removed = 0, pages_deleted = 0, pages_free = 0}
+(gdb) p *vacrelstats
+$26 = {hasindex = false, old_rel_pages = 0, rel_pages = 4294967295, scanned_pages = 4294967295, tupcount_pages = 0, new_visible_pages = 0, old_live_tuples = 0, scanned_tuples = 0, old_rel_tuples = 0, new_rel_tuples = 0, new_dead_tuples = 0, pages_removed = 0, tuples_deleted = 0, nonempty_pages = 0, num_dead_tuples = 0, max_dead_tuples = 0, dead_tuples = 0x0, curr_heap_start = 0, num_index_scans = 0, latestRemovedXid = 0, lock_waiter_detected = false, new_idx_pages = 0x0, new_idx_tuples = 0x0, idx_estimated = 0x0, currVacuumPartOid = 0, currVacuumBktId = 0, bucketlist = 0x0, hasKeepInvisbleTuples = false, has_bad_block = false}
+
+</code></pre>
+<p>注意此时还未输出第2个日志对应的源码位置<code>LOCATION: vacuum_normal_or_gpi_urq, storeage_ubtree_pcr_fsm.cpp:1907</code></p>
+<p>也就是说，当索引跳扫查询发生在 <code>storeage_ubtree_pcr_fsm.cpp</code>的1895行附近（由于是多线程并发，所以理论上应该是之前）时，索引处于一种中间状态，索引跳扫的逻辑并未根据这种中间状态做相应处理，导致返回数据为空（经测试，普通的索引扫描无此问题）。</p>
+<p>参考官方文档对rcr索引的说明：<br/>
+<a href="https://support.huawei.com/enterprise/zh/doc/EDOC1100484838/1f5a3b45#ZH-CN_TOPIC_0000002325777270">https://support.huawei.com/enterprise/zh/doc/EDOC1100484838/1f5a3b45#ZH-CN_TOPIC_0000002325777270</a></p>
+<blockquote>
+<p><strong>Delete</strong>操作：UBTree额外增加了索引删除流程，索引删除主要步骤与插入相似，获取事务信息填写xmax字段（BTree索引不维护版本信息，不需要删除操作）,同时更新页面上的active_tuple_count，若active_tuple_count被减为0，则尝试页面回收。</p>
+<p><strong>Scan</strong>操作：用户在读取数据时，可通过使用索引扫描加速。UBTree支持索引数据的多版本管理及可见性检查，索引层的可见性检查使得索引扫描（Index Scan）及仅索引扫描（IndexOnly Scan）性能有所提升。</p>
+<p><strong>RCR UBTree空间管理</strong><br/>
+当前Astore的索引依赖AutoVacuum和Free Space Map（FSM）进行空间管理，存在回收不及时的问题。而Ustore的索引使用其特有的URQ（UBTree Recycle Queue，一种基于循环队列的数据结构，即双循环队列），对索引空闲空间进行管理。双循环队列是指有两个循环队列，一个潜在空页队列，另一个可用空页队列，在DML过程中完成索引的空间管理，能有效地缓解DML过程中造成的空间急剧膨胀问题。索引回收队列单独储存在BTree索引对应的FSM文件中。</p>
+<ol>
+<li>若索引列包含所有扫描列（IndexOnly Scan），则通过扫描条件在索引上进行二分查找，找到符合条件元组即可返回数据。</li>
+<li>若索引列不包含所有扫描列（Index Scan），则通过扫描条件在索引上进行二分查找，找到符合条件元组的TID，再通过TID到数据表上查找对应的数据元组。如图3-478所示。</li>
+</ol>
+</blockquote>
+<p>看上去这个特性在索引的页面回收前的确还有些操作，此处文档也没有把索引跳扫的逻辑写进来，可能前置的某些操作会导致索引跳扫发现索引里没数据就直接返回了。但由于该特性属于GaussDB独有，且目前没有GaussDB源码，暂时难以分析这期间执行了什么会导致索引跳扫出现问题。华为方面正在排查此问题，若有进展，再更新此文章。目前临时规避方案只能是关闭跳扫（enable_index_skip_scan=off），然后调整索引以避免性能劣化（很难评估有那些SQL会受影响，因此实质上该规避方案不可行）。</p>
+<h2 id="20251209-更新">20251209 更新</h2>
+<p>华为方面回复：</p>
+<blockquote>
+<p>问题根因:<br/>
+在使用index skip scan计划进行索引扫描时，若整个索引的第一个页面为空，即页面内元组均被删除，但页面尚未被摘除的场景下，会导致索引扫描提前返回。<br/>
+触发场景:<br/>
+1、创建联合索引<br/>
+2、where条件的列在索引列的最后面，走skipscan计划<br/>
+3、大量删除索引中靠前的数据<br/>
+4、在索引的第一个页面清理后，但尚未触发索引摘页时，进行查询</p>
+</blockquote>
+<p>华为回复的原因和我分析的方向基本一致。</p>
+<p>这里有两个概念：</p>
+<ol>
+<li>页面清理 数据被删除时，索引页面里的数据也要清理，这个时机发生在DML和VACUUM</li>
+<li>页面摘除 当一个索引页面里的数据被全部清理时，该页面可以被摘除，在下一次扩页时可复用，摘除时机发生在DML和VACUUM</li>
+</ol>
+<p>这两个动作是解耦的，autovacuum本身也需要满足所谓“足够老”的最小未提交事务，也就是DML操作并不会马上就回收，需要最小未提交事务再往前推进，当次的DML所触发的页面清理和页面摘除是之前的DML操作的页面。因此不能让DML+页面清理+页面摘除变成一个原子化操作，它们之间必须完全解耦。从这个层面上看，vacuum的设计没有问题，数据和索引都没有丢，而是索引跳扫的执行逻辑出了问题，它不应该在索引第一个页面为空时就返回，因为后续的页面可能不为空。</p>
+<p>针对该问题，华为预计12月16号在官方support网站上发布热补丁。</p>
+<h2 id="20251210-更新">20251210 更新</h2>
+<p>在做实验观察索引页面清理和页面摘除干了什么事时，我偶然发现反复的删除再插入，索引的大小竟然会不断变大，理论上应该被摘除的页面，似乎并没有复用。反复删插几十MB重复的数据，几个小时后，索引能膨胀到几十GB甚至上百GB。</p>
+<h2 id="20251211-更新">20251211 更新</h2>
+<p>华为回复索引膨胀是因为506.0版本新引入的批量索引插入特性引起，修改batch_insert_index_types为空即可关闭此特性，索引不再膨胀。但这么修改后，对于批量插入场景，性能会有所下降。<br/>
+官方文档：</p>
+<blockquote>
+<p>当以下任何一个场景满足所有的约束条件时，建议打开GUC参数batch_insert_index_types并设置为"rcr_ubtree"以提升批量插入索引性能：</p>
+<ul>
+<li>场景1：使用JDBC连接数据库，通过java的批量插入数据接口executeBatch进行批量插入索引；</li>
+<li>场景2：执行语句insert into t1 select * from t2，其中t1和t2表schema相同，t1表包含索引，此语句支持在t1表上批量插入索引；必须在批量插入表数据的前提下才会批量插入索引（explain verbose命令可以查看是否对表数据做批量插入，Batch Insert代表是批量插入）。满足这些前提后，打开批量插入索引开关就会执行批量插入索引；</li>
+<li>场景3：执行语句COPY FROM（示例：COPY t1 FROM 'file.csv' delimiter ',' csv header），其中t1和file.csv文件中的schema相同，t1表包含索引，此语句支持在t1表上批量插入索引。</li>
+<li>约束1：插入的索引类型为UBTree RCR索引；</li>
+<li>约束2：插入数据不递增（插入数据递增会利用缓存，即最后一页，这种情况下批量插入索引无性能提升）；</li>
+<li>约束3：不是SMP的批量索引插入。</li>
+</ul>
+</blockquote>
+<h2 id="20250112-更新">20250112 更新</h2>
+<p>华为已针对索引膨胀的问题发布热补丁。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

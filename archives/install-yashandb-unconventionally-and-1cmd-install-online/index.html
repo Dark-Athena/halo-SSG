@@ -153,7 +153,1818 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="yashandb如果不按文档步骤来装yashan数据库会是怎样的内含在线一键安装脚本">【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本</h1>
+<p>完全按照文档装，遇到的问题会比较少，但可能对于原理的理解会较浅，而且遇到一些环境差异引起的安装故障也不好排查。所以我这次安装不完全按文档来，就凭感觉去做，看是否可以装成功，以及会遇到哪些问题。</p>
+<h2 id="环境信息">环境信息</h2>
+<p>这次操作系统用了最新的麒麟v11，官方文档并没有限定LINUX发行版，只是推荐麒麟V10</p>
+<pre><code class="language-bash">[root@kylinv11 ~]$ cat /etc/os-release
+NAME="Kylin Linux Advanced Server"
+VERSION="V11 (Swan25)"
+ID="kylin"
+VERSION_ID="V11"
+PRETTY_NAME="Kylin Linux Advanced Server V11 (Swan25)"
+ANSI_COLOR="0;31"
+[root@kylinv11 install]$ lscpu
+架构：                    x86_64
+  CPU 运行模式：          32-bit, 64-bit
+  Address sizes:          45 bits physical, 48 bits virtual
+  字节序：                Little Endian
+CPU:                      4
+  在线 CPU 列表：         0-3
+厂商 ID：                 GenuineIntel
+  型号名称：              Genuine Intel(R) CPU 0000 @ 2.60GHz
+    CPU 系列：            6
+    型号：                158
+    每个核的线程数：      1
+    每个座的核数：        1
+    座：                  4
+    步进：                12
+    BogoMIPS：            5184.00
+    标记：                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2
+                          ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon nopl xtopology tsc_reliable nonstop_tsc
+                          cpuid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadl
+                          ine_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibp
+                          b stibp fsgsbase tsc_adjust bmi1 avx2 smep bmi2 invpcid rdseed adx smap clflushopt xsaveopt xsavec
+                           xgetbv1 xsaves arat md_clear flush_l1d arch_capabilities
+Virtualization features:
+  超管理器厂商：          ***
+  虚拟化类型：            完全
+Caches (sum of all):
+  L1d:                    128 KiB (4 instances)
+  L1i:                    128 KiB (4 instances)
+  L2:                     1 MiB (4 instances)
+  L3:                     64 MiB (4 instances)
+NUMA:
+  NUMA 节点：             1
+  NUMA 节点0 CPU：        0-3
+Vulnerabilities:
+  Gather data sampling:   Unknown: Dependent on hypervisor status
+  Itlb multihit:          KVM: Mitigation: VMX unsupported
+  L1tf:                   Not affected
+  Mds:                    Mitigation; Clear CPU buffers; SMT Host state unknown
+  Meltdown:               Not affected
+  Mmio stale data:        Mitigation; Clear CPU buffers; SMT Host state unknown
+  Reg file data sampling: Not affected
+  Retbleed:               Mitigation; IBRS
+  Spec rstack overflow:   Not affected
+  Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+  Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+  Spectre v2:             Mitigation; IBRS; IBPB conditional; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI SW
+                          loop, KVM SW loop
+  Srbds:                  Unknown: Dependent on hypervisor status
+  Tsx async abort:        Not affected
+[root@kylinv11 ~]# free -g
+               total        used        free      shared  buff/cache   available
+Mem:               5           1           2           0           1           4
+Swap:              3           0           3
+</code></pre>
+<p>文档里前面一堆安装前准备，就基本都不做了，看后面会是什么情况。安装最烦的就是调操作系统设置。</p>
+<h2 id="安装-不忽略安装校验">安装-不忽略安装校验</h2>
+<p>先加一个操作系统用户，增加免密sudo权限，创建目录和下载安装包，并解压。</p>
+<pre><code class="language-bash">[root@kylinv11 ~]# useradd yashan
+[root@kylinv11 ~]# chmod +w /etc/sudoers
+[root@kylinv11 ~]# echo "yashan ALL=(ALL)NOPASSWD:ALL" &gt;&gt;/etc/sudoers
+[root@kylinv11 ~]# chmod -w /etc/sudoers
+[root@kylinv11 ~]# cd /home/yashan
+[root@kylinv11 yashan]# mkdir yasdb_home
+[root@kylinv11 yashan]# mkdir yasdb_data
+[root@kylinv11 yashan]# mkdir install
+[root@kylinv11 yashan]# cd install/
+[root@kylinv11 install]# wget https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+-bash: wget: 未找到命令
+[root@kylinv11 install]# yum install wget
+Kylin Linux Advanced Server 11 - Os                                                          44 kB/s | 3.8 kB     00:00
+Kylin Linux Advanced Server 11 - Updates                                                     62 kB/s | 3.0 kB     00:00
+Kylin Linux Advanced Server 11 - Updates                                                    6.1 MB/s | 1.0 MB     00:00
+Dependencies resolved.
+============================================================================================================================
+ Package                       Architecture             Version                          Repository                    Size
+============================================================================================================================
+Installing:
+ wget                          x86_64                   1.21.4-3.ky11                    v11-adv-os                   672 k
+Installing dependencies:
+ libmetalink                   x86_64                   0.1.3-12.ky11                    v11-adv-os                    26 k
+
+Transaction Summary
+============================================================================================================================
+Install  2 Packages
+
+Total download size: 698 k
+Installed size: 3.2 M
+Is this ok [y/N]: y
+Downloading Packages:
+(1/2): wget-1.21.4-3.ky11.x86_64.rpm                                                        8.1 MB/s | 672 kB     00:00
+(2/2): libmetalink-0.1.3-12.ky11.x86_64.rpm                                                 316 kB/s |  26 kB     00:00
+----------------------------------------------------------------------------------------------------------------------------
+Total                                                                                       8.0 MB/s | 698 kB     00:00
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                                    1/1
+  Installing       : libmetalink-0.1.3-12.ky11.x86_64                                                                   1/2
+  Installing       : wget-1.21.4-3.ky11.x86_64                                                                          2/2
+  Running scriptlet: wget-1.21.4-3.ky11.x86_64                                                                          2/2
+  Verifying        : libmetalink-0.1.3-12.ky11.x86_64                                                                   1/2
+  Verifying        : wget-1.21.4-3.ky11.x86_64                                                                          2/2
+
+Installed:
+  libmetalink-0.1.3-12.ky11.x86_64                                 wget-1.21.4-3.ky11.x86_64
+
+Complete!
+[root@kylinv11 install]# wget https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+--2025-09-15 13:35:51--  https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+正在解析主机 linked.yashandb.com (linked.yashandb.com)... 119.23.210.86
+正在连接 linked.yashandb.com (linked.yashandb.com)|119.23.210.86|:443... 已连接。
+已发出 HTTP 请求，正在等待回应... 200 OK
+长度：284867385 (272M) [application/octet-stream]
+正在保存至: “yashandb-23.4.1.102-linux-x86_64.tar.gz”
+
+yashandb-23.4.1.102-linux-x86_ 100%[====================================================&gt;] 271.67M  13.2MB/s  用时 21s
+
+2025-09-15 13:36:12 (13.2 MB/s) - 已保存 “yashandb-23.4.1.102-linux-x86_64.tar.gz” [284867385/284867385])
+
+[root@kylinv11 install]# tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+[root@kylinv11 install]# ll
+总计 483664
+drwxrwxr-x 2 omm  omm         21  5月 9日 20:06 bin
+-rw-rw-r-- 1 omm  omm  210393590  5月 9日 20:06 database-23.4.1.102-linux-x86_64.tar.gz
+drwxrwxr-x 3 omm  omm         19  5月 9日 20:06 depends
+-rwxrwxr-x 1 omm  omm        500  5月 9日 20:06 install.sh
+drwxrwxr-x 6 omm  omm         56  5月 9日 20:05 om
+drwxrwxr-x 2 omm  omm       4096  5月 9日 20:06 plugins
+-rw-r--r-- 1 root root 284867385  5月10日 15:58 yashandb-23.4.1.102-linux-x86_64.tar.gz
+</code></pre>
+<p>使用自带的交互式安装</p>
+<pre><code class="language-bash">[root@kylinv11 install]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++---------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA   | check |
++---------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | unjoined | FAIL  |
++-------+----------+-----+--------+-----------+----------+----------+-------+
+
+The user root has not joined the YASDBA
+Please ensure that user root has join the YASDBA by yourself.
+you add root to YASDBA group, such as:
+  sudo groupadd YASDBA
+  sudo usermod -a -G YASDBA root
+
+if not configured, a password will be required to connect to the YashanDB
+ignore and continue [y/n] &gt; n
+
+exited
+[root@kylinv11 install]#
+</code></pre>
+<p>检查没通过，说我root用户没有加入到YASDBA组，如果没配置，连接到数据库将会需要密码。这个时候我意识到，这里应该用新建的用户去执行，而不是用root用户执行，但管它呢，还在检查阶段，先按提示执行，看看后面还有什么检查</p>
+<pre><code class="language-bash">[root@kylinv11 install]# sudo groupadd YASDBA
+  sudo usermod -a -G YASDBA root  # 这个是不对的，后续要从组里移除掉
+[root@kylinv11 install]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++-------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA | check |
++-------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | joined | OK    |
++-------+----------+-----+--------+-----------+----------+--------+-------+
+
+checking system sysctl...
++------------------------------------------------------------------+
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 30         | 3276860999          | 65530         | FAIL  |
++-------+------------+---------------------+---------------+-------+
+
+this system deployment environment, some sysctl configure seems bad.
+please update with sysctl under root user, such as:
+   sysctl -w vm.swappiness=0
+   echo "vm.swappiness=0"&gt;&gt; /etc/sysctl.conf
+
+   sysctl -w vm.max_map_count=2000000
+   echo "vm.max_map_count=2000000"&gt;&gt; /etc/sysctl.conf
+
+if configure failed, please resolved by yourself, maybe need to reboot system.
+you can also ignore it and continue, but  it is not friendly to the YashanDB and may affect performance or system stability
+ignore and continue [y/n] &gt; n
+
+exited
+[root@kylinv11 install]#
+</code></pre>
+<p>又检查出问题了，要关闭交换分区，调整进程的VMA上限，继续按要求执行</p>
+<pre><code class="language-bash">[root@kylinv11 install]#   sysctl -w vm.swappiness=0
+   echo "vm.swappiness=0"&gt;&gt; /etc/sysctl.conf
+
+   sysctl -w vm.max_map_count=2000000
+   echo "vm.max_map_count=2000000"&gt;&gt; /etc/sysctl.conf
+vm.swappiness = 0
+vm.max_map_count = 2000000
+[root@kylinv11 install]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++-------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA | check |
++-------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | joined | OK    |
++-------+----------+-----+--------+-----------+----------+--------+-------+
+
+checking system sysctl...
++------------------------------------------------------------------+
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 0          | 3276860999          | 2000000       | OK    |
++-------+------------+---------------------+---------------+-------+
+
+checking system ulimit...
++--------------------------------------------------------------------------------+
+| ip    | open files | max user processes | max memory size | stack size | check |
++--------------------------------------------------------------------------------+
+| local | 1024       | 21320              | unlimited       | 8192       | FAIL  |
++-------+------------+--------------------+-----------------+------------+-------+
+
+this system deployment environment, some ulimit configure seems bad.
+please update with ulimit under root user, such as:
+   echo "* soft nofile 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nofile 1048576"&gt;&gt; /etc/security/limits.conf
+
+   echo "* soft nproc 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nproc 1048576"&gt;&gt; /etc/security/limits.conf
+
+if configure failed, please resolved by yourself, maybe need to reboot system.
+you can also ignore it and continue, but  it is not friendly to the YashanDB and may affect performance or system stability
+ignore and continue [y/n] &gt; n
+
+exited
+[root@kylinv11 install]#
+</code></pre>
+<p>要改打开文件数和进程数限制，改</p>
+<pre><code class="language-bash">[root@kylinv11 install]#  echo "* soft nofile 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nofile 1048576"&gt;&gt; /etc/security/limits.conf
+
+   echo "* soft nproc 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nproc 1048576"&gt;&gt; /etc/security/limits.conf
+[root@kylinv11 install]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++-------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA | check |
++-------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | joined | OK    |
++-------+----------+-----+--------+-----------+----------+--------+-------+
+
+checking system sysctl...
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 0          | 3276860999          | 2000000       | OK    |
++-------+------------+---------------------+---------------+-------+
+
+checking system ulimit...
++--------------------------------------------------------------------------------+
+| ip    | open files | max user processes | max memory size | stack size | check |
++--------------------------------------------------------------------------------+
+| local | 1024       | 21320              | unlimited       | 8192       | FAIL  |
++-------+------------+--------------------+-----------------+------------+-------+
+
+this system deployment environment, some ulimit configure seems bad.
+please update with ulimit under root user, such as:
+   echo "* soft nofile 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nofile 1048576"&gt;&gt; /etc/security/limits.conf
+
+   echo "* soft nproc 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nproc 1048576"&gt;&gt; /etc/security/limits.conf
+
+if configure failed, please resolved by yourself, maybe need to reboot system.
+you can also ignore it and continue, but  it is not friendly to the YashanDB and may affect performance or system stability
+ignore and continue [y/n] &gt; n
+
+exited
+[root@kylinv11 install]#
+</code></pre>
+<p>因为直接改这个文件，当前会话并不会生效，所以这里还是报错了，需要重新连进来</p>
+<pre><code class="language-bash">[root@kylinv11 install]#
+注销
+PS C:\Users\DarkAthena&gt; ssx -i 33
+2025-09-15T13:42:34+08:00 INFO connected server root@192.168.163.135:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Mon Sep 15 13:17:46 2025 from 192.168.163.250
+[root@kylinv11 ~]# cd /home/yashan/install/
+[root@kylinv11 install]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++-------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA | check |
++-------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | joined | OK    |
++-------+----------+-----+--------+-----------+----------+--------+-------+
+
+checking system sysctl...
++------------------------------------------------------------------+
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 0          | 3276860999          | 2000000       | OK    |
++-------+------------+---------------------+---------------+-------+
+
+checking system ulimit...
++--------------------------------------------------------------------------------+
+| ip    | open files | max user processes | max memory size | stack size | check |
++--------------------------------------------------------------------------------+
+| local | 1048576    | 1048576            | unlimited       | 8192       | OK    |
++-------+------------+--------------------+-----------------+------------+-------+
+
+checking system libraries...
++----------------------------------------------------------------------------------------------------------------------+
+| ip    | os    | libcrypto           | libssl           | liblz4          | libz           | libzstd          | check |
++----------------------------------------------------------------------------------------------------------------------+
+| local | kylin | libcrypto.so.1.1.1m | libssl.so.1.1.1m | liblz4.so.1.9.4 | libz.so.1.2.13 | libzstd.so.1.5.5 | OK    |
++-------+-------+---------------------+------------------+-----------------+----------------+------------------+-------+
+
+what is the name of the YashanDB
+(default: yashandb)
+please enter cluster name(db name) &gt; ^Cexited
+[root@kylinv11 install]#
+
+</code></pre>
+<p>检查似乎都通过了，这里我就ctrl+c先取消了，因为我现在执行的用户是root，而不是新建的yashan用户。<br/>
+把root从YASDBA组里删除，并且把文件属主从root改到yashan</p>
+<pre><code class="language-bash">[root@kylinv11 install]# gpasswd -d root YASDBA
+正在将用户“root”从“YASDBA”组中删除
+[root@kylinv11 install]# cd ..
+[root@kylinv11 yashan]# ll
+总计 0
+drwxr-xr-x 6 root root 169  9月15日 13:36 install
+drwxr-xr-x 2 root root   6  9月15日 13:34 yasdb_data
+drwxr-xr-x 2 root root   6  9月15日 13:34 yasdb_home
+[root@kylinv11 yashan]# chown yashan: * -R
+[root@kylinv11 yashan]# ll
+总计 0
+drwxr-xr-x 6 yashan yashan 169  9月15日 13:36 install
+drwxr-xr-x 2 yashan yashan   6  9月15日 13:34 yasdb_data
+drwxr-xr-x 2 yashan yashan   6  9月15日 13:34 yasdb_home
+</code></pre>
+<p>再来装一次</p>
+<pre><code class="language-bash">[root@kylinv11 yashan]# su - yashan
+[yashan@kylinv11 ~]$ cd install/
+[yashan@kylinv11 install]$ ll
+总计 483664
+drwxrwxr-x 2 yashan yashan        21  5月 9日 20:06 bin
+-rw-rw-r-- 1 yashan yashan 210393590  5月 9日 20:06 database-23.4.1.102-linux-x86_64.tar.gz
+drwxrwxr-x 3 yashan yashan        19  5月 9日 20:06 depends
+-rwxrwxr-x 1 yashan yashan       500  5月 9日 20:06 install.sh
+drwxrwxr-x 6 yashan yashan        75  9月15日 13:37 om
+drwxrwxr-x 2 yashan yashan      4096  5月 9日 20:06 plugins
+-rw-r--r-- 1 yashan yashan 284867385  5月10日 15:58 yashandb-23.4.1.102-linux-x86_64.tar.gz
+[yashan@kylinv11 install]$ bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135
+
+checking system os...
++---------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA   | check |
++---------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | unjoined | FAIL  |
++-------+----------+-----+--------+-----------+----------+----------+-------+
+
+The user yashan has not joined the YASDBA
+Please ensure that user yashan has join the YASDBA by yourself.
+you add yashan to YASDBA group, such as:
+  sudo groupadd YASDBA
+  sudo usermod -a -G YASDBA yashan
+
+if not configured, a password will be required to connect to the YashanDB
+ignore and continue [y/n] &gt; n
+
+exited
+[yashan@kylinv11 install]$
+</code></pre>
+<p>这里依然要求把yashan用户加入到YASDBA组，那就加呗，加完继续装</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ sudo groupadd YASDBA
+  sudo usermod -a -G YASDBA yashan
+groupadd：“YASDBA”组已存在
+[yashan@kylinv11 install]$ bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1  # 本地单节点
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; 192.168.163.135 # 本机ip（为啥要限定ip，直接0.0.0.0行不行？）
+
+checking system os...
++-------------------------------------------------------------------------+
+| ip    | hostname | cpu | memory | firewalld | hugepage | YASDBA | check |
++-------------------------------------------------------------------------+
+| local | kylinv11 | 4   | 5.28GB | inactive  | never    | joined | OK    |
++-------+----------+-----+--------+-----------+----------+--------+-------+
+
+checking system sysctl...
++------------------------------------------------------------------+
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 0          | 3276860999          | 2000000       | OK    |
++-------+------------+---------------------+---------------+-------+
+
+checking system ulimit...
++--------------------------------------------------------------------------------+
+| ip    | open files | max user processes | max memory size | stack size | check |
++--------------------------------------------------------------------------------+
+| local | 1048576    | 1048576            | unlimited       | 8192       | OK    |
++-------+------------+--------------------+-----------------+------------+-------+
+
+checking system libraries...
++----------------------------------------------------------------------------------------------------------------------+
+| ip    | os    | libcrypto           | libssl           | liblz4          | libz           | libzstd          | check |
++----------------------------------------------------------------------------------------------------------------------+
+| local | kylin | libcrypto.so.1.1.1m | libssl.so.1.1.1m | liblz4.so.1.9.4 | libz.so.1.2.13 | libzstd.so.1.5.5 | OK    |
++-------+-------+---------------------+------------------+-----------------+----------------+------------------+-------+
+
+what is the name of the YashanDB
+(default: yashandb)
+please enter cluster name(db name) &gt; #集群名称，直接回车用默认的yashandb
+
+how many nodes are there in the YashanDB
+(default: 1)
+please enter the number of nodes &gt; # 节点数量，也是回车默认 1
+
+what plugins do you want to intall for the YashanDB
+1) none: do not install any plugins.
+2) all: install all plugins below.
+3) gis
+4) dblink
+5) udf
+6) s3
+7) listagg
+you can input such as: 3,4,5,6 or gis,dblink,udf,s3
+(default: 2)
+please select &gt; # 回车默认2 ，装所有插件。这里奇怪的是，为什么udf和listagg还不是内核内置?listagg这个函数还要单独作为一个插件？翻文档里还发现一个LSFA_LISTAGG函数，这个与LISTAGG有啥区别？个人猜测LSFA是种特殊算法，性能更好？"Ledger-Style Fixed Aggregation" ?流水账方式聚合？按数据读取顺序？
+
+which install-path of the YashanDB, YASDB_HOME will be: &lt;install-path&gt;/&lt;version&gt;
+(default: /home/yashan/install)
+please enter install-path &gt; /home/yashan/yasdb_home # 这里是数据库程序的路径，得手动写个路径，要不然就放到安装包的目录下了
+YASDB_HOME will be: /home/yashan/yasdb_home/23.4.1.102
+
+which data-path of the YashanDB, YASDB_DATA will be: &lt;data-path&gt;/db-&lt;nodeid&gt;
+(default: /home/yashan/yasdb_home/yasdb_data)
+please enter data-path &gt; /home/yashan/yasdb_data # 这里是数据目录，手动写
+
+which log-path of the YashanDB, run.log will be: &lt;log-path&gt;/db-&lt;nodeid&gt;/run/run.log
+(default: /home/yashan/yasdb_home/log)
+please enter log-path &gt; /home/yashan/yasdb_log # 这个是运行日志路径，手动写
+
+which ip you will be used to listen
+1) manage-ip: listen on 192.168.163.135
+2) 0.0.0.0: listen on 0.0.0.0
+(default: 1)
+please select &gt; 2 # 选2监听所有地址
+
+which sys password for YashanDB #yasdb_123
+please enter sys password &gt; ******  # 输入sys的密码
+checking sys password now, please wait...
+
+which percentage of host memory available for YashanDB, 0 is unlimited
+(default: 80)
+please enter memory limit &gt; # 直接回车，使用操作系统的80%内存
+host 192.168.163.135 memory limit is 4325M, but host available memory is 4062M
+it may cause database deployment failure
+ignore and continue [y/n] &gt; y # 可用内存不足80%了，我先忽略了
+
+
+which port generate for YashanDB
+(default: 1688)
+please enter port &gt; #直接回车默认端口 1688
+
+
+bootloader for parameter setting has been completed, please select:
+1) config-only: only generate configuration, do not install now.
+                you should update those configuration, such as: database building parameters.
+                then install with those configuration by yourself.
+2) install-now: generate configuration and install now
+(default: 2)
+please select &gt; 2 # 选1只是生成配置文件，选2马上安装
+
+generate configuration for host and YashanDB...
+generate configuration succeed
+install software...
+install software succeed
+initialize database...
+initialize database succeed
+
+Do you want to append environment to ~/.bashrc on each machine?
+(default: yes)
+[y/n] &gt; # 是否加入环境变量，直接回车
+
+append environment to ~/.bashrc successfully
+please source environment by yourself, such as:
+   source ~/.bashrc
+
+Do you want to enable the monit function?
+If this feature is enabled, when process crashes for various reasons, it will be pulled up .
+However, if you use yasql to shutdown database, yasdb process will not be pulled up.
+[y/n] &gt; y # 是否启用monit，这个用于数据库进程奔溃自动拉起和开机自启
+
+enable the daemon function failed, stdout: task completed, status: FAILED
+retcode: 1
+stdout: start monit
+stderr: start monit failed, stdout: , stderr: /home/yashan/yasdb_home/23.4.1.102/om/bin/monit: error while loading shared libraries: libnsl.so.1: cannot open shared object file: No such file or directory
+
+, stderr:
+Already generate scripts: yashandb_boot_start.sh in current directory
+If you want to set monit to start automatically at boot, you can execute it in each machine, such as:
+   sudo ./yashandb_boot_start.sh
+
+
+everything is ready, enjoy the YashanDB~
+[yashan@kylinv11 install]$
+</code></pre>
+<p>装完，在最后启动monit的时候报错了，说没有libnsl，呵呵，官方文档里的安装前置检查里没有说还依赖libnsl，这算不算找不到了官方文档的漏洞？</p>
+<p>麒麟在线源里是有这个libnsl的，直接yum装了</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ sudo yum install libnsl -y
+Last metadata expiration check: 0:20:24 ago on 2025年09月15日 星期一 13时35分45秒.
+Dependencies resolved.
+============================================================================================================================
+ Package                      Architecture           Version                          Repository                       Size
+============================================================================================================================
+Installing:
+ libnsl                       x86_64                 2.38-47.p10.ky11                 v11-adv-updates                  49 k
+Upgrading:
+ glibc                        x86_64                 2.38-47.p10.ky11                 v11-adv-updates                 3.1 M
+ glibc-common                 x86_64                 2.38-47.p10.ky11                 v11-adv-updates                 2.7 M
+ glibc-devel                  x86_64                 2.38-47.p10.ky11                 v11-adv-updates                 2.0 M
+
+Transaction Summary
+============================================================================================================================
+Install  1 Package
+Upgrade  3 Packages
+
+Total download size: 7.8 M
+Downloading Packages:
+(1/4): glibc-2.38-47.p10.ky11.x86_64.rpm                                                     15 MB/s | 3.1 MB     00:00
+(2/4): glibc-common-2.38-47.p10.ky11.x86_64.rpm                                              11 MB/s | 2.7 MB     00:00
+(3/4): libnsl-2.38-47.p10.ky11.x86_64.rpm                                                   174 kB/s |  49 kB     00:00
+(4/4): glibc-devel-2.38-47.p10.ky11.x86_64.rpm                                               17 MB/s | 2.0 MB     00:00
+----------------------------------------------------------------------------------------------------------------------------
+Total                                                                                        24 MB/s | 7.8 MB     00:00
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                                    1/1
+  Upgrading        : glibc-common-2.38-47.p10.ky11.x86_64                                                               1/7
+  Running scriptlet: glibc-2.38-47.p10.ky11.x86_64                                                                      2/7
+  Upgrading        : glibc-2.38-47.p10.ky11.x86_64                                                                      2/7
+  Running scriptlet: glibc-2.38-47.p10.ky11.x86_64                                                                      2/7
+  Installing       : libnsl-2.38-47.p10.ky11.x86_64                                                                     3/7
+  Running scriptlet: glibc-devel-2.38-47.p10.ky11.x86_64                                                                4/7
+  Upgrading        : glibc-devel-2.38-47.p10.ky11.x86_64                                                                4/7
+  Cleanup          : glibc-devel-2.38-47.p08.ky11.x86_64                                                                5/7
+  Cleanup          : glibc-2.38-47.p08.ky11.x86_64                                                                      6/7
+  Cleanup          : glibc-common-2.38-47.p08.ky11.x86_64                                                               7/7
+  Running scriptlet: glibc-common-2.38-47.p08.ky11.x86_64                                                               7/7
+  Running scriptlet: glibc-common-2.38-47.p10.ky11.x86_64                                                               7/7
+  Running scriptlet: glibc-common-2.38-47.p08.ky11.x86_64                                                               7/7
+  Running scriptlet: glibc-common-2.38-47.p10.ky11.x86_64                                                               7/7
+  Verifying        : libnsl-2.38-47.p10.ky11.x86_64                                                                     1/7
+  Verifying        : glibc-2.38-47.p10.ky11.x86_64                                                                      2/7
+  Verifying        : glibc-2.38-47.p08.ky11.x86_64                                                                      3/7
+  Verifying        : glibc-common-2.38-47.p10.ky11.x86_64                                                               4/7
+  Verifying        : glibc-common-2.38-47.p08.ky11.x86_64                                                               5/7
+  Verifying        : glibc-devel-2.38-47.p10.ky11.x86_64                                                                6/7
+  Verifying        : glibc-devel-2.38-47.p08.ky11.x86_64                                                                7/7
+
+Upgraded:
+  glibc-2.38-47.p10.ky11.x86_64       glibc-common-2.38-47.p10.ky11.x86_64       glibc-devel-2.38-47.p10.ky11.x86_64
+Installed:
+  libnsl-2.38-47.p10.ky11.x86_64
+
+Complete!
+[yashan@kylinv11 install]$
+</code></pre>
+<p>环境变量没有重新加载，退出重新看下，</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ yasboot cluster status -c yashandb -d
+-bash: yasboot: 未找到命令
+[yashan@kylinv11 install]$
+注销
+[root@kylinv11 yashan]# su - yashan
+上一次登录： 2025年09月15日 星期一 13:47:11 CST 于 pts/0
+[yashan@kylinv11 ~]$ yasboot cluster status -c yashandb -d
++----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | node_type | nodeid | pid  | instance_status | database_status | database_role | listen_address | source_node | data_path                      |
++----------------------------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | db        | 1-1:1  | 6626 | open            | normal          | primary       | 127.0.0.1:1688 | -           | /home/yashan/yasdb_data/db-1-1 |
++----------+-----------+--------+------+-----------------+-----------------+---------------+----------------+-------------+--------------------------------+
+</code></pre>
+<p>集群状态已经是正常启动了</p>
+<pre><code class="language-bash">[yashan@kylinv11 ~]$ cd install/
+[yashan@kylinv11 install]$ sudo ./yashandb_boot_start.sh
+</code></pre>
+<p>补执行一下这个开机自启的脚本，再来看下monit的状态，发现是没启动的，就启动一下</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ yasboot monit status -c yashandb
+--------------------------------------------------------------------------------
+HostID: host0001, ManageIP: 192.168.163.135
+--------------------------------------------------------------------------------
+get monit status failed, stdout:  New Monit id: 740e7a3166aa67cf325c8ea40ae6f536
+ Stored in '/home/yashan/yasdb_home/23.4.1.102/om/monit/run/.monit.id'
+, stderr: Monit: the monit daemon is not running
+
+[yashan@kylinv11 install]$ yasboot monit start -c yashandb
++----------------------------------------------------------------------------------------------------------+
+| type | uuid             | name             | hostid | index    | status  | return_code | progress | cost |
++----------------------------------------------------------------------------------------------------------+
+| task | 128071647a25952b | MonitParentStart | -      | yashandb | SUCCESS | 0           | 100      | 1    |
++------+------------------+------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+[yashan@kylinv11 install]$ yasboot monit status -c yashandb
+--------------------------------------------------------------------------------
+HostID: host0001, ManageIP: 192.168.163.135
+--------------------------------------------------------------------------------
+Monit 5.28.0 uptime: 0m
+
+Process 'yasom'
+  status                       OK
+  monitoring status            Monitored
+  monitoring mode              active
+  on reboot                    start
+  pid                          6513
+  parent pid                   1
+  uid                          1001
+  effective uid                1001
+  gid                          1001
+  uptime                       37m
+  threads                      9
+  children                     0
+  cpu                          0.0%
+  cpu total                    0.0%
+  memory                       0.5% [25.3 MB]
+  memory total                 0.5% [25.3 MB]
+  security attribute           -
+  filedescriptors              11 [0.0% of 1048576 limit]
+  total filedescriptors        11
+  read bytes                   0 B/s [312.8 kB total]
+  disk read bytes              0 B/s [708 kB total]
+  disk read operations         0.0 reads/s [4672 reads total]
+  write bytes                  0 B/s [2.6 MB total]
+  disk write bytes             0 B/s [2.8 MB total]
+  disk write operations        0.0 writes/s [2862 writes total]
+  data collected               Mon, 15 Sep 2025 14:30:37
+
+Process 'yashandb-db-1-1'
+  status                       OK
+  monitoring status            Monitored
+  monitoring mode              active
+  on reboot                    start
+  pid                          6626
+  parent pid                   1
+  uid                          1001
+  effective uid                1001
+  gid                          1001
+  uptime                       36m
+  threads                      33
+  children                     0
+  cpu                          0.0%
+  cpu total                    0.0%
+  memory                       21.7% [1.1 GB]
+  memory total                 21.7% [1.1 GB]
+  security attribute           -
+  filedescriptors              41 [0.0% of 1048576 limit]
+  total filedescriptors        41
+  read bytes                   0 B/s [137.2 MB total]
+  disk read bytes              0 B/s [29.3 MB total]
+  disk read operations         0.0 reads/s [69599 reads total]
+  write bytes                  0 B/s [1.4 GB total]
+  disk write bytes             0 B/s [11.1 GB total]
+  disk write operations        0.0 writes/s [5936 writes total]
+  data collected               Mon, 15 Sep 2025 14:30:37
+
+Process 'yasagent'
+  status                       OK
+  monitoring status            Monitored
+  monitoring mode              active
+  on reboot                    start
+  pid                          6496
+  parent pid                   1
+  uid                          1001
+  effective uid                1001
+  gid                          1001
+  uptime                       37m
+  threads                      9
+  children                     0
+  cpu                          0.0%
+  cpu total                    0.0%
+  memory                       0.4% [24.2 MB]
+  memory total                 0.4% [24.2 MB]
+  security attribute           -
+  filedescriptors              9 [0.0% of 1048576 limit]
+  total filedescriptors        9
+  read bytes                   0 B/s [1.2 MB total]
+  disk read bytes              0 B/s [11.8 MB total]
+  disk read operations         0.0 reads/s [5436 reads total]
+  write bytes                  0 B/s [2.0 MB total]
+  disk write bytes             0 B/s [1.2 MB total]
+  disk write operations        0.0 writes/s [636 writes total]
+  data collected               Mon, 15 Sep 2025 14:30:37
+
+System 'kylinv11'
+  status                       OK
+  monitoring status            Monitored
+  monitoring mode              active
+  on reboot                    start
+  load average                 [0.07] [0.04] [0.01]
+  cpu                          0.0%usr 0.0%sys 0.0%nice 0.0%iowait 0.0%hardirq 0.0%softirq 0.0%steal 0.0%guest 0.0%guestnice
+
+  memory usage                 2.5 GB [47.0%]
+  swap usage                   3.0 MB [0.1%]
+  uptime                       1h 14m
+  boot time                    Mon, 15 Sep 2025 13:16:24
+  filedescriptors              11968 [0.0% of 9223372036854775807 limit]
+  data collected               Mon, 15 Sep 2025 14:30:37
+
+
+[yashan@kylinv11 install]$
+</code></pre>
+<p>这下monit正常了，测试一下是否有用。<br/>
+先连接看下数据库当前状态，是OPEN的</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ yasql / as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt; select * from v$instance;
+
+STATUS        VERSION                                                          STARTUP_TIME
+                    HOST_NAME                                                        DATA_HOME
+                          INSTANCE_NUMBER INSTANCE_NAME                                                    PARALLEL
+    INSTANCE_ROLE                                                    IN_REFORM IGNORE_OPEN          DATABASE_STATUS
+------------- ---------------------------------------------------------------- ---------------------------------------------------------------- ---------------------------------------------------------------- ---------------------------------------------------------------- --------------- ---------------------------------------------------------------- -------------------- ---------------------------------------------------------------- --------- -------------------- ---------------------
+OPEN          Enterprise Edition Release 23.4.1.102 x86_64                     2025-09-15 13:53:39.056012
+                    kylinv11                                                         /home/yashan/yasdb_data/db-1-1
+                                        1 yasdb                                                            false
+    MASTER_ROLE                                                      NO        false                ACTIVE
+
+1 row fetched.
+
+SQL&gt; select status from v$instance;
+
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt;
+</code></pre>
+<p>找到yasdb进程，直接kill -9干掉，再看一下进程，发现已经自动拉起了，连接数据库查询也是OPEN状态</p>
+<pre><code class="language-bash">[yashan@kylinv11 install]$ ps -ef |grep yashan
+yashan      6496       1  0 13:53 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/bin/yasagent --init -c yashandb -l 192.168.163.135:1676 --host-id host0001 -k                  -L /home/yashan/yasdb_log -d
+yashan      6513       1  0 13:53 ?        00:00:01 /home/yashan/yasdb_home/23.4.1.102/bin/yasom --init -c yashandb -l 192.168.163.135:1675 -k                  -L /home/yashan/yasdb_log -d
+yashan      6626       1  3 13:53 ?        00:01:13 /home/yashan/yasdb_home/23.4.1.102/bin/yasdb nomount -D /home/yashan/yasdb_data/db-1-1
+root        7134    5703  0 14:26 pts/0    00:00:00 su - yashan
+yashan      7139    7134  0 14:26 pts/0    00:00:00 -bash
+yashan      7326       1  0 14:30 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/om/bin/monit -c /home/yashan/yasdb_home/23.4.1.102/om/monit/monitrc
+yashan      7380    7139  0 14:34 pts/0    00:00:00 ps -ef
+yashan      7381    7139  0 14:34 pts/0    00:00:00 grep --color=auto yashan
+[yashan@kylinv11 install]$ kill -9 6626
+[yashan@kylinv11 install]$ ps -ef |grep yashan
+yashan      6496       1  0 13:53 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/bin/yasagent --init -c yashandb -l 192.168.163.135:1676 --host-id host0001 -k                  -L /home/yashan/yasdb_log -d
+yashan      6513       1  0 13:53 ?        00:00:01 /home/yashan/yasdb_home/23.4.1.102/bin/yasom --init -c yashandb -l 192.168.163.135:1675 -k                  -L /home/yashan/yasdb_log -d
+root        7134    5703  0 14:26 pts/0    00:00:00 su - yashan
+yashan      7139    7134  0 14:26 pts/0    00:00:00 -bash
+yashan      7326       1  0 14:30 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/om/bin/monit -c /home/yashan/yasdb_home/23.4.1.102/om/monit/monitrc
+yashan      7382    7326 21 14:34 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/bin/yasboot process yasdb start -c yashandb -n 1-1
+yashan      7390       1  0 14:34 ?        00:00:00 /home/yashan/yasdb_home/23.4.1.102/bin/yasdb open -D /home/yashan/yasdb_data/db-1-1
+yashan      7391    7139  0 14:34 pts/0    00:00:00 ps -ef
+yashan      7392    7139  0 14:34 pts/0    00:00:00 grep --color=auto yashan
+[yashan@kylinv11 install]$ yasql / as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt; select status from v$instance;
+
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt; exit;
+[yashan@kylinv11 install]$
+</code></pre>
+<h2 id="安装成功过程总结">安装成功过程总结</h2>
+<p>因为这个环境之前装过其他数据库，已经关了透明大页和防火墙，所以前置检查没有找到这两项，那么总结下来，在麒麟v11上安装yashan数据库，想要装得顺利，步骤可以精简为</p>
+<p>1.关防火墙<br/>
+2.关透明大页<br/>
+关透明大页有很多种方法，yashan官方文档是修改引导文件<br/>
+3.关闭交换分区<br/>
+4.调整进程的VMA上限<br/>
+5.改打开文件数和进程数限制<br/>
+6.装libnsl<br/>
+7.建用户和用户组，并增加免密sudo权限<br/>
+8.切用户，传安装包，并解压<br/>
+9.执行安装，装的时候全部回车默认也能装成功，只是可能默认的路径不符合规划</p>
+<h2 id="安装-忽略安装校验">安装-忽略安装校验</h2>
+<p>那么如果在一个全新安装的麒麟v11操作系统里，什么东西都不改，直接装，遇到校验不通过的都选择继续装，能装成功么？</p>
+<p>于是我又弄了台全新的虚拟机，上来就是建目录、下载安装包、解压安装包、启动安装,能默认的全默认</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx 192.168.163.136
+2025-09-17T13:44:49+08:00 INFO connected server root@192.168.163.136:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Wed Sep 17 13:40:05 2025 from 192.168.163.250
+[root@kylinv11-node2 ~]# ll
+总计 8
+-rw------- 1 root root 2332  9月17日 13:28 anaconda-ks.cfg
+-rw-r--r-- 1 root root 2605  9月17日 13:39 initial-setup-ks.cfg
+[root@kylinv11-node2 ~]# mkdir yashan
+[root@kylinv11-node2 ~]# cd yashan/
+[root@kylinv11-node2 yashan]# curl -O https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  12.9M      0  0:00:20  0:00:20 --:--:-- 12.4M
+[root@kylinv11-node2 yashan]# tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+[root@kylinv11-node2 yashan]# bin/yasboot init
+ __   __           _                    ____   ____
+ \ \ / /__ _  ___ | |__    __ _  _ __  |  _ \ | __ )
+  \ V // _` |/ __|| '_ \  / _` || '_ \ | | | ||  _ \
+   | || (_| |\__ \| | | || (_| || | | || |_| || |_) |
+   |_| \__,_||___/|_| |_| \__,_||_| |_||____/ |____/
+
+Welcome to use YashanDB, this script will guide you to deploy YashanDB.
+
+
+which installation mode for this deployment:
+1) single-host: install locally, should not use SSH.
+2) multi-host: install YashanDB to multiple hosts, SSH user &amp; password required.
+(default: 1)
+please select &gt; 1
+
+which ip address of the YashanDB Operation Manage, such as '192.168.1.2,192.168.1.3' or '192.168.1.[2-4]'
+please enter ip address &gt; #这里非得填个IP
+[error] unsupport ip expression
+please retry, or use Ctrl-C to exit.
+please enter ip address &gt; 192.168.163.136
+
+checking system os...
++---------------------------------------------------------------------------------+
+| ip    | hostname       | cpu | memory | firewalld | hugepage | YASDBA   | check |
++---------------------------------------------------------------------------------+
+| local | kylinv11-node2 | 4   | 5.28GB | active    | always   | unjoined | FAIL  |
++-------+----------------+-----+--------+-----------+----------+----------+-------+
+
+The system firewalld is active
+Please ensure that YashanDB network communications are normal by yourself.
+you should close the firewalld, such as:
+  sudo systemctl stop firewalld
+  sudo systemctl disable firewalld
+ignore and continue [y/n] &gt; y
+
+
+The user root has not joined the YASDBA
+Please ensure that user root has join the YASDBA by yourself.
+you add root to YASDBA group, such as:
+  sudo groupadd YASDBA
+  sudo usermod -a -G YASDBA root
+
+if not configured, a password will be required to connect to the YashanDB
+ignore and continue [y/n] &gt; y
+
+
+checking system sysctl...
++------------------------------------------------------------------+
+| ip    | swappiness | ip_local_port_range | max_map_count | check |
++------------------------------------------------------------------+
+| local | 30         | 3276860999          | 65530         | FAIL  |
++-------+------------+---------------------+---------------+-------+
+
+this system deployment environment, some sysctl configure seems bad.
+please update with sysctl under root user, such as:
+   sysctl -w vm.swappiness=0
+   echo "vm.swappiness=0"&gt;&gt; /etc/sysctl.conf
+
+   sysctl -w vm.max_map_count=2000000
+   echo "vm.max_map_count=2000000"&gt;&gt; /etc/sysctl.conf
+
+if configure failed, please resolved by yourself, maybe need to reboot system.
+you can also ignore it and continue, but  it is not friendly to the YashanDB and may affect performance or system stability
+ignore and continue [y/n] &gt; y
+
+
+checking system ulimit...
++--------------------------------------------------------------------------------+
+| ip    | open files | max user processes | max memory size | stack size | check |
++--------------------------------------------------------------------------------+
+| local | 1024       | 21320              | unlimited       | 8192       | FAIL  |
++-------+------------+--------------------+-----------------+------------+-------+
+
+this system deployment environment, some ulimit configure seems bad.
+please update with ulimit under root user, such as:
+   echo "* soft nofile 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nofile 1048576"&gt;&gt; /etc/security/limits.conf
+
+   echo "* soft nproc 1048576"&gt;&gt; /etc/security/limits.conf
+   echo "* hard nproc 1048576"&gt;&gt; /etc/security/limits.conf
+
+if configure failed, please resolved by yourself, maybe need to reboot system.
+you can also ignore it and continue, but  it is not friendly to the YashanDB and may affect performance or system stability
+ignore and continue [y/n] &gt; y
+
+
+checking system libraries...
++----------------------------------------------------------------------------------------------------------------------+
+| ip    | os    | libcrypto           | libssl           | liblz4          | libz           | libzstd          | check |
++----------------------------------------------------------------------------------------------------------------------+
+| local | kylin | libcrypto.so.1.1.1m | libssl.so.1.1.1m | liblz4.so.1.9.4 | libz.so.1.2.13 | libzstd.so.1.5.5 | OK    |
++-------+-------+---------------------+------------------+-----------------+----------------+------------------+-------+
+
+what is the name of the YashanDB
+(default: yashandb)
+please enter cluster name(db name) &gt;
+
+how many nodes are there in the YashanDB
+(default: 1)
+please enter the number of nodes &gt;
+
+what plugins do you want to intall for the YashanDB
+1) none: do not install any plugins.
+2) all: install all plugins below.
+3) gis
+4) dblink
+5) udf
+6) s3
+7) listagg
+you can input such as: 3,4,5,6 or gis,dblink,udf,s3
+(default: 2)
+please select &gt;
+
+which install-path of the YashanDB, YASDB_HOME will be: &lt;install-path&gt;/&lt;version&gt;
+(default: /root/yashan)
+please enter install-path &gt;
+YASDB_HOME will be: /root/yashan/23.4.1.102
+
+which data-path of the YashanDB, YASDB_DATA will be: &lt;data-path&gt;/db-&lt;nodeid&gt;
+(default: /root/yashan/yasdb_data)
+please enter data-path &gt;
+
+which log-path of the YashanDB, run.log will be: &lt;log-path&gt;/db-&lt;nodeid&gt;/run/run.log
+(default: /root/yashan/log)
+please enter log-path &gt;
+
+which ip you will be used to listen
+1) manage-ip: listen on 192.168.163.136
+2) 0.0.0.0: listen on 0.0.0.0
+(default: 1)
+please select &gt;
+
+which sys password for YashanDB
+please enter sys password &gt; ******
+checking sys password now, please wait...
+
+which percentage of host memory available for YashanDB, 0 is unlimited
+(default: 80)
+please enter memory limit &gt;
+
+which port generate for YashanDB
+(default: 1688)
+please enter port &gt;
+
+
+bootloader for parameter setting has been completed, please select:
+1) config-only: only generate configuration, do not install now.
+                you should update those configuration, such as: database building parameters.
+                then install with those configuration by yourself.
+2) install-now: generate configuration and install now
+(default: 2)
+please select &gt;
+
+generate configuration for host and YashanDB...
+generate configuration succeed
+install software...
+install software succeed
+initialize database...
+initialize database succeed
+
+Do you want to append environment to ~/.bashrc on each machine?
+(default: yes)
+[y/n] &gt;
+
+append environment to ~/.bashrc successfully
+please source environment by yourself, such as:
+   source ~/.bashrc
+
+Do you want to enable the monit function?
+If this feature is enabled, when process crashes for various reasons, it will be pulled up .
+However, if you use yasql to shutdown database, yasdb process will not be pulled up.
+[y/n] &gt;
+[error] unknow input value:
+please retry, or use Ctrl-C to exit.
+[y/n] &gt; y
+
+enable the daemon function failed, stdout: task completed, status: FAILED
+retcode: 1
+stdout: start monit
+stderr: start monit failed, stdout: , stderr: /root/yashan/23.4.1.102/om/bin/monit: error while loading shared libraries: libnsl.so.1: cannot open shared object file: No such file or directory
+
+, stderr:
+Already generate scripts: yashandb_boot_start.sh in current directory
+If you want to set monit to start automatically at boot, you can execute it in each machine, such as:
+   sudo ./yashandb_boot_start.sh
+
+
+everything is ready, enjoy the YashanDB~
+
+[root@kylinv11-node2 yashan]# cd 
+[root@kylinv11-node2 ~]# source  .bashrc
+[root@kylinv11-node2 ~]# yasql / as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt; select status from v$instance;
+
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt; exit;
+[root@kylinv11-node2 ~]# ps -ef |grep yashan
+root        3813       1  0 13:49 ?        00:00:00 /root/yashan/23.4.1.102/bin/yasagent --init -c yashandb -l 192.168.163.136:1676 --host-id host0001 -k
+        -L /root/yashan/log -d
+root        3829       1  0 13:49 ?        00:00:00 /root/yashan/23.4.1.102/bin/yasom --init -c yashandb -l 192.168.163.136:1675 -k                  -L /root/yashan/log -d
+root        3956       1  3 13:49 ?        00:00:07 /root/yashan/23.4.1.102/bin/yasdb nomount -D /root/yashan/yasdb_data/db-1-1
+root        4388    3188  0 13:52 pts/0    00:00:00 grep --color=auto yashan
+[root@kylinv11-node2 ~]#
+</code></pre>
+<p>可以看到一台全新的麒麟v11环境，啥配置都不修改，也是能把yashan数据库给成功装上并启动的，只是monit少了个libnsl，不能自启动了，如果只是用于sql功能测试，自启动要不要也无所谓。</p>
+<h2 id="安装-非交互式">安装-非交互式</h2>
+<p>上面都是用的交互式安装，如果用配置文件模板安装，不改配置文件，能装成功么？</p>
+<p>于是我把虚拟机还原到初始状态，然后开搞</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx 192.168.163.136
+2025-09-17T14:23:26+08:00 INFO connected server root@192.168.163.136:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Wed Sep 17 13:40:05 2025 from 192.168.163.250
+[root@kylinv11-node2 ~]# ll
+总计 8
+-rw------- 1 root root 2332  9月17日 13:28 anaconda-ks.cfg
+-rw-r--r-- 1 root root 2605  9月17日 13:39 initial-setup-ks.cfg
+[root@kylinv11-node2 ~]# mkdir yashan
+[root@kylinv11-node2 ~]# cd yashan/
+[root@kylinv11-node2 yashan]# curl -O https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  13.0M      0  0:00:20  0:00:20 --:--:-- 12.9M
+[root@kylinv11-node2 yashan]# tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+[root@kylinv11-node2 yashan]# bin/yasboot package se gen --cluster yashandb --recommend-param --ip 192.168.163.136 -u root -p ***********
+
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr          | replication_addr     | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 192.168.163.136:1688 | 192.168.163.136:1689 | /root/yashan/yasdb_data | 4325M        | 4         |
++----------+-------+-----------+-----------+----------------------+----------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+[root@kylinv11-node2 yashan]# bin/yasboot package install -t hosts.toml
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+update host to yasom...
+[root@kylinv11-node2 yashan]# bin/yasboot cluster deploy -t yashandb.toml -p yashan_123
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(4325M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | e9349cde96765bfb | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 27   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+[root@kylinv11-node2 yashan]# cat 23.4.1.102/conf/yashandb.bashrc &gt;&gt; ~/.bashrc
+[root@kylinv11-node2 yashan]# source ~/.bashrc
+[root@kylinv11-node2 yashan]# yasql / as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt; exit;
+[root@kylinv11-node2 yashan]#
+</code></pre>
+<p>一点阻碍都没有，直接拉起来了。</p>
+<p>已经很久没见过这么清爽的数据库安装了。</p>
+<p>只是直接装在root下还是不太好，还是再建个用户试试，于是我又把虚拟机还原了</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx 192.168.163.136
+2025-09-17T14:47:58+08:00 INFO connected server root@192.168.163.136:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Wed Sep 17 13:40:05 2025 from 192.168.163.250
+[root@kylinv11-node2 ~]# useradd -m -p $(openssl passwd -1 'Yanshan_123') yashan
+[root@kylinv11-node2 ~]# su - yashan
+[yashan@kylinv11-node2 ~]$ curl -O https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  12.8M      0  0:00:21  0:00:21 --:--:-- 12.7M
+[yashan@kylinv11-node2 ~]$ tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+[yashan@kylinv11-node2 ~]$ bin/yasboot package se gen --cluster yashandb --recommend-param --ip 192.168.163.136 -u yashan -p Yanshan_123
+
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr          | replication_addr     | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 192.168.163.136:1688 | 192.168.163.136:1689 | /home/yashan/yasdb_data | 4325M        | 4         |
++----------+-------+-----------+-----------+----------------------+----------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+[yashan@kylinv11-node2 ~]$ bin/yasboot package install -t hosts.toml
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+
+我们信任您已经从系统管理员那里了解了日常注意事项。
+总结起来无外乎这三点：
+
+    #1) 尊重别人的隐私。
+    #2) 输入前要先考虑(后果和风险)。
+    #3) 权力越大，责任越大。
+
+For security reasons, the password you type will not be visible.
+
+
+yashan 不是 sudoers 文件。
+update host to yasom...
+[yashan@kylinv11-node2 ~]$ bin/yasboot cluster deploy -t yashandb.toml -p Yanshan_123
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(4325M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | ff57aca9f0a975b8 | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 27   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+[yashan@kylinv11-node2 ~]$ cat 23.4.1.102/conf/yashandb.bashrc &gt;&gt; ~/.bashrc
+[yashan@kylinv11-node2 ~]$ source ~/.bashrc
+[yashan@kylinv11-node2 ~]$ yasql / as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+YAS-02143 invalid username/password, login denied
+
+
+
+please input user name: sys
+please input password:
+
+YAS-02143 invalid username/password, login denied
+
+
+
+please input user name: ^C
+YASQL-00007 invalid username/password; logon denied
+
+
+YASQL-00007 unable to CONNECT to Server after 3 attempts
+[yashan@kylinv11-node2 ~]$ yasql sys/Yanshan_123 as sysdba
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+YAS-02143 invalid username/password, login denied
+
+
+
+please input user name: ^C
+YASQL-00007 invalid username/password; logon denied
+
+
+please input user name: ^C
+YASQL-00007 invalid username/password; logon denied
+
+
+YASQL-00007 unable to CONNECT to Server after 3 attempts
+[yashan@kylinv11-node2 ~]$ ps -ef |grep yashan
+root        3269    3180  0 14:48 pts/0    00:00:00 su - yashan
+yashan      3274    3269  0 14:48 pts/0    00:00:00 -bash
+yashan      3614       1  0 14:50 ?        00:00:00 /home/yashan/23.4.1.102/bin/yasagent --init -c yashandb -l 192.168.163.136:1676 --host-id host0001 -k
+        -L /home/yashan/log -d
+yashan      3859       1  0 14:50 ?        00:00:00 /home/yashan/23.4.1.102/bin/yasom --init -c yashandb -l 192.168.163.136:1675 -k                  -L /home/yashan/log -d
+yashan      3996       1  4 14:51 ?        00:00:05 /home/yashan/23.4.1.102/bin/yasdb nomount -D /home/yashan/yasdb_data/db-1-1
+yashan      4071    3274  0 14:53 pts/0    00:00:00 ps -ef
+yashan      4072    3274  0 14:53 pts/0    00:00:00 grep --color=auto yashan
+</code></pre>
+<p>可以看到如果新建的用户没有配置免密sudo,虽然也能装上和启动，但是没法连接数据库。而且我也试了用yasboot修改管理员密码，也仍然是无法连接。</p>
+<p>于是还原虚拟机，添加免密sudo的步骤，再试</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx 192.168.163.136
+2025-09-17T15:05:34+08:00 INFO connected server root@192.168.163.136:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Wed Sep 17 13:40:05 2025 from 192.168.163.250
+[root@kylinv11-node2 ~]# useradd -m -p $(openssl passwd -1 'Yanshan_123') yashan
+[root@kylinv11-node2 ~]# chmod +w /etc/sudoers
+echo "yashan ALL=(ALL)NOPASSWD:ALL" &gt;&gt;/etc/sudoers
+chmod -w /etc/sudoers
+[root@kylinv11-node2 ~]# su - yashan
+[yashan@kylinv11-node2 ~]$ curl -O https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  13.0M      0  0:00:20  0:00:20 --:--:-- 12.5M
+[yashan@kylinv11-node2 ~]$ tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+[yashan@kylinv11-node2 ~]$ bin/yasboot package se gen --cluster yashandb --recommend-param --ip 192.168.163.136 -u yashan -p Yanshan_123
+
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr          | replication_addr     | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 192.168.163.136:1688 | 192.168.163.136:1689 | /home/yashan/yasdb_data | 4325M        | 4         |
++----------+-------+-----------+-----------+----------------------+----------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+[yashan@kylinv11-node2 ~]$ bin/yasboot package install -t hosts.toml
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+update host to yasom...
+[yashan@kylinv11-node2 ~]$ bin/yasboot cluster deploy -t yashandb.toml -p Yanshan_123
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(4325M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | d210060fb99733e5 | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 26   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+[yashan@kylinv11-node2 ~]$ cat 23.4.1.102/conf/yashandb.bashrc &gt;&gt; ~/.bashrc
+[yashan@kylinv11-node2 ~]$ source ~/.bashrc
+[yashan@kylinv11-node2 ~]$ yasql / as sysdba -c "select status from v\$instance;"
+
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+[yashan@kylinv11-node2 ~]$
+</code></pre>
+<p>这个安装过程就比较舒服了。</p>
+<h2 id="一键安装脚本">一键安装脚本</h2>
+<p>上面还是显式搞了个操作系统的密码，不太爽，从官方文档中看到其实可以用免密的ssh，只是需要自行配置好免密登录，所以我就整理出了一个一键安装脚本</p>
+<pre><code class="language-bash">#!/bin/bash
+# 安装用户
+useradd yashan
+
+# 免密
+if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
+fi
+mkdir -p /home/yashan/.ssh
+chown yashan:yashan /home/yashan/.ssh
+chmod 700 /home/yashan/.ssh
+cat ~/.ssh/id_rsa.pub &gt;&gt; /home/yashan/.ssh/authorized_keys
+chown yashan:yashan /home/yashan/.ssh/authorized_keys
+chmod 600 /home/yashan/.ssh/authorized_keys
+chmod +w /etc/sudoers
+echo "yashan ALL=(ALL)NOPASSWD:ALL" &gt;&gt;/etc/sudoers
+chmod -w /etc/sudoers
+
+# 安装
+sudo -u yashan -i curl -O https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-x86_64.tar.gz
+sudo -u yashan -i tar -xf yashandb-23.4.1.102-linux-x86_64.tar.gz
+sudo -u yashan -i bin/yasboot package se gen --cluster yashandb --recommend-param --ip `ip route get 1 | awk '{print $7; exit}'` -u yashan -N
+sudo -u yashan -i bin/yasboot package install -t hosts.toml
+sudo -u yashan -i bin/yasboot cluster deploy -t yashandb.toml -p Yanshan_123
+sudo -u yashan -i cat 23.4.1.102/conf/yashandb.bashrc &gt;&gt; /home/yashan/.bashrc
+
+# 检查
+echo "select status from v\$instance;" | sudo -u yashan -i yasql / as sysdba
+</code></pre>
+<p>对于全新安装的麒麟v11，root连进去后，把以上内容创建成一个sh文件，授权可执行，然后执行这个sh文件，就能直接把yashan数据库给装上了。</p>
+<p>这个脚本我也上传到了我的服务器上，也就是说，直接执行下面这条命令就能直接装了</p>
+<pre><code class="language-bash">curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yashan_install.sh | sh
+</code></pre>
+<p>执行效果</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx 192.168.163.136
+2025-09-17T22:21:54+08:00 INFO connected server root@192.168.163.136:22, version: SSH-2.0-OpenSSH_9.6
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Wed Sep 17 13:40:05 2025 from 192.168.163.250
+[root@kylinv11-node2 ~]# curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yashan_install.sh | sh
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  12.8M      0  0:00:21  0:00:21 --:--:-- 12.3M
+
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr          | replication_addr     | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 192.168.163.136:1688 | 192.168.163.136:1689 | /home/yashan/yasdb_data | 4325M        | 4         |
++----------+-------+-----------+-----------+----------------------+----------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+update host to yasom...
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(4325M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | 9fefe4cb1bd1145d | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 24   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt;
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt;
+Disconnected from:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+[root@kylinv11-node2 ~]#
+</code></pre>
+<p>注意我脚本里指定了安装包的下载地址，仅限于安装<code>yashandb-23.4.1.102-linux-x86_64.tar.gz</code>。如果是arm环境，得手动改sh脚本里的下载地址和解压包的名称，实测这个方案在arm上的openEular 22.03上也能装成功。下面是在华为云开发者空间免费提供的云主机中测试的：</p>
+<pre><code class="language-bash">[root@developer ~]# vi yashan_install.sh 
+[root@developer ~]# chmod +x yashan_install.sh 
+[root@developer ~]# ./yashan_install.sh 
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  257M  100  257M    0     0  8918k      0  0:00:29  0:00:29 --:--:-- 9324k
+
++---------------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr       | replication_addr  | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 10.98.57.133:1688 | 10.98.57.133:1689 | /home/yashan/yasdb_data | 5326M        | 4         |
++----------+-------+-----------+-----------+-------------------+-------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+update host to yasom...
+database recommend parameter is enabled: 
+node 1-1, type: db, percent of memory_limit: 79%(5326M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | bc25d016c39fcd08 | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 22   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+YashanDB SQL Enterprise Edition Release 23.4.1.102 aarch64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 aarch64 - Linux
+
+SQL&gt; 
+STATUS        
+------------- 
+OPEN         
+
+1 row fetched.
+
+SQL&gt; 
+Disconnected from:
+YashanDB Server Enterprise Edition Release 23.4.1.102 aarch64 - Linux
+
+[root@developer ~]# cat /etc/os-release 
+NAME="openEuler"
+VERSION="22.03 (LTS-SP4)"
+ID="openEuler"
+VERSION_ID="22.03"
+PRETTY_NAME="openEuler 22.03 (LTS-SP4)"
+ANSI_COLOR="0;31"
+
+[root@developer ~]# uname -m
+aarch64
+</code></pre>
+<p>本来还想加入更多参数让这个脚本更通用，以适用于不同的cpu、不同的数据库版本、可选安装包来源、自动系统参数优化等等，但我暂时不打算继续完善这个脚本了，目前这个程度刚刚好我自己用得爽，再优化就是给yashan打工了~。</p>
+<p>另外，按照官方文档中的快速体验章节<a href="https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Getting-Started/Use-YashanDB-in-yashan-Mode/Quick-Start-with-YashanDB.html">https://doc.yashandb.com/yashandb/23.4/zh/All-Manuals/Getting-Started/Use-YashanDB-in-yashan-Mode/Quick-Start-with-YashanDB.html</a> 其实装得是有问题的，由于没有添加免密sudo的权限，在执行<code>./bin/yasboot package install -t hosts.toml</code>这一步的时候必然会报错，就像我前面测试中出现的那样。</p>
+<h2 id="分析为什么需要sudo">分析为什么需要sudo</h2>
+<p>通过strace跟踪</p>
+<pre><code>strace -f -e trace=execve,process -s 10000 ./bin/yasboot package install -t hosts.toml
+</code></pre>
+<p>发现yasboot执行了这个</p>
+<pre><code>execve("/usr/bin/sudo", ["sudo", "bash", "-c", "if ! grep ^YASDBA /etc/group &gt;&gt; /dev/null; then groupadd YASDBA; fi;/usr/sbin/usermod -a -G YASDBA yashan"], 0xc000369380 /* 22 vars */ &lt;unfinished ...&gt;
+</code></pre>
+<p>这一步是为了配置操作系统身份认证，使用sudo创建YASDBA组并且把yashan用户加入到YASDBA组里。由于命令的开始就是先sudo,所以就算之前已经手动设置过这个，不管这个命令有没有用，只要没有sudo权限就必然会报错。</p>
+<p>也就是说，如果我们先手动把这个玩意加好了，就算不配置sudo权限，安装过程中出现报错，也是不影响使用的。</p>
+<p>所以我们的一键安装脚本又可以改一改了，毕竟加sudo权限放大了，而且后续如果要删除这个用户，sudo里还会有残留的信息，不够绿色。</p>
+<h2 id="绿色安装和卸载">绿色安装和卸载</h2>
+<p>下面是修改后的安装脚本,顺便把cpu架构改成自适应了</p>
+<pre><code class="language-bash">#!/bin/bash
+# 配置安装包url
+pck_url="https://linked.yashandb.com/upload1010/yashandb-23.4.1.102-linux-`arch`.tar.gz"
+
+# 创建安装用户
+useradd -m yashan
+groupadd YASDBA
+usermod -a -G YASDBA yashan
+
+# 安装
+sudo -u yashan -i curl -O $pck_url
+sudo -u yashan -i tar -xf `find /home/yashan -name yashandb-*-linux-*.tar.gz`
+sudo -u yashan -i bin/yasboot package se gen --cluster yashandb --local --listen-cidr 0.0.0.0/0 --recommend-param
+echo "后续出现sodu错误可忽略，不影响安装"
+sudo -u yashan -i bin/yasboot package install -t hosts.toml
+sudo -u yashan -i bin/yasboot cluster deploy -t yashandb.toml -p Yanshan_123
+sudo -u yashan -i cat `find /home/yashan -name yashandb.bashrc` &gt;&gt; /home/yashan/.bash_profile
+
+# 检查
+chsh -s /bin/bash yashan
+echo "select status from v\$instance;" | sudo -u yashan -i yasql / as sysdba
+echo "状态为OPEN表示安装完成并成功启动，默认端口为1688，sys密码为Yanshan_123"
+</code></pre>
+<p>用这个方式安装的，如果要清理环境，只需要用一行命令关掉yashan用户的所有进程并删除这个用户即可,干净无残留</p>
+<pre><code class="language-bash">pkill -9 -u yashan ; userdel -rf yashan ; groupdel YASDBA
+</code></pre>
+<p>脚本已上传</p>
+<ul>
+<li>在线安装</li>
+</ul>
+<pre><code class="language-bash">curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_install.sh | sh
+</code></pre>
+<ul>
+<li>在线卸载</li>
+</ul>
+<pre><code class="language-bash">curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_uninstall.sh | sh
+</code></pre>
+<p>在线安装和卸载的执行效果</p>
+<pre><code class="language-bash">[root@kylinv11-node2 ~]# curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_install.sh | sh
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  12.4M      0  0:00:21  0:00:21 --:--:-- 12.4M
+
++---------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr  | replication_addr | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 0.0.0.0:1688 | 127.0.0.1:1689   | /home/yashan/yasdb_data | 4325M        | 4         |
++----------+-------+-----------+-----------+--------------+------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+后续出现sodu错误可忽略，不影响安装
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+
+我们信任您已经从系统管理员那里了解了日常注意事项。
+总结起来无外乎这三点：
+
+    #1) 尊重别人的隐私。
+    #2) 输入前要先考虑(后果和风险)。
+    #3) 权力越大，责任越大。
+
+For security reasons, the password you type will not be visible.
+
+
+对不起，请重试。
+
+对不起，请重试。
+
+sudo: 3 次错误密码尝试
+update host to yasom...
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(4325M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | 3ed4d6cef17d75f6 | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 23   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt;
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt;
+Disconnected from:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+状态为OPEN表示安装完成并成功启动，默认端口为1688，sys密码为Yanshan_123
+[root@kylinv11-node2 ~]# ps -ef |grep yashan
+yashan      5272       1  0 17:00 ?        00:00:00 /home/yashan/23.4.1.102/bin/yasagent --init -c yashandb -l 127.0.0.1:1676 --host-id host0001 -k
+  -L /home/yashan/log -d
+yashan      5288       1  0 17:00 ?        00:00:00 /home/yashan/23.4.1.102/bin/yasom --init -c yashandb -l 127.0.0.1:1675 -k                  -L /home/yashan/log -d
+yashan      5478       1  8 17:01 ?        00:00:02 /home/yashan/23.4.1.102/bin/yasdb nomount -D /home/yashan/yasdb_data/db-1-1
+root        5656    2746  0 17:01 pts/0    00:00:00 grep --color=auto yashan
+[root@kylinv11-node2 ~]# curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_uninstall.sh | sh
+[root@kylinv11-node2 ~]# ps -ef |grep yashan
+root        5683    2746  0 17:01 pts/0    00:00:00 grep --color=auto yashan
+[root@kylinv11-node2 ~]#
+</code></pre>
+<p>ubuntu 24上测了下也能装成功</p>
+<pre><code class="language-bash">root@developer:~# curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_install.sh | sh 
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  257M  100  257M    0     0  9229k      0  0:00:28  0:00:28 --:--:-- 9325k
+
++---------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr  | replication_addr | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 0.0.0.0:1688 | 127.0.0.1:1689   | /home/yashan/yasdb_data | 6334M        | 4         |
++----------+-------+-----------+-----------+--------------+------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+后续出现sodu错误可忽略，不影响安装
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+ 
+对不起，请重试。
+ 
+对不起，请重试。
+ 
+sudo: 3 次错误密码尝试
+update host to yasom...
+database recommend parameter is enabled: 
+node 1-1, type: db, percent of memory_limit: 79%(6334M), percent of cpu_limit: 100%(4 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | ea669eb006f4554e | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 25   |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+YashanDB SQL Enterprise Edition Release 23.4.1.102 aarch64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 aarch64 - Linux
+
+SQL&gt; 
+STATUS        
+------------- 
+OPEN         
+
+1 row fetched.
+
+SQL&gt; 
+Disconnected from:
+YashanDB Server Enterprise Edition Release 23.4.1.102 aarch64 - Linux
+
+状态为OPEN表示安装完成并成功启动，默认端口为1688，sys密码为Yanshan_123
+root@developer:~# cat /etc/os-release 
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+root@developer:~# 
+
+</code></pre>
+<p>麒麟v10 sp3上也测试成功</p>
+<pre><code class="language-bash">PS C:\Users\DarkAthena&gt; ssx -i 27
+2025-10-09T10:16:44+08:00 INFO connected server root@192.168.163.117:22, version: SSH-2.0-OpenSSH_8.2
+
+Authorized users only. All activities may be monitored and reported.
+Activate the web console with: systemctl enable --now cockpit.socket
+
+Last login: Thu Oct  9 10:12:47 2025
+[root@kyv10sp3 ~]# curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_install.sh | sh
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  271M  100  271M    0     0  12.8M      0  0:00:21  0:00:21 --:--:-- 12.8M
+
++---------------------------------------------------------------------------------------------------------------------------------+
+| hostid   | group | node_type | node_name | listen_addr  | replication_addr | data_path               | memory_limit | cpu_limit |
++---------------------------------------------------------------------------------------------------------------------------------+
+| host0001 | dbg1  | db        | 1-1       | 0.0.0.0:1688 | 127.0.0.1:1689   | /home/yashan/yasdb_data | 50505M       | 16        |
++----------+-------+-----------+-----------+--------------+------------------+-------------------------+--------------+-----------+
+
+
+database recommend parameter is enabled, the memory_limit percent of each host is 80%, the cpu_limit of each host is 100%
+
+Generate config completed
+后续出现sodu错误可忽略，不影响安装
+checking install profile.toml...
+install version: yashandb 23.4.1.102
+
+我们信任您已经从系统管理员那里了解了日常注意事项。
+总结起来无外乎这三点：
+
+    #1) 尊重别人的隐私。
+    #2) 输入前要先考虑(后果和风险)。
+    #3) 权力越大，责任越大。
+
+
+对不起，请重试。
+
+对不起，请重试。
+
+sudo: 3 次错误密码尝试
+update host to yasom...
+database recommend parameter is enabled:
+node 1-1, type: db, percent of memory_limit: 79%(50505M), percent of cpu_limit: 100%(16 cores)
+
++------------------------------------------------------------------------------------------------------------+
+| type | uuid             | name               | hostid | index    | status  | return_code | progress | cost |
++------------------------------------------------------------------------------------------------------------+
+| task | ffd9d7de472250b5 | DeployYasdbCluster | -      | yashandb | SUCCESS | 0           | 100      | 193  |
++------+------------------+--------------------+--------+----------+---------+-------------+----------+------+
+task completed, status: SUCCESS
+正在更改 yashan 的 shell。
+chsh: Shell 未更改。
+YashanDB SQL Enterprise Edition Release 23.4.1.102 x86_64
+
+Connected to:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+SQL&gt;
+STATUS
+-------------
+OPEN
+
+1 row fetched.
+
+SQL&gt;
+Disconnected from:
+YashanDB Server Enterprise Edition Release 23.4.1.102 x86_64 - Linux
+
+状态为OPEN表示安装完成并成功启动，默认端口为1688，sys密码为Yanshan_123
+[root@kyv10sp3 ~]# cat /etc/os-release
+NAME="Kylin Linux Advanced Server"
+VERSION="V10 (Lance)"
+ID="kylin"
+VERSION_ID="V10"
+PRETTY_NAME="Kylin Linux Advanced Server V10 (Lance)"
+ANSI_COLOR="0;31"
+
+[root@kyv10sp3 ~]#
+</code></pre>
+<p>有一个能快速安装和重装这个数据库的方法，能大大方便之后对这个数据库的各种研究。</p>
+<h2 id="关键总结">关键总结</h2>
+<p>1.如果需要安装monit，则需要提前先装好libnsl，这在官方文档和安装程序的校验中都未提到<br/>
+2.执行安装程序的用户需要添加到YASDBA用户组中，否则无法免密登录<br/>
+3.安装时需要sudo权限，主要是因为安装程序没有校验安装用户是否已经在YASDBA组中，强制使用sudo执行了修改用户组的操作<br/>
+4.官方的安装方式简单来看其实就是yasboot的三条命令</p>
+<ul>
+<li>package se gen 生成模板</li>
+<li>package install 安装数据库软件</li>
+<li>cluster deploy 部署数据库集群</li>
+</ul>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

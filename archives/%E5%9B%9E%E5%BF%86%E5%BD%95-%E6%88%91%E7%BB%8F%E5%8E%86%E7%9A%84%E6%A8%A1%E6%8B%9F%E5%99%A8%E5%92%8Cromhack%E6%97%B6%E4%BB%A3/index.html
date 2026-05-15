@@ -155,7 +155,90 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E4%B8%80%E3%80%81%E8%B5%B7%E6%BA%90" tabindex="-1">一、起源</h2>
+<p>当时我上初一，<br/>
+一切都开始于kawaks 1.41版本<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-ebe6f0e7c4d440a3ab66deab0925997c.png" srcset="/upload/2021/07/image-ebe6f0e7c4d440a3ab66deab0925997c.png?width=1200 1200w, /upload/2021/07/image-ebe6f0e7c4d440a3ab66deab0925997c.png?width=400 400w, /upload/2021/07/image-ebe6f0e7c4d440a3ab66deab0925997c.png?width=1600 1600w, /upload/2021/07/image-ebe6f0e7c4d440a3ab66deab0925997c.png?width=800 800w"/></p>
+<p>当时我家虽然有电脑，但并没有网络，我手上这个模拟器里面还缺失了很多游戏rom，强迫症不能忍。<br/>
+我尝试去了新华书店，说是在这买了MP3要下歌，然后偷偷下载各种rom。但是网速慢，十几kb/s，一待就是几个小时，后来我也不好意思再去了，不过还是缺了一些没找到。</p>
+<p>其中就比如格斗之王99 （kof99.zip）</p>
+<p>我翻遍了手里的各种盗版光盘，终于在一个叫 NeoRAGE 的模拟器的文件夹里找到了 “kof99.zip”这个文件。</p>
+<p>但是当我把这个文件复制到kawaks的rom目录下，程序还是无法扫描出这个游戏，提示缺文件</p>
+<blockquote>
+<p>251-sma.bin</p>
+</blockquote>
+<p>压缩包里的确找不到类似名称的文件<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-b905ae3128da41469a57f0273f92fe32.png" srcset="/upload/2021/07/image-b905ae3128da41469a57f0273f92fe32.png?width=1200 1200w, /upload/2021/07/image-b905ae3128da41469a57f0273f92fe32.png?width=400 400w, /upload/2021/07/image-b905ae3128da41469a57f0273f92fe32.png?width=1600 1600w, /upload/2021/07/image-b905ae3128da41469a57f0273f92fe32.png?width=800 800w"/></p>
+<p>一般来说把前面的游戏名称改成对应的编号，后缀改掉就好了，比如 “kf99_c1.rom” 改成"251-c1.bin"，<br/>
+但是这个 “sma” 又是个什么鬼？</p>
+<p>于是我在这个模拟器的说明文档里各种找，文档都是纯英文的，我那个年代，初中才开始正式学英语，懂的太少了，也是靠着金山快译才勉强看懂文档。</p>
+<p>faq.txt里没看到相关内容。</p>
+<p>ROMCHANGES.TXT里找到了</p>
+<pre><code class="language-">The King of Fighters '99: Millennium Battle (The big, fully encrypted set)
+-------------------------------------------
+
+  This one *requires* a new rom: 251-sma.bin
+  You only have two solutions:
+  - You find and you download the new rom (it's VERY small)
+  - You know how to handle hex editors:
+     + Trim your kf99_p1d.rom to only keep the 262144 last bytes (delete everything before 0xC0000)
+     + Rename the trimmed kf99_p1d.rom to 251-sma.bin and copy it to kof99.zip
+</code></pre>
+<p>当时金山快译是这么翻译的</p>
+<pre><code class="language-">斗士 1999 的国王: 千禧年战争 (大者,完全编加密码了组)
+-------------------------------------------
+
+  这一个 *需要*新的 rom: 251-sma.bin
+  你只有二解决:
+  - 你找，而且你下载新的 rom( 资讯科技非常小)
+  - 你知道该如何处理 hex 编者:
+     + 整理你的 kf99_p1d.rom 只保存 262144 最后的位元组 (划除在 0 xC0000 前的每件事物)
+     + 重新命名被整理的 kf99_p1d.rom 到 251- sma.bin 而且复印它到 kof99.zip
+
+</code></pre>
+<p>我竟然神奇的看懂了，就是有两个方案，一是去下载一个新的，二是用十六进制编辑器处理一个文件，把0 xC0000后面的切成一个新文件，就是“251-sma.bin”。<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-47816544c0d94a459287ef4b3e50fe4d.png" srcset="/upload/2021/07/image-47816544c0d94a459287ef4b3e50fe4d.png?width=1200 1200w, /upload/2021/07/image-47816544c0d94a459287ef4b3e50fe4d.png?width=400 400w, /upload/2021/07/image-47816544c0d94a459287ef4b3e50fe4d.png?width=1600 1600w, /upload/2021/07/image-47816544c0d94a459287ef4b3e50fe4d.png?width=800 800w"/><br/>
+我尝试这么去操作，kawaks真的扫描出来了，游戏画面出来的那一瞬间，说涕泗横流也不为过。</p>
+<p>也是从这个时候开始，我开始去了解计算机原理。</p>
+<p>而且我对模拟器的兴趣也越来越强。</p>
+<h2 id="%E4%BA%8C%E3%80%81%E3%80%8A%E6%A8%A1%E6%8B%9F%E5%9C%B0%E5%B8%A6%E3%80%8B%E6%9D%82%E5%BF%97" tabindex="-1">二、《模拟地带》杂志</h2>
+<p>2005年，我身体出了些毛病，在城里住院住了很久，每天打完针没事做，喜欢去附近的书店看看有什么感兴趣的东西。<br/>
+当时并没有智能手机这种玩意，要获取某些领域的最新讯息，要么去网吧，要么靠报刊和杂志，而我从小就是个“好学生”的人设，自然不会去网吧。<br/>
+当时有一本叫《模拟地带》的杂志，我一眼就盯上了，看了后，极大的扩充了我的模拟器知识，这玩意太有意思了。<br/>
+这个杂志是有对应的网站的，可惜家里没网，好在杂志里面提到的资源都提供在了随刊附送的光盘里。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-c9606a90c0334e199ad4707b533c7b31.png" srcset="/upload/2021/09/image-c9606a90c0334e199ad4707b533c7b31.png?width=1200 1200w, /upload/2021/09/image-c9606a90c0334e199ad4707b533c7b31.png?width=400 400w, /upload/2021/09/image-c9606a90c0334e199ad4707b533c7b31.png?width=1600 1600w, /upload/2021/09/image-c9606a90c0334e199ad4707b533c7b31.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-edd96d56e40d443bb0a962fb53597bdb.png" srcset="/upload/2021/09/image-edd96d56e40d443bb0a962fb53597bdb.png?width=1200 1200w, /upload/2021/09/image-edd96d56e40d443bb0a962fb53597bdb.png?width=400 400w, /upload/2021/09/image-edd96d56e40d443bb0a962fb53597bdb.png?width=1600 1600w, /upload/2021/09/image-edd96d56e40d443bb0a962fb53597bdb.png?width=800 800w"/></p>
+<h2 id="%E4%B8%89%E3%80%81%E5%85%A5%E7%BD%91" tabindex="-1">三、入网</h2>
+<p>2006年，家里电脑联网了，我开始在网上找各种与模拟器有关的讯息，其中有个网站叫做“龙漫”（或者叫“龙的传人”）（<a href="http://www.romman.net" target="_blank">www.romman.net</a>），<br/>
+因为盗版光盘里很多模拟器上都有这个网站，所以刚开始的时候我经常看龙漫的新文章。<br/>
+但是后来随着对模拟器界的了解越来越深，发现龙漫被其他各大模拟网站排挤，因为早期龙漫的蓝色宇宙（这人后来去了电玩巴士TGBUS）有些做法让人反感，比如拿着别人发布的资源，未经允许，就自己改个程序图标和背景图，或者整合点别的什么东西，就发布出来就什么类似“宇宙无敌优化版”这样的帖子，当年那些盗版光盘里有不少模拟器或者rom都是被蓝色宇宙进行过第二次“二次修改”的。以至于之后其他站点的模拟资源发布都会发一段类似这样的话</p>
+<blockquote>
+<p>请勿将本作品用于商业用途，禁止蓝色宇宙，Psycho RFG，Kof1996，SNK2003之类人员转载和使用!</p>
+</blockquote>
+<p>虽然蓝色宇宙的确曾经做过一些让人不舒服的事，但他的技术水平以及勤劳也是不可否认的，一个“藏经阁”中的各种精简傻瓜式安装包极大的方便了广大玩家，连photoshop都有几十Mb安装包的资源。当时我也在龙漫论坛怼过蓝色宇宙，因为DC版kof99EVO的资源问题，不过现在回头想想，不过是面向的受众群体不一样，而且大部分用户也不会管是谁发布的，早期的软件行业就是各种偷各种盗版，本来提供模拟ROM就是不合法的，更何况还进行了二次修改，hacker们没有盈利全凭兴趣在干，一直游走在法律的边缘，没办法去告他。</p>
+<p>有了网络，找资源就方便了，顺带了解了各种模拟器及其对应的基板，常见基板和模拟器的名称我至今都还能随口说出来一大串，<br/>
+基板：FC/SFC/MD/NGP/N64/GB/GBC/GBA/NDS/PS/PS2/PSP/DC/WSC/WII/NGC/CPS1/CPS2/CPS3/NEOGEO/PGM/TTX/TTX2…<br/>
+模拟器：VirtuaNES/snes9x/gens/RAPE/Project64/rew/VBA/DeSmuME/nullDC/ePSXe/pcsx2/jpcsp/NGX/callus/ZINC/WINKAWAKS/NEBULA/MAME/FBA…</p>
+<p>这些模拟器和rom不是一开始就有的，那几年正是各路大神dump基板开发模拟器的黄金时期，动不动就传出个新闻，又有什么游戏被模拟了，又有什么基板被破解了，玩家们免费玩上大量游戏的同时，也见证了传统街机厅的落幕。<br/>
+我的头像就是当时PS2模拟KOFMI时截出来的，1.256G内存的高配电脑（本来是256MB内存，花了1千元加了1G内存条），载入游戏后等了半个小时才到游戏开始画面的这一帧，完全玩不了，只能截个这样的图纪念KOFMI被模拟,毕竟是第一款3D的拳皇。<br/>
+<img alt="KOFMI游戏截图" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/gsdx_20210915215646-2d1d481c5fbd495db81bc89f8c96159d.png" srcset="/upload/2021/09/gsdx_20210915215646-2d1d481c5fbd495db81bc89f8c96159d.png?width=1200 1200w, /upload/2021/09/gsdx_20210915215646-2d1d481c5fbd495db81bc89f8c96159d.png?width=400 400w, /upload/2021/09/gsdx_20210915215646-2d1d481c5fbd495db81bc89f8c96159d.png?width=1600 1600w, /upload/2021/09/gsdx_20210915215646-2d1d481c5fbd495db81bc89f8c96159d.png?width=800 800w"/><br/>
+随着传统游戏机的游戏慢慢被模拟完，重大模拟新闻就慢慢变少了，距离最近的也不过是ps3和NS的模拟，不再是百花齐放的时代，再也没有当时天天有新闻的热度了。</p>
+<h2 id="%E5%9B%9B%E3%80%81egcg(fgch%2Ffcht%2Feght)" tabindex="-1">四、EGCG(FGCH/FCHT/EGHT)</h2>
+<p>那些年，我玩到了很多拳皇hack游戏，其中大部分都是一个叫做格斗中国的组织修改制作的,这个组织后来改过很多次名，比如FGCH、FCHT(FIGHT CHINA HACK TEAM)和EGHT(EMU GAME HACK TEAM),最后和另一个有名的组织EGCG（Extreme Group of Challenging Gamers）合并了。<br/>
+我有次在FIGHTCHINA的论坛上发了个帖子，说看到有人把kof96的超必杀闪光改成了kof03的，而且有个老外还把02kyo的所有图案都改成了胖kyo，我就想能不能把kof03改成接近于kofXI的样子，包括血条、选人、角色等等，因为当时neogeo基板上最后一款kof就是kof03，而kofXI只有PS2版本正在模拟，不完善，而且对电脑硬件要求特别高，没个几万玩不了。<br/>
+然后下面就有人发了个群号，让我进群讨论。<br/>
+我就进了群，原来是格斗中国的官方群，而且群里太多熟悉的名字了，都是那些hack作品的作者。当时我太兴奋了，能和这么多大佬在一个群里讨论，虽然我前面的那个设想由于工程量太大的问题的确没做，但是在这个群里我学到了好多东西，脱壳、汇编啥的从此开始入门，还尝试汉化过一版winkawaks（1.59版本，汉化后发现有个小BUG，所以没正式发布）（早期是飞雪汉化，后来大多都是莫妮卡做的外挂游戏列表汉化，但某个版本停了，我就想自己来）。<br/>
+后来我做了个EGCG论坛的版主，虽然不算进组，但至少算是和组内人是一个团队的了，也和大家一起共同维护这个组织。</p>
+<h2 id="%E4%BA%94%E3%80%81%E8%A7%A3%E6%95%A3" tabindex="-1">五、解散</h2>
+<p>大概是2008年的样子，EGCG开发阶段的kof02allmix（全人物版）被泄露，而且被网友公开出售，这件事对组内所有人造成了很严重的打击，鸦乙羽直接把QQ群解散了，论坛还挺了一段时间后。论坛管理员哥们也由于生活压力没管了，直接“甩锅”给了另一个论坛，毕竟曾经这么牛逼的组织，要是没有个官方的点，很容易被别人以营利为目的而冒充<br/>
+<a href="http://www.nesbbs.com/bbs/thread-38545-1-1.html%E3%80%82" target="_blank">http://www.nesbbs.com/bbs/thread-38545-1-1.html。</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-0959f68a5e164692a4e0d8489e5fd388.png" srcset="/upload/2021/09/image-0959f68a5e164692a4e0d8489e5fd388.png?width=1200 1200w, /upload/2021/09/image-0959f68a5e164692a4e0d8489e5fd388.png?width=400 400w, /upload/2021/09/image-0959f68a5e164692a4e0d8489e5fd388.png?width=1600 1600w, /upload/2021/09/image-0959f68a5e164692a4e0d8489e5fd388.png?width=800 800w"/><br/>
+EGCG的时代就这样落幕了，虽然之后有部分组员在这个newbbs论坛上补过几个坑，但都是各奔前程，基本没有再发过新作品了，只是偶尔出现在新人hack作品的鸣谢里。</p>
+</div>
+</article>
     </div>
     
 </article>

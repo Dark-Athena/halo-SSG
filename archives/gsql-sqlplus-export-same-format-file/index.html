@@ -155,7 +155,202 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF" tabindex="-1">一、背景</h2>
+<p>从<strong>oracle</strong>迁移到<strong>openGauss</strong>或<strong>MogDB</strong>，需要进行数据核对，虽然MogDB有官方的数据核对工具<strong>mvd</strong>，但有些客户还是想自己再核对一次。不过表太多，肯定需要进行很多条sql的批量核对，而且核对还不能仅仅只是统计行数，至少还要对数值列求和，有些表可能还要基于业务规则进行分组统计。<br/>
+其实写段Java或者python就可以输出格式完全相同的查询结果了，但这些开发语言都有环境依赖，且对于运维DBA这一特定角色，可能不是太愿意用这些语言来编写代码。所以，希望能从<strong>gsql</strong>和<strong>sqlplus</strong>获得完全一致的文本输出，这样就能用文本差异对比工具对输出的文本文件进行快速比对。</p>
+<h2 id="%E4%BA%8C%E3%80%81%E8%BE%93%E5%87%BA%E6%96%87%E4%BB%B6%E7%9A%84%E5%87%A0%E7%A7%8D%E6%96%B9%E5%BC%8F" tabindex="-1">二、输出文件的几种方式</h2>
+<p>就算是同一个程序，也会有多种输出文件的方式，不同的输出方式得到的结果也会不一样，所以需要先知道有哪些输出方式，否则很可能所选择的那种方式并无法达到预期。</p>
+<h3 id="sqlplus" tabindex="-1">sqlplus</h3>
+<p><a href="https://docs.oracle.com/cd/B19306_01/server.102/b14357/ch12040.htm" target="_blank">https://docs.oracle.com/cd/B19306_01/server.102/b14357/ch12040.htm</a></p>
+<ol>
+<li>
+<p>spool file_name /spool off<br/>
+工具本身自带的命令，可以通过set来设置各种格式，常用的就是用echo on/off来控制是否通过把屏幕上的内容都打印，来实现将执行的sql也写入文件</p>
+</li>
+<li>
+<p>控制台回显&gt;&gt;file_name<br/>
+一种通用的方式，无论啥程序都能用，就是把本来该在控制台上显示的内容写入到一个文本文件中</p>
+</li>
+</ol>
+<h3 id="gsql" tabindex="-1">gsql</h3>
+<p><a href="https://docs.mogdb.io/zh/mogdb/v3.0/1-gsql" target="_blank">https://docs.mogdb.io/zh/mogdb/v3.0/1-gsql</a><br/>
+<a href="http://postgres.cn/docs/13/app-psql.html" target="_blank">http://postgres.cn/docs/13/app-psql.html</a></p>
+<ol>
+<li>
+<p>使用 -L file_name参数<br/>
+gsql命令的参数，定位是个日志文件,只会显示执行的sql命令、查询结果、raise信息，不会显示提示符，和控制台显示的内容不一样,也不能在代码中局部开启</p>
+</li>
+<li>
+<p>使用 \o 元命令<br/>
+仅能输出sql的查询结果，不能包含sql本身，raise信息也无法显示，不过可以使用\qecho 输出指定文本</p>
+</li>
+<li>
+<p>使用\copy 元命令 (to file)<br/>
+仅能输出一个sql的查询结果，且无法设定列宽，列名和数据之间没有分隔行，无法对同一文件追加内容，指定同名文件的效果是直接覆盖文件</p>
+</li>
+<li>
+<p>控制台回显&gt;&gt;file_name<br/>
+略</p>
+</li>
+</ol>
+<p>所以，我们先分别用这几种不同的方式都生成一次文件，然后看看哪些方式可以对参数进行微调，来让输出格式一致</p>
+<h2 id="%E4%B8%89%E3%80%81%E9%9C%80%E8%A6%81%E8%80%83%E8%99%91%E7%9A%84%E7%82%B9" tabindex="-1">三、需要考虑的点</h2>
+<p>格式完全一致，至少要考虑以下几个点：</p>
+<ol>
+<li>需要输出的查询sql有多个，列数行数不统一，数据类型不统一，方案需要通用</li>
+<li>提示符如何处理 比如 “sql&gt;”</li>
+<li>是否显示列名</li>
+<li>列宽如何保持统一</li>
+<li>拖尾空格、自动空行怎么处理</li>
+<li>oracle默认字段名大写、mogdb默认字段名小写，怎么匹配</li>
+<li>同时也要显示查询的sql</li>
+<li>末尾的行数显示</li>
+<li>分隔符如何保持一致</li>
+</ol>
+<p>有兴趣的先别往下看，自己去尝试一下，如何用gsql和sqlplus对多个select语句生成完全一致的文本文件，也是增进一下对两个工具格式化参数的了解。</p>
+<h2 id="%E5%9B%9B%E3%80%81%E5%88%86%E6%9E%90" tabindex="-1">四、分析</h2>
+<ol>
+<li>两个工具提示符不一样，出现的位置也不一样，虽然gsql可以通过prompt1-3来自定义提示符，但还是无法调整成完全一致，所以直接舍弃了控制台回显，且sqlplus必须用echo off</li>
+<li>由于echo off了，那么需要个方案再补充输出sql文本，例如 select 字符串，或者 sqlplus 中的prompt 以及gsql中的\qecho，但这样就存在很多冗余代码了，每次改都需要改两条，两个文件就是四条。如果做成变量来处理，结构又复杂了。</li>
+<li>gsql可以对查询结果设置边框，sqlplus不行，所以统一不要边框，如有必要分割内容，再用特定的符号输出单独的行，比如"*******"</li>
+<li>末尾的行数都有对应的参数可以去掉</li>
+<li>大小写的问题，最好都转换成大写或者小写显示</li>
+<li>sqlplus里指定列宽，只能针对所有数字类型列或明确的列名，不能直接统一所有列的列宽，动态解析列名然后再轮一下列名来设置，代码又有点复杂了</li>
+</ol>
+<p>下面是多次测试中，较为接近的两种效果了，但文本差异对比估计还是完全对应不上（gsql自带的美化效果此时反而成了自定义的累赘）<br/>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image.png" srcset="/upload/2022/10/image.png?width=1200 1200w, /upload/2022/10/image.png?width=400 400w, /upload/2022/10/image.png?width=1600 1600w, /upload/2022/10/image.png?width=800 800w"/><br/>
+<img alt="image-1666330878436" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666330878436.png" srcset="/upload/2022/10/image-1666330878436.png?width=1200 1200w, /upload/2022/10/image-1666330878436.png?width=400 400w, /upload/2022/10/image-1666330878436.png?width=1600 1600w, /upload/2022/10/image-1666330878436.png?width=800 800w"/></p>
+<p>其实我做了很多种尝试，发现最麻烦的是两个问题，</p>
+<ol>
+<li>列宽无法做成一致，两个工具都没提供全局列宽的设定方式</li>
+<li>两种工具对应的同时显示sql及查询结果的方式，最后无论如何，输出格式都不一致，而且dbms_output和raise notice输出效果也不一样，raise notice前面会多一个"notice:",且无法去除。</li>
+</ol>
+<p>也就是说，直接执行sql或者通过存储过程打印，两种方式都堵死了。</p>
+<p>可是，真的就没有办法了么？</p>
+<h2 id="%E4%BA%94%E3%80%81%E5%8F%A6%E8%BE%9F%E8%B9%8A%E5%BE%84" tabindex="-1">五、另辟蹊径</h2>
+<p>在oracle19c中，对json_object函数新增了一个用法，就是</p>
+<pre><code class="language-sql">select json_object(*) from table_name;
+</code></pre>
+<p>这个查询，会对每行记录，生成一个json串，且KEY为列名，VALUE为此行此列的数据，所有字段都会有对应的KEY生成。<br/>
+在MogDB中，也有类似的函数可以实现这个效果</p>
+<pre><code class="language-sql">select row_to_json(table_name) from table_name;
+</code></pre>
+<p>也就是说，通过这种方式，让sqlplus和gsql不显示sql,不显示字段名，只显示数据，适当使用prompt或\qecho来产生空行，即可。<br/>
+那么接下来的问题就是，如何同时也把执行的sql弄上去，当然用prompt或\qecho也行，但是如果有几十个select要执行，代码量直接就翻倍了，而且sqlplus和gsql的命令还不一样，手动编写两个脚本太麻烦。而且存储过程打印也不行，也就是说，只能通过select一次的方式，同时输出该sql和数据内容。</p>
+<p>这个时候，能想到的就是 <strong>表函数</strong> 了，表函数可以实现一行变多行，还可以自行控制每行的输出内容，而且在oracle和MogDB中都有表函数。虽然两者的表函数本身代码语法有一点点区别，但是在函数的调用方式上却是完全一致的，如果可行的话，我们可以实现两个脚本中，关于select部分的命令，完全一致，且单个脚本文件中，同一个select只出现一次。</p>
+<h2 id="%E5%85%AD%E3%80%81%E6%88%90%E5%93%81" tabindex="-1">六、成品</h2>
+<h3 id="%E6%B5%8B%E8%AF%95%E6%95%B0%E6%8D%AE" tabindex="-1">测试数据</h3>
+<pre><code class="language-sql">create table t_check(col1 varchar2(10),col2 number);
+insert into t_check values ('aa',10);
+insert into t_check values ('bb',50);
+</code></pre>
+<h3 id="sqlplus-1" tabindex="-1">sqlplus</h3>
+<h4 id="%E8%84%9A%E6%9C%AC-sqlplus_check.sql" tabindex="-1">脚本 sqlplus_check.sql</h4>
+<pre><code class="language-sql">set echo off
+set feedback off
+set heading off
+set pagesize 5000
+set linesize 1000
+
+set trimout on
+set trimspool on 
+set serveroutput on
+set verify off
+set termout on
+
+CREATE OR REPLACE FUNCTION f_check_sql_query(i_sql varchar2) RETURN ora_mining_varchar2_nt
+PIPELINED IS
+  l_row varchar2(32767);
+  l_sql  varchar2(32767);
+  type cur is ref cursor;
+  curs cur;
+BEGIN
+  l_sql := 'SELECT JSON_OBJECT(*)  from (' || i_sql || ') t';
+    PIPE ROW('******************************');
+    PIPE ROW(i_sql);
+    PIPE ROW('******************************');
+  open curs for l_sql;
+  loop
+    fetch curs
+      into l_row;
+     exit when curs%notfound;
+    PIPE ROW(upper(l_row));
+  END LOOP;
+   PIPE ROW('******************************');
+  CLOSE curs;
+  RETURN;
+END;
+/
+
+spool oracle_run_log.log
+select * from f_check_sql_query('select col1 ,count(*) cnt, sum(col2) sum_col2 from t_check group by col1');
+select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_check');
+prompt ;
+spool off
+
+quit
+</code></pre>
+<h4 id="%E8%B0%83%E7%94%A8%E5%91%BD%E4%BB%A4" tabindex="-1">调用命令</h4>
+<pre><code class="language-bash">sqlplus user/password@host/sid @sqlplus_check.sql
+</code></pre>
+<h3 id="gsql-1" tabindex="-1">gsql</h3>
+<h4 id="%E8%84%9A%E6%9C%AC" tabindex="-1">脚本</h4>
+<pre><code class="language-sql">\pset border 0
+\set ECHO off
+\pset feedback false
+\set columns 12
+\t
+CREATE or replace FUNCTION f_check_sql_query(i_sql text) RETURNs 
+setof text
+language plpgsql
+as
+$$
+declare
+  l_row text;
+  l_sql text;
+  type cur is ref cursor;
+  curs cur;
+begin
+	l_sql := 'SELECT row_to_json(t)  from (' || i_sql || ') t';
+  return next('******************************');
+  return next(i_sql);
+  return next('******************************');
+  open curs for l_sql;
+  loop
+    fetch curs
+      into l_row;
+     exit when curs%notfound;
+      return next upper(l_row);
+  END LOOP;
+ return next('******************************');
+  CLOSE curs;
+ return ;
+end;
+$$;
+
+\o mogdb_run_log.log
+\qecho
+select * from f_check_sql_query('select col1 ,count(*) cnt, sum(col2) sum_col2 from t_check group by col1');
+select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_check');
+\q
+</code></pre>
+<h4 id="%E8%B0%83%E7%94%A8%E5%91%BD%E4%BB%A4-1" tabindex="-1">调用命令</h4>
+<pre><code class="language-bash">gsql -r -Uuser -Wpassword -f gsql_check.sql
+</code></pre>
+<h3 id="%E8%BE%93%E5%87%BA%E6%95%88%E6%9E%9C%E5%AF%B9%E6%AF%94" tabindex="-1">输出效果对比</h3>
+<p><img alt="image-1666334068461" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666334068461.png" srcset="/upload/2022/10/image-1666334068461.png?width=1200 1200w, /upload/2022/10/image-1666334068461.png?width=400 400w, /upload/2022/10/image-1666334068461.png?width=1600 1600w, /upload/2022/10/image-1666334068461.png?width=800 800w"/></p>
+<p>可以发现，两个工具跑出来的文本文件完全一致，且要素齐全，文本对比工具没有找到任何一处文本差异！</p>
+<p><strong>注：</strong></p>
+<ol>
+<li>上面两个脚本文件，有些参数设置是无效的，有兴趣的自己去精简一下吧</li>
+<li>json_object(*)仅在oracle19c及以上可用；如果是12c-18c，得用dbms_sql或者xml相关函数来获取列名动态拼接才能使用json_object,因为必须显示指定字段名；如果是更老的11g，就没这个函数了，连json串本身都得手动拼接，或者用第三方的pljson组件；继续往前，如果是8i，dbms_sql也没了，只能用xml相关函数来获取列名了</li>
+<li>部分函数的返回格式，两个数据库会存在区别，建议避开不一样的格式，或者针对不一样格式的函数，再嵌套个格式化的函数处理</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

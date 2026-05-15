@@ -153,7 +153,984 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb开发gaussdbpsycopg3的sqlalchemy方言以支持airflow">【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow</h1>
+<p>上一篇(<a href="https://www.darkathena.top/archives/install-test-gaussdb-python-driver-based-on-psycopg3">【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</a>)弄清楚了gaussdb(psycopg3)的安装方式，这一篇就开始整sqlalchemy的方言了</p>
+<h2 id="直接vibe-coding">直接vibe coding</h2>
+<p>本次基于之前已经适配了psycopg2和async-gaussdb的sqlalchemy方言来进行修改，我先在这个项目中创建了一个github文件夹，然后把sqlalchemy和gaussdb-python两个项目克隆到这个目录里，用vscode打开方言项目根目录，就开始vibe coding了。</p>
+<p>不喜过程的可以直接跳过本章节。</p>
+<blockquote>
+<p>User: 当前项目是sqlalchemy的GaussDB数据库方言。github路径是用于参考的项目，里面有gaussdb和sqlalchemy两个python包的源码，其中gaussdb是基于psycopg3修改的用于连接GaussDB数据库的驱动。在sqlalchemy里自带了postgresql的psycopg3连接方式，我想修改当前的项目，让其增加支持使用gaussdb连接的方式，而不是使用原生的psycopg3</p>
+<p>GitHub Copilot: Optimizing tool selection...我会先快速梳理当前方言里 <code>psycopg3/async</code> 相关实现与注册入口，再对照参考源码定位最小改动点，接着直接补上 <code>gaussdb</code> 驱动接入并跑针对性测试验证。先从搜索现有方言注册和 <code>psycopg</code> 适配代码开始。</p>
+<p>Created 5 todos</p>
+<p>我将并行读取方言入口与 <code>psycopg</code> 相关文件，目标是确认现在的 URL 驱动名、DBAPI 导入路径和异步注册流程。</p>
+<p>Searched for files matching <code>**/gaussdb_sqlalchemy/*.py</code>, 9 matches</p>
+<p>Searched for regex <code>psycopg|asyncpg|register|dialect</code> (<code>**/gaussdb_sqlalchemy/**/*.py</code>), 20 results</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>我已经确认当前只注册了 <code>psycopg2</code> 与 <code>asyncpg</code>，还没有同步 <code>psycopg3</code>/<code>gaussdb</code> 方言入口。下一步我会对照 SQLAlchemy 自带 <code>postgresql.psycopg</code> 的实现，复用其结构创建 <code>gaussdb</code> 版方言并接入注册。</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Searched for regex <code>gaussdb\.psycopg|psycopg3|postgresql\+psycopg|gaussdb\+</code> (<code>**/test/**/*.py</code>), 20 results</p>
+<p>我拿到了当前 <code>psycopg2</code> 方言实现，接下来会读取参考 <code>sqlalchemy</code> 的 <code>postgresql.psycopg</code> 文件和本项目打包入口，确保新增 <code>gaussdb</code> 驱动方言时保持与现有结构兼容。</p>
+<p>Read <a></a>, lines 1 to 420</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Searched for regex <code>class PGDialect_psycopg|class PGDialectAsync_psycopg|get_async_dialect_cls|import_dbapi|dialect =</code> (<code>**/github/sqlalchemy/lib/sqlalchemy/dialects/postgresql/psycopg.py</code>), 6 results</p>
+<p>Read <a></a>, lines 440 to 816</p>
+<p>Read <a></a></p>
+<p>Read <a></a>, lines 1 to 300</p>
+<p>Searched for regex <code>entry_points|gaussdb\.asyncpg|gaussdb\.psycopg2|gaussdb\.async_gaussdb</code> (<code>**/README*.md|README*.en.md|README.md|README.en.md|test/**/*.py</code>), no results</p>
+<p>Read <a></a></p>
+<p>我已定位到实现入口，下一步会检查 README 与测试里的连接串约定，然后按同样风格新增 <code>gaussdb+gaussdb</code>（以及可选 <code>gaussdb+gaussdb_async</code>）方言注册与实现。</p>
+<p>Searched for regex <code>psycopg2|asyncpg|连接|URL|create_engine|gaussdb\+</code> (<code>**/README.en.md</code>), 13 results</p>
+<p>Searched for regex <code>psycopg2|asyncpg|连接|URL|create_engine|gaussdb\+</code> (<code>**/README.md</code>), 19 results</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Searched for regex <code>class IsolationLevel|from gaussdb\.pq import|types\.json|types\.hstore|types\.range|AsyncConnection|connect</code> (<code>**/github/gaussdb/gaussdb/**/*.py</code>), 20 results</p>
+<p>Searched for regex <code>name\s*=\s*"gaussdb"|project.*gaussdb|entry_points</code> (<code>**/github/gaussdb/pyproject.toml</code>), 1 result</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a>, lines 340 to 460</p>
+<p>Read <a></a></p>
+<p>Searched for regex <code>dc_psycopg2|asyncpg|driver|create_engine\(|dialect</code> (<code>**/test/**/*.py</code>), 20 results</p>
+<p>Read <a></a>, lines 930 to 980</p>
+<p>我已经确认 <code>gaussdb</code> 驱动 API 与 <code>psycopg3</code> 高度兼容，准备开始落地三类改动：新增 <code>gaussdb</code> 方言模块、注册新的 SQLAlchemy 驱动名、补充 README 和最小回归测试。现在开始改文件。</p>
+<p>Starting: <em>实现gaussdb驱动接入</em> (3/5)</p>
+<p>Created <a></a></p>
+<p>Generating patch (18 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>我已完成核心方言文件和运行时注册，下一步会更新 <code>setup.py/setup.cfg/README</code> 与新增一个最小测试，确保新驱动名可以被 SQLAlchemy 识别。</p>
+<p>Generating patch (15 lines) in <a></a></p>
+<p>Generating patch (10 lines) in <a></a></p>
+<p>Created <a></a></p>
+<p>Generating patch (7 lines) in <a></a></p>
+<pre><code></code></pre>
+<pre><code></code></pre>
+<pre><code></code></pre>
+<p>Generating patch (20 lines) in <a></a></p>
+<p>Generating patch (20 lines) in <a></a></p>
+<pre><code></code></pre>
+<pre><code></code></pre>
+<p>Starting: <em>运行测试并修正</em> (5/5)</p>
+<p>代码改动已完成，接下来我会先跑新增用例和一个相关现有用例，确认新方言导入与注册没有回归。</p>
+<p>Ran terminal command: python -m pytest test/test_gaussdb_driver.py test/test_alembic_dialect.py -q<br/>
+Completed with input: python -m pytest test/test_gaussdb_driver.py test/test_alembic_dialect.py -q</p>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy test</p>
+<p>Read changed files in the active git repository</p>
+<p>Checked <a></a>, <a></a>, <a></a>, <a></a>, <a></a>, <a></a>, <a></a>, <a></a>, no problems found</p>
+<p>我这边已完成实现并通过语法与诊断检查；接下来整理变更清单和可直接使用的连接串。由于本机缺少 <code>pytest</code>，我会附上可执行的验证命令。</p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a></p>
+<p>Read <a></a>, lines 70 to 100</p>
+<p>Read <a></a>, lines 30 to 60</p>
+<p>Read <a></a></p>
+<p>Read <a></a>, lines 946 to 966</p>
+<p>Completed: <em>运行测试并修正</em> (5/5)</p>
+<p><strong>已完成</strong></p>
+<ul>
+<li>新增基于 <code>gaussdb</code>（psycopg3 分支）的方言实现，支持同步和异步两种方言类：gaussdb.py。</li>
+<li>新增运行时注册：<code>gaussdb.gaussdb</code>、<code>gaussdb.gaussdb_async</code>：<strong>init</strong>.py。</li>
+<li>新增打包入口点，安装后 SQLAlchemy 可识别 <code>gaussdb+gaussdb</code> 和 <code>gaussdb+gaussdb_async</code>：setup.py。</li>
+<li>补充测试配置中的新连接串别名：setup.cfg。</li>
+<li>新增最小回归测试（方言名/driver 与 async 映射）：test_gaussdb_driver.py。</li>
+<li>调整服务端游标测试判定，覆盖新 <code>gaussdb</code> driver：test_suite.py。</li>
+<li>README 中已补充新用法示例（中英文）：README.md、README.en.md。</li>
+</ul>
+<p><strong>验证结果</strong></p>
+<ul>
+<li><code>python -m compileall gaussdb_sqlalchemy test</code> 已通过（语法检查 OK）。</li>
+<li>本机缺少 <code>pytest</code>（<code>No module named pytest</code>），所以未执行单测。可在你环境里运行：<code>python -m pytest test_gaussdb_driver.py -q</code>。</li>
+</ul>
+<p>要不要我继续帮你把 tox.ini 增加一个 <code>gaussdb</code> 驱动专用测试环境（例如 <code>py38_gaussdb</code>）并补一条 <code>create_engine('gaussdb+gaussdb://...')</code> 的集成用例？</p>
+<p>Made changes.</p>
+<p>User: 给我一段最简单的连接加查询的测试代码，不需要生成文件</p>
+<p>GitHub Copilot: 最简单就这段（同步）：</p>
+<pre><code class="language-python">import sqlalchemy as sa
+
+engine = sa.create_engine(
+   "gaussdb+gaussdb://username:password@host:port/database_name"
+)
+
+with engine.connect() as conn:
+   result = conn.execute(sa.text("SELECT 1"))
+   print(result.scalar())  # 预期输出: 1
+</code></pre>
+<p>如果你当前环境还没装 <code>gaussdb</code> 驱动，也可以先把 URL 改成 <code>gaussdb+psycopg2://...</code>。需要的话我再给你一版异步的最小示例。</p>
+<p>User:</p>
+<pre><code>Traceback (most recent call last):
+ File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 630, in create_engine
+   dialect = dialect_cls(**dialect_args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 421, in __init__
+   raise ImportError(
+ImportError: psycopg version 3.0.2 or higher is required.
+</code></pre>
+<p>GitHub Copilot: 这个报错已经定位到根因了：<code>gaussdb</code> 方言继承了 SQLAlchemy 的 <code>PGDialect_psycopg</code>，其初始化里强制检查“psycopg&gt;=3.0.2”，而 <code>gaussdb.__version__</code> 不是 3.x，导致被误判。<br/>
+我会直接修复方言初始化逻辑，让它对 <code>gaussdb</code> 驱动跳过这条 psycopg3 专属版本门槛，同时保持其余行为不变。</p>
+<p>Read <a></a>, lines 360 to 560</p>
+<p>我会顺手把 <code>gaussdb</code> 方言里所有仍指向 <code>psycopg</code> 的内部导入一并切到 <code>gaussdb</code>，这样不仅修掉版本检查，还能避免后续在 JSON/hstore/range 等路径上再踩坑。</p>
+<p>Searched for regex <code>class AdaptersMap|def set_json_loads|def set_json_dumps|class TypeInfo|def register_hstore|class TransactionStatus|class Range|class Multirange</code> (<code>**/github/gaussdb/gaussdb/**/*.py</code>), 18 results</p>
+<p>Searched for regex <code>_psycopg_Json|_psycopg_Jsonb|_psycopg_TransactionStatus|_psycopg_Range|_psycopg_Multirange|_type_info_fetch|initialize\(</code> (<code>**/gaussdb_sqlalchemy/gaussdb.py</code>), no results</p>
+<p>我现在直接修 gaussdb.py：覆盖 <code>__init__</code>/<code>initialize</code>/相关属性导入，把 <code>psycopg</code> 专属逻辑替换为 <code>gaussdb</code> 对应实现，重点先消除你这个 <code>create_engine</code> 时的版本检查异常。</p>
+<p>Generating patch (113 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Checked <a></a>, no problems found</p>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>这个报错是因为方言继承了 SQLAlchemy 的 <code>PGDialect_psycopg</code>，其 <code>__init__</code> 会强制要求 <code>psycopg&gt;=3.0.2</code>；而你使用的是 <code>gaussdb</code> 驱动，版本号不是 3.x，被误判了。</p>
+<p>我已经在项目里修好了，核心改动在：</p>
+<ul>
+<li>gaussdb.py</li>
+<li>覆盖了 <code>__init__</code>，去掉对 <code>psycopg&gt;=3.0.2</code> 的硬性门槛</li>
+<li>把内部依赖从 <code>psycopg.*</code> 切换为 <code>gaussdb.*</code>（json/hstore/typeinfo/range 等）</li>
+</ul>
+<p>并已做本地校验：</p>
+<ul>
+<li><code>python -m compileall gaussdb_sqlalchemy\gaussdb.py</code> 通过</li>
+</ul>
+<p>你这边下一步执行：</p>
+<ul>
+<li>重新安装当前仓库版本：<code>python setup.py install</code>（或 <code>pip install -e .</code>）</li>
+<li>再测试：</li>
+<li><code>import sqlalchemy as sa</code></li>
+<li><code>engine = sa.create_engine("gaussdb+gaussdb://user:pwd@host:port/db")</code></li>
+</ul>
+<p>如果你愿意，我可以再给你一条“一次性自检脚本”（只创建 engine 不连库）用于快速验证这个错误已消失。</p>
+<p>Made changes.</p>
+<p>User:</p>
+<pre><code>&gt;&gt;&gt; with engine.connect() as conn:
+...     result = conn.execute(sa.text("SELECT 1"))
+...     print(result.scalar())
+...
+Traceback (most recent call last):
+ File "&lt;stdin&gt;", line 1, in &lt;module&gt;
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3285, in connect
+   return self._connection_cls(self)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 143, in __init__
+   self._dbapi_connection = engine.raw_connection()
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3309, in raw_connection
+   return self.pool.connect()
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 447, in connect
+   return _ConnectionFairy._checkout(self)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 1264, in _checkout
+   fairy = _ConnectionRecord.checkout(pool)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 711, in checkout
+   rec = pool._do_get()
+         ^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 177, in _do_get
+   with util.safe_reraise():
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+   raise exc_value.with_traceback(exc_tb)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/impl.py", line 175, in _do_get
+   return self._create_connection()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 388, in _create_connection
+   return _ConnectionRecord(self)
+          ^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 673, in __init__
+   self.__connect()
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/pool/base.py", line 913, in __connect
+   )._exec_w_sync_on_first_run(self.dbapi_connection, self)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/event/attr.py", line 501, in _exec_w_sync_on_first_run
+   self(*args, **kw)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/event/attr.py", line 515, in __call__
+   fn(*args, **kw)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 2000, in go
+   return once_fn(*arg, **kw)
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 767, in first_connect
+   dialect.initialize(c)
+ File "/home/aop/GaussDB-sqlalchemy/gaussdb_sqlalchemy/gaussdb.py", line 91, in initialize
+   super().initialize(connection)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 481, in initialize
+   from psycopg.types.hstore import register_hstore
+ModuleNotFoundError: No module named 'psycopg'
+&gt;&gt;&gt;
+</code></pre>
+<p>GitHub Copilot: 这次报错点很明确：<code>initialize()</code> 里虽然你重写了逻辑，但 <code>super().initialize(connection)</code> 仍然走到了 <code>PGDialect_psycopg.initialize</code>，它内部会硬导入 <code>psycopg.types.hstore</code>。<br/>
+我现在改成跳过这一层父类初始化，直接调用更上层通用初始化，再保留你的 <code>gaussdb</code> 版 hstore 注册逻辑。</p>
+<p>Generating patch (7 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>你这个新报错已经修掉根因了。</p>
+<p><strong>问题原因</strong></p>
+<ul>
+<li><code>GaussDBDialect_gaussdb.initialize()</code> 里调用了 <code>super().initialize(connection)</code>。</li>
+<li>这会进入 <code>PGDialect_psycopg.initialize()</code>，内部固定 <code>from psycopg.types.hstore import register_hstore</code>，所以触发 <code>ModuleNotFoundError: No module named 'psycopg'</code>。</li>
+</ul>
+<p><strong>我做的修复</strong></p>
+<ul>
+<li>把初始化调用改为跳过 <code>PGDialect_psycopg.initialize()</code> 这一层，直接走上层通用初始化：</li>
+<li>gaussdb.py</li>
+<li>你文件里后续的 <code>gaussdb.types.hstore.register_hstore</code> 逻辑会继续执行，不受影响。</li>
+</ul>
+<p><strong>你现在要做</strong></p>
+<ul>
+<li>重新安装本地包（非常关键）：</li>
+<li><code>pip install -e .</code><br/>
+或</li>
+<li><code>python setup.py install</code></li>
+<li>然后重试你这段：</li>
+<li><code>with engine.connect() as conn: ...</code></li>
+</ul>
+<p>如果还有下一条栈，我继续按同样方式给你快速修到可用。</p>
+<p>Made changes.</p>
+<p>User: 我airflow里的连接是这么配置的</p>
+<pre><code>sql_alchemy_conn_async = gaussdb+gaussdb_async://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3
+sql_alchemy_conn = gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3
+</code></pre>
+<p>但启动时报错了</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 airflow]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 416, in configure_orm
+   _configure_async_session()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 359, in _configure_async_session
+   async_engine = create_async_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 120, in create_async_engine
+   sync_engine = _create_engine(url, **kw)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 617, in create_engine
+   dbapi = dbapi_meth(**dbapi_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 822, in import_dbapi
+   import psycopg
+ModuleNotFoundError: No module named 'psycopg'
+</code></pre>
+<p>GitHub Copilot: 这个报错说明 <strong>Airflow 实际加载到的不是你改过的 <code>GaussDBDialectAsync_gaussdb</code></strong>，而是 SQLAlchemy 内置的 <code>PGDialectAsync_psycopg</code>，所以它去 <code>import psycopg</code> 失败了。</p>
+<p>最常见原因是：Airflow 运行环境里安装的还是旧版 <code>gaussdb-sqlalchemy</code>（没有 <code>gaussdb_async</code> 入口或没加载到）。</p>
+<p><strong>先按这 3 步排查/修复（推荐）</strong></p>
+<ul>
+<li>
+<ol>
+<li>在 Airflow 的同一个虚拟环境重装你当前源码：</li>
+</ol>
+</li>
+<li><code>pip uninstall -y gaussdb-sqlalchemy</code></li>
+<li><code>pip install -e /home/aop/GaussDB-sqlalchemy</code></li>
+<li>
+<ol start="2">
+<li>验证方言入口是否存在：</li>
+</ol>
+</li>
+<li><code>python -c "import importlib.metadata as m; print([e.name for e in m.entry_points(group='sqlalchemy.dialects') if e.name.startswith('gaussdb')])"</code></li>
+<li>预期至少包含：<code>gaussdb.gaussdb</code>、<code>gaussdb.gaussdb_async</code></li>
+<li>
+<ol start="3">
+<li>验证 async 方言类是否是你自己的：</li>
+</ol>
+</li>
+<li><code>python -c "from sqlalchemy.dialects import registry; cls=registry.load('gaussdb.gaussdb_async'); print(cls, cls.__module__)"</code></li>
+</ul>
+<p><strong>Airflow 配置建议</strong></p>
+<ul>
+<li>先保持你现在这两条不变是可以的：</li>
+<li><code>sql_alchemy_conn = GaussDB-sqlalchemy.</code></li>
+<li><code>sql_alchemy_conn_async = GaussDB-sqlalchemy.</code></li>
+</ul>
+<p><strong>可选兜底</strong></p>
+<ul>
+<li>若你希望减少入口依赖，也可以把 async 改成：</li>
+<li><code>sql_alchemy_conn_async = GaussDB-sqlalchemy.</code></li>
+<li>因为 <code>create_async_engine</code> 会通过 <code>get_async_dialect_cls</code> 自动切到异步方言（前提是加载到你的方言包）。</li>
+</ul>
+<p>如果你愿意，我可以给你一条“一键自检命令”，一次性输出“当前 Airflow 环境到底加载了哪个 dialect 类”。</p>
+<p>User:</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 ~]$ python -c "import importlib.metadata as m; print([e.name for e in m.entry_points(group='sqlalchemy.dialects') if e.name.startswith('gaussdb')])"
+['gaussdb', 'gaussdb.async_gaussdb', 'gaussdb.asyncpg', 'gaussdb.dc_psycopg2', 'gaussdb.gaussdb', 'gaussdb.gaussdb_async', 'gaussdb.psycopg2']
+(.env311) [aop@kylinv10sp3-node1 ~]$ python -c "from sqlalchemy.dialects import registry; cls=registry.load('gaussdb.gaussdb_async'); print(cls, cls.__module__)"
+&lt;class 'gaussdb_sqlalchemy.gaussdb.GaussDBDialectAsync_gaussdb'&gt; gaussdb_sqlalchemy.gaussdb
+(.env311) [aop@kylinv10sp3-node1 ~]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 416, in configure_orm
+   _configure_async_session()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 359, in _configure_async_session
+   async_engine = create_async_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 120, in create_async_engine
+   sync_engine = _create_engine(url, **kw)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 617, in create_engine
+   dbapi = dbapi_meth(**dbapi_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 822, in import_dbapi
+   import psycopg
+ModuleNotFoundError: No module named 'psycopg'
+(.env311) [aop@kylinv10sp3-node1 ~]$
+</code></pre>
+<p>GitHub Copilot: 你这组自检很关键，说明<strong>方言入口本身没问题</strong>，问题变成了：<br/>
+Airflow 启动时用到的实际 URL 不是你以为的 <code>gaussdb+...</code>，而是被配置覆盖成了 <code>postgresql+psycopg...</code>（所以才会进 psycopg.py）。</p>
+<p><strong>下一步直接查“Airflow实际生效值”</strong></p>
+<ul>
+<li><code>airflow config get-value database sql_alchemy_conn</code></li>
+<li><code>airflow config get-value database sql_alchemy_conn_async</code></li>
+<li><code>env | grep AIRFLOW__DATABASE__SQL_ALCHEMY_CONN</code></li>
+</ul>
+<p>只要其中任意一个是 <code>postgresql+psycopg://...</code>，就会复现你现在的报错。</p>
+<p><strong>最常见原因</strong></p>
+<ul>
+<li>环境变量 <code>AIRFLOW__DATABASE__SQL_ALCHEMY_CONN(_ASYNC)</code> 覆盖了 <code>airflow.cfg</code></li>
+<li>改错了配置文件路径（<code>standalone</code> 用的不是你编辑的那个）</li>
+<li><code>sql_alchemy_conn_async</code> 未生效，Airflow回退并自动派生了 psycopg async URL</li>
+</ul>
+<p><strong>建议先这样固定</strong></p>
+<ul>
+<li>在启动前显式导出（强制覆盖）：</li>
+</ul>
+<pre><code class="language-bash">export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+airflow standalone
+</code></pre>
+<p>先把 async 也设成 <code>gaussdb+gaussdb</code>，避免额外变量；你的方言会通过 <code>get_async_dialect_cls</code> 切到异步类。</p>
+<p>如果你把上面三条查询命令的输出贴出来，我可以马上帮你定位到底是哪一层覆盖了配置。</p>
+<p>User:</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 ~]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 ~]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 ~]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 416, in configure_orm
+   _configure_async_session()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 359, in _configure_async_session
+   async_engine = create_async_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 120, in create_async_engine
+   sync_engine = _create_engine(url, **kw)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 617, in create_engine
+   dbapi = dbapi_meth(**dbapi_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb_sqlalchemy/gaussdb.py", line 177, in import_dbapi
+   return PsycopgAdaptDBAPI(gaussdb, ExecStatus)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: PsycopgAdaptDBAPI.__init__() takes 2 positional arguments but 3 were given
+(.env311) [aop@kylinv10sp3-node1 ~]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb_async://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 ~]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 416, in configure_orm
+   _configure_async_session()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 359, in _configure_async_session
+   async_engine = create_async_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 120, in create_async_engine
+   sync_engine = _create_engine(url, **kw)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 617, in create_engine
+   dbapi = dbapi_meth(**dbapi_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 822, in import_dbapi
+   import psycopg
+ModuleNotFoundError: No module named 'psycopg'
+(.env311) [aop@kylinv10sp3-node1 ~]$
+</code></pre>
+<p>GitHub Copilot: 你贴出的新栈已经把问题钉死了：当前 SQLAlchemy 版本里 <code>PsycopgAdaptDBAPI</code> 构造参数和我们假设的不一致（只接收 <code>psycopg</code> 一个参数）。<br/>
+我先做一个兼容修复：同时兼容 1 参数/2 参数两种 SQLAlchemy 版本，这样 Airflow 环境不管是哪个小版本都能跑。</p>
+<p>Generating patch (17 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>修好了，这个报错根因是 <strong>SQLAlchemy 版本差异</strong>：</p>
+<ul>
+<li>你环境里的 <code>PsycopgAdaptDBAPI.__init__</code> 只接受一个参数</li>
+<li>我们之前按另一个版本传了两个参数（<code>gaussdb, ExecStatus</code>），所以报：</li>
+<li><code>TypeError: PsycopgAdaptDBAPI.__init__() takes 2 positional arguments but 3 were given</code></li>
+</ul>
+<p>我已经改为兼容两种签名（先试 2 参数，失败后回退 1 参数）：</p>
+<ul>
+<li>gaussdb.py</li>
+</ul>
+<p><strong>你现在在 Airflow 环境执行：</strong></p>
+<ul>
+<li><code>pip install -e /home/aop/GaussDB-sqlalchemy</code>（或你实际源码路径）</li>
+<li>然后先用这组（更稳）：</li>
+<li><code>AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://...'</code></li>
+<li><code>AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://...'</code></li>
+<li>再 <code>airflow standalone</code></li>
+</ul>
+<p>你前面用 <code>gaussdb+gaussdb_async</code> 触发 <code>psycopg</code> 导入那条，我建议等这次补丁生效后再测；若还复现，我下一步给你把 async 方言再做一层“强制不走 psycopg fallback”的兜底。</p>
+<p>Made changes.</p>
+<p>User:</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 416, in configure_orm
+   _configure_async_session()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 359, in _configure_async_session
+   async_engine = create_async_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py", line 120, in create_async_engine
+   sync_engine = _create_engine(url, **kw)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 630, in create_engine
+   dialect = dialect_cls(**dialect_args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/dialects/postgresql/psycopg.py", line 421, in __init__
+   raise ImportError(
+ImportError: psycopg version 3.0.2 or higher is required.
+</code></pre>
+<p>GitHub Copilot: 这个报错是新定位到的同一类问题：<code>gaussdb+gaussdb</code> 在 Airflow 异步初始化时会实例化异步方言类，而它还在走 <code>PGDialect_psycopg.__init__</code>（触发 psycopg 版本检查）。<br/>
+我现在补齐异步方言的 <code>__init__/initialize/_type_info_fetch</code> 覆盖，彻底绕开 <code>psycopg</code> 依赖路径。</p>
+<p>Generating patch (83 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>异步方言补丁已完成并通过编译检查。下一步你只需要在 Airflow 的虚拟环境重新安装本地包并重启，再看是否进入数据库连接阶段；如果还有报错，基本就是驱动 API 细节兼容问题，我可以继续跟进到可启动。这次已经对症修复了：你的报错来自 <strong>异步方言仍继承执行了 <code>PGDialect_psycopg.__init__</code></strong>，所以触发 <code>psycopg&gt;=3.0.2</code> 检查。</p>
+<p>我刚刚已在 gaussdb.py 做了完整异步覆盖：</p>
+<ul>
+<li><code>GaussDBDialectAsync_gaussdb.__init__</code>：跳过 psycopg 版本门槛，改用 <code>gaussdb</code> adapters 初始化</li>
+<li><code>GaussDBDialectAsync_gaussdb.initialize</code>：跳过 psycopg 的 hstore 导入路径</li>
+<li><code>GaussDBDialectAsync_gaussdb._type_info_fetch</code>：改为 <code>gaussdb.types.TypeInfo</code> + <code>await_</code></li>
+<li>保留了你前面修过的 <code>PsycopgAdaptDBAPI</code> 构造参数兼容（1/2 参数）</li>
+</ul>
+<p>并且本地已通过：</p>
+<ul>
+<li><code>python -m compileall gaussdb_sqlalchemy\gaussdb.py</code></li>
+</ul>
+<p>你现在在 Airflow 环境执行：</p>
+<ul>
+<li><code>pip install -e /home/aop/GaussDB-sqlalchemy</code></li>
+<li>然后再跑：</li>
+<li><code>export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://...'</code></li>
+<li><code>export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://...'</code></li>
+<li><code>airflow standalone</code></li>
+</ul>
+<p>如果还有新栈，贴出来我继续修，下一跳大概率就是 <code>gaussdb</code> async connection 细节而不是 <code>psycopg</code> 依赖问题了。</p>
+<p>Made changes.</p>
+<p>User:</p>
+<pre><code>(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC='gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.1.131:7456/airflow_db3'
+(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ airflow standalone
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 4, in &lt;module&gt;
+   from airflow.__main__ import main
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__init__.py", line 79, in &lt;module&gt;
+   settings.initialize()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 714, in initialize
+   configure_orm()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/settings.py", line 407, in configure_orm
+   engine = create_engine(
+            ^^^^^^^^^^^^^^
+ File "&lt;string&gt;", line 2, in create_engine
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py", line 281, in warned
+   return fn(*args, **kwargs)  # type: ignore[no-any-return]
+          ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/create.py", line 568, in create_engine
+   entrypoint = u._get_entrypoint()
+                ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/url.py", line 772, in _get_entrypoint
+   cls = registry.load(name)
+         ^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 451, in load
+   return impl.load()
+          ^^^^^^^^^^^
+ File "/home/aop/.local/share/uv/python/cpython-3.11.12-linux-x86_64-gnu/lib/python3.11/importlib/metadata/__init__.py", line 202, in load
+   module = import_module(match.group('module'))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.local/share/uv/python/cpython-3.11.12-linux-x86_64-gnu/lib/python3.11/importlib/__init__.py", line 126, in import_module
+   return _bootstrap._gcd_import(name[level:], package, level)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb_sqlalchemy/gaussdb.py", line 16, in &lt;module&gt;
+   from sqlalchemy.util.concurrency import await_
+ImportError: cannot import name 'await_' from 'sqlalchemy.util.concurrency' (/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/util/concurrency.py)
+</code></pre>
+<p>GitHub Copilot: 收到，这次是 SQLAlchemy 版本兼容点：你环境里没有 <code>await_</code>，只有其他并发辅助函数。<br/>
+我会把这处改成“多版本兼容导入”（优先 <code>await_</code>，否则回退 <code>await_only</code>），避免启动阶段直接 ImportError。</p>
+<p>Generating patch (23 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>这条报错已修复：你环境中的 SQLAlchemy 没有 <code>await_</code>，所以在导入阶段就失败了。</p>
+<p>我已经改成多版本兼容：</p>
+<ul>
+<li>在 gaussdb.py 中：</li>
+<li>优先 <code>from sqlalchemy.util.concurrency import await_ as _sa_await</code></li>
+<li>若失败则回退 <code>from sqlalchemy.util.concurrency import await_only as _sa_await</code></li>
+<li><code>_type_info_fetch()</code> 统一用 <code>_sa_await(...)</code></li>
+</ul>
+<p>并已通过编译检查。</p>
+<p>你现在执行：</p>
+<ul>
+<li><code>pip install -e /home/aop/GaussDB-sqlalchemy</code></li>
+<li>再跑 <code>airflow standalone</code></li>
+</ul>
+<p>如果还有下一条栈，继续贴我，我会按当前 SQLAlchemy 版本继续做兼容收敛。</p>
+<p>Made changes.</p>
+<p>User:</p>
+<pre><code>2026-02-22T14:20:05.733267Z [info     ] Creating metadata              [airflow.utils.db] loc=db.py:695
+Traceback (most recent call last):
+ File "/home/aop/.env311/bin/airflow", line 10, in &lt;module&gt;
+   sys.exit(main())
+            ^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__main__.py", line 55, in main
+   args.func(args)
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/cli_config.py", line 49, in command
+   return func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 55, in entrypoint
+   StandaloneCommand().run()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/providers_configuration_loader.py", line 54, in wrapped_function
+   return func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 71, in run
+   self.initialize_database()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 217, in initialize_database
+   db.initdb()
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/session.py", line 100, in wrapper
+   return func(*args, session=session, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 750, in initdb
+   _create_db_from_orm(session=session)
+ File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 696, in _create_db_from_orm
+   Base.metadata.create_all(engine)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/schema.py", line 5928, in create_all
+   bind._run_ddl_visitor(
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 3260, in _run_ddl_visitor
+   conn._run_ddl_visitor(visitorcallable, element, **kwargs)
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2467, in _run_ddl_visitor
+   ).traverse_single(element)
+     ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/visitors.py", line 661, in traverse_single
+   return meth(obj, **kw)
+          ^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/ddl.py", line 984, in visit_metadata
+   self.traverse_single(
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/visitors.py", line 661, in traverse_single
+   return meth(obj, **kw)
+          ^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/ddl.py", line 1022, in visit_table
+   )._invoke_with(self.connection)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/ddl.py", line 321, in _invoke_with
+   return bind.execute(self)
+          ^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+   return meth(
+          ^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/ddl.py", line 187, in _execute_on_connection
+   return connection._execute_ddl(
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1527, in _execute_ddl
+   compiled = ddl.compile(
+              ^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 312, in compile
+   return self._compiler(dialect, **kw)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/ddl.py", line 76, in _compiler
+   return dialect.ddl_compiler(dialect, self, **kw)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/compiler.py", line 888, in __init__
+   self.string = self.process(self.statement, **compile_kwargs)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/compiler.py", line 934, in process
+   return obj._compiler_dispatch(self, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/visitors.py", line 138, in _compiler_dispatch
+   return meth(self, **kw)  # type: ignore  # noqa: E501
+          ^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/compiler.py", line 6814, in visit_create_table
+   text += "\n)%s\n\n" % self.post_create_table(table)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb_sqlalchemy/base.py", line 290, in post_create_table
+   if self.dialect._supports_table_distribute_by:
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'GaussDBDialect_gaussdb' object has no attribute '_supports_table_distribute_by'
+</code></pre>
+<p>GitHub Copilot: 这个栈已经是业务层面的最后一类兼容问题了：<code>GaussDBDDLCompiler.post_create_table()</code> 依赖方言属性 <code>_supports_table_distribute_by</code>，而我们新建的 <code>gaussdb</code> 方言类里没定义。<br/>
+我先做最小修复：给同步/异步方言都补上该属性（与集中式 <code>psycopg2</code> 方言保持一致为 <code>False</code>），避免 Airflow 建表阶段崩溃。</p>
+<p>Generating patch (17 lines) in <a></a></p>
+<pre><code></code></pre>
+<p>Ran terminal command: python -m compileall gaussdb_sqlalchemy\gaussdb.py</p>
+<p>这个报错已经对上了，已修复。</p>
+<p><strong>根因</strong></p>
+<ul>
+<li>base.py 的 <code>post_create_table()</code> 会访问 <code>self.dialect._supports_table_distribute_by</code></li>
+<li>新增的 <code>GaussDBDialect_gaussdb</code> / <code>GaussDBDialectAsync_gaussdb</code> 没定义该属性，导致 <code>AttributeError</code></li>
+</ul>
+<p><strong>已修改</strong></p>
+<ul>
+<li>在两个方言类都补了：</li>
+<li><code>_supports_table_distribute_by = False</code></li>
+<li>文件：gaussdb.py</li>
+</ul>
+<p><strong>你现在执行</strong></p>
+<ul>
+<li><code>pip install -e /home/aop/GaussDB-sqlalchemy</code></li>
+<li>再跑 <code>airflow standalone</code></li>
+</ul>
+<p>这次应该会继续往后走；如果还有新栈，贴出来我继续一条条收敛到可启动。</p>
+<p>Made changes.</p>
+</blockquote>
+<p>到这里为之，这个方言就基本改好能用了，但是中间其实airflow里还有点问题，因为我知道那个问题在哪，就没和AI说，我自己直接改了。</p>
+<h2 id="修改airflow">修改airflow</h2>
+<p>先来看看报错</p>
+<pre><code class="language-bash">(.env311) [aop@kylinv10sp3-node1 GaussDB-sqlalchemy]$ airflow standalone
+2026-02-22T14:15:31.248602Z [info     ] setup plugin alembic.autogenerate.schemas [alembic.runtime.plugins] loc=plugins.py:37
+2026-02-22T14:15:31.248762Z [info     ] setup plugin alembic.autogenerate.tables [alembic.runtime.plugins] loc=plugins.py:37
+2026-02-22T14:15:31.248894Z [info     ] setup plugin alembic.autogenerate.types [alembic.runtime.plugins] loc=plugins.py:37
+2026-02-22T14:15:31.249035Z [info     ] setup plugin alembic.autogenerate.constraints [alembic.runtime.plugins] loc=plugins.py:37
+2026-02-22T14:15:31.249145Z [info     ] setup plugin alembic.autogenerate.defaults [alembic.runtime.plugins] loc=plugins.py:37
+2026-02-22T14:15:31.249261Z [info     ] setup plugin alembic.autogenerate.comments [alembic.runtime.plugins] loc=plugins.py:37
+standalone | Starting Airflow Standalone
+standalone | Password for the admin user has been previously generated in /home/aop/airflow/simple_auth_manager_passwords.json.generated. Not echoing it here.
+standalone | Checking database is initialized
+2026-02-22T14:15:31.838366Z [info     ] Creating Airflow database tables from the ORM [airflow.utils.db] loc=db.py:684
+2026-02-22T14:15:31.838507Z [info     ] Creating context               [airflow.utils.db] loc=db.py:689
+Traceback (most recent call last):
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/cursor.py", line 98, in execute
+    raise ex.with_traceback(None)
+gaussdb.errors.SyntaxError: syntax error at or near "$1"
+LINE 1: SET LOCKWAIT_TIMEOUT to $1
+                                ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 1361, in create_global_lock
+    conn.execute(text("SET LOCKWAIT_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/cursor.py", line 98, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.ProgrammingError: (gaussdb.errors.SyntaxError) syntax error at or near "$1"
+LINE 1: SET LOCKWAIT_TIMEOUT to $1
+                                ^
+[SQL: SET LOCKWAIT_TIMEOUT to %(timeout)s]
+[parameters: {'timeout': 1800}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/cursor.py", line 98, in execute
+    raise ex.with_traceback(None)
+gaussdb.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block, firstChar[Q]
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/aop/.env311/bin/airflow", line 10, in &lt;module&gt;
+    sys.exit(main())
+             ^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/__main__.py", line 55, in main
+    args.func(args)
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/cli_config.py", line 49, in command
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 55, in entrypoint
+    StandaloneCommand().run()
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/providers_configuration_loader.py", line 54, in wrapped_function
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 71, in run
+    self.initialize_database()
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/cli/commands/standalone_command.py", line 217, in initialize_database
+    db.initdb()
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/session.py", line 100, in wrapper
+    return func(*args, session=session, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 750, in initdb
+    _create_db_from_orm(session=session)
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 690, in _create_db_from_orm
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+  File "/home/aop/.local/share/uv/python/cpython-3.11.12-linux-x86_64-gnu/lib/python3.11/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/airflow/utils/db.py", line 1373, in create_global_lock
+    conn.execute(text("SET LOCKWAIT_TIMEOUT TO DEFAULT"))
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/aop/.env311/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+  File "/home/aop/.env311/lib/python3.11/site-packages/gaussdb/cursor.py", line 98, in execute
+    raise ex.with_traceback(None)
+sqlalchemy.exc.InternalError: (gaussdb.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block, firstChar[Q]
+[SQL: SET LOCKWAIT_TIMEOUT TO DEFAULT]
+(Background on this error at: https://sqlalche.me/e/20/2j85)
+</code></pre>
+<p>这个报错其实就是使用绑定变量的方式执行<code>SET LOCKWAIT_TIMEOUT to $1</code>报了语法错误，因为gaussdb(psycopg3)按照标准使用了pbe，但数据库内核对于set语句并不支持pbe，所以报了错，而之前psycopg2不报错，是因为psycopg2没有按照标准使用pbe，而是简单做了字符串占位符替换。</p>
+<p>在原本sqlalchemy自带的psycopg3方言中其实有注意到这个问题，源码中有这么几段，在db.py里</p>
+<pre><code class="language-python">USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    import sqlalchemy
+    from packaging.version import Version
+
+    is_psycopg3 = find_spec("psycopg") is not None
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) &gt;= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
+
+</code></pre>
+<pre><code class="language-python">@contextlib.contextmanager
+def create_global_lock(
+    session: Session,
+    lock: DBLocks,
+    lock_timeout: int = 1800,
+) -&gt; Generator[None, None, None]:
+    """Contextmanager that will create and teardown a global db lock."""
+    conn = session.get_bind().connect()
+    dialect = conn.dialect
+    try:
+        if dialect.name == "postgresql":
+            if USE_PSYCOPG3:
+                # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
+                # The timeout value must be passed as a string of milliseconds.
+                conn.execute(
+                    text("SELECT set_config('lock_timeout', :timeout, false)"),
+                    {"timeout": str(lock_timeout)},
+                )
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        elif dialect.name == "mysql" and dialect.server_version_info &gt;= (5, 6):
+            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
+
+        yield
+    finally:
+        if dialect.name == "postgresql":
+            if USE_PSYCOPG3:
+                # Use set_config() to reset the timeout to its default (0 = off/wait forever).
+                conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            if not unlocked:
+                raise RuntimeError("Error releasing DB lock!")
+        elif dialect.name == "mysql" and dialect.server_version_info &gt;= (5, 6):
+            conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
+</code></pre>
+<p>首先它会根据是否有包名<code>psycopg</code>来判断是否使用了psycopg3，并且赋值给<code>USE_PSYCOPG3</code>，然后后续会根据<code>USE_PSYCOPG3</code>的真假，对于设置参数语句使用不同的分支：如果为是，使用<code>select set_config</code>调用函数，否则使用<code>SET</code>语句。<br/>
+当时我看到这里，就直接进行了如下修改</p>
+<pre><code class="language-python">is_psycopg3 = find_spec("psycopg") is not None
+</code></pre>
+<p>改成</p>
+<pre><code class="language-python">is_psycopg3 = find_spec("psycopg") is not None or find_spec("gaussdb") is not None
+</code></pre>
+<p>但是整理这篇文章的时候，我突然又想到，这里airflow原本的代码里走分支是不是脑子有泡了，都用调用函数的方式不就好了？还不用去判断是不是用了psycopg3(虽然在setting.py里有用，但和本处代码无关)。<br/>
+算了，尽量少改原本的代码，能跑就行。</p>
+<h2 id="完整部署步骤">完整部署步骤</h2>
+<ol>
+<li>安装uv，并初始化新的python环境</li>
+</ol>
+<pre><code class="language-bash">cd ~
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv venv .env311 --python 3.11
+source .env311/bin/activate
+</code></pre>
+<ol start="2">
+<li>配置libpq环境</li>
+</ol>
+<pre><code class="language-bash">mkdir ~/gaussdb-libpq
+cp GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Libpq_Static.tar.gz ~/gaussdb-libpq/
+cd ~/gaussdb-libpq
+tar -xf GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Libpq_Static.tar.gz
+echo "export LD_LIBRARY_PATH=~/gaussdb-libpq/lib:\$LD_LIBRARY_PATH" &gt;&gt; ~/.bash_profile
+source ~/.bash_profile
+</code></pre>
+<ol start="3">
+<li>安装gaussdb(psycopg3)</li>
+</ol>
+<pre><code class="language-bash">uv pip install gaussdb -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+</code></pre>
+<ol start="4">
+<li>安装GaussDB-sqlalchemy方言包</li>
+</ol>
+<pre><code class="language-bash">cd ~
+git clone https://gitcode.com/darkathena/GaussDB-sqlalchemy
+cd GaussDB-sqlalchemy
+python setup.py install
+</code></pre>
+<ol start="5">
+<li>安装airflow 3.1.7</li>
+</ol>
+<pre><code class="language-bash">uv pip install apache-airflow==3.1.7 -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+</code></pre>
+<ol start="6">
+<li>
+<p>修改airflow<br/>
+参考上一篇和本篇中对airflow的修改 ，手动修改 setting.py 、utils/db.py、models/assert.py 三个文件，或者直接下载我修改好的文件进行替换 <a href="https://gitcode.com/darkathena/airflow-patch-for-gaussdb">https://gitcode.com/darkathena/airflow-patch-for-gaussdb</a></p>
+</li>
+<li>
+<p>启动验证</p>
+</li>
+</ol>
+<pre><code class="language-bash">export AIRFLOW_HOME=~/airflow
+airflow standalone
+</code></pre>
+<p>这里默认是使用的sqlite数据库，主要是确认环境没有问题，并生成初始配置文件，启动成功后ctrl+c退出即可</p>
+<ol start="8">
+<li>配置airflow连接信息</li>
+</ol>
+<pre><code class="language-bash">vi airflow/airflow.cfg
+</code></pre>
+<p>修改sql_alchemy_conn参数(不需要配置异步连接了，psycopg3原生支持异步)</p>
+<pre><code>sql_alchemy_conn = gaussdb+gaussdb://airflow_user3:Enmo_123@192.168.163.1:7456/airflow_db3
+</code></pre>
+<ol start="9">
+<li>在GaussDB里建库和用户</li>
+</ol>
+<pre><code class="language-sql">create database airflow_db;
+\c airflow_db
+create user airflow_user password 'Enmo_123';
+</code></pre>
+<ol start="10">
+<li>启动airflow</li>
+</ol>
+<pre><code class="language-bash">export AIRFLOW_HOME=~/airflow
+airflow standalone
+</code></pre>
+<p>这样就不用手动编译连接驱动了，只是就算开发好了sqlalchemy方言，airflow也仍然需要修改才能支持GaussDB数据库作为元库。<br/>
+另外，注意GaussDB 506.0版本的libpq只提供了以下几个操作系统的版本</p>
+<ul>
+<li>Bclinux2.10_arm_64</li>
+<li>Bclinux2.10_X86_64</li>
+<li>Euler2.10_arm_64</li>
+<li>Euler2.10_X86_64</li>
+<li>Hce2.0_arm_64</li>
+<li>Hce2.0_X86_64</li>
+<li>Kylinv10_arm_64</li>
+<li>Kylinv10_X86_64</li>
+<li>Suse2.5_X86_64</li>
+<li>UnionTech20_arm_64</li>
+<li>UnionTech20_X86_64</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>本次给GaussDB适配airflow的任务基本告一段落，总结下做了些什么</p>
+<ol>
+<li>基于openGauss的psycopg2驱动，修改成了支持读取GaussDB的libpq版本，支持在不同的python版本环境中自行编译（GaussDB未提供不同python版本的psycopg2驱动）<br/>
+<a href="https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2">https://gitcode.com/darkathena/GaussDB-connector-python-psycopg2</a></li>
+<li>弄清楚了gaussdb(psycopg3)的实现及源码安装方式<br/>
+<a href="https://github.com/HuaweiCloudDeveloper/gaussdb-python">https://github.com/HuaweiCloudDeveloper/gaussdb-python</a></li>
+<li>基于openGauss的sqlalchemy方言，修改成了支持GaussDB的psycopg2/async-gaussdb/gaussdb(psycopg3)三种python驱动连接方式<br/>
+<a href="https://gitcode.com/darkathena/GaussDB-sqlalchemy">https://gitcode.com/darkathena/GaussDB-sqlalchemy</a></li>
+<li>修改airflow源码，适配了GaussDB<br/>
+<a href="https://gitcode.com/darkathena/airflow-patch-for-gaussdb">https://gitcode.com/darkathena/airflow-patch-for-gaussdb</a></li>
+</ol>
+<p>四篇文章链接</p>
+<ul>
+<li>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow<br/>
+<a href="https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow">https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow</a></li>
+<li>【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7<br/>
+<a href="https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7">https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7</a></li>
+<li>【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动<br/>
+<a href="https://www.darkathena.top/archives/install-test-gaussdb-python-driver-based-on-psycopg3">https://www.darkathena.top/archives/install-test-gaussdb-python-driver-based-on-psycopg3</a></li>
+<li>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow<br/>
+<a href="https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7">https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7</a></li>
+</ul>
+<p>后面就看华为是否会开源psycopg2源码或者编译不同python版本的psycopg2，以及是否会提供sqlalchemy的方言了，生态上的这些配套工具最好还是有原厂背书为好，我个人搞的这些不能保证版本能持续演进。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

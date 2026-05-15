@@ -153,7 +153,532 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb-存储过程中使用自治事务记录日志的性能优化方案测试及评估">【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估</h1>
+<h2 id="背景">背景</h2>
+<p>在ORACLE数据库里进行业务逻辑开发时，使用自治事务来记录日志是一种非常常见的用法，但这种用法原样迁移到GaussDB时，性能会下降得非常严重，尤其是在循环次数非常多的情况下使用，这个时间差会变得非常大，需要考虑有没有什么办法在不减少日志记录的情况下，提升存储过程的性能。</p>
+<h2 id="概述">概述</h2>
+<p>本文记录了在 GaussDB 中多种记录日志的方式，包括写入文件/批量插表等多种方案，并对各方案的<strong>性能表现</strong>进行了对比测试。</p>
+<p><strong>测试环境</strong>：GaussDB 506.0.0.SPC0100（build e324981f），每方案 3 轮取平均值，梯度 10 / 100 / 1000 条。</p>
+<p><strong>结论速览</strong>（1000 条数据）：</p>
+<table><thead><tr><th>方案</th><th>平均耗时</th><th>吞吐量</th><th>相对基线</th></tr></thead><tbody><tr><td>C fopen/fprintf（非 fenced）</td><td><strong>7.32 ms</strong></td><td>136,618 rows/s</td><td><strong>4,344x</strong></td></tr><tr><td>C fopen/fprintf（fenced）</td><td>38.21 ms</td><td>26,169 rows/s</td><td>832x</td></tr><tr><td>INSERT TABLE（unnest 批量）</td><td>141.50 ms</td><td>7,067 rows/s</td><td>225x</td></tr><tr><td>DBE_FILE 内置包</td><td>136.03 ms</td><td>7,351 rows/s</td><td>234x</td></tr><tr><td>INSERT TABLE（逐条自治事务）</td><td>31,801 ms（基线）</td><td>31 rows/s</td><td>1.0x</td></tr></tbody></table>
+<blockquote>
+<p>C 标准文件 I/O 非 fenced 模式性能最优，比逐条 INSERT TABLE 快 <strong>4,000 倍以上</strong>。</p>
+</blockquote>
+<hr/>
+<h2 id="一方案对比总览">一、方案对比总览</h2>
+<table><thead><tr><th>方案</th><th>原理</th><th>优点</th><th>缺点</th></tr></thead><tbody><tr><td><strong>A. 原版INSERT TABLE 逐条</strong></td><td>逐条调用自治事务存储过程写表</td><td>数据落库可查可审计</td><td>极慢，自治事务开销大；频繁commit也慢</td></tr><tr><td><strong>B. INSERT TABLE unnest</strong></td><td>嵌套表变量 + <code>unnest_table()</code> 批量 INSERT</td><td>数据落库，比逐条快 225x</td><td>业务代码框架需要改造</td></tr><tr><td><strong>C. C fopen/fprintf</strong></td><td>自定义 C 函数直接调用 C 标准库写文件</td><td><strong>性能最高</strong>，4,344x</td><td>需编译部署，非 fenced 有安全风险，查询日志需使用外部表，并发时单次写入超过4K有断页风险</td></tr><tr><td><strong>D. DBE_FILE 内置包</strong></td><td>GaussDB 内置 <code>dbe_file</code> 包，PL/SQL 封装</td><td><strong>零部署</strong>，234x</td><td>性能不如 C 函数，查询日志需使用外部表，并发时单次写入超过4K有断页风险</td></tr></tbody></table>
+<hr/>
+<h2 id="二方案一insert-table-逐条基线">二、方案一：INSERT TABLE 逐条（基线）</h2>
+<h3 id="存储过程">存储过程</h3>
+<pre><code class="language-sql">CREATE TABLE perf_log (
+    seq_id       INT,
+    user_id      TEXT,
+    log_content  TEXT,
+    log_time     DATE
+);
+
+CREATE PROCEDURE sp_insert_perf_log(
+    p_seq_id      INT,
+    p_user_id     TEXT,
+    p_log_content TEXT,
+    p_log_time    DATE
+) IS
+PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    INSERT INTO perf_log VALUES (p_seq_id, USER, 'aaaaaaaaaa', SYSDATE);
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+</code></pre>
+<hr/>
+<h2 id="三方案二insert-table-unnest-批量">三、方案二：INSERT TABLE unnest 批量</h2>
+<p>GaussDB 支持 <code>unnest_table()</code> 函数展开嵌套表变量，类似 Oracle 的 <code>TABLE()</code> 函数。将数据先构造到嵌套表变量中，再通过 <code>INSERT INTO ... SELECT * FROM unnest_table(变量)</code> 一次性批量写入。</p>
+<pre><code class="language-sql">DECLARE
+    TYPE t_log_rec IS RECORD (
+        seq_id       INT,
+        log_content  VARCHAR2(200)
+    );
+    TYPE t_log_tab IS TABLE OF t_log_rec;
+    v_tab t_log_tab;
+BEGIN
+    -- 构造嵌套表
+    v_tab := t_log_tab();
+    FOR i IN 1..1000 LOOP
+        v_tab.EXTEND;
+        v_tab(i).seq_id := i;
+        v_tab(i).log_content := i || ',' || USER || ',aaaaaaaaaa,' ||
+            TO_CHAR(SYSDATE, 'yyyymmddhh24miss');
+    END LOOP;
+
+    -- 一次性批量插入
+    INSERT INTO perf_log(seq_id, log_content)
+        SELECT t.seq_id, t.log_content FROM unnest_table(v_tab) t;
+    COMMIT;
+END;
+/
+</code></pre>
+<blockquote>
+<p>1000 条数据：逐条 31.8 秒 vs unnest 批量 141ms，<strong>提升 225 倍</strong>。</p>
+</blockquote>
+<hr/>
+<h2 id="四方案三c-fopenfprintf">四、方案三：C fopen/fprintf</h2>
+<h3 id="41-源码">4.1 源码</h3>
+<p><strong>文件：<code>udf_write_file.cpp</code></strong></p>
+<blockquote>
+<p><strong>GaussDB 与 openGauss 差异对照</strong>：</p>
+<table><thead><tr><th>项</th><th>openGauss</th><th>GaussDB</th></tr></thead><tbody><tr><td>头文件</td><td><code>postgres.h</code></td><td><code>gaussdb.h</code></td></tr><tr><td>错误报告</td><td><code>ereport(...)</code></td><td><code>ERR_PROC(错误编号, 级别, (...))</code></td></tr><tr><td>错误码</td><td><code>errcode(...)</code></td><td><code>err_ecode(...)</code></td></tr><tr><td>错误消息</td><td><code>errmsg(...)</code></td><td><code>err_msg(...)</code></td></tr></tbody></table>
+</blockquote>
+<pre><code class="language-cpp">#include "gaussdb.h"
+#include "fmgr.h"
+#include "utils/builtins.h"
+#include "utils/elog.h"
+#include &lt;cstdio&gt;
+#include &lt;cstring&gt;
+#include &lt;cerrno&gt;
+
+PG_MODULE_MAGIC;
+
+extern "C" Datum udf_write_file(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(udf_write_file);
+
+Datum
+udf_write_file(PG_FUNCTION_ARGS)
+{
+    char *filename = text_to_cstring(PG_GETARG_TEXT_P(0));
+    char *content  = text_to_cstring(PG_GETARG_TEXT_P(1));
+
+    FILE *fp = fopen(filename, "a");
+    if (fp == NULL) {
+        ERR_PROC(GAUSS_44273, ERR_LEVEL_ERROR,
+                (err_ecode(ERRCODE_IO_ERROR),
+                 err_msg("could not open file \"%s\": %m", filename)));
+        PG_RETURN_INT32(-1);
+    }
+
+    int bytes_written = fprintf(fp, "%s\n", content);
+    if (bytes_written &lt; 0) {
+        fclose(fp);
+        ERR_PROC(GAUSS_44186, ERR_LEVEL_ERROR,
+                (err_ecode(ERRCODE_IO_ERROR),
+                 err_msg("failed to write to file \"%s\": %m", filename)));
+        PG_RETURN_INT32(-1);
+    }
+
+    fclose(fp);
+    PG_RETURN_INT32(bytes_written);
+}
+</code></pre>
+<h3 id="42-编译">4.2 编译</h3>
+<pre><code class="language-bash">g++ -std=c++0x -Wall -fPIC \
+    -I${GAUSSHOME}/include/gaussdb/server \
+    -D_GNU_SOURCE \
+    -c -o udf_write_file.o udf_write_file.cpp
+
+g++ -std=c++0x -Wall -fPIC -shared \
+    -L${GAUSSHOME}/lib -Wl,-rpath,${GAUSSHOME}/lib \
+    udf_write_file.o -o udf_write_file.so
+</code></pre>
+<h3 id="43-部署">4.3 部署</h3>
+<pre><code class="language-bash">cp udf_write_file.so ${GAUSSHOME}/lib/gaussdb/proc_srclib/
+
+# 拷贝到其他节点
+pscp -H 192.168.*.* udf_write_file.so $GAUSSHOME/lib/gaussdb/proc_srclib/
+
+</code></pre>
+<h3 id="44-创建函数">4.4 创建函数</h3>
+<pre><code class="language-sql">-- 非 fenced（性能最优，但有安全风险）
+CREATE FUNCTION udf_write_file(filename text, content text)
+RETURNS integer
+AS 'udf_write_file.so', 'udf_write_file'
+LANGUAGE C STRICT;
+
+-- fenced（安全隔离）
+-- 需先开启: gs_guc reload -I all -N all -c "enable_cfunction=on"
+CREATE FUNCTION udf_write_file_fenced(filename text, content text)
+RETURNS integer
+AS 'udf_write_file.so', 'udf_write_file'
+LANGUAGE C STRICT fenced;
+</code></pre>
+<hr/>
+<h2 id="五方案四dbe_file-内置包零部署">五、方案四：DBE_FILE 内置包（零部署）</h2>
+<pre><code class="language-sql">CREATE DIRECTORY LOG_DIR AS '/tmp';
+
+CREATE OR REPLACE PROCEDURE utl_write_log(
+    p_filename IN VARCHAR2,
+    p_content  IN VARCHAR2
+) AS
+    v_file_handle dbe_file.FILE_TYPE;
+BEGIN
+    v_file_handle := dbe_file.FOPEN('LOG_DIR', p_filename, 'A', 32767);
+    dbe_file.WRITE_LINE(v_file_handle, p_content);
+    dbe_file.CLOSE(v_file_handle);
+EXCEPTION
+    WHEN OTHERS THEN
+        IF dbe_file.IS_OPEN(v_file_handle) THEN
+            dbe_file.CLOSE(v_file_handle);
+        END IF;
+        RAISE;
+END utl_write_log;
+/
+</code></pre>
+<hr/>
+<h2 id="六性能测试">六、性能测试</h2>
+<h3 id="61-测试方法">6.1 测试方法</h3>
+<p>使用预编译存储过程 <code>sp_perf_bench(循环次数, 轮数)</code> 一键执行全部方案，<code>SYSTIMESTAMP</code> 精确计时，结果持久化到 <code>perf_result</code> 表。</p>
+<pre><code class="language-bash">gsql -r -d postgres -p 8000 -f perf_test.sql
+</code></pre>
+<h3 id="62-测试结果汇总">6.2 测试结果汇总</h3>
+<h4 id="10-条轮">10 条/轮</h4>
+<table><thead><tr><th>方案</th><th>平均耗时(ms)</th><th>最小(ms)</th><th>最大(ms)</th><th>吞吐量(rows/s)</th><th>相对基线</th></tr></thead><tbody><tr><td>C fopen/fprintf（非fenced）</td><td>0.257</td><td>0.128</td><td>0.507</td><td>38,860</td><td>958x</td></tr><tr><td>DBE_FILE 内置包</td><td>1.937</td><td>1.600</td><td>2.462</td><td>5,163</td><td>127x</td></tr><tr><td>C fopen/fprintf（fenced）</td><td>3.729</td><td>3.287</td><td>4.001</td><td>2,682</td><td>66x</td></tr><tr><td>INSERT TABLE（unnest批量）</td><td>19.123</td><td>15.871</td><td>24.428</td><td>523</td><td>13x</td></tr><tr><td>INSERT TABLE（逐条自治事务）</td><td>246.161</td><td>161.149</td><td>401.142</td><td>41</td><td>1.0x</td></tr></tbody></table>
+<h4 id="100-条轮">100 条/轮</h4>
+<table><thead><tr><th>方案</th><th>平均耗时(ms)</th><th>最小(ms)</th><th>最大(ms)</th><th>吞吐量(rows/s)</th><th>相对基线</th></tr></thead><tbody><tr><td>C fopen/fprintf（非fenced）</td><td>0.824</td><td>0.813</td><td>0.831</td><td>121,310</td><td>2,879x</td></tr><tr><td>C fopen/fprintf（fenced）</td><td>6.875</td><td>6.534</td><td>7.137</td><td>14,545</td><td>345x</td></tr><tr><td>DBE_FILE 内置包</td><td>12.614</td><td>11.745</td><td>13.760</td><td>7,928</td><td>188x</td></tr><tr><td>INSERT TABLE（unnest批量）</td><td>53.926</td><td>33.687</td><td>76.534</td><td>1,854</td><td>44x</td></tr><tr><td>INSERT TABLE（逐条自治事务）</td><td>2,372.331</td><td>2,072.346</td><td>2,539.938</td><td>42</td><td>1.0x</td></tr></tbody></table>
+<h4 id="1000-条轮">1000 条/轮</h4>
+<table><thead><tr><th>方案</th><th>平均耗时(ms)</th><th>最小(ms)</th><th>最大(ms)</th><th>吞吐量(rows/s)</th><th>相对基线</th></tr></thead><tbody><tr><td>C fopen/fprintf（非fenced）</td><td>7.320</td><td>6.923</td><td>7.579</td><td>136,618</td><td>4,344x</td></tr><tr><td>C fopen/fprintf（fenced）</td><td>38.214</td><td>36.259</td><td>40.278</td><td>26,169</td><td>832x</td></tr><tr><td>DBE_FILE 内置包</td><td>136.029</td><td>125.180</td><td>152.269</td><td>7,351</td><td>234x</td></tr><tr><td>INSERT TABLE（unnest批量）</td><td>141.496</td><td>43.443</td><td>257.844</td><td>7,067</td><td>225x</td></tr><tr><td>INSERT TABLE（逐条自治事务）</td><td>31,801.031</td><td>29,000.139</td><td>34,637.350</td><td>31</td><td>1.0x</td></tr></tbody></table>
+<h3 id="63-趋势分析">6.3 趋势分析</h3>
+<p><strong>随数据量增长的耗时趋势</strong>（平均耗时 ms）：</p>
+<table><thead><tr><th>方案</th><th>10 条</th><th>100 条</th><th>1000 条</th><th>1000/10 倍率</th></tr></thead><tbody><tr><td>C fopen/fprintf（非fenced）</td><td>0.257</td><td>0.824</td><td>7.320</td><td><strong>28.5x</strong>（近线性）</td></tr><tr><td>C fopen/fprintf（fenced）</td><td>3.729</td><td>6.875</td><td>38.214</td><td>10.2x</td></tr><tr><td>DBE_FILE 内置包</td><td>1.937</td><td>12.614</td><td>136.029</td><td>70.2x</td></tr><tr><td>INSERT TABLE（unnest批量）</td><td>19.123</td><td>53.926</td><td>141.496</td><td>7.4x</td></tr><tr><td>INSERT TABLE（逐条自治事务）</td><td>246.161</td><td>2,372.331</td><td>31,801.031</td><td>129.2x</td></tr></tbody></table>
+<p><strong>关键发现</strong>：</p>
+<ol>
+<li>
+<p><strong>C 非 fenced 几乎线性扩展</strong>：10 条到 1000 条耗时增长约 28.5 倍（接近理想线性 100 倍），说明单次调用的固定开销极小。1000 条仅 7.3ms，吞吐量达 <strong>13.7 万 rows/s</strong>。</p>
+</li>
+<li>
+<p><strong>逐条自治事务扩展性最差</strong>：耗时增长 129 倍（超过线性），说明自治事务的上下文切换开销随并发量累积放大。</p>
+</li>
+<li>
+<p><strong>unnest 批量 vs DBE_FILE</strong>：在 1000 条时两者性能接近（141ms vs 136ms），但 unnest 方案波动大（最小 43ms 最大 258ms），DBE_FILE 更稳定。</p>
+</li>
+<li>
+<p><strong>C fenced 的固定开销</strong>：即使只写 10 条也需要 3.7ms（vs 非 fenced 的 0.26ms），说明 fenced 模式每次调用有约 3ms 的 IPC 通信固定开销。</p>
+</li>
+</ol>
+<hr/>
+<h2 id="七注意事项">七、注意事项</h2>
+<h3 id="自定义c函数">自定义C函数</h3>
+<table><thead><tr><th>项目</th><th>说明</th></tr></thead><tbody><tr><td>非 fenced 模式</td><td>C 函数直接在 GaussDB 主进程中运行，代码缺陷可导致数据库崩溃，<strong>仅建议测试环境使用</strong></td></tr><tr><td>fenced 模式</td><td>C 函数在独立的 fenced 子进程中运行，崩溃不影响主进程，<strong>但由于需要依赖GaussDB头文件编译，因此在GaussDB打内核补丁或者升级时需要重新编译，增加了维护量</strong></td></tr><tr><td>文件路径</td><td>确保数据库操作系统用户对目标目录有写权限</td></tr><tr><td><code>enable_cfunction</code></td><td>fenced 模式需开启：<code>gs_guc reload -I all -N all -c "enable_cfunction=on"</code> ，不开会报错 <code>Unsupported feature</code></td></tr><tr><td>多节点</td><td>so文件需要复制到每个节点上，且日志文件只会记录在主节点，切换后无法通过外部表查询，如果设计共享存储或者同步机制，会增加架构复杂度</td></tr><tr><td>日志归档</td><td>需要设计日志轮转及归档机制，比如单个日志文件持续增大</td></tr><tr><td>操作系统注入风险</td><td>本文用例未作安全防护，实际使用需做路径保护以及权限控制</td></tr></tbody></table>
+<h3 id="unnest嵌套表批量插入">unnest嵌套表批量插入</h3>
+<p>核心改造思路：<br/>
+执行业务逻辑前，需要先初始化嵌套表全局变量，然后把原本调用的写自治事务的存储过程，改成往全局变量里填充数据，并且设计逻辑当全局变量填满时，调用一次自治事务进行插表，重新初始化全局变量，最后在业务逻辑执行结束时，把没填满的全局变量trim掉空的记录再插表。</p>
+<p>此方案虽然不如自定义C函数直接写文件快，但是相较于原本的每行日志就调用一个自治事务进行插入的性能也是提升巨大，已经接近使用内置的dbe_file写文件的速度了。只是需要进行的业务代码框架上的改造，开发上稍微麻烦点。另外如果有kill session，那么就存在丢失日志记录的可能性。</p>
+<h3 id="其他">其他</h3>
+<table><thead><tr><th>问题</th><th>原因</th><th>解决方案</th></tr></thead><tbody><tr><td>匿名块 <code>CALL proc()</code> 报 <code>query has no destination for result data</code></td><td>GaussDB <code>DO $$</code> 匿名块中不支持直接 <code>CALL</code></td><td>改为 <code>PERFORM proc()</code> 或去掉<code>CALL</code></td></tr><tr><td><code>DBMS_OUTPUT.PUT_LINE</code> 不存在</td><td>GaussDB 对应 <code>DBE_OUTPUT.PUT_LINE</code></td><td>使用 <code>RAISE INFO/NOTICE</code> 或 <code>DBE_OUTPUT</code></td></tr><tr><td>编译时 <code>gaussdb.h</code> 找不到</td><td><code>su</code> 切用户后环境变量未加载</td><td>先 <code>source gauss_env_file</code></td></tr><tr><td>openGauss/postgresql能编译的C函数在GaussDB上编译会报错</td><td>GaussDB修改了源码文件名，且修改了函数名</td><td>以openGauss作为参考，在GaussDB对应的头文件相同行数附近找可能的函数名</td></tr><tr><td>使用长匿名块测试性能不佳</td><td>匿名块没有预编译，需要在执行时再去编译，有时间消耗；另外，由于开启了记录PLSQL每一层SQL的能力，长匿名块的文本会在SQL的每一层堆栈进行拷贝，当长度超过预设的SQL记录长度时，强制使用纯文本方式去进行脱敏处理，导致性能低下</td><td>将测试代码创建成存储过程再进行测试</td></tr><tr><td>GaussDB相同代码反复执行多次，性能可能存在巨大变化</td><td>除了有cplan/gplan的因素，还有aplan、plsql cache等多种因素</td><td>先预热反复执行N次等性能稳定后再进行正式测试</td></tr></tbody></table>
+<h2 id="八测试脚本">八、测试脚本</h2>
+<pre><code class="language-sql">-- ============================================================
+-- GaussDB 文件写入性能对比测试 - 一键执行脚本
+-- 适用于 GaussDB 506.0.0.SPC0100
+-- ============================================================
+-- 用法: gsql -r -d postgres -p 8000 -f perf_test.sql
+-- ============================================================
+
+\set ON_ERROR_STOP off
+
+-- 清理旧对象
+DROP FUNCTION IF EXISTS udf_write_file(text, text);
+DROP FUNCTION IF EXISTS udf_write_file_fenced(text, text);
+DROP VIEW IF EXISTS v_perf_summary CASCADE;
+DROP VIEW IF EXISTS v_perf_ratio CASCADE;
+DROP TABLE IF EXISTS perf_log;
+DROP TABLE IF EXISTS perf_result;
+DROP PROCEDURE IF EXISTS sp_insert_perf_log;
+DROP PROCEDURE IF EXISTS sp_perf_bench;
+DROP PROCEDURE IF EXISTS sp_clear_perf_data;
+DROP VIEW IF EXISTS v_perf_summary;
+DROP VIEW IF EXISTS v_perf_ratio;
+DROP DIRECTORY IF EXISTS LOG_DIR;
+DROP PROCEDURE IF EXISTS utl_write_log;
+
+-- ============================================================
+-- 1. 创建测试对象
+-- ============================================================
+
+CREATE TABLE perf_log (
+    seq_id       INT,
+    user_id      TEXT,
+    log_content  TEXT,
+    log_time     DATE
+);
+
+CREATE PROCEDURE sp_insert_perf_log(
+    p_seq_id      INT,
+    p_user_id     TEXT,
+    p_log_content TEXT,
+    p_log_time    DATE
+) IS
+PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    INSERT INTO perf_log VALUES (p_seq_id, USER, 'aaaaaaaaaa', SYSDATE);
+    COMMIT;
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+CREATE FUNCTION udf_write_file(filename text, content text)
+RETURNS integer
+AS 'udf_write_file.so', 'udf_write_file'
+LANGUAGE C STRICT;
+
+CREATE FUNCTION udf_write_file_fenced(filename text, content text)
+RETURNS integer
+AS 'udf_write_file.so', 'udf_write_file'
+LANGUAGE C STRICT fenced;
+
+CREATE DIRECTORY LOG_DIR AS '/tmp';
+
+CREATE OR REPLACE PROCEDURE utl_write_log(
+    p_filename IN VARCHAR2,
+    p_content  IN VARCHAR2
+) AS
+    v_file_handle dbe_file.FILE_TYPE;
+BEGIN
+    v_file_handle := dbe_file.FOPEN('LOG_DIR', p_filename, 'A', 32767);
+    dbe_file.WRITE_LINE(v_file_handle, p_content);
+    dbe_file.CLOSE(v_file_handle);
+EXCEPTION
+    WHEN OTHERS THEN
+        IF dbe_file.IS_OPEN(v_file_handle) THEN
+            dbe_file.CLOSE(v_file_handle);
+        END IF;
+        RAISE;
+END utl_write_log;
+/
+
+CREATE TABLE perf_result (
+    test_no      INT,
+    method       TEXT,
+    loop_count   INT,
+    round_no     INT,
+    elapsed_ms   NUMERIC(10,3),
+    test_time    TIMESTAMP DEFAULT SYSDATE
+);
+
+-- ============================================================
+-- 2. 创建性能测试存储过程 (预编译，追加模式)
+-- ============================================================
+
+CREATE OR REPLACE PROCEDURE sp_perf_bench(
+    p_loop_count  IN INT,
+    p_rounds      IN INT
+) IS
+    TYPE t_log_rec IS RECORD (
+        seq_id       INT,
+        log_content  VARCHAR2(200)
+    );
+    TYPE t_log_tab IS TABLE OF t_log_rec;
+
+    v_tab          t_log_tab;
+    v_start_ts     TIMESTAMP;
+    v_end_ts       TIMESTAMP;
+    v_ms           NUMERIC(10,3);
+    v_ret          INT;
+    v_i            INT;
+    v_r            INT;
+    v_test_no      INT;
+BEGIN
+    -- 获取当前最大 test_no
+    SELECT COALESCE(MAX(test_no), 0) INTO v_test_no FROM perf_result;
+
+    -- 清理日志表数据
+    DELETE FROM perf_log;
+    COMMIT;
+
+    -- ===== 方案 1: INSERT TABLE (逐条自治事务) =====
+    FOR v_r IN 1..p_rounds LOOP
+        DELETE FROM perf_log;
+        COMMIT;
+        v_start_ts := SYSTIMESTAMP;
+        FOR v_i IN 1..p_loop_count LOOP
+            sp_insert_perf_log(v_i, USER, 'aaaaaaaaaa', SYSDATE);
+        END LOOP;
+        v_end_ts := SYSTIMESTAMP;
+        v_ms := ROUND((v_end_ts - v_start_ts) * 24 * 3600 * 1000, 3);
+        v_test_no := v_test_no + 1;
+        INSERT INTO perf_result(test_no, method, loop_count, round_no, elapsed_ms)
+        VALUES (v_test_no, 'INSERT TABLE (逐条自治事务)', p_loop_count, v_r, v_ms);
+        COMMIT;
+        RAISE INFO '[%行 Round %] INSERT TABLE (逐条): % ms', p_loop_count, v_r, v_ms;
+    END LOOP;
+
+    -- ===== 方案 2: INSERT TABLE + unnest_table (批量插入) =====
+    FOR v_r IN 1..p_rounds LOOP
+        DELETE FROM perf_log;
+        COMMIT;
+        v_tab := t_log_tab();
+        FOR v_i IN 1..p_loop_count LOOP
+            v_tab.EXTEND;
+            v_tab(v_i).seq_id := v_i;
+            v_tab(v_i).log_content := v_i || ',' || USER || ',aaaaaaaaaa,' ||
+                TO_CHAR(SYSDATE, 'yyyymmddhh24miss');
+        END LOOP;
+        v_start_ts := SYSTIMESTAMP;
+        INSERT INTO perf_log(seq_id, log_content)
+            SELECT t.seq_id, t.log_content FROM unnest_table(v_tab) t;
+        COMMIT;
+        v_end_ts := SYSTIMESTAMP;
+        v_ms := ROUND((v_end_ts - v_start_ts) * 24 * 3600 * 1000, 3);
+        v_test_no := v_test_no + 1;
+        INSERT INTO perf_result(test_no, method, loop_count, round_no, elapsed_ms)
+        VALUES (v_test_no, 'INSERT TABLE (unnest批量)', p_loop_count, v_r, v_ms);
+        COMMIT;
+        RAISE INFO '[%行 Round %] INSERT TABLE (unnest批量): % ms', p_loop_count, v_r, v_ms;
+    END LOOP;
+
+    -- ===== 方案 3: C fopen/fprintf (非 fenced) =====
+    FOR v_r IN 1..p_rounds LOOP
+        v_start_ts := SYSTIMESTAMP;
+        FOR v_i IN 1..p_loop_count LOOP
+            v_ret := udf_write_file('/tmp/perf_c.log',
+                v_i || ',' || USER || ',aaaaaaaaaa,' ||
+                TO_CHAR(SYSDATE, 'yyyymmddhh24miss'));
+        END LOOP;
+        v_end_ts := SYSTIMESTAMP;
+        v_ms := ROUND((v_end_ts - v_start_ts) * 24 * 3600 * 1000, 3);
+        v_test_no := v_test_no + 1;
+        INSERT INTO perf_result(test_no, method, loop_count, round_no, elapsed_ms)
+        VALUES (v_test_no, 'C fopen/fprintf (非fenced)', p_loop_count, v_r, v_ms);
+        COMMIT;
+        RAISE INFO '[%行 Round %] C write_file (非fenced): % ms', p_loop_count, v_r, v_ms;
+    END LOOP;
+
+    -- ===== 方案 4: C fopen/fprintf (fenced) =====
+    FOR v_r IN 1..p_rounds LOOP
+        v_start_ts := SYSTIMESTAMP;
+        FOR v_i IN 1..p_loop_count LOOP
+            v_ret := udf_write_file_fenced('/tmp/perf_c_fenced.log',
+                v_i || ',' || USER || ',aaaaaaaaaa,' ||
+                TO_CHAR(SYSDATE, 'yyyymmddhh24miss'));
+        END LOOP;
+        v_end_ts := SYSTIMESTAMP;
+        v_ms := ROUND((v_end_ts - v_start_ts) * 24 * 3600 * 1000, 3);
+        v_test_no := v_test_no + 1;
+        INSERT INTO perf_result(test_no, method, loop_count, round_no, elapsed_ms)
+        VALUES (v_test_no, 'C fopen/fprintf (fenced)', p_loop_count, v_r, v_ms);
+        COMMIT;
+        RAISE INFO '[%行 Round %] C write_file (fenced): % ms', p_loop_count, v_r, v_ms;
+    END LOOP;
+
+    -- ===== 方案 5: DBE_FILE 内置包 =====
+    FOR v_r IN 1..p_rounds LOOP
+        v_start_ts := SYSTIMESTAMP;
+        FOR v_i IN 1..p_loop_count LOOP
+            utl_write_log('perf_dbe_file.log',
+                v_i || ',' || USER || ',aaaaaaaaaa,' ||
+                TO_CHAR(SYSDATE, 'yyyymmddhh24miss'));
+        END LOOP;
+        v_end_ts := SYSTIMESTAMP;
+        v_ms := ROUND((v_end_ts - v_start_ts) * 24 * 3600 * 1000, 3);
+        v_test_no := v_test_no + 1;
+        INSERT INTO perf_result(test_no, method, loop_count, round_no, elapsed_ms)
+        VALUES (v_test_no, 'DBE_FILE 内置包', p_loop_count, v_r, v_ms);
+        COMMIT;
+        RAISE INFO '[%行 Round %] DBE_FILE: % ms', p_loop_count, v_r, v_ms;
+    END LOOP;
+
+    RAISE INFO '[%行] 全部方案测试完成', p_loop_count;
+END;
+/
+
+-- 清理历史数据的存储过程
+CREATE OR REPLACE PROCEDURE sp_clear_perf_data AS
+BEGIN
+    DELETE FROM perf_result;
+    DELETE FROM perf_log;
+    COMMIT;
+END;
+/
+
+-- ============================================================
+-- 3. 功能验证
+-- ============================================================
+
+DO $$
+BEGIN
+    PERFORM sp_insert_perf_log(0, 'verify', 'test', SYSDATE);
+    RAISE NOTICE 'A: INSERT TABLE verified, rows=%',
+        (SELECT COUNT(*) FROM perf_log WHERE seq_id = 0);
+    DELETE FROM perf_log WHERE seq_id = 0;
+    COMMIT;
+END;
+$$;
+
+SELECT 'B: write_file = '
+    || udf_write_file('/tmp/perf_verify.log', 'verify non-fenced') AS verify;
+
+SELECT 'C: write_file_fenced = '
+    || udf_write_file_fenced('/tmp/perf_verify.log', 'verify fenced') AS verify;
+
+DO $$
+BEGIN
+    PERFORM utl_write_log('perf_verify_dbe.log', 'verify dbe_file');
+    RAISE NOTICE 'D: DBE_FILE verified';
+END;
+$$;
+
+-- ============================================================
+-- 4. 执行测试: 10 / 100 / 1000
+-- ============================================================
+
+CALL sp_clear_perf_data();
+CALL sp_perf_bench(10, 3);
+CALL sp_perf_bench(100, 3);
+CALL sp_perf_bench(1000, 3);
+
+-- ============================================================
+-- 5. 打印汇总报告
+-- ============================================================
+
+SELECT '============== 汇总报告 ==============' AS phase;
+
+SELECT
+    method                                                AS "方案",
+    loop_count                                            AS "循环次数",
+    TO_CHAR(ROUND(AVG(elapsed_ms), 3), '999990.000')      AS "平均耗时(ms)",
+    TO_CHAR(ROUND(MIN(elapsed_ms), 3), '999990.000')      AS "最小耗时(ms)",
+    TO_CHAR(ROUND(MAX(elapsed_ms), 3), '999990.000')      AS "最大耗时(ms)",
+    TO_CHAR(ROUND(loop_count::NUMERIC / (AVG(elapsed_ms) / 1000), 1),
+            '999990.0')                                    AS "吞吐量(rows/s)"
+FROM perf_result
+GROUP BY method, loop_count
+ORDER BY loop_count, AVG(elapsed_ms);
+
+SELECT '========= 相对基线倍数 =========' AS phase;
+
+SELECT
+    r.method                                              AS "方案",
+    r.loop_count                                          AS "循环次数",
+    TO_CHAR(r.avg_ms, '999990.000')                       AS "平均耗时(ms)",
+    TO_CHAR(ROUND(b.avg_ms / r.avg_ms, 1), '999990.0')   AS "相对基线倍数"
+FROM (
+    SELECT method, loop_count, ROUND(AVG(elapsed_ms), 3) AS avg_ms
+    FROM perf_result
+    GROUP BY method, loop_count
+) r
+CROSS JOIN (
+    SELECT loop_count, ROUND(AVG(elapsed_ms), 3) AS avg_ms
+    FROM perf_result
+    WHERE method = 'INSERT TABLE (逐条自治事务)'
+    GROUP BY loop_count
+) b
+WHERE r.loop_count = b.loop_count
+ORDER BY r.loop_count, r.avg_ms;
+
+SELECT '========== 详细数据 ==========' AS phase;
+
+SELECT test_no, method, loop_count AS "循环次数", round_no AS "轮次",
+       TO_CHAR(elapsed_ms, '999990.000') AS "耗时(ms)",
+       test_time
+  FROM perf_result
+ ORDER BY test_no;
+</code></pre>
+<hr/>
+<blockquote>
+<p>本文全文基本由AI编写，包括测试代码编写和执行测试也由AI自主完成。作者仅提供思路、数据库测试环境以及原始测试脚本样例，并进行了少量文本性描述补充。</p>
+</blockquote>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

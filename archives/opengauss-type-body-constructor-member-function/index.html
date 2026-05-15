@@ -155,7 +155,207 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E8%83%8C%E6%99%AF" tabindex="-1">背景</h2>
+<p>面向过程编程和面向对象编程，是两种编程的思维方式。在数据库中编程，大多都是用的存储过程，但是Oracle也支持面向对象的编程方式，即在自定义type中，包含constructor  function、member function的声明及定义。这种方式，能够较为轻松地使用其他面向对象编程的语言进行相互移植，虽然语法上有所区别，但是重要的是主体逻辑基本不用变,甚至oracle也提供了其他开发语言对这种type对象直接调用的支持。<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/adobj/preface.html" target="_blank">《ORACLE对象关系开发人员指南》</a><br/>
+所以，实际上也存在很多在oracle中使用面向对象编程的代码。<br/>
+在openGauss3.0中，是不支持这种功能的，所以本文来讨论，如何在openGauss3.0中进行改写以支持类似的功能。</p>
+<h2 id="%E6%94%B9%E5%86%99%E7%9A%84%E4%BE%8B%E5%AD%90" tabindex="-1">改写的例子</h2>
+<h3 id="%E4%BE%8B%E4%B8%80%EF%BC%9A" tabindex="-1">例一：</h3>
+<pre><code class="language-sql">CREATE OR REPLACE TYPE MESSAGE_RET_T     AS OBJECT (
+   RET_CODE     VARCHAR2 (6 CHAR),     
+   RET_MESSAGE      VARCHAR2 (512 CHAR),   
+
+   CONSTRUCTOR FUNCTION MESSAGE_RET_T RETURN SELF AS RESULT
+)
+/
+
+CREATE OR REPLACE TYPE BODY MESSAGE_RET_T 
+AS
+    CONSTRUCTOR FUNCTION MESSAGE_RET_T RETURN SELF AS RESULT
+	IS
+	BEGIN
+	  RETURN;
+	END;
+END;
+/
+
+--使用（指定参数位置）
+declare
+a MESSAGE_RET_T:=MESSAGE_RET_T(RET_CODE=&gt;'a1',RET_MESSAGE=&gt;'b1');
+begin
+   dbms_output.put_line(a.RET_CODE||'-'||a.RET_MESSAGE);
+end;
+</code></pre>
+<p>在MESSAGE_RET_T这个type中，有一个构建函数返回了自己，也就是说，通过这一段<br/>
+MESSAGE_RET_T(RET_CODE=&gt;‘a1’,RET_MESSAGE=&gt;‘b1’) 生成了一个对象，对象的类型为MESSAGE_RET_T。</p>
+<p>如果在openGauss3.0中也要支持这样的功能，那么MESSAGE_RET_T就只能是个函数，因为openGauss中的type不能指定参数位置传参。<br/>
+这样就变成了，既要有MESSAGE_RET_T这个函数，也得有MESSAGE_RET_T这个TYPE，很明显不行。而且如果一个type内的函数很多，不同type间有重名函数，这样必然会导致混乱和冲突。</p>
+<p>所以这个时候可以引入package的概念，于是乎，我尝试在openGauss中创建一个type，并用这个type创建同名的package，package中必须包含一个self函数，用于返回同名package对象，比如</p>
+<pre><code class="language-sql">CREATE  TYPE MESSAGE_RET_T     AS  (
+   RET_CODE     VARCHAR2 (6 ),     -- 交易返回代码
+   RET_MESSAGE      VARCHAR2 (512 )  -- 交易返回信息
+);
+
+create or REPLACE package MESSAGE_RET_T is 
+function SELF(RET_CODE varchar2,RET_MESSAGE VARCHAR2) return MESSAGE_RET_T;
+end MESSAGE_RET_T;
+
+create or replace package body MESSAGE_RET_T is 
+function SELF(RET_CODE varchar2,RET_MESSAGE VARCHAR2)  return MESSAGE_RET_T is 
+val MESSAGE_RET_T;
+begin 
+	val.RET_CODE:=RET_CODE;
+	val.RET_MESSAGE:=RET_MESSAGE;
+	return val;
+end;
+end MESSAGE_RET_T;
+
+--使用（指定参数位置）
+declare
+a MESSAGE_RET_T:=MESSAGE_RET_T.self(RET_CODE=&gt;'a1',RET_MESSAGE=&gt;'b1');
+begin
+   dbms_output.put_line(a.RET_CODE||'-'||a.RET_MESSAGE);
+end;
+</code></pre>
+<h3 id="%E4%BE%8B%E4%BA%8C" tabindex="-1">例二</h3>
+<p>如果type中存在返回self以外的其他函数，那么改写时，需要对其他函数都增加一个参数，用于把self生成的对象传入，比如,在oracle中</p>
+<pre><code class="language-sql">CREATE OR REPLACE TYPE MESSAGE_LOCAL_HEADER_T                                          
+AS OBJECT(
+      RET      MESSAGE_RET_A,      -- 交易结果
+
+    CONSTRUCTOR FUNCTION MESSAGE_LOCAL_HEADER_T RETURN SELF AS RESULT,
+    MEMBER FUNCTION getRet RETURN MESSAGE_RET_A
+);
+
+CREATE OR REPLACE TYPE BODY MESSAGE_LOCAL_HEADER_T 
+AS
+    CONSTRUCTOR FUNCTION MESSAGE_LOCAL_HEADER_T RETURN SELF AS RESULT
+  IS
+  BEGIN
+    RETURN;
+  END;
+
+  MEMBER FUNCTION getRet RETURN MESSAGE_RET_A
+  IS
+  BEGIN
+    RETURN RET;
+  END;
+END;
+/
+--使用
+declare
+  a MESSAGE_LOCAL_HEADER_T;
+  b MESSAGE_RET_A:= MESSAGE_RET_A();
+  c MESSAGE_RET_T;
+  r1 MESSAGE_RET_A:=  MESSAGE_RET_A();
+  r2 varchar2(20);
+begin
+  c := MESSAGE_RET_T(RET_CODE =&gt; 'a1', RET_MESSAGE =&gt; 'b1');
+  b.extend;
+  b(1) := c;
+  a := MESSAGE_LOCAL_HEADER_T(ret =&gt; b);
+  r1 := a.getRet;
+  r2:=r1(1).RET_CODE;
+ dbms_output.put_line(r2);
+end;
+</code></pre>
+<p>改写后</p>
+<pre><code class="language-sql">CREATE  TYPE MESSAGE_LOCAL_HEADER_T                                          
+AS (
+      RET      MESSAGE_RET_A
+);
+
+create or replace  package MESSAGE_LOCAL_HEADER_T is 
+function self(RET MESSAGE_RET_A ) return MESSAGE_LOCAL_HEADER_T;
+function getRet(self MESSAGE_LOCAL_HEADER_T) return MESSAGE_RET_A;
+end MESSAGE_LOCAL_HEADER_T;
+
+create or replace package body MESSAGE_LOCAL_HEADER_T is
+function self(RET MESSAGE_RET_A ) return MESSAGE_LOCAL_HEADER_T is
+val MESSAGE_LOCAL_HEADER_T;
+begin
+	val:=MESSAGE_LOCAL_HEADER_T(RET);
+return val;
+end;
+function getRet(self MESSAGE_LOCAL_HEADER_T) return MESSAGE_RET_A is
+begin
+	return self.RET;
+end;
+end MESSAGE_LOCAL_HEADER_T;
+
+--使用
+declare
+  a MESSAGE_LOCAL_HEADER_T;
+  b MESSAGE_RET_A;
+  c MESSAGE_RET_T;
+  r1 MESSAGE_RET_A;
+  r2 varchar2(20);
+begin
+  c := MESSAGE_RET_T.self(RET_CODE =&gt; 'a1', RET_MESSAGE =&gt; 'b1');
+  b.extend;
+  b(1) := c;
+  a := MESSAGE_LOCAL_HEADER_T.self(ret =&gt; b );
+  r1:= MESSAGE_LOCAL_HEADER_T.getRet(a);
+  r2:= r1(1).RET_CODE;
+ dbms_output.put_line(r2);
+end;
+</code></pre>
+<p>其实这个改写的语法结构，很像python中的class，因为它函数的第一个参数也是self，只是不需要再传自己进来。这种改写方式，除了创建命令有所区别外，调用方式也只有一点点区别</p>
+<h3 id="%E4%BE%8B%E4%B8%89" tabindex="-1">例三</h3>
+<p>如果例一中，不需要指定参数位置，那么其实也不需要创建package，比如,在oracle中</p>
+<pre><code class="language-sql">CREATE OR REPLACE TYPE MESSAGE_RET_T     AS OBJECT (
+   RET_CODE     VARCHAR2 (6 CHAR),     -- 交易返回代码
+   RET_MESSAGE      VARCHAR2 (512 CHAR),   -- 交易返回信息
+
+   CONSTRUCTOR FUNCTION MESSAGE_RET_T RETURN SELF AS RESULT
+);
+
+CREATE OR REPLACE TYPE BODY MESSAGE_RET_T 
+AS
+    CONSTRUCTOR FUNCTION MESSAGE_RET_T RETURN SELF AS RESULT
+	IS
+	BEGIN
+	  RETURN;
+	END;
+END;
+/
+
+--使用（不指定参数位置）
+declare
+a MESSAGE_RET_T:=MESSAGE_RET_T('a1','b1');
+begin
+   dbms_output.put_line(a.RET_CODE||'-'||a.RET_MESSAGE);
+end;
+</code></pre>
+<p>改写后</p>
+<pre><code class="language-sql">CREATE  TYPE MESSAGE_RET_T     AS  (
+   RET_CODE     VARCHAR2 (6 ),    
+   RET_MESSAGE      VARCHAR2 (512 )  
+);
+
+--使用（不指定参数位置）
+declare
+a MESSAGE_RET_T:=MESSAGE_RET_T('a1','b1');
+begin
+   dbms_output.put_line(a.RET_CODE||'-'||a.RET_MESSAGE);
+end;
+</code></pre>
+<p>可以发现，使用上是一模一样的.</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<ol>
+<li>创建type和同名package</li>
+<li>package中放一个self函数用来构造同名type对象</li>
+<li>从原有type中将其他函数都放在package中，并且在函数的参数的第一个位置增加一个参数，指定类型为改type</li>
+<li>使用时，返回自己使用 包名.self 函数</li>
+<li>调用成员函数时，改写成调用 包名.函数的方式，并把原type对象作为第一个参数，其他参数往后排</li>
+</ol>
+<p>理论上，这可以算一个通用改写规则了，硬生生用面向过程的处理方式，实现了面向对象的改写，但在编程思想上，仍保留有面向对象的痕迹。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

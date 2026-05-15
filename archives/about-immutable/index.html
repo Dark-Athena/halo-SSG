@@ -155,7 +155,171 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>在官方的介绍中，immutable不可变表和blockchain区块链表是放在一起的，看上去不可变表就是防篡改等级稍弱于区块链表的一种存在。</p>
+<p>官方文档 ：<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/admin/managing-tables.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/admin/managing-tables.html</a><br/>
+看不懂英文的，可以参考一下eygle大佬的这篇文章<a href="https://www.modb.pro/db/161055">Oracle 21c 新特性：不可变表 Immutable tables 提高安全</a></p>
+<p>例子我就不贴了，大概介绍下特性，<br/>
+你可以创建一个 插入数据后 根据建表参数来确定 是否可被删除记录 或者 是否可被修改记录的 表，而且还有不可变的有效期。一旦违规操作，就会返回报错信息，操作执行不成功。</p>
+<p>这种表的使用场景很容易就能想到，至于用法官方文档也有，所以本篇文章不讨论这两个内容。</p>
+<p>我们继续深入一下。</p>
+<h2 id="二数据库中存储的ddl信息">二、数据库中存储的DDL信息</h2>
+<p>提到 创建表，自然就是 "create table" ,而创建不可变表是 "create immutable table",会不会有人去想，我能不能在某个数据库里，找到所有的不可变表，或者找到某张不可变表，复制ddl改掉表名再建一张新表？</p>
+<p>这些想法貌似没有什么意义，但是继续往下看，你会发现一些和你想得不一样的东西。</p>
+<p>首先，你迫不及待的"create immutable table"后，有没有回头去看下这个表的ddl？</p>
+<p>几乎所有人都会理所当然的认为：“我建表的语句不就是ddl么？这还用去看？”</p>
+<p>首先，我先用官网的例子建了一个不可变表</p>
+<pre><code class="language-sql">CREATE IMMUTABLE TABLE trade_ledger (id NUMBER, luser VARCHAR2(40), value NUMBER)
+       NO DROP UNTIL 40 DAYS IDLE    
+       NO DELETE UNTIL 100 DAYS AFTER INSERT;
+</code></pre>
+<p>然后我用我比较常用的工具plsql developer,鼠标右键查看不可变表这个对象，得到的ddl是这样的</p>
+<pre><code class="language-sql">create table TRADE_LEDGER
+(
+  id    NUMBER,
+  luser VARCHAR2(40),
+  value NUMBER
+)
+tablespace SYSTEM
+  pctfree 10
+  pctused 40
+  initrans 1
+  maxtrans 255
+  storage
+  (
+    initial 64K
+    next 1M
+    minextents 1
+    maxextents unlimited
+  );
+</code></pre>
+<p>是不是少了一堆信息了？别急，根据我以往的经验来看，plsql developer获得的这个ddl并不是常规意义理解的存储在数据库中的信息，它是根据获取的相关信息重新生成的，可参考模板自增分区表，明明建表的时候只有一个模板，就2到3个分区，等过一段时间去看，plsql中的ddl看不到模板及自增信息，只有一大堆的分区定义。</p>
+<p>所以，要想获取准确的ddl，需要使用dbms_metadata.get_ddl这个函数。<br/>
+接下来我们就来查查看</p>
+<pre><code class="language-sql">select dbms_metadata.get_ddl(object_type =&gt; 'TABLE',
+                             name        =&gt; 'TRADE_LEDGER',
+                             schema      =&gt; 'SYS') FROM DUAL;
+
+----
+  CREATE TABLE "SYS"."TRADE_LEDGER" 
+   (	"ID" NUMBER, 
+	"LUSER" VARCHAR2(40), 
+	"VALUE" NUMBER
+   ) PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "SYSTEM" 
+</code></pre>
+<p>竟然还是没有关于不可变表的痕迹！</p>
+<p>这时你肯定会想，就算拿到了数据库中存储的这个ddl信息，也复制不出一张一样的不可变表，ORACLE把这玩意保存到哪去了？对于一些DBA而言还可能会想到，迁移后表属性不会变了吧？</p>
+<p>从逻辑上思考，ddl就肯定是ddl没错，但不可变表本身，可能并不是大家想像中的，oracle真的创建了一种新的对象，我猜它其实就只是对普通表增加了一些属性，这些属性记录在了另外的表里面，然后在数据库层面上加了一道关卡，执行sql前先校验，类似于我们以前创建触发器实现此类效果一样。</p>
+<p>但要如何证实我的猜想呢？</p>
+<h2 id="三参数的存储位置">三、参数的存储位置</h2>
+<p>既然是所谓“新的对象类型”，那么ORACLE肯定会提供对应"DBA_"开头的数据字典吧。在官方文档中，提到了，不可变表的信息都可以在“dba_immutable_tables”这个视图中查到，其实不看官方文档都能猜得出，一直以来命名都是这个规律。</p>
+<p>我们先来查一下</p>
+<table>
+<thead>
+<tr><th>SCHEMA_NAME</th><th>TABLE_NAME</th><th>ROW_RETENTION</th><th>ROW_RETENTION_LOCKED</th><th>TABLE_INACTIVITY_RETENTION</th></tr>
+</thead>
+<tbody>
+<tr><td>SYS</td><td>TRADE_LEDGER</td><td>100</td><td>NO</td><td>40</td></tr>
+</tbody>
+</table>
+<p>5个字段，看上去就是在建表的时候针对不可变表设定的一些参数。</p>
+<p>既然这是“视图”，我们当然要继续深挖，果断的进cdb看这个视图的代码（PDB中已经把系统视图的信息给隐藏掉了，连加密字符串都看不到）。</p>
+<pre><code class="language-sql">  create or replace view dba_immutable_tables
+(schema_name, table_name, row_retention, row_retention_locked, table_inactivity_retention)
+as
+  select u.name,
+       o.name,
+       b.row_retention,
+       decode(bitand(t.spare7, power(2,10)), power(2,10), 'YES', 'NO'),
+       b.table_inactivity_retention
+from sys.obj$ o, sys.user$ u, sys.blockchain_table$ b, sys.tab$ t
+where  o.owner# = u.user# and
+       o.obj# = b.obj# and
+       o.obj# = t.obj# and
+       bitand(t.spare7,power(2,11)) = power(2,11)
+ order by o.obj#;
+
+</code></pre>
+<ol>
+<li>
+<p>看一个sql，先看它的from，<br/>
+obj是对象，user是用户，tab是表，blockchain_table？？是区块链表？<br/>
+这不可变表也是通过区块链表的参数管理的？？我果断打开区块链表的数据字典sql一看，果然都用到了“sys.blockchain_table$”这个表</p>
+</li>
+<li>
+<p>第二步是看它的where条件，<br/>
+简单的关联先略过，重点在于 “bitand(t.spare7,power(2,11)) = power(2,11)” 这一条<br/>
+bitand是"位与"运算函数，power是幂函数, power(2,11)实际上就是2048，spare7的值也是2048，而"spare7"这个字段，其实是“sys.tab$”这个表上的一个预留字段，也就是说这个字段的名称是"第7个预留字段"....是不是瞬间回忆起了以前自己遇到的项目中一堆不明定义的字段？ORACLE也是这么做的！<br/>
+简单翻译这个条件其实此时近似等价于（不是绝对） "t.spare7=2048"，至于为什么要用bitand，先留个悬念。</p>
+</li>
+<li>
+<p>第三步就是看查询的值了<br/>
+可以看到，有 row_retention和table_inactivity_retention来自于区块链定义表，还有上面提到的来自于sys.tab$上的spare7，“decode(bitand(t.spare7, power(2,10)), power(2,10), 'YES', 'NO')”这个简单翻译，此时近似等价于decode(spare7,1024,'YES','NO')</p>
+</li>
+</ol>
+<h2 id="四能不能干它">四、能不能干它</h2>
+<p>到此，我们基本就可以知道 sys.tab$.spare7=2048的表就是不可变表，目前oracle中也没提供获取不可变表ddl的方式，同理可得区块链表也是一样，需要我们手动查询数据字典才能得到相关信息。这点期望oracle能改一下，否则我们如果只是复制几个表，还得去查看各种关联信息再手动写ddl，这样就太麻烦了。而且如果不是 不可变表或者区块链表，是不能像官方例子中“ALTER TABLE trade_ledger NO DROP UNTIL 50 DAYS IDLE;”那样去修改相关参数的</p>
+<blockquote>
+<p>ORA-05772: TRADE_LEDGER2 is neither a blockchain table nor an immutable table</p>
+</blockquote>
+<p>还没完，如果出现数据库损毁，这个表的数据和结构留下来了，但是相关参数丢了，数据库不认为它是不可变表了，怎么让他变回不可变表？能不能直接改spare7?<br/>
+答案当然是不能，用sys用户也不能改，</p>
+<blockquote>
+<p>ORA-05738: operation not allowed on the Oracle internal table</p>
+</blockquote>
+<p>如果能改，那DBA不就会背锅了？比如把不可变表变成可变表，改了数据再改回可变表？</p>
+<p>而且我用bing搜到oracle支持页面也有ora-05738这个报错（某度搜不到），原因是该用户在回滚一个oracle官方补丁，回滚指令中有一条</p>
+<pre><code class="language-sql">update sys.tab$ set spare7=NULL where spare7 is NOT NULL;
+</code></pre>
+<p><a href="https://support.oracle.com/knowledge/Oracle%20Database%20Products/2763859_1.html">https://support.oracle.com/knowledge/Oracle%20Database%20Products/2763859_1.html</a></p>
+<p>由于我没账号，不清楚这个问题下面是否有对应的回复，不过看来这次我摸索到的这个问题，oracle至少在某个时期的确是存在的，至于现在解决没有，那就不清楚了。</p>
+<p>虽然不能update,但是我联想到之前看到过的一个案例，某家公司被人注入了恶意代码，删除了sys.tab$表中的数据，后来DBA把数据还原回去了。也就是说，这个表是可以删除和插入的，只是不能update，所以我就这么一查一删一插，果然没报错。</p>
+<p>但是还有个关键，就是“sys.blockchain_table$”这个表，这个表里面必须要有数据，直接尝试插入，报和上面一样的ORA-05738，<br/>
+如果直接执行“ALTER TABLE trade_ledger2 NO DROP UNTIL 1 DAYS IDLE;”则</p>
+<blockquote>
+<p>ORA-00600: internal error code, arguments: [kbclgdrmod_2], [], [], [], [], [], [], [], [], [], [], []</p>
+</blockquote>
+<p>其实这不可变表还用到了c的程序，比如清理失效数据，其实就调用到了</p>
+<pre><code>LANGUAGE C
+      NAME "kbclgdrdel"
+</code></pre>
+<p>看来安全防范还是有保障的，一般的手段无法进行维（chuan）护（gai）</p>
+<h2 id="五结语">五、结语</h2>
+<p>新特性是好，不过目前的确不建议在生产中启用不可变表和区块链表，因为你可能会遇到官方都还没想到的一些问题；<br/>
+但是，建议有兴趣的还是可以自己在“玩耍”环境中测试，一是能有更多的人去发现问题，二是提前知道如果自己做这种功能是不是也要考虑下如何避免此类问题的发生。</p>
+<h2 id="补充遗留的悬念bitand">补充：遗留的悬念BITAND</h2>
+<p>位与运算，其实oracle在这里用这个函数，是把一个字段当成多个字段在使用，即一个值描述了多种属性。<br/>
+其实oracle官方有例子说明<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/BITAND.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/BITAND.html</a></p>
+<pre><code class="language-sql">SELECT order_id, customer_id, order_status,
+    DECODE(BITAND(order_status, 1), 1, 'Warehouse', 'PostOffice') "Location",
+    DECODE(BITAND(order_status, 2), 2, 'Ground', 'Air') "Method",
+    DECODE(BITAND(order_status, 4), 4, 'Insured', 'Certified') "Receipt"
+  FROM orders
+  WHERE sales_rep_id = 160
+  ORDER BY order_id;
+
+  ORDER_ID CUSTOMER_ID ORDER_STATUS Location   Method Receipt
+---------- ----------- ------------ ---------- ------ ---------
+      2416         104            6 PostOffice Ground Insured
+      2419         107            3 Warehouse  Ground Certified
+      2420         108            2 PostOffice Ground Certified
+      2423         145            3 Warehouse  Ground Certified
+      2441         106            5 Warehouse  Air    Insured
+      2455         145            7 Warehouse  Ground Insured
+</code></pre>
+<p>这个例子中，仅仅只用了一个个位数的数字，却表达出了三个值。也就是说，oracle如果想给表增加新的属性，完全可以沿用现有字段，只要让位与计算结果相等就行了。</p>
+<p>另外，二进制计算本身的速度也无可比拟。或许未来有些项目中可以用到这个函数吧。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

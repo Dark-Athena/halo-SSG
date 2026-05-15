@@ -157,7 +157,133 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>最近各种折腾Oracle数据库，奈何自己电脑的资源有限，没办法搞多个版本的实例来测试。Oracle官方提供的云服务既要绑国际信用卡，而且国内连接网速太慢，测起来实在不爽。而且安装数据库也不是个很简单的事，要是国内能有数据库在线测试平台就好了。</p>
+<p>刚好墨天轮近期上线了<a href="https://www.modb.pro/marketlist?type=1">在线实训平台</a>，看上去还不错，正好拿来折腾折腾。</p>
+<p>当然折腾前，先要了解下这个平台，虽然我是很信任了，但还是要看看这个平台靠不靠谱，是不是网络陷阱（不是舍不得这1分钱哈）。</p>
+<h2 id="平台介绍">平台介绍</h2>
+<p><a href="https://www.modb.pro/db/103401">点击查看发布信息：墨天轮在线实训平台发布，领取开箱即用的数据库学习环境</a><br/>
+首先中间这块大牌子就把我震住了<br/>
+<img alt="" src="https://oss-emcsprod-public.modb.pro/image/editor/20210826-76cfccdc-1014-43df-90f6-216bedce4eef.png"/></p>
+<p>tips：长江鲲鹏 由武汉产投集团和华为公司共同建设和运营，旨在基于鲲鹏处理器构建鲲鹏生态发展平台。</p>
+<p>看上去有点靠谱了，再看看支持的数据库种类</p>
+<ul>
+<li>Oracle 18c XE</li>
+<li>PostgreSQL</li>
+<li>openGauss</li>
+<li>MySQL</li>
+<li>MogDB</li>
+<li>Redis</li>
+</ul>
+<p>刚发布的时候还只支持4款，但目前（2021-11-02）已经支持6款了，估计之后还会继续增加新的数据库，可惜的是Oracle只支持18c，(2021-11-16已上线21c版本环境）。当然这对初学者来说其实没什么区别了，毕竟那些新特性在一般的项目里面很少能用上或者也有其他替代方案。</p>
+<p>再看看使用规则，<br/>
+每种数据库都一样，1分钱用90天，可续订，这四舍五入到每天就是白嫖了啊，这服务器的存储、带宽、电费统统都不用管，每个人用的都是单独的库，真大好人啊。</p>
+<p>这样应该就没有顾虑可以放心使用(付1分钱)了吧。</p>
+<h2 id="使用">使用</h2>
+<p>我本机有oracle19c还有一个21c的docker，在之前的公司8i/9i/10g/11g/12c都玩过了，正好缺个18c补齐，所以下面就以在线实训平台的18c为例记录测试过程</p>
+<h3 id="准备账号">准备账号</h3>
+<p>首先要有墨天轮账号，如果没有，可以点击下方我的邀请链接进行注册。<br/>
+<a href="https://www.modb.pro/register?inviterId=445229">邀请你加入40万DBA学习交流平台，万份知识库文档免费下载，还可在线使用众多运维工具</a></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-900d90b1a4e343e384fdfc7eac1075c3.png" srcset="/upload/2021/11/image-900d90b1a4e343e384fdfc7eac1075c3.png?width=1200 1200w, /upload/2021/11/image-900d90b1a4e343e384fdfc7eac1075c3.png?width=400 400w, /upload/2021/11/image-900d90b1a4e343e384fdfc7eac1075c3.png?width=1600 1600w, /upload/2021/11/image-900d90b1a4e343e384fdfc7eac1075c3.png?width=800 800w"/></p>
+<h3 id="购买">购买</h3>
+<p>打开链接<br/>
+<a href="https://www.modb.pro/marketlist?type=1">https://www.modb.pro/marketlist?type=1</a><br/>
+可以看到<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-fc361164f6a94d20b49cc0ac063ebaf1.png" srcset="/upload/2021/11/image-fc361164f6a94d20b49cc0ac063ebaf1.png?width=1200 1200w, /upload/2021/11/image-fc361164f6a94d20b49cc0ac063ebaf1.png?width=400 400w, /upload/2021/11/image-fc361164f6a94d20b49cc0ac063ebaf1.png?width=1600 1600w, /upload/2021/11/image-fc361164f6a94d20b49cc0ac063ebaf1.png?width=800 800w"/><br/>
+选择想要测试的数据库，点进去,<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-e2ac8e1392574a69980e621cad037932.png" srcset="/upload/2021/11/image-e2ac8e1392574a69980e621cad037932.png?width=1200 1200w, /upload/2021/11/image-e2ac8e1392574a69980e621cad037932.png?width=400 400w, /upload/2021/11/image-e2ac8e1392574a69980e621cad037932.png?width=1600 1600w, /upload/2021/11/image-e2ac8e1392574a69980e621cad037932.png?width=800 800w"/></p>
+<p>然后点击“立即购买”，进去按操作指示支付1分钱即可获得一个用来测试或者学习的数据库环境！</p>
+<p>购买后，点击右上角控制台，然后点左边“我的数据库”<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-d959193a5ba94143b1f17003defd7e89.png" srcset="/upload/2021/11/image-d959193a5ba94143b1f17003defd7e89.png?width=1200 1200w, /upload/2021/11/image-d959193a5ba94143b1f17003defd7e89.png?width=400 400w, /upload/2021/11/image-d959193a5ba94143b1f17003defd7e89.png?width=1600 1600w, /upload/2021/11/image-d959193a5ba94143b1f17003defd7e89.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-57718d0a858b4f74b04b382a37c49c6b.png" srcset="/upload/2021/11/image-57718d0a858b4f74b04b382a37c49c6b.png?width=1200 1200w, /upload/2021/11/image-57718d0a858b4f74b04b382a37c49c6b.png?width=400 400w, /upload/2021/11/image-57718d0a858b4f74b04b382a37c49c6b.png?width=1600 1600w, /upload/2021/11/image-57718d0a858b4f74b04b382a37c49c6b.png?width=800 800w"/></p>
+<h3 id="使用-1">使用</h3>
+<p>点击“连接数据库”，会打开一个新页面<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-fb38f2ae98ea41a08b5d8451ddb6197d.png" srcset="/upload/2021/11/image-fb38f2ae98ea41a08b5d8451ddb6197d.png?width=1200 1200w, /upload/2021/11/image-fb38f2ae98ea41a08b5d8451ddb6197d.png?width=400 400w, /upload/2021/11/image-fb38f2ae98ea41a08b5d8451ddb6197d.png?width=1600 1600w, /upload/2021/11/image-fb38f2ae98ea41a08b5d8451ddb6197d.png?width=800 800w"/><br/>
+点击进入实训环境，其实就是进入了对应的操作系统环境，你可以复制左边的命令到环境中执行，比如<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-b61984b729664007bb96f937cc7869cc.png" srcset="/upload/2021/11/image-b61984b729664007bb96f937cc7869cc.png?width=1200 1200w, /upload/2021/11/image-b61984b729664007bb96f937cc7869cc.png?width=400 400w, /upload/2021/11/image-b61984b729664007bb96f937cc7869cc.png?width=1600 1600w, /upload/2021/11/image-b61984b729664007bb96f937cc7869cc.png?width=800 800w"/><br/>
+这个安装估计需要等几分钟，我上面这个截图是cdb的，pdb还没创建，要等pdb创建后，才能执行下面的“初始化HR Schema Demo”。<br/>
+等了大概7分钟，好了<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-b67bd8bbc4a24fe2844a9c3b87c99d32.png" srcset="/upload/2021/11/image-b67bd8bbc4a24fe2844a9c3b87c99d32.png?width=1200 1200w, /upload/2021/11/image-b67bd8bbc4a24fe2844a9c3b87c99d32.png?width=400 400w, /upload/2021/11/image-b67bd8bbc4a24fe2844a9c3b87c99d32.png?width=1600 1600w, /upload/2021/11/image-b67bd8bbc4a24fe2844a9c3b87c99d32.png?width=800 800w"/><br/>
+可以看到XEPDB1这个pdb已经有了，我们继续复制左边的命令执行。创建好hr后，就可以自己去玩了。<br/>
+.<br/>
+.<br/>
+.</p>
+<p>你以为本文到这里就完了么？对于新手而言的确已经能用了，但此时，我才要开始真正对这个平台的测（gao)试(shi）。</p>
+<h2 id="测gao试shi">测（gao)试(shi）</h2>
+<h4 id="第一个问题这个数据库内的数据及对象在关闭平台后再打开是否还存在">第一个问题，这个数据库内的数据及对象在关闭平台后再打开是否还存在？</h4>
+<p>测试步骤，创建一个表，关闭测试平台，打开测试平台<br/>
+测试结果，表还在,但是，我翻了下官方文档是这么说的</p>
+<blockquote>
+<p>如果中途退出页面怎么办？<br/>
+用户如果直接关闭当前页面，事实上数据库资源还在运行中哦，只要在30分钟内再进入，之前创建的数据则不会被删除（刷新当前页面也是一样的），并且中途退出当前页面，会有相关提示确定是否离开</p>
+</blockquote>
+<p>也就是说如果我页面一直开着，这个数据库的数据就一直有？（今天开着睡一晚，明天更新测试结果）<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-ca1a38772ed94554852b8cc1fd76f7a4.png" srcset="/upload/2021/11/image-ca1a38772ed94554852b8cc1fd76f7a4.png?width=1200 1200w, /upload/2021/11/image-ca1a38772ed94554852b8cc1fd76f7a4.png?width=400 400w, /upload/2021/11/image-ca1a38772ed94554852b8cc1fd76f7a4.png?width=1600 1600w, /upload/2021/11/image-ca1a38772ed94554852b8cc1fd76f7a4.png?width=800 800w"/><br/>
+隔了十几个小时，还在</p>
+<h4 id="第二个问题很多新装机器默认安装oracle后的sqlplus没有正常开启上下左右的功能这个平台是否开启了">第二个问题，很多新装机器默认安装oracle后的sqlplus没有正常开启上下左右的功能，这个平台是否开启了？</h4>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-94b19de0f54741b996ddeb8819f10540.png" srcset="/upload/2021/11/image-94b19de0f54741b996ddeb8819f10540.png?width=1200 1200w, /upload/2021/11/image-94b19de0f54741b996ddeb8819f10540.png?width=400 400w, /upload/2021/11/image-94b19de0f54741b996ddeb8819f10540.png?width=1600 1600w, /upload/2021/11/image-94b19de0f54741b996ddeb8819f10540.png?width=800 800w"/><br/>
+测试结果：没开启。（文章写完后我去反馈此问题）</p>
+<h4 id="第三个问题这台机上有没有安装python">第三个问题，这台机上有没有安装python？</h4>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-1a62a2975fbb48e19eb33dfe7c2a1b0c.png" srcset="/upload/2021/11/image-1a62a2975fbb48e19eb33dfe7c2a1b0c.png?width=1200 1200w, /upload/2021/11/image-1a62a2975fbb48e19eb33dfe7c2a1b0c.png?width=400 400w, /upload/2021/11/image-1a62a2975fbb48e19eb33dfe7c2a1b0c.png?width=1600 1600w, /upload/2021/11/image-1a62a2975fbb48e19eb33dfe7c2a1b0c.png?width=800 800w"/><br/>
+测试结果：只有操作系统自带的python2,没有pip，更没有python3,想测试python和oracle的一些交互可能是不行了</p>
+<h4 id="第四个问题这台机器的硬件是什么情况">第四个问题，这台机器的硬件是什么情况？</h4>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-b8f7752512be4b1aa41d73e8f6ff22e1.png" srcset="/upload/2021/11/image-b8f7752512be4b1aa41d73e8f6ff22e1.png?width=1200 1200w, /upload/2021/11/image-b8f7752512be4b1aa41d73e8f6ff22e1.png?width=400 400w, /upload/2021/11/image-b8f7752512be4b1aa41d73e8f6ff22e1.png?width=1600 1600w, /upload/2021/11/image-b8f7752512be4b1aa41d73e8f6ff22e1.png?width=800 800w"/><br/>
+cpu是英特尔志强金牌6278C，上次看到一篇华为云的评测也是用的这个玩意，目前网上有关此cpu的详细信息极少。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-f0e4510eff864ebabfc72c130b80a2d8.png" srcset="/upload/2021/11/image-f0e4510eff864ebabfc72c130b80a2d8.png?width=1200 1200w, /upload/2021/11/image-f0e4510eff864ebabfc72c130b80a2d8.png?width=400 400w, /upload/2021/11/image-f0e4510eff864ebabfc72c130b80a2d8.png?width=1600 1600w, /upload/2021/11/image-f0e4510eff864ebabfc72c130b80a2d8.png?width=800 800w"/><br/>
+空间已使用25%，还有很多嘛。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-348cb8d4d8224ec584cf06a1c1f23092.png" srcset="/upload/2021/11/image-348cb8d4d8224ec584cf06a1c1f23092.png?width=1200 1200w, /upload/2021/11/image-348cb8d4d8224ec584cf06a1c1f23092.png?width=400 400w, /upload/2021/11/image-348cb8d4d8224ec584cf06a1c1f23092.png?width=1600 1600w, /upload/2021/11/image-348cb8d4d8224ec584cf06a1c1f23092.png?width=800 800w"/><br/>
+64GB内存，反正比我自己的机子好多了。</p>
+<p>然后执行lshw查看其它硬件信息，提示命令不存在，这就引出了第5个问题</p>
+<h4 id="第五个问题这机器可以安装其它程序么比如lshw">第五个问题，这机器可以安装其它程序么？比如lshw</h4>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5613de49ec664383bddb632fbf795fa1.png" srcset="/upload/2021/11/image-5613de49ec664383bddb632fbf795fa1.png?width=1200 1200w, /upload/2021/11/image-5613de49ec664383bddb632fbf795fa1.png?width=400 400w, /upload/2021/11/image-5613de49ec664383bddb632fbf795fa1.png?width=1600 1600w, /upload/2021/11/image-5613de49ec664383bddb632fbf795fa1.png?width=800 800w"/><br/>
+果然不行，这台机子怎么可能连外网嘛,毕竟只是提供数据库测试的，能连外网的话恐怕会有安全风险，然后它自己的IP也是局域网的<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-6c162d702729446e82686649b704b73d.png" srcset="/upload/2021/11/image-6c162d702729446e82686649b704b73d.png?width=1200 1200w, /upload/2021/11/image-6c162d702729446e82686649b704b73d.png?width=400 400w, /upload/2021/11/image-6c162d702729446e82686649b704b73d.png?width=1600 1600w, /upload/2021/11/image-6c162d702729446e82686649b704b73d.png?width=800 800w"/><br/>
+这个ip，已经到12了，我猜想这个网段里的机器是不是可以通，我没准能连到其他数据库上去？<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-466cb064515f44339ec61ed90eed33f6.png" srcset="/upload/2021/11/image-466cb064515f44339ec61ed90eed33f6.png?width=1200 1200w, /upload/2021/11/image-466cb064515f44339ec61ed90eed33f6.png?width=400 400w, /upload/2021/11/image-466cb064515f44339ec61ed90eed33f6.png?width=1600 1600w, /upload/2021/11/image-466cb064515f44339ec61ed90eed33f6.png?width=800 800w"/><br/>
+我类个去，真的和我想的一样，肯定还有其他机器能连,只是我没有账号密码，看来虽然网络能通，只要你别真用默认密码去创建hr，还是没问题的，接着又引出下一个问题</p>
+<h4 id="第六个问题我买两个能不能测两台机之间的dblink">第六个问题，我买两个，能不能测两台机之间的dblink？</h4>
+<p>打算购买第二套，结果提示我一种类型的数据库只能买一套。。。<br/>
+但这怎么能阻止我搞事的脚步呢，果断再申请个账号搞起。<br/>
+新购买的oracle，服务器ip比之前的要小，但的确是同一个网段的，看来这个ip可能是随机分配的，不能根据这个ip的大小来判断测试用户量。</p>
+<p>但接下来我发现事情没那么简单。</p>
+<p>第一台可以ping通第二台的ip，但第二台ping不通第一台的ip。<br/>
+这说明，我以为的第二台和第一台是在同一个局域网，但实际上不是，这个云服务虚拟了很多个局域网，我这两台机子极有可能是根据负载情况分配到了不同的局域网里去了。ping测试网段内的255个ip，第一台机子的网段内有12台机器，第二台机子的网段内只有4台机器。emmm，只能单机自己建自己的dblink了，因为你不知道谁的机器和你分到一起了。</p>
+<p>再次证实了这的确是“云服务器”，而且目前的用户量可能比我想象中的要多了很多，这平台的成本应该挺高。</p>
+<p>操作系统搞事先到此为止，复杂的黑客手段就不搞了，至于删库跑路这种事，有root权限肯定可以搞，而且删了后点右下角关闭环境或者关闭窗口等30分钟再连接，环境就会初始化，搞了也没啥含义，所以还是来测测数据库吧。</p>
+<h4 id="第七个问题数据库版本是不是真的是18c是否支持18c的特性">第七个问题,数据库版本是不是真的是18c？是否支持18c的特性？</h4>
+<p>尽管可以直接用sql查到版本，但现在这恶劣的网络环境保不齐有杠精说版本可以被篡改。<br/>
+正好我有几篇文章点到了几个18c的特性，刚好可以拿来试一试</p>
+<ol>
+<li><a href="https://www.darkathena.top/archives/oracle-sql-part1">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part1</a>这篇文章最后的"listagg"说明中提到了，在18c，它去掉“within GROUP”也可以执行，直接用我文章里的例子来试一试<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-045ffaa20c254fe69e27a02f14aa7559.png" srcset="/upload/2021/11/image-045ffaa20c254fe69e27a02f14aa7559.png?width=1200 1200w, /upload/2021/11/image-045ffaa20c254fe69e27a02f14aa7559.png?width=400 400w, /upload/2021/11/image-045ffaa20c254fe69e27a02f14aa7559.png?width=1600 1600w, /upload/2021/11/image-045ffaa20c254fe69e27a02f14aa7559.png?width=800 800w"/></li>
+<li><a href="https://www.darkathena.top/archives/oracle-ptf-%E5%A4%9A%E6%80%81%E8%A1%A8">【ORACLE】关于多态表函数PTF（Polymorphic Table Functions）的使用</a>,我用这个特性自己写了个用来转html的包<br/>
+<a href="https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/SQL_TO_HTML_PTF.pkg">SQL_TO_HTML_PTF.pkg</a><br/>
+直接打上去，开跑<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-bf97633853574a309fe2ec457f9eb10d.png" srcset="/upload/2021/11/image-bf97633853574a309fe2ec457f9eb10d.png?width=1200 1200w, /upload/2021/11/image-bf97633853574a309fe2ec457f9eb10d.png?width=400 400w, /upload/2021/11/image-bf97633853574a309fe2ec457f9eb10d.png?width=1600 1600w, /upload/2021/11/image-bf97633853574a309fe2ec457f9eb10d.png?width=800 800w"/><br/>
+可以看到的确执行了。</li>
+<li><a href="https://www.darkathena.top/archives/oracle-sql-part5">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part5</a>中提到的APPROX_RANK/APPROX_SUM/APPROX_COUNT,oracle把这个叫近似TOP-N，<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-71edc9fa1ff94019a879965e046fe444.png" srcset="/upload/2021/11/image-71edc9fa1ff94019a879965e046fe444.png?width=1200 1200w, /upload/2021/11/image-71edc9fa1ff94019a879965e046fe444.png?width=400 400w, /upload/2021/11/image-71edc9fa1ff94019a879965e046fe444.png?width=1600 1600w, /upload/2021/11/image-71edc9fa1ff94019a879965e046fe444.png?width=800 800w"/></li>
+</ol>
+<p>这妥妥的oracle18c。还有内联外部表、分析视图、神经网络等等骚操作我就不一一测了，详细的18c新特性可参考Oracle官方文档<a href="https://docs.oracle.com/en/database/oracle/oracle-database/18/newft/new-features.html#GUID-04A4834D-848F-44D5-8C34-36237D40F194">Oracle Database Release 18c New Features</a></p>
+<h4 id="第八个问题这个数据库能本地用其他工具连接么">第八个问题，这个数据库能本地用其他工具连接么？</h4>
+<p>答案:不行，如果真能本地连接，那其他人也就都可以连接，保不齐有人拿来当生产环境，甚至还可以快速突破服务器的无外网限制，这对平台的安全性及稳定性是极为不利的。</p>
+<h2 id="bug">BUG</h2>
+<ol>
+<li>在操作系统操作时，回显的字符有时候会出现顺序问题，有时候整个输入的命令都倒过来了，有时候又只倒过来一个单词。个人猜测可能与前端短时间多次请求时，返回时间先后出现错乱导致。如图，输入的明明是 "su - oralce",但是回车后变成了"clesu - ora"，不过这没影响，登录还是成功了。但是如果初学者不注意，把这个当学习笔记复制下来，到时候按这个指令操作就相当迷惑了，希望之后可以解决这个问题<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-fd365aa1f5a34cbb8f61bf49090b9979.png" srcset="/upload/2021/11/image-fd365aa1f5a34cbb8f61bf49090b9979.png?width=1200 1200w, /upload/2021/11/image-fd365aa1f5a34cbb8f61bf49090b9979.png?width=400 400w, /upload/2021/11/image-fd365aa1f5a34cbb8f61bf49090b9979.png?width=1600 1600w, /upload/2021/11/image-fd365aa1f5a34cbb8f61bf49090b9979.png?width=800 800w"/></li>
+</ol>
+<h2 id="建议">建议</h2>
+<ol>
+<li>学习数据库不仅是学习写sql，还有和其他开发语言的交互，但目前的环境不足以完成此类学习，比如和python3的交互，至于那些常用的第三方依赖库，看看能不能仅开放指定的域名来进行下载</li>
+<li>sqlplus这排版太怪异了，偶尔丢失字段名，比如上面那个近似TOP-N的例子，而且语句最后自动补上的“2 3 4 5 6 7 8 9”太影响观感了，建议提供更好的sql执行工具</li>
+<li>建议把sqlplus的上下左右功能提前配置好，或者提前安装相关依赖，指引用户进行设置</li>
+</ol>
+<h2 id="总结">总结</h2>
+<p>其他数据库我之后有时间再试，就目前oracle的来看，这个环境算是相当不错了，性能挺强，页面响应迅速，比我自己的服务器还快，而且免去了自行安装数据库，在左边还有引导操作，只要1分钱就能在10分钟以内拥有一台属于自己的oracle数据库，真香啊。至于那些小问题，相信之后平台会解决的。<br/>
+最后附上官方手册<br/>
+<a href="https://www.modb.pro/db/104002">墨天轮数据库在线实训平台V1.0操作手册</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

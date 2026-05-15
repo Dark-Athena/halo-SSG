@@ -155,7 +155,268 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【ORACLE】记录一些ORACLE的merge into语句的BUG</p>
+<h3 id="一自相矛盾-dml重启动行为差异违反acid原则">一、自相矛盾-DML重启动行为差异,违反acid原则</h3>
+<p>发现版本：10g ~ 23ai<br/>
+这个用例在我之前的文章里有提过，ORACLE和PG系关于并发事务行为有一个非常大的差异，就是ORACLE在某些并发冲突的场景下会进行DML重启动，但是对比下面两个例子，可以发现无论采取何种事务一致性实现逻辑，在read commit下，最终的结果无外乎得到(1,'Alice')、(10,'Alice')、(1,'Tom')三种其一，但ORACLE的merge into 却得到了(10,'Tom')这一理论不应该存在的记录。<br/>
+用例一：</p>
+<pre><code class="language-sql">drop table test_dml_restart;
+
+create table test_dml_restart(id number ,name varchar2(10));
+insert into test_dml_restart values (1,'Alice');
+commit;
+
+--会话一，执行后不提交
+update test_dml_restart set id=10 where name='Alice';
+
+--会话二执行，被锁
+update test_dml_restart set name='Tom' where id=1;
+
+--会话一提交，会话二自动解锁，更新0行，会话2根据id=1进行了重启动,找不到id=1的记录
+commit;
+
+--会话二查询
+select * from test_dml_restart;
+
+10,Alice
+</code></pre>
+<p>用例二：</p>
+<pre><code class="language-sql">drop table test_dml_restart;
+
+create table test_dml_restart(id number ,name varchar2(10));
+insert into test_dml_restart values (1,'Alice');
+commit;
+
+--会话一，执行后不提交
+update test_dml_restart set id=10 where name='Alice';
+
+--会话二执行，被锁
+merge into test_dml_restart t1
+using (select * from dual) t2
+on (t1.id=1)
+when matched then 
+update set t1.name='Tom';
+
+--会话一提交，会话二自动解锁，更新1行，会话2仍然按旧的id找到了数据进行更新
+commit;
+
+--会话二查询
+select * from test_dml_restart;
+
+10,Tom
+</code></pre>
+<p>在asktom上也有人发现过，但从10g到目前最新的23ai，这个问题一直未修复<br/>
+<a href="https://asktom.oracle.com/ords/f?p=100:11:::NO::P11_QUESTION_ID:61865893444475">https://asktom.oracle.com/ords/f?p=100:11:::NO::P11_QUESTION_ID:61865893444475</a></p>
+<blockquote>
+<p>merge and write consistency<br/>
+Andrey N. Edemsky, May 04, 2006 - 3:51 pm UTC</p>
+</blockquote>
+<p>其实这个问题在ORACLE里通过改写SQL规避，就是把on里的条件，复制一份到update后面的where里</p>
+<pre><code class="language-sql">merge into test_dml_restart t1
+using (select * from dual) t2
+on (t1.id=1)
+when matched then 
+update set t1.name='Tom' where t1.id=1;
+</code></pre>
+<h3 id="二百密一疏-触发ora600的外关联">二、百密一疏-触发ORA600的外关联</h3>
+<p>发现版本：11g 12c 18c 19.19</p>
+<pre><code class="language-sql"> create table test1 (col1 number,col2 number);
+ 
+ create table test2 (col1 number,col2 number);
+ 
+ insert into test1 values (1,1);
+
+merge into test2
+using test1 on (test1.col1=test2.col1(+))
+when matched then
+  update set test2.col2=test1.col2;
+
+ORA-00600: 内部错误代码, 参数: [25027], [3], [3], [0], [0], [0], [1], [1], [], [], [], []
+
+</code></pre>
+<p>虽然这个sql本身的确不对，但是ORACLE报错却是ORA-600这个ORACLE自己没有估计到的报错。<br/>
+19.20及最新的23ai版本已修复这个问题，在23ai中该SQL执行结果是merge 0行。</p>
+<h3 id="三自欺欺人-不能更新on中引用的列">三、自欺欺人-不能更新on中引用的列</h3>
+<p>版本：9i ~ 23ai</p>
+<p>详见这篇 <a href="https://www.darkathena.top/archives/oracle-ora38104-merge-into-update-on-refernced-columns">【ORACLE】你以为的真的是你以为的么?--ORA-38104: Columns referenced in the ON Clause cannot be updated</a></p>
+<p>这个是个ORACLE故意做的限制，本身可以说不算BUG，但是通过特殊方式能绕过这个限制，就可以算个BUG了。所以ORACLE要么承认这个设计是BUG，要么承认开发遗漏了场景也还是BUG，总归有一边是BUG。</p>
+<pre><code class="language-sql">merge into test_merge_a a
+using test_merge_b b
+on (a.id=b.id)
+when matched then
+  update set id=2;
+  
+ORA-38104: 无法更新 ON 子句中引用的列: "A"."ID"
+
+--改写
+merge into test_merge_a a
+using test_merge_b b
+on ((a.id=b.id or 1=2) and (a.id=b.id or 1=2 ))
+when matched then
+  update set a.id=2;
+  
+ Plan Hash Value  : 4101543598 
+
+--------------------------------------------------------------------------------
+| Id  | Operation              | Name         | Rows | Bytes | Cost | Time     |
+--------------------------------------------------------------------------------
+|   0 | MERGE STATEMENT        |              |    1 |    13 |    4 | 00:00:01 |
+|   1 |   MERGE                | TEST_MERGE_A |      |       |      |          |
+|   2 |    VIEW                |              |      |       |      |          |
+| * 3 |     HASH JOIN          |              |    1 |    76 |    4 | 00:00:01 |
+|   4 |      TABLE ACCESS FULL | TEST_MERGE_B |    1 |    32 |    2 | 00:00:01 |
+|   5 |      TABLE ACCESS FULL | TEST_MERGE_A |    1 |    44 |    2 | 00:00:01 |
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+------------------------------------------
+* 3 - access("A"."ID"="B"."ID")
+
+</code></pre>
+<hr/>
+<p>以上是较新版本中需要注意一些问题。</p>
+<p>在早期版本中已经修复过的就不全部列举了，MOS上搜merge into的BUG大把大把的，翻了N页没见底，什么更新视图、分区表、并行、并发、行归档、dblink、压缩表等等有一堆功能和merge into组合使用有问题的，这里只写几个简单的merge into语句有问题的场景</p>
+<h3 id="四无中生有-源数据为空的结果集也能匹配上">四、无中生有-源数据为空的结果集也能匹配上</h3>
+<p>版本：11.2.0.2.0<br/>
+<a href="https://asktom.oracle.com/ords/f?p=100:11:0::::P11_QUESTION_ID:9537112000346374938">https://asktom.oracle.com/ords/f?p=100:11:0::::P11_QUESTION_ID:9537112000346374938</a><br/>
+<a href="https://asktom.oracle.com/ords/f?p=100:11:::NO::P11_QUESTION_ID:61865893444475">https://asktom.oracle.com/ords/f?p=100:11:::NO::P11_QUESTION_ID:61865893444475</a></p>
+<blockquote>
+<p>Same guy - Correction<br/>
+GPU, August 26, 2013 - 5:11 pm UTC</p>
+</blockquote>
+<pre><code>create table test_merge_null(col1 varchar2(20) not null);
+  
+MERGE INTO test_merge_null
+USING (SELECT dummy
+FROM DUAL
+WHERE 1 = 2) s
+ON (1 = 2)
+WHEN NOT MATCHED
+THEN
+INSERT (col1)
+VALUES (s.dummy);
+</code></pre>
+<p>这是11.2.0.2.0 中的 bug，已在 11.2.0.3.0 中修复。还好，11.2.0.2.0这个版本用得少。</p>
+<h3 id="五一山能容二虎-突破主键唯一限制">五、一山能容二虎-突破主键唯一限制</h3>
+<p>发现版本：10.2.0.1.0<br/>
+通过direct path write，能突破主键限制进行插入，使表中数据违反有效的唯一约束，案例来自：<br/>
+<a href="https://blog.csdn.net/jackpk/article/details/3788143">https://blog.csdn.net/jackpk/article/details/3788143</a></p>
+<pre><code class="language-sql">create table KL_TEST
+(
+   a           NUMBER(15) not null,
+   b           NUMBER(15) not null,
+   c           NUMBER(15) not null,
+   d           NUMBER(15) not null,
+   e           NUMBER(15) not null,
+   f           NUMBER(15) not null
+)
+ 10   ;
+
+Table created.
+
+ alter table KL_TEST
+    add constraint KL_TEST_PK primary key (A, B, C, D)
+  3      ;
+
+Table altered.
+
+CREATE TABLE KL_TEST_1 NOLOGGING PCTFREE 0 AS
+ SELECT * FROM KL_TEST
+  3   WHERE 1=2;
+
+Table created.
+
+SYS@ora10g&gt; INSERT INTO KL_TEST_1 VALUES (1,1,1,1,1,1);
+
+1 row created.
+
+SYS@ora10g&gt; INSERT INTO KL_TEST_1 VALUES (1,2,1,2,1,2);
+
+1 row created.
+
+SYS@ora10g&gt; INSERT INTO KL_TEST_1 VALUES (1,1,1,1,1,1);
+
+1 row created.
+
+SYS@ora10g&gt; commit;
+
+Commit complete.
+
+ MERGE /*+ APPEND */ INTO KL_TEST trgt
+USING
+(select fct.a,fct.b,fct.c,fct.d,fct.e,fct.f from KL_TEST_1 fct) tmp
+ON
+(tmp.a = trgt.a
+  and tmp.b = trgt.b
+  and tmp.c = trgt.c
+  and tmp.d = trgt.d
+  and tmp.e = trgt.e
+   and tmp.f = trgt.f)
+ WHEN NOT MATCHED THEN
+ INSERT (a,b,c,d,e,f)
+ 13   VALUES (tmp.a,tmp.b,tmp.c,tmp.d,tmp.e,tmp.f);
+
+3 rows merged.
+
+SYS@ora10g&gt;  commit;
+
+Commit complete.
+
+SYS@ora10g&gt; SELECT COUNT(*) FROM KL_TEST;
+
+  COUNT(*)
+----------
+         0
+
+SYS@ora10g&gt; SELECT /*+ FULL (KL_TEST)*/ COUNT(*) FROM KL_TEST;
+
+  COUNT(*)
+----------
+         3
+
+SYS@ora10g&gt; select * from kl_test;
+
+         A          B          C          D          E          F
+---------- ---------- ---------- ---------- ---------- ----------
+         1          1          1          1          1          1
+         1          1          1          1          1          1
+         1          2          1          2          1          2
+
+SYS@ora10g&gt; select CONSTRAINT_NAME,CONSTRAINT_TYPE, STATUS from dba_constraints where table_name ='KL_TEST';
+
+CONSTRAINT_NAME                C STATUS
+------------------------------ - --------
+SYS_C005398                    C ENABLED
+SYS_C005397                    C ENABLED
+SYS_C005396                    C ENABLED
+SYS_C005395                    C ENABLED
+SYS_C005394                    C ENABLED
+SYS_C005393                    C ENABLED
+KL_TEST_PK                     P ENABLED
+
+7 rows selected.
+
+SYS@ora10g&gt; insert into kl_test values (1,1,1,1,1,1);
+
+1 row created.
+
+SYS@ora10g&gt; select * from kl_test;
+
+         A          B          C          D          E          F
+---------- ---------- ---------- ---------- ---------- ----------
+         1          1          1          1          1          1
+         1          1          1          1          1          1
+         1          2          1          2          1          2
+         1          1          1          1          1          1
+</code></pre>
+<p>在10.2.0.5.0和11.2.0.4版本中已经没这个问题了</p>
+<h2 id="总结">总结</h2>
+<p>ORACLE从很早的版本就增加了merge into这一语法，虽然给开发人员带来了很大的便利性，但是其BUG数之多非常恐怖，很多BUG从发现到修复跨越了数十年的好几个大版本，甚至还有些BUG一直延续到了最新的23ai版本。国产数据库的开发人员远没有ORACLE那么多，ORACLE都做成这样了，国产数据库要是说merge into里没有BUG我是不相信的。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

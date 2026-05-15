@@ -149,13 +149,368 @@
         
         <span>2024-12-22</span>
         
-        <span>186 阅读</span>
+        <span>187 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>在ORACLE的PLSQL中，支持在procedure、function及匿名块中，嵌套定义procedure和function,编写这样的代码，算是一种低耦合高内聚的风格。在openGauss 6.0及之前的版本，并不支持嵌套子程序（预计7.0版本会支持），但通过实测，MogDB 5.2.0支持的场景比openGauss 7.0(截止到2024年12月19号的代码)要多。</p>
+<h2 id="二什么是plsql嵌套子程序">二、什么是PLSQL嵌套子程序</h2>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-subprograms.html">plsql-subprograms</a></p>
+<p>在ORACLE的官方文档里，将子程序分为三种，我简单描述一下</p>
+<ul>
+<li>独立子程序<br/>
+通过create procedure/function创建的程序单元</li>
+<li>包子程序<br/>
+存在于package对象内的procedure/function</li>
+<li>嵌套子程序<br/>
+在plsql块中声明的procedure/function</li>
+</ul>
+<p>ORACLE风格的create function/procedure/package在openGauss 2.1版本都是支持的，也就是说，独立子程序以及包子程序早就已经支持，仅缺嵌套子程序。</p>
+<p>对于plsql语言的procedure/function，本身就会具有一个plsql块，因此嵌套子程序可能出现在以下几种语法中</p>
+<ul>
+<li>create procedure/function 的声明内，声明一个或多个procedure/function</li>
+<li>package 内的procedure/function的声明内，声明一个或多个procedure/function</li>
+<li>匿名块的声明内，声明一个或多个procedure/function</li>
+<li>嵌套子程序内，声明一个或多个procedure/function</li>
+</ul>
+<p>从语法上看，大概如下</p>
+<pre><code class="language-sql">declare
+x int;
+--子程序开始
+  procedure a is
+  begin
+    null;
+  end;
+--子程序结束
+begin
+  a;
+end;
+</code></pre>
+<p>一般来说，declare..begin..end是一个plsql块的固定结构，只是在oracle语法的function/procedure中，可以省去declare这个关键字。由此我们可以发现，嵌套子程序是位于plsql块中,begin前面的一个声明，而plsql嵌套子程序本身也具有一个plsql块，因此仅从语法上看，嵌套子程序是可以无限套娃的，比如</p>
+<pre><code class="language-sql">declare
+  procedure a is
+    procedure b is
+      procedure c is 
+        begin
+          null;
+        end;
+      begin
+        null;
+      end;
+  begin
+    null;
+  end;
+begin
+  a;
+end;
+</code></pre>
+<p>为什么特意提这一点？如果对语法没有敏感度，稍不注意，就很容易把这个功能做成仅支持一层嵌套。而openGauss到6.0也仍然不支持嵌套子程序，说明这个功能是具有相当的难度的，元数据放哪、怎么放、怎么记录嵌套关系、怎么解决重载问题、怎么解决生效范围的问题、怎么解决并发执行时的编译冲突问题、怎么管理缓存等等。如果没想明白这些问题，仅仅只是做一个形似的功能，很容易在实际的生产使用中出现各种奇奇怪怪的问题。</p>
+<h2 id="三一些典型的使用场景">三、一些典型的使用场景</h2>
+<h3 id="1固定组合的长表达式">1、固定组合的长表达式</h3>
+<pre><code class="language-sql">create procedure test_p is
+function n2p(i number) return varchar2 
+is
+begin
+	return to_char(i*100,'FM99999999999999999990.00')||'%';
+end;
+begin
+	insert into t_test1 
+	select a,b,n2p(c/e),n2p((d-e)/e),n2p(e) from t_test;
+end;
+</code></pre>
+<p>以上例子常见于报表生成，经常会有需要将一个数值转换成百分比的形式，比如占比、增长率之类的，而数值转百分比的这个表达式有一点点长，如果要使用很多次，就会让代码显得很冗余而且很长。而且这个转换的格式还不一定在所有场景通用，所以可以只放在本procedure中，让这个procedure也不用依赖于其他逻辑对象。</p>
+<h3 id="2框架化流程">2、框架化流程</h3>
+<pre><code class="language-sql">CREATE TABLE doc_list (BIZ_TYPE VARCHAR2(3),DOC_NO VARCHAR2(200),STATUS VARCHAR2(1));
+
+CREATE OR REPLACE PACKAGE TEST_SUBPRO AS
+  PROCEDURE biz_a(I_DOC_NO VARCHAR2); --业务A处理流程
+  PROCEDURE biz_b(I_DOC_NO VARCHAR2); --业务B处理流程
+  PROCEDURE main; --入口
+END TEST_SUBPRO;
+/
+
+CREATE OR REPLACE PACKAGE BODY TEST_SUBPRO AS
+  PROCEDURE biz_a(I_DOC_NO VARCHAR2) IS
+    --单据处理的开始过程
+    PROCEDURE BEGIN_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+    --单据处理的结束过程
+    PROCEDURE END_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+  
+  BEGIN
+    BEGIN_PRO(I_DOC_NO);
+    END_PRO(I_DOC_NO);
+  END;
+
+  PROCEDURE biz_b(I_DOC_NO VARCHAR2) IS
+    --单据处理的开始过程
+    PROCEDURE BEGIN_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+    --单据处理的结束过程
+    PROCEDURE END_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+  
+  BEGIN
+    BEGIN_PRO(I_DOC_NO);
+    END_PRO(I_DOC_NO);
+  END;
+
+  PROCEDURE main IS
+  BEGIN
+    FOR rec IN (SELECT * FROM doc_list WHERE status = 'N') LOOP
+      --    根据所有未处理的单据,按不同的类型分别处理
+      IF rec.biz_type = 'A' THEN
+        biz_a(REC.doc_no);
+      ELSIF rec.biz_type = 'B' THEN
+        biz_a(REC.doc_no);
+      END IF;
+    END LOOP;
+  END;
+END TEST_SUBPRO;
+</code></pre>
+<p>以上模拟了一种通用业务流程处理框架，对于每一种业务，都有开始过程和结束过程（可能还有"预处理-处理-完成"形式的流程），但是每种业务自己分步的流程可能有些区别，不能共用。此处嵌套子程序的使用，能让每一种业务只需要有一个procedure暴露出来，程序结构清晰。</p>
+<p>当然，嵌套子程序远不止这两种使用场景，此处只是列出最常见的两种。<br/>
+只要嵌套子程序的功能是完整的，那么开发者就可以充分发挥自己的想象力来让自己的plsql代码更整洁易维护。</p>
+<h2 id="四国产数据库比较">四、国产数据库比较</h2>
+<p>目前虽然有很多国产数据库也支持了PLSQL嵌套子程序，但是有些支持得并不完整，下面来做下对比</p>
+<table><thead><tr><th>数据库</th><th>是否支持在匿名块中使用</th><th>是否支持在procedure中使用</th><th>是否支持在function中使用</th><th>是否支持在PACKAGE内的procedure中使用</th><th>是否支持在PACKAGE内的function中使用</th><th>是否支持在嵌套子程序内使用</th><th>是否支持在PACKAGE内的不同procedure里重名</th><th>是否支持在同一个procedure内重载</th><th>是否正确处理内外层的重载关系</th><th>是否正确处理和系统函数的重载关系</th><th>是否支持前向声明</th><th>支持百分比</th><th>备注</th></tr></thead><tbody><tr><td>DM8</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100%</td><td></td></tr><tr><td>崖山 23.2.4</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>N</td><td>80%</td><td></td></tr><tr><td>OCEANBASE-v4.3.3.1</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100%</td><td></td></tr><tr><td>KINGBASE 9</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100%</td><td></td></tr><tr><td>POLARDB-O 2.0</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>文档有提支持嵌套子程序</td></tr><tr><td>TDSQL-PG(Oracle兼容版）</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>文档无相关描述</td></tr><tr><td>UXDB</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>文档无相关描述</td></tr><tr><td>神通(openGauss版)</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>无公开文档</td></tr><tr><td>海盒</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>无公开文档</td></tr><tr><td>瀚高 6.0.4</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>?</td><td>？</td><td>文档无相关描述</td></tr><tr><td>GAUSSDB 503.1.0.SPC1700</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>0%</td><td></td></tr><tr><td>OPENGAUSS 6.0</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>0%</td><td></td></tr><tr><td>OPENGAUSS 7.0(31ae9e8a 20241219)</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>N</td><td>N</td><td>N</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>50%</td><td>基于2024年12月19号源码手动编译，非发布版本</td></tr><tr><td>GBASE 8c</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>N</td><td>0%</td><td></td></tr><tr><td>VASTBASE G100 V2.2 BUILD 16</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>Y</td><td>N</td><td>Y</td><td>N</td><td>70%</td><td></td></tr><tr><td>MogDB 5.2.0</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>Y</td><td>100%</td><td></td></tr></tbody></table>
+<p>测试用例</p>
+<pre><code class="language-sql">--是否支持在匿名块中使用
+declare
+procedure a is 
+begin
+null;
+end;
+begin
+a();
+end;
+/
+
+--是否支持在procedure中使用
+create procedure test_p is
+procedure a is 
+begin
+	null;
+end;
+begin
+a();
+end;
+/
+call test_p();
+
+--是否支持在function中使用
+create function test_f  return int is
+procedure a is 
+begin
+	null;
+end;
+begin
+a();
+return 1;
+end;
+/
+select test_f() from dual;
+--是否支持在PACKAGE内的procedure中使用
+drop package TEST_PKG;
+create package test_pkg is
+procedure test_p;
+end;
+/
+create package BODY test_pkg is
+procedure test_p is
+procedure a is 
+begin
+	null;
+end;
+begin
+a();
+end;
+end;
+/
+
+call test_pkg.test_p();
+
+--是否支持在PACKAGE内的function中使用
+create package test_pkg2 is
+function test_f return int;
+end;
+/
+create package BODY test_pkg2 is
+function test_f return int is
+procedure a is 
+begin
+	null;
+end;
+begin
+a();
+return 1;
+end;
+end;
+/
+select test_pkg2.test_f() from DUAL;
+
+--是否支持在嵌套子程序内使用
+declare
+  procedure a is
+    procedure b is
+      procedure c is 
+        begin
+          null;
+        end;
+      begin
+        null;
+      end;
+  begin
+    null;
+  end;
+begin
+  a;
+end;
+/
+
+--是否支持在PACKAGE内的不同procedure里重名
+CREATE OR REPLACE PACKAGE TEST_SUBPRO AS
+  PROCEDURE biz_a(I_DOC_NO VARCHAR2); 
+  PROCEDURE biz_b(I_DOC_NO VARCHAR2); 
+  PROCEDURE main(i_biz_type varchar2,I_DOC_NO VARCHAR2); 
+END TEST_SUBPRO;
+/
+
+CREATE OR REPLACE PACKAGE BODY TEST_SUBPRO AS
+  PROCEDURE biz_a(I_DOC_NO VARCHAR2) IS
+    PROCEDURE BEGIN_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+    PROCEDURE END_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+  
+  BEGIN
+    BEGIN_PRO(I_DOC_NO);
+    END_PRO(I_DOC_NO);
+  END;
+
+  PROCEDURE biz_b(I_DOC_NO VARCHAR2) IS
+    --单据处理的开始过程
+    PROCEDURE BEGIN_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+    --单据处理的结束过程
+    PROCEDURE END_PRO(I_DOC_NO VARCHAR2) IS
+    BEGIN
+      NULL;
+    END;
+  
+  BEGIN
+    BEGIN_PRO(I_DOC_NO);
+    END_PRO(I_DOC_NO);
+  END;
+
+  PROCEDURE main(i_biz_type varchar2,I_DOC_NO VARCHAR2) IS
+  BEGIN
+      --    根据所有未处理的单据,按不同的类型分别处理
+      IF i_biz_type = 'A' THEN
+        biz_a(I_DOC_NO);
+      ELSIF i_biz_type = 'B' THEN
+        biz_a(I_DOC_NO);
+      END IF;
+  END;
+END TEST_SUBPRO;
+/
+
+--是否支持在同一个procedure内重载
+create procedure test_p2 is
+procedure p1 is
+begin
+	dbms_output.put_line(1);
+end;
+procedure p1(a int) is
+begin
+	dbms_output.put_line(2);
+end;
+begin
+	p1();
+    p1(1);
+   	dbms_output.put_line(3);
+end;
+/
+call test_p2();
+
+
+--是否正确处理内外层的重载关系
+declare
+procedure p1 is
+procedure p1 is
+begin
+dbms_output.put_line(1);
+end;
+begin
+p1;
+dbms_output.put_line(2);
+end;
+begin
+p1;
+dbms_output.put_line(3);
+end;
+/
+
+--是否正确处理和系统函数的重载关系
+declare 
+x varchar(20);
+function substr(i date,f varchar) return varchar is
+begin
+  return to_char(i,f);
+end;
+function substr(i varchar,c int) return varchar is
+begin
+	return i||c;
+end;
+begin
+  x:=substr(sysdate,'yyyy');
+  x:=substr(x,1);
+  dbms_output.put_line(x);
+end;
+/
+
+--是否支持前向声明
+declare
+procedure a ;
+procedure b is
+begin
+	a();
+end;
+procedure a is 
+begin
+	null;
+end;
+begin
+	null;
+end;
+/
+
+</code></pre>
+<h2 id="五总结">五、总结</h2>
+<p>MogDB 5.2.0版本正式推出的plsql嵌套子程序功能，是从MogDB3.0版本时期开始立项开发，经历了非常长的时间，因为这个功能对openGauss的现有框架来说，必须要做一些突破，改掉openGauss中一些不合理的代码，并且结合MogDB 5.2.0版本对plsql的各种底层原理的优化，才让PLSQL嵌套子程序功能变得完整且可扩展，不惧未来更多新功能的冲击。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

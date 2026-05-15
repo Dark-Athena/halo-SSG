@@ -155,7 +155,128 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>众所周知,在去年年底,知名的免费cdn服务提供商jsdelivr由于大陆域名备案的问题,没有国内的CDN加速了,目前都只能解析到海外,不但速度慢,还会偶发性无法连接到服务器。因此国内超多网站都受到了影响。<br/>
+有人说可以批量修改引用的url,都改成 unpkg.com,但实测,我的个人网站上有一半的js和css在这个站点上是没有的。</p>
+<p>由于我的个人站点并没有提供多少花里胡哨的内容,所以我就想着把所有要从jsdelivr获取的文件都下载到服务器本地,不再从外部获取,没准哪天海外服务都没了那就芭比Q了。</p>
+<h2 id="操作步骤">操作步骤</h2>
+<ol>
+<li>
+<p>打开博客模板文件夹,找出所有包含jsdelivr的链接,去重后发现有39个链接<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png" srcset="/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1200 1200w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=400 400w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1600 1600w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png" srcset="/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1200 1200w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=400 400w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1600 1600w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=800 800w"/></p>
+</li>
+<li>
+<p>然后写入一个文本文件<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png" srcset="/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1200 1200w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=400 400w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1600 1600w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=800 800w"/></p>
+</li>
+<li>
+<p>编写下载程序<br/>
+可以看到这个目录结构相当复杂,如果要做最少的改动,应该让下载文件后的目录与链接路径保持一致,于是我想到了我以前曾经用网际快车下载过整个网站,但这玩意早就过时了,也懒得装软件。现在用python应该就可以实现,为避免重复造轮子,这种想法肯定有人也曾有过,于是先搜,轻松找到一篇文章<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png" srcset="/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1200 1200w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=400 400w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1600 1600w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=800 800w"/><br/>
+<a href="https://zhuanlan.zhihu.com/p/62876301">让Python自动下载网站所有文件 ! https://zhuanlan.zhihu.com/p/62876301</a></p>
+</li>
+</ol>
+<p>我把里面的程序复制出来,修改了入口函数,遍历url列表传入</p>
+<pre><code class="language-python">import urllib.request
+import requests
+import re, os
+# 基于 https://zhuanlan.zhihu.com/p/62876301 修改
+
+def get_file(url):
+    '''
+    递归下载网站的文件
+    :param url:
+    :return:
+    '''
+
+    if isFile(url):
+        print(url)
+        try:
+            download(url)
+        except:
+            pass
+    else:
+        urls = get_url(url)
+        for u in urls:
+            get_file(u)
+
+def isFile(url):
+    '''
+    判断一个链接是否是文件
+    :param url:
+    :return:
+    '''
+    if url.endswith('/'):
+        return False
+    else:
+        return True
+
+def download(url):
+    '''
+    :param url:文件链接
+    :return: 下载文件，自动创建目录
+    '''
+    full_name = url.split('//')[-1]
+    filename = full_name.split('/')[-1]
+    dirname = "/".join(full_name.split('/')[:-1])
+    if os.path.exists(dirname):
+        pass
+    else:
+        os.makedirs(dirname, exist_ok=True)
+    urllib.request.urlretrieve(url, full_name)
+
+def get_url(base_url):
+    '''
+    :param base_url:给定一个网址
+    :return: 获取给定网址中的所有链接
+    '''
+    text = ''
+    try:
+        text = requests.get(base_url).text
+    except Exception as e:
+        print("error - &gt; ",base_url,e)
+        pass
+    reg = '&lt;a href="(.*)"&gt;.*&lt;/a&gt;'
+    urls = [base_url + url for url in re.findall(reg, text) if url != '../']
+    return urls
+
+if __name__ == '__main__':
+    with open('list.txt', 'r') as f:
+        lines = f.readlines()
+        url_list = []
+        for line in lines:
+            get_file(line.strip('\n'))
+</code></pre>
+<ol start="4">
+<li>
+<p>执行<br/>
+将上面的代码保存成py文件后执行,就会在当前目录下生成cdn.jsdelivr.net的主目录及其子目录和文件<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png" srcset="/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1200 1200w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=400 400w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1600 1600w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=800 800w"/></p>
+</li>
+<li>
+<p>上传文件夹到服务器<br/>
+由于我是使用的halo博客,可以自定义添加静态资源,直接把下载的gh和npm两个文件夹整个拖到/root/.halo/static目录即可<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png" srcset="/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1200 1200w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=400 400w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1600 1600w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=800 800w"/></p>
+</li>
+<li>
+<p>修改博客模板中的链接<br/>
+这个就容易了,直接打开模板中的所有文件,批量将cdn.jsdelivr.net替换成我网站的域名,并保存,覆盖到服务器上<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png" srcset="/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1200 1200w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=400 400w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1600 1600w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=800 800w"/></p>
+</li>
+<li>
+<p>最终效果<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png" srcset="/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1200 1200w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=400 400w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1600 1600w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=800 800w"/></p>
+</li>
+</ol>
+<h2 id="说点题外的">说点题外的</h2>
+<p>有不少程序员习惯使用国外的免费服务,比如github和本文中提到的jsdelivr,大家也应该已经发现了这两个东西在国内已经是属于间歇性抽风的状态了。<br/>
+当前国际形势越来越紧张,把东西放在国外的服务器上所要承担的风险越来越大,也应该要考虑将国外服务器上的东西迁移回本国了,否则哪天一个制裁,轻则断连,中则账号拉黑,重则把你数据直接删了也说不定。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

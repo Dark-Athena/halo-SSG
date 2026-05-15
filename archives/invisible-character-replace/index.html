@@ -155,7 +155,49 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>有些开发人员在做跨系统传输数据时,偶尔会遇到字符串中包含不可见字符的情况,导致无法在sql的where条件里精确检索这条数据,只能用like模糊查找,比如下面这个数据<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-c66613e4bbf643048cdf647e05e0f31c.png" srcset="/upload/2022/01/image-c66613e4bbf643048cdf647e05e0f31c.png?width=1200 1200w, /upload/2022/01/image-c66613e4bbf643048cdf647e05e0f31c.png?width=400 400w, /upload/2022/01/image-c66613e4bbf643048cdf647e05e0f31c.png?width=1600 1600w, /upload/2022/01/image-c66613e4bbf643048cdf647e05e0f31c.png?width=800 800w"/></p>
+<h2 id="分析">分析</h2>
+<p>两行中,A列的值看上去是一样的,但是下面这条sql,却只能查出一条记录<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-4f0d51d7974343d39a3ab67ba0c062c5.png" srcset="/upload/2022/01/image-4f0d51d7974343d39a3ab67ba0c062c5.png?width=1200 1200w, /upload/2022/01/image-4f0d51d7974343d39a3ab67ba0c062c5.png?width=400 400w, /upload/2022/01/image-4f0d51d7974343d39a3ab67ba0c062c5.png?width=1600 1600w, /upload/2022/01/image-4f0d51d7974343d39a3ab67ba0c062c5.png?width=800 800w"/></p>
+<p>对比下字符串长度,发现长度不一致<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-d6ced4ced2a6410892a659293dbc00ac.png" srcset="/upload/2022/01/image-d6ced4ced2a6410892a659293dbc00ac.png?width=1200 1200w, /upload/2022/01/image-d6ced4ced2a6410892a659293dbc00ac.png?width=400 400w, /upload/2022/01/image-d6ced4ced2a6410892a659293dbc00ac.png?width=1600 1600w, /upload/2022/01/image-d6ced4ced2a6410892a659293dbc00ac.png?width=800 800w"/></p>
+<p>稍微有点经验的会说,这不就一个空格、回车或者换行嘛。<br/>
+但是当你用光标上下左右移动去数能移动几次时,发现的确只能数出来3个,多的那个字符是真的"不可见"！它既不是回车也不是换行！用trim函数也无法去除！<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-217e5f609beb4ea993e52105d7fede08.png" srcset="/upload/2022/01/image-217e5f609beb4ea993e52105d7fede08.png?width=1200 1200w, /upload/2022/01/image-217e5f609beb4ea993e52105d7fede08.png?width=400 400w, /upload/2022/01/image-217e5f609beb4ea993e52105d7fede08.png?width=1600 1600w, /upload/2022/01/image-217e5f609beb4ea993e52105d7fede08.png?width=800 800w"/></p>
+<p>这个时候,如果去比较这两个值的十六进制数据,你就会发现区别在哪里</p>
+<pre><code class="language-sql">select t.*,length(a),utl_raw.cast_to_raw(a) 
+    from txt_test t;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-87c6ea5c240b4249b11eadbc954376a5.png" srcset="/upload/2022/01/image-87c6ea5c240b4249b11eadbc954376a5.png?width=1200 1200w, /upload/2022/01/image-87c6ea5c240b4249b11eadbc954376a5.png?width=400 400w, /upload/2022/01/image-87c6ea5c240b4249b11eadbc954376a5.png?width=1600 1600w, /upload/2022/01/image-87c6ea5c240b4249b11eadbc954376a5.png?width=800 800w"/></p>
+<p>对照ascii码表,十六进制的61是a,62是b,63是c<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-552e7ef1f2224e52b62b24ae79d49b75.png" srcset="/upload/2022/01/image-552e7ef1f2224e52b62b24ae79d49b75.png?width=1200 1200w, /upload/2022/01/image-552e7ef1f2224e52b62b24ae79d49b75.png?width=400 400w, /upload/2022/01/image-552e7ef1f2224e52b62b24ae79d49b75.png?width=1600 1600w, /upload/2022/01/image-552e7ef1f2224e52b62b24ae79d49b75.png?width=800 800w"/></p>
+<p>而00是个空字符<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-198dc8e8d52747f0928cb41495cf8b8f.png" srcset="/upload/2022/01/image-198dc8e8d52747f0928cb41495cf8b8f.png?width=1200 1200w, /upload/2022/01/image-198dc8e8d52747f0928cb41495cf8b8f.png?width=400 400w, /upload/2022/01/image-198dc8e8d52747f0928cb41495cf8b8f.png?width=1600 1600w, /upload/2022/01/image-198dc8e8d52747f0928cb41495cf8b8f.png?width=800 800w"/></p>
+<p>这下我们找到不一致的原因了,但我们要如何才能把这个多余的字符去掉呢？<br/>
+去掉字符,常见的有substr截取、replace替换、translate翻译等函数,本例的空字符是在最后,用substr看上去把最后一个字符截掉就好了,但是如果这个字符是位置随机数量随机出现在字符串的任意位置,很明显substr就不适用了,那么此时就应该用replace。<br/>
+可是,replace的三个参数中,第一个参数是原字符串,第二个参数是要查找的字符串,第三个参数是要替换成的字符串,第一个和第三个好说,但这第二个参数填什么？填'00'?</p>
+<p>'00'肯定不行,'00'只是个字符串而已。</p>
+<h2 id="处理">处理</h2>
+<p>上面说了,这些值是对照ascii码的,在oracle中,我们可以使用ascii函数来获得一个字符的ascii码(十进制),也可以通过chr函数将一个ascii码(十进制)转成对应的字符,所以我们不需要真正的把这个字符给输入出来,只要使用chr(0)来作为参数即可。</p>
+<pre><code class="language-sql">select t.*,length(a),replace(a,chr(0)),length(replace(a,chr(0))) 
+    from txt_test t;
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-db61a4ababfa4379bb718514ea5d5c10.png" srcset="/upload/2022/01/image-db61a4ababfa4379bb718514ea5d5c10.png?width=1200 1200w, /upload/2022/01/image-db61a4ababfa4379bb718514ea5d5c10.png?width=400 400w, /upload/2022/01/image-db61a4ababfa4379bb718514ea5d5c10.png?width=1600 1600w, /upload/2022/01/image-db61a4ababfa4379bb718514ea5d5c10.png?width=800 800w"/></p>
+<h2 id="总结">总结</h2>
+<p>本文中以00这个ascii码为例,介绍了如何识别不可见字符,以及如何处理不可见字符。但在ascii码中,还有很多不可见字符或者不好用键盘输入的字符,什么换行、tab之类的,处理方法都是类似的。只要我们检查这个字符串的十六进制数据,就能知道这个特殊字符的ascii码(十六进制)是多少,然后再对照ascii码表即可知道它是什么东西。最后,如果要去掉这个字符,只需要使用replace加chr函数即可,比如replace(a,chr(10))去掉换行,replace(a,chr(13))去掉回车。</p>
+<h2 id="附本文中的实验数据生成sql">附本文中的实验数据生成sql</h2>
+<pre><code class="language-sql">create table txt_test (id number,a varchar2(20));
+insert into txt_test values (1,'abc');
+insert into txt_test values (2,'abc'||chr(0));
+commit;
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

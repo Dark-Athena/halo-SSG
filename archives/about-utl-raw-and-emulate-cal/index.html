@@ -157,7 +157,479 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>这篇文章可能是你至今(2022-02-11)能在互联网看到的,关于utl_raw包的逻辑说得最深入的一篇文章了。</p>
+<p>由于最近在复刻oracle中自带的包到其他数据库,因此需要对oracle中的包的逻辑进行解析。<br/>
+比如UTL_RAW这个包,以前用得挺多,但没深究其函数逻辑,这次仔细分析,发现了有一些函数涉及到了一些计算机基本原理及IEEE标准,比较有意思,因此写一篇这样的文章来分享。</p>
+<h2 id="函数清单">函数清单</h2>
+<p>先上官方文档 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/UTL_RAW.html">UTL_RAW</a></p>
+<p>再贴个函数清单,稍微翻译了下,方便理解</p>
+<table>
+<thead>
+<tr>
+<th>Subprogram</th>
+<th>Description</th>
+<th>中文描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BIT_AND Function</td>
+<td>Performs bitwise logical "and" of the values in RAW r1 with RAW r2 and returns the "anded" result RAW</td>
+<td>计算两个raw的“位与”并返回结果的RAW</td>
+</tr>
+<tr>
+<td>BIT_COMPLEMENT Function</td>
+<td>Performs bitwise logical "complement" of the values in RAW r and returns the "complement'ed" result RAW</td>
+<td>对 in 中的值执行按位逻辑“补码”RAW r并返回“补码”结果RAW</td>
+</tr>
+<tr>
+<td>BIT_OR Function</td>
+<td>Performs bitwise logical "or" of the values in RAW r1 with RAW r2 and returns the "or'd" result RAW</td>
+<td>计算两个raw的“位或”并返回结果的RAW</td>
+</tr>
+<tr>
+<td>BIT_XOR Function</td>
+<td>Performs bitwise logical "exclusive or" of the values in RAW r1 with RAW r2 and returns the "xor'd" result RAW</td>
+<td>计算两个raw的“位异或”并返回结果的RAW</td>
+</tr>
+<tr>
+<td>CAST_FROM_BINARY_DOUBLE Function</td>
+<td>Returns the RAW binary representation of a BINARY_DOUBLE value</td>
+<td>返回值的二进制 RAW表示的双精度浮点</td>
+</tr>
+<tr>
+<td>CAST_FROM_BINARY_FLOAT Function</td>
+<td>Returns the RAW binary representation of a BINARY_FLOAT value</td>
+<td>返回值的二进制 RAW表示的单精度浮点</td>
+</tr>
+<tr>
+<td>CAST_FROM_BINARY_INTEGER Function</td>
+<td>Returns the RAW binary representation of a BINARY_INTEGER value</td>
+<td>返回值的二进制 RAW表示的整数</td>
+</tr>
+<tr>
+<td>CAST_FROM_NUMBER Function</td>
+<td>Returns the RAW binary representation of a NUMBER value</td>
+<td>返回值的二进制 RAW表示的数值</td>
+</tr>
+<tr>
+<td>CAST_TO_BINARY_DOUBLE Function</td>
+<td>Casts the RAW binary representation of a BINARY_DOUBLE into a BINARY_DOUBLE</td>
+<td>将一个RAW二进制表示形式的双精度浮点转换为 双精度浮点数字</td>
+</tr>
+<tr>
+<td>CAST_TO_BINARY_FLOAT Function</td>
+<td>Casts the RAW binary representation of a BINARY_FLOAT into a BINARY_FLOAT</td>
+<td>将一个RAW二进制表示形式的单精度浮点转换为 单精度浮点数字</td>
+</tr>
+<tr>
+<td>CAST_TO_BINARY_INTEGER Function</td>
+<td>Casts the RAW binary representation of a BINARY_INTEGER into a BINARY_INTEGER</td>
+<td>将一个RAW二进制表示形式的整数转换为 数字</td>
+</tr>
+<tr>
+<td>CAST_TO_NUMBER Function</td>
+<td>Casts the RAW binary representation of a NUMBER into a NUMBER</td>
+<td>将一个RAW二进制表示形式数值转换为 成一个数值</td>
+</tr>
+<tr>
+<td>CAST_TO_NVARCHAR2 Function</td>
+<td>Converts a RAW value into a VARCHAR2 value</td>
+<td>将RAW值转换为NVARCHAR2值</td>
+</tr>
+<tr>
+<td>CAST_TO_RAW Function</td>
+<td>Converts a VARCHAR2 value into a RAW value</td>
+<td>将VARCHAR2值转换为RAW值</td>
+</tr>
+<tr>
+<td>CAST_TO_VARCHAR2 Function</td>
+<td>Converts a RAW value into a VARCHAR2 value</td>
+<td>将 RAW 值转换为VARCHAR2值</td>
+</tr>
+<tr>
+<td>COMPARE Function</td>
+<td>Compares RAW r1 against RAW r2</td>
+<td>比较两个raw</td>
+</tr>
+<tr>
+<td>CONCAT Function</td>
+<td>Concatenates up to 12 RAWs into a single RAW</td>
+<td>最多可将 12 个连接RAWs成一个RAW</td>
+</tr>
+<tr>
+<td>CONVERT Function</td>
+<td>Converts RAW r from character set from_charset to character set to_charset and returns the resulting RAW</td>
+<td>将一个raw从字符集from_charset转换为字符集to_charset并返回结果RAW</td>
+</tr>
+<tr>
+<td>COPIES Function</td>
+<td>Returns n copies of r concatenated together</td>
+<td>返回n个重复的raw拼接的结果</td>
+</tr>
+<tr>
+<td>LENGTH Function</td>
+<td>Returns the length in bytes of a RAW r</td>
+<td>返回一个RAW的字节长度</td>
+</tr>
+<tr>
+<td>OVERLAY Function</td>
+<td>Overlays the specified portion of target RAW with overlay RAW, starting from byte position pos of target and proceeding for len bytes</td>
+<td>使用指定的RAW，对目标raw的pos字节位置开始，len字节长度进行覆盖</td>
+</tr>
+<tr>
+<td>REVERSE Function</td>
+<td>Reverses a byte sequence in RAW r from end to end</td>
+<td>反转RAW字节序列</td>
+</tr>
+<tr>
+<td>SUBSTR Function</td>
+<td>Returns len bytes, starting at pos from RAW r</td>
+<td>对一个raw,从pos位置开始,截取len字节,返回结果</td>
+</tr>
+<tr>
+<td>TRANSLATE Function</td>
+<td>Translates the bytes in the input RAW r according to the bytes in the translation RAWs from_set and to_set</td>
+<td>对于输入的raw, 将from_set中的字节逐个替换成to_set中对应位置的字节</td>
+</tr>
+<tr>
+<td>TRANSLITERATE Function</td>
+<td>Converts the bytes in the input RAW r according to the bytes in the transliteration RAWs from_set and to_set</td>
+<td>实际上和translate差不多,但多了个补充长度的参数</td>
+</tr>
+<tr>
+<td>XRANGE Function</td>
+<td>Returns a RAW containing all valid 1-byte encodings in succession, beginning with the value start_byte and ending with the value end_byte</td>
+<td>从start_byte开始到end_byte的所有值拼接成一个raw返回</td>
+</tr>
+</tbody>
+</table>
+<p>此包中的大部分函数,均已使用openGauss的plpgsql语言进行了实现,可结合代码来阅读本文,代码地址<br/>
+<a href="https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_raw.sql">https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_raw.sql</a></p>
+<h2 id="详解">详解</h2>
+<p>注意,由于oracle中,sql语言可以隐式的将十六进制字符串转换成raw类型,所以注意下文中十六进制的参数的类型应该均为raw。在plsql中,则需要使用hextoraw函数进行显式的转换以确保输入参数的准确性</p>
+<h3 id="1-BIT-AND">1.BIT_AND</h3>
+<p>作用:<br/>
+计算位与<br/>
+例:</p>
+<pre><code class="language-sql">SELECT UTL_RAW.BIT_AND('F0','BA') FROM DUAL
+--输出:B0
+</code></pre>
+<p>算法:<br/>
+十六进制 F0 转二进制 11110000<br/>
+十六进制 BA 转二进制 10111010<br/>
+两个数字按位,逐个进行匹配,都为1则输出1,否则输出0<br/>
+得10110000,然后转十六进制,得B0</p>
+<h3 id="2-BIT-OR">2.BIT_OR</h3>
+<p>作用:<br/>
+计算位或<br/>
+例:</p>
+<pre><code class="language-sql">SELECT UTL_RAW.BIT_OR('F0','BA') FROM DUAL
+--输出:FA
+</code></pre>
+<p>算法:<br/>
+十六进制 F0 转二进制 11110000<br/>
+十六进制 BA 转二进制 10111010<br/>
+两个数字按位,逐个进行匹配,至少有个1则输出1,都是0则输出0<br/>
+得11111010,然后转十六进制,得FA</p>
+<h3 id="3-BIT-XOR">3.BIT_XOR</h3>
+<p>作用:<br/>
+计算位异或<br/>
+例:</p>
+<pre><code class="language-sql">SELECT UTL_RAW.BIT_XOR('F0','BA') FROM DUAL
+--输出:4A
+</code></pre>
+<p>算法:<br/>
+十六进制 F0 转二进制 11110000<br/>
+十六进制 BA 转二进制 10111010<br/>
+两个数字按位,逐个进行匹配,相等输出0,不等输出1<br/>
+得01001010,然后转十六进制,得4A</p>
+<h3 id="4-BIT-COMPLEMENT">4.BIT_COMPLEMENT</h3>
+<p>作用:<br/>
+计算补码<br/>
+例:</p>
+<pre><code class="language-sql">select UTL_RAW.BIT_COMPLEMENT('EA') FROM DUAL
+--输出:15
+</code></pre>
+<p>算法:<br/>
+EA转二进制 11101010<br/>
+用二进制 11111111减去它(或者理解为1变0,0变1),<br/>
+得二进制 00010101,再转十六进制,得15</p>
+<h3 id="5-CONCAT">5.CONCAT</h3>
+<p>作用:<br/>
+拼接多个raw,最多拼12个<br/>
+例:</p>
+<pre><code class="language-sql">select UTL_RAW.CONCAT('EAAB','3A') FROM DUAL
+--输出 :EAAB3A
+</code></pre>
+<p>算法:<br/>
+EAAB 转二进制 1110101010101011<br/>
+3A 转二进制 00111010<br/>
+计算第二个参数,字节长度为1,占8位,因此第一个参数的二进制向左移动8位,<br/>
+得111010101010101100000000,<br/>
+然后加上第二个参数的2进制,得 111010101010101100111010,转十六进制得 EAAB3A<br/>
+(可以看到,此例如果是把十六进制数值当成字符串来进行拼接,结果是一样的,但要注意是按字节长度拼接,比如 "FF"拼"F",得到应该是 "FF0F",而不是字符串拼接的"FFF")</p>
+<h3 id="6-LENGTH">6.LENGTH</h3>
+<p>作用:<br/>
+计算长度,单位:字节<br/>
+例:</p>
+<pre><code class="language-sql">select UTL_RAW.LENGTH('EAEA') FROM DUAL
+--输出:2
+</code></pre>
+<p>算法:<br/>
+EAEA转二进制 1110101011101010<br/>
+从后往前数,8位为1个字节,不足8位的前面补0<br/>
+(可以将十六进制数值视同为字符串,该字符串长度的一半即为原数据的字节长度,但同样要注意省去了前面的0的情况,比如"FFF"按字符串的长度是1.5,明显不对,应该计算"0FFF"长度的一半)</p>
+<h3 id="7-SUBSTR">7.SUBSTR</h3>
+<p>作用:<br/>
+按字节截取<br/>
+例:</p>
+<pre><code class="language-sql">select UTL_RAW.SUBSTR('ABCDEF12345',3,2) FROM DUAL
+--输出:EF12
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+AB 为一个字节, CD为一个字节,从第3字节 EF 开始,截取 2个字节长度,即 EF 12<br/>
+(和字符串的substr类似,可以理解为2个字符一组,第3个参数为空时表示一直截到最后；第2个参数同样支持负数,即从倒数第n位开始截；但是第3个参数要截的长度不能超过raw的剩余长度,否则会报错ora-06502)</p>
+<h3 id="8-COPIES">8.COPIES</h3>
+<p>作用:<br/>
+复制自己成多份<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.COPIES('1A1B',3) FROM DUAL
+--输出:1A1B1A1B1A1B
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+1A1B字节长度为2,往左移两个字节长度,得1A1B0000<br/>
+再加上自己,得1A1B1A1B,继续左移两个字节长度,得1A1B1A1B0000<br/>
+再加上自己,得1A1B1A1B1A1B<br/>
+可以发现左移次数为第2个参数减1次<br/>
+(也可以简单的视为字符串拼接,但同样要注意前面补0,比如utl_raw.COPIES('FFF',2) 的结果应该是0FFF0FFF)</p>
+<h3 id="9-REVERSE">9.REVERSE</h3>
+<p>作用:<br/>
+按字节进行翻转<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.REVERSE('01020304') from dual
+--输出:04030201
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+01020304字节长度为4,<br/>
+取第4个字节04,左移3个字节,得04000000<br/>
+取第3个字节03,左移2个字节,得00030000<br/>
+取第2个字节02,左移1个字节,得00000200<br/>
+取第1个字节01,得00000001<br/>
+把上面4个数加起来,得04030201<br/>
+(也可以简单的视为字符串,只不过是2个字符为一组进行翻转,不要忘了补0)</p>
+<h3 id="10-XRANGE">10.XRANGE</h3>
+<p>作用:<br/>
+根据传入的两个参数作为开始数值和结束数值,以1递增,生成一串序列,注意两个参数均只接受第一个字节,后面的字节会被忽略<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.XRANGE('0A','12') FROM DUAL
+--输出:0A0B0C0D0E0F101112
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+0A左移一个字节,得0A00,然后0A加1,得0B,0A00加上0B得0A0B<br/>
+0A0B左移一个字节,得0A0B00,然后0B加1得0C,0A0B00加上0C得0A0B0C<br/>
+循环下去,直至中间某次加1后的值等于第二个参数12,加上最后一个值后返回结果,<br/>
+得0A 0B 0C 0D 0E 0F 10 11 12</p>
+<h3 id="11-TRANSLITERATE">11.TRANSLITERATE</h3>
+<p>作用:<br/>
+按字节进行替换,(由于第二个参数和第三个参数的长度允许不一致,因此以填充码的方式,确保原数据和输出结果的长度一致)<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.transliterate( '010203040502', '0809', '01020304', '0a' ) FROM DUAL
+--输出:08090A0A0509
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+第一个参数是原数据,第二个参数是要替换成的数据,第三个参数是要查找的数据,第4个参数是填充码<br/>
+此例中,对第一个参数进行以下字节的覆盖<br/>
+01 -&gt; 08<br/>
+02 -&gt; 09<br/>
+03 -&gt; 空(取填充码0A)<br/>
+04 -&gt; 空(取填充码0A)<br/>
+得输出结果 08 09 0A 0A 05 09</p>
+<h3 id="12-TRANSLATE">12.TRANSLATE</h3>
+<p>作用:<br/>
+按字节进行替换(无填充码参数,因此输入和输出的长度可能不一致)<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.translate( '0102030405', '0203', '06' ) from dual
+--输出 01060405
+</code></pre>
+<p>算法:<br/>
+和TRANSLITERATE函数类似,不过没有填充码,没对应上的则替换成空(二进制数据需要右移),而且注意第二个参数和第三个参数反过来了</p>
+<h3 id="13-OVERLAY">13.OVERLAY</h3>
+<p>作用:<br/>
+按指定开始字节及长度覆写字节数据<br/>
+用法:<br/>
+第一个参数为覆写码,第二个参数为原始数据,第3个参数为开始字节位置(默认值为1,表示从第一个字节开始),第4个参数为覆盖字节长度(默认值为剩余的所有字节长度),第5个参数为填充码(默认值为00)</p>
+<pre><code class="language-sql">select utl_raw.overlay( 'AABB', '010203' ) from dual
+--输出 AABB03
+select utl_raw.overlay( 'AABB', '010203', 2 ) from dual
+--输出 01AABB
+select utl_raw.overlay( 'AABB', '010203', 5 ) from dual
+--输出 01020300AABB
+select utl_raw.overlay( 'AABB', '010203', 2, 1 ) from dual
+--输出 01AA03
+select utl_raw.overlay( 'AABB', '010203', 5, 1, 'FF' ) from dual
+--输出 010203FFAA
+</code></pre>
+<p>算法:(以最后一个为例)<br/>
+(转二进制过程略)<br/>
+AABB 字节长度为 2,已经超过第4个参数1个字节的长度,因此截断,只取第1个字节AA<br/>
+010203 字节长度为 3<br/>
+从第5个字节开始覆写,已经超过原始数据长度,差值为2,因此010203先左移1个字节,得 01020300<br/>
+由于还未到第5个字节,所以加上填充码FF,得010203FF,<br/>
+再左移1个字节,得010203FF00,在第5位加上覆写码AA,得010203FFAA</p>
+<h3 id="14-COMPARE">14.COMPARE</h3>
+<p>作用:<br/>
+按字节从左至右的顺序比较两个raw的差异,返回第一个不匹配的字节位置,如果完全匹配则返回0<br/>
+用法:<br/>
+第一个参数raw,第二个参数raw,第3个参数为填充码(默认值为00),返回一个整数</p>
+<pre><code class="language-sql">SELECT utl_raw.compare( '010203', '01020304', '04' ) from dual
+--输出 0
+SELECT utl_raw.compare( '01050304', '01020304' )
+--输出 2
+</code></pre>
+<p>算法:<br/>
+(转二进制过程略)<br/>
+第一例,由于前两个参数长度不一致,且第一个参数长度较短,因此使用第三个参数对其进行填充至相同长度,得 01020304,所以两个完全一致,返回0<br/>
+第二例,可以发现第二个字节 05 不等于 02,因此返回2</p>
+<h3 id="15-CAST-TO-RAW">15.CAST_TO_RAW</h3>
+<p>作用:<br/>
+将varchar2类型的数据的二进制数据转换成raw类型<br/>
+例:</p>
+<pre><code class="language-sql">select  UTL_RAW.cast_to_RAW('DarkAthena') from dual
+--输出 4461726B417468656E61
+select  UTL_RAW.cast_to_RAW('123') from dual
+--输出 313233
+select  UTL_RAW.cast_to_RAW(convert('测试','AL32UTF8')) from dual
+--输出 E6B58BE8AF95
+</code></pre>
+<p>算法:<br/>
+略,<br/>
+注意第二例,传入的参数是字符,不是数字,<br/>
+第三例中,对于非单字节字符,强制指定字符集进行写入,否则写入的raw不可控</p>
+<h3 id="16-CAST-TO-VARCHAR2">16.CAST_TO_VARCHAR2</h3>
+<p>作用:<br/>
+将raw格式的字符串使用数据库默认字符集转换回VARCHAR2(其实就是CAST_TO_RAW函数的逆向函数)<br/>
+例:</p>
+<pre><code class="language-sql">select  UTL_RAW.cast_to_RAW('4461726B417468656E61') from dual
+--输出 DarkAthena
+</code></pre>
+<p>算法:<br/>
+略,<br/>
+注意,由于此函数不能指定字符集,因此转换回来可能会乱码,可以使用utl_i18n.raw_to_char这个函数进行替代</p>
+<h3 id="17-CONVERT">17.CONVERT</h3>
+<p>作用:<br/>
+转换RAW的字符集<br/>
+例:</p>
+<pre><code class="language-sql">--先用cast_to_RAW获得一个raw
+select  UTL_RAW.cast_to_RAW(convert('测试','AL32UTF8')) from dual
+--输出 E6B58BE8AF95
+--转换成gbk
+select  UTL_RAW.CONVERT('E6B58BE8AF95','ZHS16GBK','AL32UTF8') FROM DUAL
+--输出 B2E2CAD4
+</code></pre>
+<p>算法:略<br/>
+可用下列方式验证</p>
+<pre><code class="language-sql">select  UTL_RAW.cast_to_RAW(convert('测试','ZHS16GBK')) from dual
+--输出 B2E2CAD4
+</code></pre>
+<h3 id="18-CAST-FROM-BINARY-INTEGER">18.CAST_FROM_BINARY_INTEGER</h3>
+<p>作用:<br/>
+将一个整数的二进制数据转换成RAW<br/>
+用法:第1个参数为要进行转换的整数,第二个参数为大端还是小端,默认大端为1,小端为2,传3为取机器配置的端</p>
+<pre><code class="language-sql">select utl_raw.cast_from_binary_integer(65280) from dual
+--输出 0000FF00
+select utl_raw.cast_from_binary_integer(65280,2) from dual
+--输出 00FF0000
+</code></pre>
+<p>算法:<br/>
+其实就是把十进制的整数转换成其二进制数据的十六进制展现形式,但最长只能4个字节,可转换的整数范围为<br/>
+-2147483648<del>2147483647<br/>
+即大端7FFFFFFF</del>80000000<br/>
+(7FFFFFFF及以下为正整数,80000000及以上为负整数,00000000为0,FFFFFFFF为-1)<br/>
+但是要注意第2个参数,关于大小端是什么意思,可自行搜索,不过在结果展现上来看,其实小端就是把大端按字节给翻转了</p>
+<h3 id="19-CAST-TO-BINARY-INTEGER">19.CAST_TO_BINARY_INTEGER</h3>
+<p>作用:<br/>
+将一个整数的raw转换回整数,其实就是CAST_FROM_BINARY_INTEGER的逆向函数<br/>
+用法:第1个参数为要进行转换的raw,第二个参数为大端还是小端,默认大端为1,小端为2,传3为取机器配置的端</p>
+<pre><code class="language-sql">select utl_raw.cast_to_binary_integer('18FCFFFF') from dual
+--输出 419233791
+select utl_raw.cast_to_binary_integer('18FCFFFF') from dual
+--输出 -1000
+</code></pre>
+<p>算法:<br/>
+略,注意此处可以传入小于或者等于4个字节的raw,超过4个字节会报错</p>
+<h3 id="20-CAST-FROM-NUMBER">20.CAST_FROM_NUMBER</h3>
+<p>作用:<br/>
+获得一个number类型值存储的二进制数据<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.cast_from_number(1.1) from dual
+--输出 C1020B
+select utl_raw.cast_from_number(-1.1) from dual
+--输出 3E645B66
+</code></pre>
+<p>算法:<br/>
+这里内容会比较多,目前国内很难找到关于这个算法的中文说明,用英文关键词去搜也很难找到,但是我搜到了一个CSDN上08年的帖子<br/>
+<a href="https://bbs.csdn.net/topics/280064258">关于utl_raw.cast_to_number</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png" srcset="/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1200 1200w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=400 400w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1600 1600w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=800 800w"/></p>
+<p>这位兄弟启发了我,让我能稍微看懂了一点,于是我模拟了几组数据,尝试在excel中按照此方式进行转换<br/>
+从RAW解析正数<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png" srcset="/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1200 1200w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=400 400w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1600 1600w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=800 800w"/></p>
+<p>从RAW解析负数<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png" srcset="/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1200 1200w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=400 400w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1600 1600w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=800 800w"/></p>
+<p>模拟成功,但是这只是RAW到NUMBER,如果要计算NUMBER到RAW,得把这个步骤完全反过来<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png" srcset="/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1200 1200w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=400 400w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1600 1600w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=800 800w"/></p>
+<p>另外,我还根据193、101这些特殊的数字,找到了oracle的官方文档<br/>
+<a href="https://docs.oracle.com/cd/B14117_01/appdev.101/b10779/oci03typ.htm">3 Datatypes</a></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png" srcset="/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1200 1200w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=400 400w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1600 1600w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=800 800w"/></p>
+<p><a href="https://www.darkathena.top/upload/2022/02/raw_cast_from_number%E7%9A%84%E7%A0%94%E7%A9%B6-3059d9faed484776ab0f92d54a3b7ef9.xlsx">模拟计算表格文件下载</a></p>
+<h3 id="21-CAST-TO-NUMBER">21.CAST_TO_NUMBER</h3>
+<p>作用:<br/>
+将一个number值存储的二进制数据转换回number,其实就是CAST_FROM_NUMBER的逆向函数<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.CAST_TO_NUMBER (C1020B) from dual
+--输出 1.1
+select utl_raw.cast_from_number(3E645B66) from dual
+--输出 -1.1
+</code></pre>
+<p>算法:<br/>
+略,见上面的CAST_FROM_NUMBER</p>
+<h3 id="22-CAST-TO-NVARCHAR2">22.CAST_TO_NVARCHAR2</h3>
+<p>作用:<br/>
+把RAW转换回NVARCHAR2<br/>
+例:</p>
+<pre><code class="language-sql">select utl_raw.CAST_TO_NVARCHAR2('6D4B8BD5') from dual
+--输出:测试
+</code></pre>
+<p>算法:<br/>
+其实NVARCHAR2类型就是用unicode编码来存储数据,可以使用unistr或者asciistr函数验证</p>
+<pre><code class="language-sql">select asciistr('测试') from dual
+--输出: \6D4B\8BD5
+select unistr('\6D4B\8BD5') from dual
+--输出: 测试
+</code></pre>
+<p>但是,要注意的是,对于ascii字符集中的字符(单字节字符),NVARCHAR2存储的每个字符的字节前面都要补1个00字节,确保每个字符占的存储空间都是2个字节,比如<br/>
+NVARCHAR2类型的 "测试12ab" 存储的二进制数据(十六进制形式)为 6D4B 8BD5 0031 0032 0061 0062<br/>
+而asciistr函数并不会对除"\"以外的单字节字符进行转换</p>
+<h3 id="23-CAST-FROM-BINARY-FLOAT-CAST-TO-BINARY-FLOAT-CAST-FROM-BINARY-DOUBLE-CAST-TO-BINARY-DOUBLE">23.CAST_FROM_BINARY_FLOAT/CAST_TO_BINARY_FLOAT/CAST_FROM_BINARY_DOUBLE/CAST_TO_BINARY_DOUBLE</h3>
+<p>最后还剩4个函数,分别是转换单精度浮点和双精度浮点的<br/>
+这个其实是遵循 IEEE二进制浮点数算术标准（IEEE 754）(<a href="https://baike.baidu.com/item/IEEE%20754/3869922">百度百科</a>)<br/>
+所以暂不细说了,前面能看懂的自然能看懂百科里说的算法。<br/>
+但要注意的是,由于这两种浮点数值存在精度问题,经常会出现类似10.00000000000000001或者9.9999999999999999这种奇葩的数据,因此不建议在需要准确数值的场景下使用,建议使用number类型</p>
+<h2 id="总结">总结</h2>
+<p>有人可能会说,既然oracle提供了这些函数,直接用就好了么,干嘛去分析原理？<br/>
+首先,如果要让oracle数据库里的对象能实现真正的无缝迁移至其他数据库,肯定需要在其他数据库内对oracle里的逻辑进行模拟,此时必须清楚oracle里的逻辑是怎样的；<br/>
+其次,了解这些原理后,能对以后开发时应该选择哪种数据类型或者使用哪个函数提供指导依据,比如哪种方式计算快或者怎么存储更节省空间。比如这个问答中的回复就使用到了相关知识 <a href="https://www.modb.pro/issue/13530">oracle里面number(20,2)数据类型，数据精度是20，小数位数是2。那它的数据长度是多少？</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

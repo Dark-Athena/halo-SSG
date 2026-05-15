@@ -159,7 +159,135 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="2021-11-01-更新增加linux环境支持">2021-11-01 更新，增加linux环境支持</h2>
+<p><a href="/archives/pl4py-20211101">【ORACLE】pl4py更新，支持linux环境（在Oracle中调用python函数并获得返回值）</a></p>
+<h1 id="pl4py">pl4py</h1>
+<p>项目地址 <a href="https://github.com/Dark-Athena/pl4py">https://github.com/Dark-Athena/pl4py</a></p>
+<p>安装此组件后，你可以在数据库中创建并且使用自定义函数，并自由开启关闭此服务，使用过程无需登录数据库的操作系统</p>
+<p>（不是21c版本中的OML4PY <a href="https://www.darkathena.top/archives/oml4py-server-setup">【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a> ）</p>
+<p>这是开发中的版本，请勿用于生产环境<br/>
+请确保oracle数据库版本至少为10g<br/>
+数据库操作系统上需要安装python<br/>
+为了避免一些不可控的情况，需要在程序中提前手工指定python主程序的全路径<br/>
+目前只在windows环境中测试通过  (2011-11-01 增加linux环境支持)</p>
+<h4 id="原理">原理：</h4>
+<p>使用schedule_job启动python的flask服务<br/>
+通过utl_file包将用户自定义函数生成py文件保存到操作系统<br/>
+使用utl_http包发送请求到flask，传入函数名称及参数数据<br/>
+flask动态从文件加载python函数，并将参数数据传入函数，获得返回值<br/>
+此时，plsql中可获得python函数返回的结果</p>
+<h2 id="安装步骤">安装步骤</h2>
+<h4 id="第一步">第一步</h4>
+<p>在数据库操作系统上安装python程序，并安装flask包，建议py3，py2没有测试</p>
+<pre><code class="language-bat">pip3 install flask
+</code></pre>
+<h4 id="第二步">第二步</h4>
+<p>在数据库所在的操作系统上建立一个文件夹，此文件夹会保存你在数据库中创建的包含python函数的文件<br/>
+例如：</p>
+<pre><code class="language-bat">mkdir F:\oracle\PY_FILE
+</code></pre>
+<h4 id="第三步">第三步</h4>
+<p>在数据库中创建一个目录 ，名称为 “PY_FILE” ，指向操作系统中，上一步你创建的文件夹</p>
+<pre><code class="language-sql">create or replace directory PY_FILE as 'F:\oracle\PY_FILE'
+</code></pre>
+<h4 id="第四步">第四步</h4>
+<p>使用数据库sys账号对你想要安装本程序的用户进行授权，</p>
+<pre><code class="language-sql">grant select on dba_directories to {username} with grant option;
+</code></pre>
+<h4 id="第五步">第五步</h4>
+<p>登录你要安装本程序的数据库账号，依次执行以下脚本</p>
+<ul>
+<li>PL4PY_FUNC_LIST.sql</li>
+<li>PL4PY_FUNC_LIST_TRI.trg</li>
+<li>PL4PY.pck</li>
+<li>pl4py_func_list_v.sql</li>
+</ul>
+<h2 id="使用举例">使用举例</h2>
+<h4 id="一启动服务">一、启动服务</h4>
+<pre><code class="language-sql">begin
+  PL4PY.start_service;
+end;
+</code></pre>
+<h4 id="二创建或更新函数">二、创建（或更新）函数</h4>
+<pre><code class="language-sql">BEGIN
+  PL4PY.create_func(i_func_name =&gt; 'sample_f.py',
+                    i_contents  =&gt; q'{def sample_f(num):
+    return float(num)*float(num)
+}');
+END;
+</code></pre>
+<h4 id="三使用函数">三、使用函数</h4>
+<pre><code class="language-sql">select  pl4py.call_func_Eval('sample_f.py', '8') r from dual;
+
+64
+</code></pre>
+<h4 id="四删除函数">四、删除函数</h4>
+<pre><code class="language-sql">BEGIN
+  PL4PY.drop_func(i_func_name =&gt; 'sample_f.py');
+END;
+</code></pre>
+<h4 id="五停止服务">五、停止服务</h4>
+<pre><code class="language-sql">begin
+  PL4PY.stop_service;
+end;
+</code></pre>
+<h2 id="更复杂的函数例子">更复杂的函数例子</h2>
+<ol>
+<li>基于原始数据计算一个时间和速度相关性的模型，然后输入时间，返回速度</li>
+</ol>
+<pre><code class="language-sql">BEGIN
+  PL4PY.create_func(i_func_name =&gt; 'forecast_speed.py',
+                    i_contents  =&gt; q'{import numpy
+from sklearn.metrics import r2_score
+import matplotlib.pyplot as plt
+def forecast_speed(hour):
+    x = [1,2,3,5,6,7,8,9,10,12,13,14,15,16,18,19,21,22]
+    y = [100,90,80,60,60,55,60,65,70,70,75,76,78,79,90,99,99,100]
+    mymodel = numpy.poly1d(numpy.polyfit(x, y, 3))
+    myline = numpy.linspace(1, 23, 100)
+    speed = mymodel(float(hour))
+    return {'speed':speed}
+}');
+END;
+
+select pl4py.call_func_Eval(i_func_name =&gt;'forecast_speed.py', i_data=&gt;'11') r from dual
+
+{"speed": 65.03276500414789}
+</code></pre>
+<ol start="2">
+<li>传入一个sql，获得sql中的所有表或视图名称<br/>
+将<a href="https://github.com/Dark-Athena/list_table_sql-py">https://github.com/Dark-Athena/list_table_sql-py</a><br/>
+中的所有文件下载到安装步骤第二步中的文件夹，比如 “F:\oracle\PY_FILE”<br/>
+然后在数据库中以实际文件的方式创建函数</li>
+</ol>
+<pre><code class="language-sql">BEGIN
+  PL4PY.create_func(i_func_name =&gt; 'list_table_sql.py',
+                    i_dir  =&gt; 'PY_FILE',
+                    i_file_name  =&gt;'list_table_sql.py');
+END;
+  
+declare
+  r varchar2(4000);
+  i_data varchar2(4000);
+begin
+  i_data:='{"sql":"select abc from def,ghi j,k.lmn o","mode":"T"}';
+  r := pl4py.call_func_Eval(i_func_name =&gt;'list_table_sql.py', i_data=&gt;i_data);
+  dbms_output.put_line(r);
+end;
+
+{"tablename": ["def", "ghi", "k.lmn"]}
+</code></pre>
+<h2 id="注意事项">注意事项:</h2>
+<ol>
+<li>服务被设计成长期运行的schedule_job，函数动态切换，因此除非要完全停止或者检查问题，一般不需要执行 PL4PY.stop_service</li>
+<li>i_func_name参数必须带后缀 ".py"</li>
+<li>视图 "pl4py_func_list_v"提供自定义python函数脚本内容的查询</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

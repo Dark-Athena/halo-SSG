@@ -155,7 +155,268 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>接上篇<br/>
+<a href="/archives/oracle-sql-part3">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3</a></p>
+<hr/>
+<h1 id="23json-table">23.json_table</h1>
+<p>作用：将json数据放在sql的from后面，作为表来查询。有时候跨系统交互要查问题时，对方没把json解析后的数据落表，只存了原始json，所以只能给你一个巨大的json数据，你有可能需要把这个数据做去重或者关联oracle数据库中某张表来做查询，如果开发个解析json再插数据库的功能又太费时间了，有这个功能只需要写个sql就能把json数据直接当表用了。</p>
+<p>例：<br/>
+这个有三方支持和12c版本以后的原生支持两种方式</p>
+<ol>
+<li>先说三方支持，即pljson<br/>
+假设我们有一组这样的json数据</li>
+</ol>
+<pre><code class="language-json">{"DATA":
+[{"storeId":"1","supplierId":"111","takeCost":"1.00","takeDate":"20191112"},
+{"storeId":"2","supplierId":"2","takeCost":"200.00","takeDate":"20191114"},
+{"storeId":"2","supplierId":"3","takeCost":"100.00","takeDate":"20191111"}]
+}
+</code></pre>
+<p>那么就可以使用下面这个方式把json数据直接当表查</p>
+<pre><code class="language-sql">
+select b.storeid, b.supplierId, b.takeCost, b.takeDate
+    from table(pljson_table.json_table(q'{
+
+{"DATA":
+[{"storeId":"1","supplierId":"111","takeCost":"1.00","takeDate":"20191112"},
+{"storeId":"2","supplierId":"2","takeCost":"200.00","takeDate":"20191114"},
+{"storeId":"2","supplierId":"3","takeCost":"100.00","takeDate":"20191111"}]
+}
+
+}',
+                                       pljson_varray('DATA[*].storeId',
+                                                     'DATA[*].supplierId',
+                                                     'DATA[*].takeCost',
+                                                     'DATA[*].takeDate'),
+                                       pljson_varray('storeId',
+                                                     'supplierId',
+                                                     'takeCost',
+                                                     'takeDate'),
+                                       table_mode =&gt; 'nested')) b;
+</code></pre>
+<p>查询效果如下<br/>
+|STOREID	|SUPPLIERID	|TAKECOST	|TAKEDATE<br/>
+|-|-|-|-<br/>
+|1	|111	|1.00	|20191112<br/>
+|2	|2	|200.00	|20191114<br/>
+|2	|3	|100.00	|20191111</p>
+<p>如果json串很长时，则需要把json的值先写入一个clob字段，然后再查，如下</p>
+<pre><code class="language-sql">--建表
+create table clob_test (clob_value clob);
+select * from clob_test  for update ;
+--把clob打开，然后把数据贴进去，确定，post、commit
+
+--查询
+select b.storeid, b.supplierId, b.takeCost, b.takeDate
+    from clob_test ,table(pljson_table.json_table(clob_value,
+                                       pljson_varray('DATA[*].storeId',
+                                                     'DATA[*].supplierId',
+                                                     'DATA[*].takeCost',
+                                                     'DATA[*].takeDate'),
+                                       pljson_varray('storeId',
+                                                     'supplierId',
+                                                     'takeCost',
+                                                     'takeDate'),
+                                       table_mode =&gt; 'nested')) b;
+</code></pre>
+<p>另外，在存储过程中，如果是要把json数据解析后插表，也可以使用此种方式，不过建议将json数据作为一个绑定变量传给动态sql执行，这样既支持超长数据，也不需要再建个表，如下</p>
+<pre><code class="language-sql">
+execute immediate q'{ insert into supp_cost_t(storeid,
+                                         supplierid,
+                                         takecost,
+                                         takedate)
+  select b.storeid, b.supplierId, b.takeCost, b.takeDate
+    from table(pljson_table.json_table(:1,
+                                       pljson_varray('DATA[*].storeId',
+                                                     'DATA[*].supplierId',
+                                                     'DATA[*].takeCost',
+                                                     'DATA[*].takeDate'),
+                                       pljson_varray('storeId',
+                                                     'supplierId',
+                                                     'takeCost',
+                                                     'takeDate'),
+                                       table_mode =&gt; 'nested')) b}'
+      using json_CLOB;
+</code></pre>
+<p>这种方式比起使用这个三方包逐行逐个参数解析后再插表速度快多了，生产实测，同样的大的一个json数据，之前需要15个小时完成插表，改成这个方式1分钟左右就完成了。</p>
+<ol start="2">
+<li>再说说Oracle12c之后的原生支持</li>
+</ol>
+<pre><code class="language-sql"> select p.*
+    from clob_test,
+         json_table(clob_value,
+                    '$.DATA[*]'
+                    columns(storeId varchar2(20) path '$.storeId',
+                            supplierId varchar2(20) path '$.supplierId',
+                            takeCost varchar2(20) path '$.takeCost',
+                            takeDate varchar2(20) path '$.takeDate')) p;
+                          
+select p.*
+  from clob_test,
+       json_table(clob_value,
+                 '$'COLUMNS(NESTED PATH '$.DATA[*]'
+                  columns(storeId varchar2(20) path '$.storeId',
+                          supplierId varchar2(20) path '$.supplierId',
+                          takeCost varchar2(20) path '$.takeCost',
+                          takeDate varchar2(20) path '$.takeDate'))） p;
+</code></pre>
+<p>上面这两个sql都可以，同样支持在存储过程中绑定变量用动态sql执行，而且同样的数据量，上面三方包需要1分钟左右，而使用oracle原生json则只需要0.1s！</p>
+<p>需要注意的是，如果是在查询时，直接把字符串内容作为原生json_table的一个参数，在数据量比较大的时候，你会发现查出来的数据有缺失，而且没报错，你会怀疑自己sql写错了，毕竟原生的这几个参数要完全理解还是有点难度的。但其实真相是，oracle原生这么快的原因是因为它没校验json是否合法，直接就按照你写的参数路径去读了，而且如果字符串超长，它就直接截断了！所以在使用oracle原生json时，记得最好使用变量传入，不要直接传值的内容！</p>
+<p>关于oracle中json的支持，这一小段肯定说不完，之后会考虑写一篇较为完整的oracle中json的用法用例，另外我之前还写了几篇有关json的可以参考参考<br/>
+<a href="/archives/sqltojson中的数字格式转换问题">【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</a><br/>
+<a href="/archives/sqltojson效率优化">【ORACLE】关于pljson_util_pkg.sql_to_json转换大量数据的效率优化方案</a></p>
+<hr/>
+<h1 id="24percent-rank">24.PERCENT_RANK</h1>
+<p>作用：返回一个基于排行的百分比，表示指定的数据基于某种排序，排在大概多少行除以总行数的位置，比如，15000元的薪水排在公司薪资从高到低90%的位置，或者用结合over直接返回每个人的薪水在公司排行的位置<br/>
+例：</p>
+<pre><code class="language-sql">SELECT department_id, last_name, salary, PERCENT_RANK() 
+       OVER ( ORDER BY salary DESC) AS pr
+  FROM hr.employees a where a.department_id=100
+  ORDER BY pr, salary, last_name;
+</code></pre>
+<table>
+<thead>
+<tr><th>DEPARTMENT_ID</th><th>LAST_NAME</th><th>SALARY</th><th>PR</th></tr>
+</thead>
+<tbody>
+<tr><td>100</td><td>Greenberg</td><td>12008</td><td>0</td></tr>
+<tr><td>100</td><td>Faviet</td><td>9000</td><td>0.2</td></tr>
+<tr><td>100</td><td>Chen</td><td>8200</td><td>0.4</td></tr>
+<tr><td>100</td><td>Urman</td><td>7800</td><td>0.6</td></tr>
+<tr><td>100</td><td>Sciarra</td><td>7700</td><td>0.8</td></tr>
+<tr><td>100</td><td>Popp</td><td>6900</td><td>1</td></tr>
+</tbody>
+</table>
+<p>实际上这个效果等同于 (RANK()-1)/(COUNT()-1)</p>
+<pre><code class="language-sql">SELECT department_id,
+       last_name,
+       salary,
+       PERCENT_RANK() OVER(ORDER BY salary DESC) AS pr,
+       ((rank() over(ORDER BY salary DESC)) - 1) / ((count(1) over()) - 1) PR2
+  FROM hr.employees a
+ where a.department_id = 100
+ ORDER BY pr, salary, last_name;
+</code></pre>
+<table>
+<thead>
+<tr><th>DEPARTMENT_ID</th><th>LAST_NAME</th><th>SALARY</th><th>PR</th><th>PR2</th></tr>
+</thead>
+<tbody>
+<tr><td>100</td><td>Greenberg</td><td>12008</td><td>0</td><td>0</td></tr>
+<tr><td>100</td><td>Faviet</td><td>9000</td><td>0.2</td><td>0.2</td></tr>
+<tr><td>100</td><td>Chen</td><td>8200</td><td>0.4</td><td>0.4</td></tr>
+<tr><td>100</td><td>Urman</td><td>7800</td><td>0.6</td><td>0.6</td></tr>
+<tr><td>100</td><td>Sciarra</td><td>7700</td><td>0.8</td><td>0.8</td></tr>
+<tr><td>100</td><td>Popp</td><td>6900</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
+<p>可以看到结果是完全一样的，至于为什么要减1，因为它在统计的时候，并没有把自己给算进去，如果要把它自己算进去的话，换成cume_dist函数即可（下一个就是了）</p>
+<p>有个经典案例，我们想挑出当前商品中卖得最好的20%个商品（所谓20%的商品贡献80%的销售），也可以用到这个函数</p>
+<hr/>
+<h1 id="25cume-dist">25.CUME_DIST</h1>
+<p>作用：和上一例的PERCENT_RANK类似，也是返回一个排行的百分比位置</p>
+<pre><code class="language-sql">SELECT department_id,
+       last_name,
+       salary,
+       PERCENT_RANK() OVER(ORDER BY salary DESC) AS pr,
+       ((rank() over(ORDER BY salary DESC)) - 1) / ((count(1) over()) - 1) PR2,
+       CUME_DIST() OVER(ORDER BY salary DESC) AS cd,
+       (rank() over(ORDER BY salary DESC)) / (count(1) over()) cd2
+  FROM hr.employees a
+ where a.department_id = 100
+ ORDER BY pr, salary, last_name;
+</code></pre>
+<table>
+<thead>
+<tr><th>DEPARTMENT_ID</th><th>LAST_NAME</th><th>SALARY</th><th>PR</th><th>PR2</th><th>CD</th><th>CD2</th></tr>
+</thead>
+<tbody>
+<tr><td>100</td><td>Greenberg</td><td>12008</td><td>0</td><td>0</td><td>0.1667</td><td>0.1667</td></tr>
+<tr><td>100</td><td>Faviet</td><td>9000</td><td>0.2</td><td>0.2</td><td>0.3333</td><td>0.3333</td></tr>
+<tr><td>100</td><td>Chen</td><td>8200</td><td>0.4</td><td>.4</td><td>0.5</td><td>0.5</td></tr>
+<tr><td>100</td><td>Urman</td><td>7800</td><td>0.6</td><td>0.6</td><td>0.6667</td><td>0.6667</td></tr>
+<tr><td>100</td><td>Sciarra</td><td>7700</td><td>0.8</td><td>0.8</td><td>0.8333</td><td>0.8333</td></tr>
+<tr><td>100</td><td>Popp</td><td>6900</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
+<p>这里计算的时候，它把自己算进去了</p>
+<hr/>
+<h1 id="26percentile-contpercentile-discapprox-for-percentile">26.PERCENTILE_CONT/PERCENTILE_DISC/APPROX_FOR_PERCENTILE</h1>
+<p>作用：这两个函数和上面说的PERCENT_RANK是相反的作用，即给定一个排行的百分比（0~1之间），然后返回对应的值</p>
+<pre><code class="language-sql"> SELECT last_name, salary, department_id,
+       PERCENT_RANK() 
+        OVER ( ORDER BY salary DESC) "Percent_Rank",
+       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary DESC) 
+       OVER () "Percentile_Cont"   
+  FROM hr.employees
+  WHERE department_id =100
+</code></pre>
+<table>
+<thead>
+<tr><th>LAST_NAME</th><th>SALARY</th><th>DEPARTMENT_ID</th><th>Percent_Rank</th><th>Percentile_Cont</th></tr>
+</thead>
+<tbody>
+<tr><td>Popp</td><td>6900</td><td>100</td><td>1</td><td>8000</td></tr>
+<tr><td>Sciarra</td><td>7700</td><td>100</td><td>0.8</td><td>8000</td></tr>
+<tr><td>Urman</td><td>7800</td><td>100</td><td>0.6</td><td>8000</td></tr>
+<tr><td>Chen</td><td>8200</td><td>100</td><td>0.4</td><td>8000</td></tr>
+<tr><td>Faviet</td><td>9000</td><td>100</td><td>0.2</td><td>8000</td></tr>
+<tr><td>Greenberg</td><td>12008</td><td>100</td><td>0</td><td>8000</td></tr>
+</tbody>
+</table>
+<p>此例中，PERCENTILE_CONT传了个0.5进去，意思就是要返回Percent_Rank在0.5的值，我们可以看到这个数据里面Percent_Rank没有0.5，那么就取0.6和0.4对应的值来得到一个平均值，即（7800+8200）/2=8000.<br/>
+然后PERCENTILE_DISC和PERCENTILE_CONT的用法和效果基本一样，区别只在于，他如果也像此例找到两个值，他就不会算平均，而是直接取这两个值中基于此排序的第一个值.</p>
+<pre><code class="language-sql">SELECT last_name, salary, department_id,
+       PERCENT_RANK() 
+        OVER ( ORDER BY salary DESC) "Percent_Rank",
+       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary DESC) 
+       OVER () "Percentile_Cont"   ,
+       PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY salary DESC) 
+       OVER () "PERCENTILE_DISC"
+  FROM hr.employees
+  WHERE department_id =100
+
+</code></pre>
+<table>
+<thead>
+<tr><th>LAST_NAME</th><th>SALARY</th><th>DEPARTMENT_ID</th><th>Percent_Rank</th><th>Percentile_Cont</th><th>PERCENTILE_DISC</th></tr>
+</thead>
+<tbody>
+<tr><td>Popp</td><td>6900</td><td>100</td><td>1</td><td>8000</td><td>8200</td></tr>
+<tr><td>Sciarra</td><td>7700</td><td>100</td><td>0.8</td><td>8000</td><td>8200</td></tr>
+<tr><td>Urman</td><td>7800</td><td>100</td><td>0.6</td><td>8000</td><td>8200</td></tr>
+<tr><td>Chen</td><td>8200</td><td>100</td><td>0.4</td><td>8000</td><td>8200</td></tr>
+<tr><td>Faviet</td><td>9000</td><td>100</td><td>0.2</td><td>8000</td><td>8200</td></tr>
+<tr><td>Greenberg</td><td>12008</td><td>100</td><td>0</td><td>8000</td><td>8200</td></tr>
+</tbody>
+</table>
+<p>至于APPROX_FOR_PERCENTILE，则是提供一个PERCENTILE_CONT的近似值了，在数据量比较大且不要求数据完全精准的时候，使用 APPROX_FOR_PERCENTILE能提高查询效率</p>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/PERCENTILE_CONT.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/PERCENTILE_CONT.html</a></p>
+<hr/>
+<h1 id="27to-approx-count-distinct-approx-count-distinct-aggapprox-count-distinct-detail">27.TO_APPROX_COUNT_DISTINCT /APPROX_COUNT_DISTINCT_AGG/APPROX_COUNT_DISTINCT_DETAIL</h1>
+<p>作用：这几个函数合起来的作用和前面提到的approx_count_distinct几乎一样<br/>
+用法：<br/>
+先用APPROX_COUNT_DISTINCT_DETAIL函数，对想要进行去重统计的字段进行查询（即直接替代count(distinct )或APPROX_COUNT_DISTINCT），会得到一个BLOB类型的列，这个列里记录了相关值的信息，但是你不能直接看到，需要用TO_APPROX_COUNT_DISTINCT这个函数来读这个BLOB的值才能转变成人类可识别的数据，<br/>
+然后BLOB的值在一般情况下是不能进行任何聚合的，但是在这里，你可以把APPROX_COUNT_DISTINCT_DETAIL得到的blob结果使用APPROX_COUNT_DISTINCT_AGG进行再次去重统计，并且新的BLOB也还可以继续APPROX_COUNT_DISTINCT_AGG和TO_APPROX_COUNT_DISTINCT。</p>
+<p>为什么要这么做，直接count(distinct ) 或者 approx_count_distinct它不香么?</p>
+<p>这里我举个例子，有一个店铺，想要统计到日、月、年维度的到店购买会员数，在同一个统计期间内，同一个会员多次到店购买只算一个会员数，一般情况下，我们可能就需要对这个庞大的原始数据，查询3次count(distinct)，对数据库性能消耗极大，重复扫描了3次完全一致的数据。<br/>
+而APPROX_COUNT_DISTINCT_DETAIL这个函数，它返回的是一个BLOB，其实不是执行去重统计的结果，它实际上包含了明细信息，所以这个时候我们才可以使用APPROX_COUNT_DISTINCT_AGG来对这个BLOB进行一个更高维度的去重统计！这是多么的Amazing！</p>
+<p>还有个我工作中遇到的一个头大的问题，要计算一段时间内，到 商品小类、中类、大类、品类、分部、部门、店这些层级的顾客交易笔数，而顾客的一笔交易内是有多个商品的，可以跨类别，按照常规思路，我们要重复对这个交易流水商品明细表使用count(distinct)查询7次，就算是只查1天，消耗都极大，而且如果存在商品的分类及部门变更，那么每日计算并保存当日数据的方法将不再适用，还需要定期去重算历史数据!<br/>
+但是如果使用本例中的方法，中类的数据可以基于小类的数据来算，大类的数据可以基于中类来算，后面更高维度的要查询数据行数已经大大的压缩了！</p>
+<p>好是好，不过得记着，这是个APPROX近似函数，和实际值会有一些区别的，所以它不能作为严格考核的指标，只能在数据分析时使用</p>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/12.2/sqlrf/APPROX_COUNT_DISTINCT_DETAIL.html">https://docs.oracle.com/en/database/oracle/oracle-database/12.2/sqlrf/APPROX_COUNT_DISTINCT_DETAIL.html</a></p>
+<hr/>
+<h1 id="28to-approx-percentileapprox-percentile-aggapprox-percentile-detail">28.TO_APPROX_PERCENTILE/APPROX_PERCENTILE_AGG/APPROX_PERCENTILE_DETAIL</h1>
+<p>这3个函数合起来的作用和APPROX_FOR_PERCENTILE几乎一样，它为什么又要分成3个，参考前一个提到的去重统计，应该不难想到了吧，没错，这玩意也是借用BLOB来保存了明细信息，所以用法就不再赘述了。</p>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_PERCENTILE_DETAIL.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_PERCENTILE_DETAIL.html</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

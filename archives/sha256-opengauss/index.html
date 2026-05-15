@@ -157,7 +157,110 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>在开发中，经常会使用类似MD5/ SHA-1/ SHA-2这样的hash算法来对数据进行处理，以防原始信息泄露，比如密码的存储。<br/>
+SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA256计算的支持。<br/>
+比如从oracle12c起，数据库内原生提供了DBMS_CRYPTO包和STANDARD_HASH函数，可以用来进行sha256计算。在postgresql中，可以通过安装pgcrypto扩展来支持，安装命令也很简单。</p>
+<pre><code class="language-sql">create extension pgcrypto;
+</code></pre>
+<p>但是，如果是基于postgresql的openGauss（2.1.0），事情就没这么简单了，需要搭建编译环境、下载源码、编译等一系列操作。<br/>
+但好在，openGauss2.1.0支持了oracle风格的package对象，只要我们能找到有人为oracle写的plsql包，那么大概率是可以移植到openGauss里去的。<br/>
+想到几年前我参与的某个项目，需要使用oracle11g数据库调用外部http接口，而这个接口需要使用sha256算法来计算签名，此版本的oracle是不支持sha256算法的，所以在网上找到了一个开源的plsql包<br/>
+<a href="https://github.com/CruiserX/sha256_plsql" target="_blank">https://github.com/CruiserX/sha256_plsql</a></p>
+<h2 id="%E5%BC%80%E5%A7%8B%E8%BF%9B%E8%A1%8C%E9%80%82%E9%85%8D" tabindex="-1">开始进行适配</h2>
+<p>二话不说，先直接往openGauss里干，注意数据库要为A兼容模式。（参考<a href="https://www.modb.pro/db/239429" target="_blank">https://www.modb.pro/db/239429</a>）</p>
+<p>结果当然是报错了。</p>
+<p>首先，这个包使用了utl_raw这个包，这在openGauss里是不会自带的，不过我在compat-tools里增加了这个包，因此需要先安装compat-tools，或者单独安装utl_raw这个包<br/>
+<a href="https://gitee.com/enmotech/compat-tools" target="_blank">compat-tools下载</a><br/>
+<a href="https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_raw.sql" target="_blank">utl_raw下载</a></p>
+<h3 id="1.-type-table-%E4%B8%8D%E6%94%AF%E6%8C%81" tabindex="-1">1. type  table 不支持</h3>
+<pre><code class="language-sql">TYPE ta_number IS TABLE OF NUMBER INDEX BY binary_integer;
+</code></pre>
+<p>这是定义一列number类型的表作为类型，既然报错，那么去掉ta_number的定义，把下面的引用了ta_number的全部改成number[]</p>
+<h3 id="2.-pl%2Fpgsql-functions-cannot-accept-type-record" tabindex="-1">2. PL/pgSQL functions cannot accept type record</h3>
+<pre><code class="language-sql">    TYPE tr_ctx IS RECORD (
+        H     TA_NUMBER, --//8
+        total TA_NUMBER, --//2
+        buflen NUMBER,
+        buffer32 TA_NUMBER  --//32
+    );
+
+</code></pre>
+<p>去掉包内的tr_ctx定义，创建个单独的type（注意重名冲突问题）</p>
+<pre><code class="language-sql">CREATE  TYPE tr_ctx AS  (
+        H     NUMBER[], --//8
+        total NUMBER[], --//2
+        buflen NUMBER,
+        buffer32 NUMBER[]  --//32
+    );
+</code></pre>
+<h3 id="3.-%E4%B8%8D%E6%94%AF%E6%8C%81%E5%8F%82%E6%95%B0%E7%9A%84-nocopy%E5%B1%9E%E6%80%A7" tabindex="-1">3. 不支持参数的 NOCOPY属性</h3>
+<pre><code class="language-sql">PROCEDURE sha256_init_ctx (ctx IN OUT NOCOPY TR_CTX);
+</code></pre>
+<p>直接把nocopy全部替换成空。<br/>
+至此包头编译过去了，但编译包体提示</p>
+<blockquote>
+<p>syntax error at end of input</p>
+</blockquote>
+<p>而且不说是哪一行（在oracle中会提示错误的具体位置），只能逐段注释编译，最终发现了一个其实没有语法问题的位置</p>
+<h3 id="4.-syntax-error-at-end-of-input" tabindex="-1">4. syntax error at end of input</h3>
+<pre><code class="language-sql">add := CASE WHEN 128 - left_over &gt; t_len THEN t_len ELSE 128 - left_over END;
+</code></pre>
+<p>这一段单独放在其他过程里面是不会有问题的，但是在这里报错了，原因不明，疑似bug。起初我以为是add关键词的原因，但改了后报相同的错。直接改成select into就好了</p>
+<pre><code class="language-sql">select CASE WHEN 128 - left_over &gt; t_len THEN t_len ELSE 128 - left_over END into add;
+</code></pre>
+<p>然后包体也编译过去了。不过事情还没完，尝试调用这个包计算sha256，报错</p>
+<h3 id="5.-error%3A-schema-%E2%80%9Cctx%E2%80%9D-does-not-exist" tabindex="-1">5. ERROR: schema “ctx” does not exist</h3>
+<p>经翻阅相关文档，发现复合类型此处会存在一个歧义，文档中说是要用(ctx).col这种方式来避免歧义，但实测此方法此处不适用，因为这么改了后会提示 "("附近的语法有错误。然后我尝试把所有取数组指定位置元素的()改成了[],比如</p>
+<pre><code class="language-sql">ctx.buffer32(left_over_blk)
+</code></pre>
+<p>改成</p>
+<pre><code class="language-sql">ctx.buffer32[left_over_blk]
+</code></pre>
+<p>注意，要改动的地方多达五十多处，一个都不能漏<br/>
+再尝试调用，就没报这个错了，但报了个新的错误</p>
+<h3 id="6.-error%3A-invalid-number-format-model" tabindex="-1">6. ERROR: invalid number format model</h3>
+<pre><code class="language-sql">to_number(utl_raw.substr(t_buffer,idx,1),'0x')
+</code></pre>
+<p>这里是因为openGauss的to_number不支持 ‘0x’这个格式，其实这个和’xx’是一样的，因此把所有的’0x’直接替换成’xx’ .<br/>
+接着调用，报新的错误</p>
+<h3 id="7.-error%3A-function-%E2%80%9Csha256_finish_ctx%E2%80%9D-with-1-parameters-doesn%E2%80%99t-exist" tabindex="-1">7. ERROR: function “sha256_finish_ctx” with 1 parameters doesn’t exist</h3>
+<pre><code class="language-sql"> PROCEDURE sha256_finish_ctx (ctx IN OUT  TR_CTX,
+                                   resbuf OUT  NUMBER[]);
+</code></pre>
+<pre><code class="language-sql">sha256_finish_ctx(ctx, res);
+</code></pre>
+<p>这个目测和pg内核有关，这明明是个PROCEDURE，报错提示却是个function；而且调用这个过程时明明是传的两个参数，提示却说不存在1个参数的它，当我把resbuf这个参数也改成 in out,这个错就不报了，但又报了个新的错误</p>
+<h3 id="8.-error%3A-array-value-must-start-with-%E2%80%9C%7B%E2%80%9D-or-dimension-information" tabindex="-1">8. ERROR: array value must start with “{” or dimension information</h3>
+<p>我跟踪到，还是此处的问题</p>
+<pre><code class="language-sql">sha256_finish_ctx(ctx, res);
+</code></pre>
+<p>res这个参数，在此过程内部，最后得到了准确的值，但是一跳出这个过程，这个参数就变成了空。<br/>
+此处应该也是pg内核的一个问题，对于过程中的数组类型参数，不会传出值，于是我把它改成了一个函数，用return返回res参数。</p>
+<h2 id="%E6%B5%8B%E8%AF%95" tabindex="-1">测试</h2>
+<p>至此，这个包终于可以调用成功了，检查输出结果</p>
+<pre><code class="language-sql">select sha256.ENCRYPT('aa') ;
+--961b6dd3ede3cb8ecbaacbd68de040cd78eb2ed5889130cceb4c49268ea4d506
+</code></pre>
+<p><img alt="image-1651042932329" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/image-1651042932329.png" srcset="/upload/2022/04/image-1651042932329.png?width=1200 1200w, /upload/2022/04/image-1651042932329.png?width=400 400w, /upload/2022/04/image-1651042932329.png?width=1600 1600w, /upload/2022/04/image-1651042932329.png?width=800 800w"/><br/>
+然后在oracle中查询<br/>
+<img alt="image-1651042965558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/image-1651042965558.png" srcset="/upload/2022/04/image-1651042965558.png?width=1200 1200w, /upload/2022/04/image-1651042965558.png?width=400 400w, /upload/2022/04/image-1651042965558.png?width=1600 1600w, /upload/2022/04/image-1651042965558.png?width=800 800w"/><br/>
+可以发现结果完全一致。</p>
+<p>但是，我发现个很严重的问题，上述的这个sql，我在oracle中查询只需要0.277秒，但是在openGauss中查询则需要3秒。<br/>
+猜测原因，一方面可能与我写的UTL_RAW包有关，毕竟不是用的原生c语言开发的；另一方面nocopy这个特性的确能提高性能；再者就是两个数据库运行的环境是存在差异的。</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>虽然计算耗时比较严重，但是对一些速度要求不高的非频繁计算请求，有了总比没有好。上面列了8个点的问题，这也没有对这个包整体的逻辑进行大幅调整，即可"正常"使用,这也说明了openGauss对oracle语法强大的兼容性。<br/>
+但是，如果对性能有强烈要求，建议还是安装相关扩展来使用。</p>
+<p>最后附上我修改完的代码<br/>
+<a href="https://gitee.com/darkathena/sha256-opengauss" target="_blank">https://gitee.com/darkathena/sha256-opengauss</a></p>
+<h2 id="%E5%90%8E%E8%AE%B0" tabindex="-1">后记</h2>
+<p>20220428更新：<br/>
+基于最新的mogdb3.0.0测试版进行了下适配，发现只需要修改nocopy 和 to_number里的’0x’两处地方即可,并且查询时长小于0.01s!</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

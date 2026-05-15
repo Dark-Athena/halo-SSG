@@ -155,7 +155,297 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E8%83%8C%E6%99%AF" tabindex="-1">背景</h2>
+<p>有人在Dave的群里问了个问题，大概是这样的：<br/>
+有一段sql，如何理解其中的rownum&lt;=2</p>
+<pre><code class="language-sql">select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;= 2;
+</code></pre>
+<p>因为“rownum&lt;=2”这个条件，并不是在where后，而是作为left join的条件，那么a.id肯定是输出了全部值，但b.id会是什么情况？</p>
+<p>实际查询结果是，两列全部值都输出了，没有空值，仿佛“rownum &lt;= 2”这个条件并不存在。</p>
+<h2 id="%E5%88%86%E6%9E%90" tabindex="-1">分析</h2>
+<p>先从执行计划上入手</p>
+<pre><code class="language-sql">create table test_tb(id number);
+insert into test_tb
+  select rownum from dual connect by rownum &lt;= 10;
+commit;
+
+EXPLAIN PLAN FOR
+select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;= 2;
+   
+select * from table(dbms_xplan.display);   
+</code></pre>
+<pre><code class="language-sql">SQL&gt; select * from table(dbms_xplan.display);
+
+PLAN_TABLE_OUTPUT
+--------------------------------------------------------------------------------
+Plan hash value: 3673628547
+
+--------------------------------------------------------------------------------
+| Id  | Operation            | Name            | Rows  | Bytes | Cost (%CPU)| Ti
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT     |                 |    10 |   260 |     4   (0)| 00
+|   1 |  COUNT               |                 |       |       |            |
+|*  2 |   HASH JOIN OUTER    |                 |    10 |   260 |     4   (0)| 00
+|   3 |    TABLE ACCESS FULL | TEST_TB         |    10 |   130 |     2   (0)| 00
+|   4 |    VIEW              | VW_DCL_2E38C6CE |     2 |    26 |     2   (0)| 00
+|   5 |     TABLE ACCESS FULL| TEST_TB         |    10 |   130 |     2   (0)| 00
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - access("A"."ID"="ITEM_1"(+))
+
+Note
+-----
+
+PLAN_TABLE_OUTPUT
+--------------------------------------------------------------------------------
+   - dynamic statistics used: dynamic sampling (level=2)
+
+21 rows selected
+</code></pre>
+<p>产生了一个2行的view，但解释不了为什么右表的数据全部查出来了</p>
+<p>然后我做了个尝试，把条件改成rownum&lt;=0 ，结果竟然和rownum&lt;=2一样。<br/>
+改成rownum&lt;0,结果也没变；只有当条件为rownum=0时，右侧数据没了.</p>
+<p>问题来了：<br/>
+我们知道，rownum永远都是大于等于1的，rownum&lt;0和rownum=0 都明显是false，理论上应该等价，但此处却出现了差异！</p>
+<p><font size="6"><strong>原有认知被打破了!</strong> </font></p>
+<p>再尝试rownum=1</p>
+<pre><code class="language-sql">select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum=1;
+</code></pre>
+<p>两列数据都出来了；如果改成rownum=2，那么左边数据是全的，右边没有数据。<br/>
+所以，总结现象:</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>左侧是否有数据</th>
+<th>右侧是否有数据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rownum&lt;1</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>rownum&lt;0</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>rownum&gt;0</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>rownum=1</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>rownum=0</td>
+<td>有</td>
+<td>无</td>
+</tr>
+<tr>
+<td>rownum=2</td>
+<td>有</td>
+<td>无</td>
+</tr>
+</tbody>
+</table>
+<p>这个规律是，首先rownum大于等于一个“大于1的值”，肯定没数据，可以排除；<br/>
+然后rownum等于0，肯定也没数据，也可以排除；<br/>
+剩下的就是分两类</p>
+<ul>
+<li>等于1和大于0是一类，是可以有数据的；</li>
+<li>小于1和小于0是一类，不应该有数据，但实际上查出了数据；</li>
+</ul>
+<p>矛盾点就在于最后一点。</p>
+<p>对于等于1和大于0，可以猜测右侧数据存在一个隐藏字段，每一行的值都为1。</p>
+<p>于是查看一下 “rownum=0”时的执行计划</p>
+<pre><code class="language-sql">SQL&gt; explain plan for select a.id, b.id
+  2    from test_tb a
+  3    left join test_tb b
+  4      on a.id = b.id
+  5     and rownum=0;
+
+Explained
+
+
+SQL&gt; select * from table(dbms_xplan.display);
+
+PLAN_TABLE_OUTPUT
+--------------------------------------------------------------------------------
+Plan hash value: 404971544
+
+--------------------------------------------------------------------------------
+| Id  | Operation             | Name            | Rows  | Bytes | Cost (%CPU)| T
+--------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT      |                 |    10 |   160 |     2   (0)| 0
+|   1 |  COUNT                |                 |       |       |            |
+|*  2 |   HASH JOIN OUTER     |                 |    10 |   160 |     2   (0)| 0
+|   3 |    TABLE ACCESS FULL  | TEST_TB         |    10 |    30 |     2   (0)| 0
+|   4 |    VIEW               | VW_DCL_2E38C6CE |     1 |    13 |     5 (100)| 0
+|*  5 |     FILTER            |                 |       |       |            |
+|   6 |      TABLE ACCESS FULL| TEST_TB         |    10 |    30 |     2   (0)| 0
+--------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+
+   2 - access("A"."ID"="ITEM_1"(+))
+   5 - filter(0=1)
+
+19 rows selected
+</code></pre>
+<p>和rownum不是等于0的时候，多了一个 “filter(0=1)”<br/>
+也就是说，“rownum=0” 被oracle 自动优化成了 “1=0” ,这是作为一个过滤条件，并且此处rownum始终是等于1的，印证了我之前的猜想。</p>
+<p>为了排除版本特性的问题，我测试了11g/12c/19c/21c，表现均一致。</p>
+<h2 id="%E5%B0%9D%E8%AF%95%E7%AD%89%E4%BB%B7%E6%94%B9%E5%86%99" tabindex="-1">尝试等价改写</h2>
+<p>先不考虑小于0和小于1的情况，那么sql可以这么改</p>
+<pre><code class="language-sql">--改写前
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;0;
+--改写后   
+    select a.id, b.id
+  from test_tb a
+  left join 
+  (select rn,b.* from  (select rownum rn from dual),test_tb b )  b
+    on a.id = b.id
+   and rn &lt;0;
+</code></pre>
+<p>但是这个肯定不满足小于0 和小于1的情况，于是再改一下</p>
+<pre><code class="language-sql">select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum &lt; 0)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn &lt; 0;
+</code></pre>
+<p>同时改“rownum &lt; 0”、“rn &lt; 0” 两处条件即可一一对应几乎所有场景，除了 “rownum=-1E125”的场景。当然再加个判断就可以完全对应了，不过意义不大。其实重点在于，处理这个逻辑时，期待引入一个无法用number类型表示的“最小的负数”。</p>
+<p>以下附完整测试验证代码，标准组和对照组的输出完全一致</p>
+<pre><code class="language-sql">--测试数据准备 
+   create table test_tb(id number);
+insert into test_tb
+  select rownum from dual connect by rownum &lt;= 10;
+commit;
+
+-- 小于0  标准组
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;0;
+-- 小于0 对照组
+  select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum &lt; 0)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn &lt; 0;
+
+-- 等于0  标准组
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum =0;
+-- 等于0 对照组
+  select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum = 0)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn = 0;
+
+-- 等于1  标准组
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;0;
+-- 等于1 对照组
+  select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum =1)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn =1;
+
+-- 小于1  标准组
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &lt;1;
+-- 小于1 对照组
+  select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum &lt; 1)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn &lt; 1;
+
+-- 大于1  标准组
+ select a.id, b.id
+  from test_tb a
+  left join test_tb b
+    on a.id = b.id
+   and rownum &gt;1;
+-- 大于1 对照组
+  select a.id, b.id
+    from test_tb a
+    left join (select nvl(rn, -1E125) rn, b.*
+                 from test_tb b
+                 left join (select rownum rn from dual where rownum &gt; 1)
+                   on 1 = 1) b
+      on a.id = b.id
+     and rn &gt; 1;
+</code></pre>
+<h2 id="%E5%90%8E%E8%AE%B0" tabindex="-1">后记</h2>
+<p>rownum，在不同数据库上实现的情况不一样，或者说，就连join语法的执行逻辑也可能存在差异，因为我测了下其他几个支持rownum的数据库：</p>
+<ul>
+<li>在openGauss 3.0.0中， rownum&lt;=2,输出的结果是左边全部数据,右边数据2行;</li>
+<li>在达梦8中，输出结果和openGauss 3.0.0一致；</li>
+<li>在EDB14.4中，输出结果也和openGauss 3.0.0一致</li>
+<li>在kinbase8中，rownum不能用于join…</li>
+</ul>
+<p>也就是说，在大部分数据库中，都把rownum的限制条件简单认为是对右表限制条件,当然这更容易理解。</p>
+<p>但是查询结果和oracle不一致，我无法判断这是ORACLE的特性还是BUG，欢迎大家来讨论或拍砖。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

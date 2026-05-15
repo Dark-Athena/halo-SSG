@@ -155,7 +155,285 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在国产数据库做ORACLE兼容性实现时，无可避免会遇到CHAR类型的差异，但是对于大多数的应用开发者来说，并不会深入去了解char类型的机制。很多开发者之前在ORACLE上就没弄懂，好不容易写出来的SQL在ORACLE能查到想要的东西了，但是一迁移到国产库的时候，发现相同的SQL，查询结果不一样了，可能是查到的数据变多了，也可能是查到的数据变少了，甚至排序结果都出现了不一致。<br/>
+虽然，在ORACLE官方文档中，就有这个字符串比较的说明<br/>
+<a href="https://docs.oracle.com/cd/B13789_01/server.101/b10759/sql_elements002.htm">## Datatype Comparison Rules</a><br/>
+但是空对着规则看，没有实际的场景，想象不到实际的复杂度。<br/>
+所以本文通过实验来分析一下，ORACLE的CHAR在各种场景下，到底是怎么处理的。注意，本文没说明ORACLE版本的测试用例，均为ORACLE 11g</p>
+<h2 id="分析">分析</h2>
+<h3 id="一、基本原理">一、基本原理</h3>
+<p>ORACLE里执行</p>
+<pre><code class="prism language-sql">CREATE TABLE test_a(a char(10));
+INSERT INTO test_a VALUES ('a');
+SELECT * FROM test_a WHERE a='a'; --查得到
+SELECT * FROM test_a WHERE a=rpad('a',10); --查得到
+SELECT * FROM test_a WHERE a=rpad('a',9); --查不到
+</code></pre>
+<p>第一个查询和第二个查询的特殊点在于，<br/>
+一个补了空格，一个没补空格，<br/>
+第三个查询同样是补了空格，但查不到，所以这并不意味着ORACLE是把空格都去掉再进行比较,也不是自动补充空格再比较。</p>
+<p>‘a’ 和 <strong>rpad</strong>(‘a’,10) 的差别在于 ，前者是 char类型，后者是varchar2类型，因此：<br/>
+第一条sql char = char<br/>
+第二条sql char = varchar</p>
+<p>根据ORACLE官方文档说，ORACLE对于 char=char ，它是把短的一侧的空格补到和长的一侧一样（不能直接按一列补，只能在每个值比较时，临时去补）。<br/>
+对于 char =varchar ,则是将char 的空格保留，转换成varchar ，再进行判断。<br/>
+可以用以下方式验证</p>
+<pre><code class="prism language-sql">SELECT * FROM test_a WHERE a = cast (rpad('a',9) as char(9)); --查得到
+SELECT * FROM test_a WHERE a = cast('a' as varchar(10)); --查不到
+</code></pre>
+<p>但是这里再在C语言里处理有个问题，去掉空格的方式不会增加内存，原地处理即可；但增加空格则对应的内存可能存不下，需要申请新的内存再把字符串复制过去，由此会带来额外的内存开销，从而影响性能。</p>
+<h3 id="二、隐式转换不走索引？">二、隐式转换不走索引？</h3>
+<p>此时又存在一个问题，如果char列上是个索引，转换成varchar也是属于类型转换，此时索引应该走不到，但实际还是走到了索引，因此这里存了一个疑点：</p>
+<p>对于OG系数据库， ‘a’ 则是unkonwn 类型，当它没有操作符或者函数使用时，默认会选择识别为text类型，而ORACLE则是char；当有操作符时，会选择识别为 操作符另一侧的类型, 比如 char=unknown 就识别为 char=char，虽然原理不一样，但此场景的结果和ORACLE是保持一致的。</p>
+<p>如果是 char = varchar 时，则会将char转换成 varchar，并且默认没有保留空格，因此a=<strong>rpad</strong>(‘a’,10) 会查不到数据，形成和ORACLE的查询结果差异，并且此时会导致走不了char列的索引</p>
+<p>所以，假设我们用char往varchar转换时是否带空格的方式去看差异(set behavior_compat_options =char_coerce_compat)，问题就会形成一个死循环:<br/>
+可以通过保留空格的方式保证和ORACLE结果一致，但是会导致无法走索引；假设把varchar转换成char再去对比，又会导致和ORACLE的查询结果不一致。</p>
+<p>所以，经过以上分析，在ORACLE中对于 char =varchar ，可能并不是真的把空格保留再进行判断，我进行了一个大胆的猜想，由于char列是有固定长度的，因此在判断的时候，它极有可能，是先判断两边的长度，如果长度不对就直接false掉了，如果长度对，就将varchar(n)转换成char(n) ，再进行比较。为什么要考虑长度？因为varchar这边可能自带空格，如果不考虑长度就直接转，可能会导致应该不相等的就变成了相等（某最高ORACLE兼容性的国产数据库就是不管字符类型，一律rtrim再比较）。</p>
+<p>于是，理论上在OG数据库中创建下面这样的操作符，此场景在 仅考虑 “=” 的情况下，可以保持和ORACLE一致(这里暂不扩展其他操作符的情况)</p>
+<pre><code class="prism language-sql">create function pg_catalog.bpchar_text_eq (bpchar,text) returns bool IMMUTABLE AS
+$$select ($1=$2::bpchar and length($1)=length($2));$$language sql;
+CREATE OPERATOR = ( LEFTARG = bpchar, RIGHTARG = text, PROCEDURE = bpchar_text_eq);
+
+create function pg_catalog.bpchar_unknown_eq (bpchar,unknown) returns bool IMMUTABLE AS
+$$select $1=$2::bpchar;$$language sql;
+
+CREATE OPERATOR = ( LEFTARG = bpchar, RIGHTARG = unknown, PROCEDURE = bpchar_unknown_eq);
+</code></pre>
+<p>（注：本文的对象创建代码仅为进行原理说明，禁止用于生产环境，下同）</p>
+<h3 id="三、函数和操作符">三、函数和操作符</h3>
+<p>‘111’||‘222’ 这种在oracle是返回char类型，但是OG中返回的是TEXT，如果把这个表达式用于where条件判断里，可能会找不到数据。<br/>
+此处在OG中可以创建一个这样的操作符来实现类似ORACLE的效果</p>
+<pre><code class="prism language-sql">create function unknowncat(unknown,unknown) returns bpchar immutable as
+$$select concat($1,$2)::bpchar;$$language sql;
+
+create operator ||(LEFTARG=unknown,RIGHTARG=unknown,PROCEDURE=unknowncat(unknown,unknown));
+</code></pre>
+<p>然后问题又来了，既然说到了"||"操作符，那么可以联想到，在Oracle中还有很多字符串函数，其中有一些函数是可以返回char类型的，但这些函数在OG系数据库中，返回的是TEXT类型，因此如果出现使用函数表达式的结果来进行判断时，可能又会引起各种和Oracle行为不一致的情况。</p>
+<p><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/UPPER.html#GUID-0518FB26-7FE5-43B9-AB31-9352F9F6029C">Oracle官方文档Upper函数</a></p>
+<blockquote>
+<p><code>UPPER</code> returns <code>char</code>, with all letters uppercase. <code>char</code> can be any of the data types <code>CHAR</code>, <code>VARCHAR2</code>, <code>NCHAR</code>, <code>NVARCHAR2</code>, <code>CLOB</code>, or <code>NCLOB</code>. The return value is the same data type as <code>char</code></p>
+</blockquote>
+<p>比如UPPER、LOWER函数，在oracle中，这两个函数是传varchar返回varchar,传char就返回char;而在OG系数据库中，这两个函数对于入参为一个字符串时，始终只会返回TEXT，如果"="的两侧，仅有一侧为upper，还可以通过前面的那个跨类型操作符来处理，但如果两侧是upper，就会让两边都是text,所以这个时候如果还保留空格，就会导致和ORACLE有差异，如下例</p>
+<pre><code class="prism language-sql">create table test_upper_char(a char(10),b varchar(10));
+insert into test_upper_char values ('T_name  ','T_name  ');
+select * from test_upper_char where upper(a)=upper('t_name');--应该要查得出
+select * from test_upper_char where upper(b)=upper('t_name');--应该要查不出
+</code></pre>
+<p>所以此时只能采取一种选择，即增加upper函数对于char类型的重载，并且让unknown类型在往明确字符串类型转换时，转换成char类型。</p>
+<p>前面说的都是"=" ,即怎么找到数据，但是还有"&lt;" 或"&gt;"的场景，或者说怎么排序。看下面这两个SQL</p>
+<pre><code class="prism language-sql">select 1 from dual where  cast('a' as char(2))&gt; cast('a'||chr(10) as char(2));
+
+with x as 
+(select 1 id, cast('a' as char(2)) col from dual 
+union all 
+select 2, cast('a'||chr(10) as char(2)) from dual )
+select * from x order by col;
+</code></pre>
+<p>在ORACLE中，这里第一条SQL，可以查出数据，说明cast(‘a’ as char(2))大于cast(‘a’||chr(10) as char(2)) ，这很容易理解，因为前者补上去的第二个字符是个空格，空格的ascii码十进制是32，比10大；第2条SQL，显示的排序结果，第二行排在了第一行的前面，同样是 cast(‘a’ as char(2))大于cast(‘a’||chr(10) as char(2))<br/>
+但是在OG中，结果却刚好相反， 说明char类型在OG中的比较，其实是去掉了尾部的空格，此处由于不涉及char到其他类型的转换，因此char_coerce_compat选项起不到作用。</p>
+<p>其实还没这么简单，继续看下面这个sql</p>
+<pre><code class="prism language-sql">select 1 from dual where  cast(chr(10)||chr(32) as char(2))&gt;cast(chr(10) as char(1));
+</code></pre>
+<p>大于号左右的长度不一致，如果我们把它按照常规字符串去理解，从左到右，第一个字节相等，第二个字节后者没数据，所以应该是大于的，但是实际上这里查不到数据，因为后面这个补了空格chr(32)，两个其实是相等的，也就是说，两个不一样长度的char类型，比较前，需要把短的一侧做补空格处理，补到和长的一侧一致</p>
+<h3 id="四、两个单引号包裹的字符串必须是char？">四、两个单引号包裹的字符串必须是CHAR？</h3>
+<p>执行下面这个SQL</p>
+<pre><code class="prism language-sql">with x as (select 'a' col from dual),
+y as (select 'a ' col from dual)
+select * from x,y where x.col=y.col
+</code></pre>
+<p>在ORACLE中，由于两个单引号包裹的字符串是char类型，所以后面的空格不影响这个值的比较；但是在OG中，子查询内’a’是unknown类型，结果集出来后，转换成了text类型，此时就变成了1长度和2长度的字符串进行比较，结果显然是不相等。<br/>
+假设我们通过某种方式，让unknown类型不转成text，而是转成char类型，这条SQL就能查出来了。但是，实际上问题仍旧没有从根本上解决，因为下面这个SQL</p>
+<pre><code class="prism language-sql">select 1 from dual where 'a' ='a ';
+</code></pre>
+<p>什么函数都没有，也没有子查询，就两个字符串的比较，ORACLE返回一行，OG返回0行，怎么解？不能通过转换的方式了，单引号包裹的是char才能解决这个问题，或者创建unknown类型的操作符，但这不就是把unknown视为了char类型么？</p>
+<h3 id="五、union-all-">五、UNION ALL ?</h3>
+<p>如果两个不同长度的char类型发生union all，是否会自动补长度？</p>
+<pre><code class="prism language-sql">create table test_char3 (char2 char(2) ,char3 char(3));
+insert into test_char3 values ('a','a');
+select * from test_char3 where char2=rpad('a',2,' ');
+
+select x.*,dump(col) from
+(select 2 id,char2 col from test_char3
+union all
+select 3 id,char3 col from test_char3) x
+--where col=rpad('a',2,' ');
+</code></pre>
+<p>答案是不会，无论长的char在上面还是在下面，其数据的长度还是原字段定义的长度,此表现在OG中是一致的。但是ORACLE中，如果上下两个CHAR类型的长度不一致，那么union后的结果列的类型会变成varchar2，而OG中则仍然是char。而且在OG中，如果把这个SQL建成视图，长度不一致时列类型会变成不定义长度的BPCHAR。</p>
+<p>如果char类型和varchar类型发生union all呢？<br/>
+经测试，char类型的数据带着空格变成了varchar类型，同样无视union的顺序。</p>
+<p>但是在OG中，union下面的类型会转换成上面的类型,这样如果外面写了where条件，就可能导致查询结果发生变化。</p>
+<p>不过，我实测，在ORACLE 11g中，这个union all上下类型不一致，可能会有一些让人意外的表现</p>
+<pre><code class="prism language-sql">create table test_3(type varchar2(10),amt number(24,6));
+insert into test_3 values ('tp1',1.1);
+insert into test_3 values ('tp1',1.1);
+insert into test_3 values ('tp2',1.1);
+
+select * from (
+select 'summary' as type,sum(amt) amt from test_3  --where rownum&gt;0 
+union all
+select type,sum(amt) from test_3 group by type
+) where type='summary ';
+</code></pre>
+<p>在上面这个例子中，如果没有 where rownum&gt;0 ,那么最后这个sql是可以查到数据的；如果取消where rownum&gt;0的注释，那么这个查询就查不到数据了。<br/>
+原因是谓词推入影响了执行顺序，在有谓词推入时，‘summary’ 和’summary '都是char类型，相等，然后再union all；在没有谓词推入时，上下都统一成varchar2类型，此时’summary’是varchar2,'summary ’ 是char,就不相等了。Oracle这个机制看上去显得是个BUG，于是在Oracle 18c中修掉了，结果变成了不管有没有rownum&gt;0，都查不到，因为就算谓词推入了，18c还是保留了最外面这个条件再过滤一次。<br/>
+然后更加离谱的事来了，我们在oracle 18c以上版本，去掉这个sql的union all下面这段，可以发现能查到数据</p>
+<pre><code>select * from (
+select 'summary' as type,sum(amt) amt from test_3 
+) where type='summary ';
+</code></pre>
+<p>但是加上union all就反而查不到了，开发者会不会一头懵？实测19c和23c,行为都和18c一致，即认为不同长度的char类型union all时转成varchar2类型。</p>
+<h3 id="六、插入空字符串到char会不会补空格？">六、插入空字符串到char会不会补空格？</h3>
+<pre><code class="prism language-sql">create table test_char2 (a char(1));
+insert into test_char2 values ('');
+select dump(a) from test_char2;
+</code></pre>
+<p>最后的查询返回的是null，因为这里其实就是插入的null,所以结论是插入空字符串时不会补空格。这点在OG中表现一致，没什么好说的。</p>
+<h3 id="七、decode表现有差异？">七、decode表现有差异？</h3>
+<pre><code class="prism language-sql">select decode(cast(' ' as char(1)),cast('  ' as char(2)),1,0) from dual;--返回0
+select 1 from dual where cast(' ' as char(1))=cast('  ' as char(2));--返回1
+</code></pre>
+<p>这两条sql ，根据前面的分析，后一条能查出数据是可以预期到的，但是前一条竟然是返回0，这说明在decode函数中，ORACLE并不认为cast(’ ’ as char(1)) 等于 cast(’  ’ as char(2)) ，这就出现了一个自相矛盾的情况。<br/>
+但实际上，关于这一点，ORACLE的官方文档里有进行说明<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/DECODE.html#GUID-39341D91-3442-4730-BD34-D3CF5D4701CE">DECODE</a></p>
+<blockquote>
+<ul>
+<li>If<code>expr</code>and<code>search</code>are character data, then Oracle compares them using <strong>nonpadded</strong> comparison semantics.<code>expr</code>,<code>search</code>, and<code>result</code>can be any of the data types<code>CHAR</code>,<code>VARCHAR2</code>,<code>NCHAR</code>, or<code>NVARCHAR2</code>. The string returned is of<code>VARCHAR2</code>data type and is in the same character set as the first<code>result</code>parameter.</li>
+</ul>
+</blockquote>
+<p>decode比较的时候，使用不补空格的比较方式，所以纯空格的char(1)就不会等于纯空格的char(2)</p>
+<h2 id="总结">总结</h2>
+<p>经过上述分析后，CHAR类型的行为就逐渐清晰起来了</p>
+<ol>
+<li>即两个单引号包裹的字符串应识别为char类型，或者说直接用char类型替代OG中的unknown类型，并且继承unknown类型的所有规则（ORACLE没有unknown类型的说法）</li>
+<li>char类型在隐式转换到其他字符串类型时，应保留空格进行转换（即OG的set behavior_compat_options =char_coerce_compat）</li>
+<li>对于upper/lower/concat函数以及"||"操作符，需要新增char类型的重载，并且返回char类型（是否还有其他函数和操作符，需要进行调研）</li>
+<li>两个char类型比较时，要把短的一侧补空格补到和长的一侧一致（只考虑等于时是可以按去空格的方式，但是排序则不行）</li>
+<li>char和varchar类型union all时，char类型要转成varchar类型，不论顺序，但是优化器的谓词推入应该如何处理比较合适，我相信ORACLE也不知道该怎么办。</li>
+</ol>
+<h2 id="思考">思考</h2>
+<p>有兴趣的读者，可以把上面的用例去其他数据库中测试对比一下。</p>
+<p>我有尝试在很多个宣传ORACLE兼容性很高的国产数据库中进行这一系列的char类型测试，发现没有一家能百分百和ORACLE行为一样（传言基于ORACLE套壳的说法可以否了）。但是大多数国产数据库都隐含一种思路：即ORACLE能查出来的，自己就要能查出来;ORACLE查不出来的，就不管自己是不是能查出来了。但这样就引起了有些行为和Oracle不一致，甚至由此导致了排序结果也不一致。而且这种排序结果，很难通过后续升级的方式来修正，因为已经存在的索引是按之前的顺序排的，如果升级数据库，会需要把索引进行一次重建，对于数据量大的库，这是个非常耗时的事。<br/>
+现在很多应用开发人员其实并不完全清楚ORACLE的char类型机制，写SQL经常写出BUG。那么对于国产数据库，就算研究清楚了ORACLE的机制，做得和ORACLE一模一样（和Oracle哪个版本一样？），也不过是把应用开发者们写的含有BUG的SQL换个库继续错误下去。<br/>
+所以，真的有必要绕来绕去做得和ORACLE完全一致么？就为了平替？在ORACLE上的开发复杂度继续保持到国产数据库中去？是不是做一个更简单易懂的规则，提升开发友好度更好？</p>
+<p>我没有答案。</p>
+<h2 id="更新">20240618更新</h2>
+<p>今天在一个客户项目里，ORACLE环境，使用char类型作为存储过程入参，使用相同类型作为目标值的类型，执行select into的时候竟然超长了</p>
+<pre><code class="prism language-sql">create or replace package pkgs_subtype is
+subtype char10 is char(10);
+end;
+/
+create or replace  procedure up_test( i pkgs_subtype.char10) is
+l pkgs_subtype.char10 ;
+begin
+select i into l from dual;
+end;
+/ 
+begin
+up_test('1');
+end;
+/
+</code></pre>
+<blockquote>
+<p>ORA-06502: PL/SQL: 数字或值错误 :  字符串缓冲区太小<br/>
+ORA-06512: 在 “DEMO.UP_TEST”, line 4<br/>
+ORA-06512: 在 line 2</p>
+</blockquote>
+<p>原因是ORACLE的函数参数是没有长度的，所以这里取了最大长度32767，无视了subtype中定义的长度，虽然去length一把参数，能看到长度只有1，就算把i打印出来，也只有1个字节，但它预留的长度的确就是32767，这是个定长，当把变量l的类型指定成varchar2(32767)时，它就不报错了。<br/>
+所以像这样的行为,国产数据库是不是也没必要去仿一下？</p>
+<h2 id="更新-1">20240715更新</h2>
+<p>细挖了下，在oracle中,对于游标相关的使用，char类型也有区别，如下3个SQL</p>
+<pre><code class="prism language-sql">--ORACLE 报错
+declare
+x  char(8);
+begin
+for rec in (select cast('12345' as char(30)) product_id from dual) loop
+  x:=rec.product_id;
+end loop;
+end;
+/
+--ORACLE 报错
+declare
+x  char(8);
+begin
+for rec in (select cast('12345' as char(30)) product_id from dual) loop
+ select rec.product_id into x from dual;
+end loop;
+end;
+/
+--ORACLE 不报错
+declare
+l_cur  sys_refcursor;
+x  char(8);
+begin
+ open l_cur for select cast('12345' as char(30)) product_id from dual;
+ loop
+ fetch l_cur into x;
+ exit when l_cur%notfound;
+ end loop;
+end;
+/
+</code></pre>
+<p>都是游标循环给变量赋值，":="和"select into"都会报错，而"fetch into"不报错,会自动截掉后面的空格</p>
+<h2 id="更新-2">20240716更新</h2>
+<p>今年初有遇到一个ORACLE 11g的JDBC问题，当时没时间仔细分析，后面想着好像也与char类型有关系，这里就补一下<br/>
+1.创建表和存储过程</p>
+<pre><code class="prism language-sql">create table t_ora_01460(dt CHAR(8));
+create or replace procedure p_ora_01460(io_dt IN out char) is
+  l_count number;
+  dd      char(8) := '20240101';
+begin
+  if dd = io_dt then
+    null;
+  end if;
+  SELECT COUNT(1) INTO l_count FROM t_ora_01460 t1 WHERE t1.dt = io_dt;
+end;
+/
+</code></pre>
+<p>2.执行JAVA代码</p>
+<pre><code class="prism language-java">import  java.sql.*;
+public  class  call_ora_10460 {
+static  final  String  jdbcString  =  "oracle.jdbc.driver.OracleDriver";
+static  final  String  urlString  =  "jdbc:oracle:thin:@192.168.163.227:1531:oracledb";
+static  final  String  userName  =  "system";
+static  final  String  password  =  "oracle";
+public  static  void  main(String[] args) throws  SQLException
+{
+Connection  conn  =  null;
+CallableStatement  pstmt_callSP  =  null;
+String  strCallSP  =  "{call p_ora_01460(?)}"; //这种用法会在存储过程内部报错 ORA-01460，但这个是ORACLE定义的JDBC标准用法
+//String strCallSP = "call p_ora_01460(?)"; //这种用法不会报错
+conn  =  DriverManager.getConnection(urlString, userName, password);
+pstmt_callSP  =  conn.prepareCall(strCallSP);
+pstmt_callSP.setString(1, "20240216");
+pstmt_callSP.registerOutParameter(1, Types.CHAR);
+pstmt_callSP.execute();
+//Caused by: Error : 1460, Position : 0, Sql = BEGIN p_ora_01460(:1 ); END;, OriginalSql = {call p_ora_01460(?)}, Error Msg = ORA-01460: 转换请求无法实施或不合理
+pstmt_callSP.close();
+conn.close();
+}
+}
+</code></pre>
+<p><strong>JDBC</strong>调用<strong>ORACLE</strong>的存储过程，<strong>参数是INOUT</strong>，而且<strong>参数是个CHAR类型</strong>，那么java里调用语句不加<code>{}</code>时，则正常执行，如果<strong>加了</strong><code>{}</code>就会报错。而且神奇的是，报错是在存储过程内部，是<code>WHERE t1.dt = io_dt</code>出现了报错<code>ORA-01460</code>，而前面的<code>if dd = io_dt then</code>这里不会报错。<br/>
+JDBC调用存储过程，语句用<code>{}</code>包裹起来，正是ORACLE自己定义的JDBC通用标准里给的，但反而会因为char类型导致报错。</p>
+<p>其实这个错误吧，原理还是在ORACLE的sql语句中的字符串类型长度不能超过4000，jdbc加<code>{}</code>的时候自动补到了32767的长度，不加<code>{}</code>的时候就不补，直接用sql模拟就是</p>
+<pre><code>DECLARE
+i char(32767):='20240101';
+BEGIN
+	p_ora_01460(i);
+END;
+/
+
+SQL 错误 [1460] [72000]: ORA-01460: 转换请求无法实施或不合理
+ORA-06512: 在 "DEMO.P_ORA_01460", line 8
+ORA-06512: 在 line 4
+</code></pre>
+<p>不过这个问题在ORACLE 18c里是已经修复了</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,344 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb如何从gaussdb发布包中提取出内核二进制文件">【GaussDB】如何从GaussDB发布包中提取出内核二进制文件</h1>
+<h2 id="背景">背景</h2>
+<p>GaussDB 从505和506版本起（前面的版本不清楚），华为官方不再提供用脚本安装GaussDB的方式（应该是基于运维交付标准化的角度考虑），仅支持使用TPOPS进行安装。而想正常搭建一整套TPOPS+GaussDB，所需要的硬件配置非常高，普通开发者或者DBA个人很难整出这么一套硬件。就算培训视频和文档再好再多，没有环境进行测试，也全是纸上谈兵罢了。<br/>
+熟悉openGauss安装原理的都知道，单机启动其实很简单，gs_initdb初始化一个数据目录，然后改改参数和环境变量，直接gs_ctl start就能启动。也就是说，如果能从GaussDB官方发布包中，把内核这些二进制提取出来，理论上也可以像openGauss一样单机启动。我实测这个方案在技术上的确是可以的，但是GaussDB官方发布包，层层压缩(《<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/usermanual/qlh_02_0285.html">GaussDB文档中心-GaussDB内核包提取方法</a>》)，要解压8~9次才能解压出内核二进制，手动解压动不动就是空间不足或者路径超长了，操作非常麻烦，因此我就想到要写一个脚本来自动提取出内核二进制文件。</p>
+<h2 id="分析">分析</h2>
+<p>首先，我手动解压了一下,这里以kylin系统x86_64平台为例</p>
+<pre><code class="language-sh">[root@ky10-sp3 uncompress_gauss]# ll
+total 4940332
+-rw-r----- 1 root root 5058894815 Jul 16 13:16 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[root@ky10-sp3 uncompress_gauss]# tar -xf DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[root@ky10-sp3 uncompress_gauss]# ll
+total 4940332
+drwxr-xr-x 3 root root         42 Apr 28 09:49 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872
+-rw-r----- 1 root root 5058894815 Jul 16 13:16 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[root@ky10-sp3 uncompress_gauss]# cd DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872/
+[root@ky10-sp3 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872]# ll
+total 4
+-rw-r--r-- 1 root root 173 Apr 28 09:49 manifest.yml
+drwxr-xr-x 2 root root  88 Apr 28 09:47 packages
+[root@ky10-sp3 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872]# cd packages/
+[root@ky10-sp3 packages]# ll
+total 4939548
+-rw-r--r-- 1 root root 5058085281 Apr 27 18:21 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+[root@ky10-sp3 packages]# tar -xf DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+[root@ky10-sp3 packages]# ll
+total 4939560
+drwx------ 2 root root         91 Apr 27 18:08 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all
+-rw-r--r-- 1 root root 5058085281 Apr 27 18:21 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+[root@ky10-sp3 packages]# cd DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all/
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all]# ll
+total 4938752
+-rw------- 1 root root 5057276857 Apr 27 18:08 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all]# tar -xf DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all]# ll
+total 4938756
+drwx------ 6 root root         78 Apr 27 18:04 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch
+-rw------- 1 root root 5057276857 Apr 27 18:08 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all]# cd DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch/
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch]# ll
+total 4
+drwx------ 7 root root  164 Apr 27 18:05 action
+drwx------ 2 root root   97 Apr 27 17:59 config
+-rw------- 1 root root 1645 Apr 27 18:04 manifest.yml
+drwx------ 2 root root   94 Apr 27 18:04 repo
+drwx------ 3 root root   64 Apr 27 17:58 vars
+[root@ky10-sp3 DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch]# cd repo/
+[root@ky10-sp3 repo]# ll
+total 4930740
+-rw------- 1 root root 5049071195 Apr 27 18:04 DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm
+[root@ky10-sp3 repo]# rpm2cpio DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm | cpio -idmv  ## 这个命令很关键，该命令用于提取rpm中的文件
+./opt/cloud/GaussDB-kernel/extra
+./opt/cloud/GaussDB-kernel/extra/nouse.txt
+./opt/cloud/GaussDB-kernel/extra/package_os_info.json
+./opt/cloud/GaussDB-kernel/kernel_after_sql
+./opt/cloud/GaussDB-kernel/kernel_after_sql/v1.4.0.sql
+./opt/cloud/GaussDB-kernel/kernel_after_sql/v9.0.0.SPC0100.sql
+./opt/cloud/GaussDB-kernel/v9.0.0.SPC0100-GaussDBV5-install-kylin-aarch64_d918a268334971aff2d6bd567282d526df9005d9eccb7f949ee48d14a76e04fe.tar.gz
+cpio: write error: No space left on device  ## 这里空间不足了，只能先删掉一些文件
+[root@ky10-sp3 repo]# rm ../../DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+rm: remove regular file '../../DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz'? y
+[root@ky10-sp3 repo]# rm ../../../DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+rm: remove regular file '../../../DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz'? y
+[root@ky10-sp3 repo]# ll
+total 4930752
+-rw------- 1 root root 5049071195 Apr 27 18:04 DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm
+drwxr-xr-x 3 root root         19 Jul 16 13:21 opt
+[root@ky10-sp3 repo]# rm -rf opt ## 先把前面解压不完整的删了，重新解压
+[root@ky10-sp3 repo]# rpm2cpio DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm | cpio -idmv ## 这里4个tar包，带ha的是集中式，不带ha的是分布式，aarch64和x86_64是cpu平台
+./opt/cloud/GaussDB-kernel/extra
+./opt/cloud/GaussDB-kernel/extra/nouse.txt
+./opt/cloud/GaussDB-kernel/extra/package_os_info.json
+./opt/cloud/GaussDB-kernel/kernel_after_sql
+./opt/cloud/GaussDB-kernel/kernel_after_sql/v1.4.0.sql
+./opt/cloud/GaussDB-kernel/kernel_after_sql/v9.0.0.SPC0100.sql
+./opt/cloud/GaussDB-kernel/v9.0.0.SPC0100-GaussDBV5-install-kylin-aarch64_d918a268334971aff2d6bd567282d526df9005d9eccb7f949ee48d14a76e04fe.tar.gz
+./opt/cloud/GaussDB-kernel/v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-aarch64_a7643865bd3ea44f78a8d8c4832d3103c285f7953a57def4119abc4939c13b5e.tar.gz
+./opt/cloud/GaussDB-kernel/v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64_1cc3a7613759e3b6adf885c90adfd2b6ce835b95cb2b898538c14a86a0a914a0.tar.gz
+./opt/cloud/GaussDB-kernel/v9.0.0.SPC0100-GaussDBV5-install-kylin-x86_64_b03ea7dd52bbb453a534fc18185f412d6b2a531824c2634858dc6c0eee97baec.tar.gz
+9858503 blocks
+[root@ky10-sp3 repo]# cd opt/cloud/GaussDB-kernel/
+[root@ky10-sp3 GaussDB-kernel]# tar -xf v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64_1cc3a7613759e3b6adf885c90adfd2b6ce835b95cb2b898538c14a86a0a914a0.tar.gz
+[root@ky10-sp3 GaussDB-kernel]# ll 
+total 4929376
+drwxr-xr-x 2 root root         51 Jul 16 13:23 extra
+drwxr-xr-x 2 root root         50 Jul 16 13:23 kernel_after_sql
+-rw-r--r-- 1 root root 1267010444 Apr 27 17:56 v9.0.0.SPC0100-GaussDBV5-install-kylin-aarch64_d918a268334971aff2d6bd567282d526df9005d9eccb7f949ee48d14a76e04fe.tar.gz
+-rw-r--r-- 1 root root 1260320135 Apr 27 17:53 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-aarch64_a7643865bd3ea44f78a8d8c4832d3103c285f7953a57def4119abc4939c13b5e.tar.gz
+drwx------ 2 root root        227 Apr 27 17:53 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64
+-rw-r--r-- 1 root root 1251971180 Apr 27 17:54 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64_1cc3a7613759e3b6adf885c90adfd2b6ce835b95cb2b898538c14a86a0a914a0.tar.gz
+-rw-r--r-- 1 root root 1268225145 Apr 27 17:58 v9.0.0.SPC0100-GaussDBV5-install-kylin-x86_64_b03ea7dd52bbb453a534fc18185f412d6b2a531824c2634858dc6c0eee97baec.tar.gz
+[root@ky10-sp3 GaussDB-kernel]# cd v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64/
+[root@ky10-sp3 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64]# ll
+total 1222444
+-rw------- 1 root root   31990299 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+-rw------- 1 root root  147639913 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+-rw------- 1 root root 1072143704 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+[root@ky10-sp3 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64]# tar -xf GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+[root@ky10-sp3 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64]# ll
+total 1366812
+-rw------- 1 root  root    31990299 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+-rw------- 1 root  root   147639913 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+-rw------- 1 root  root  1072143704 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+-rw-r--r-- 1 20001 20001  147830880 Apr 27 14:27 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Server.tar.gz
+[root@ky10-sp3 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64]# tar -xf GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Server.tar.gz
+[root@ky10-sp3 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64]# ll
+total 1479208
+drwxr-xr-x 3 root  root          16 Apr 27 14:27 components
+drwxr-xr-x 4 root  root          28 Apr 27 14:27 dependency
+-rw------- 1 root  root    31990299 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+-rw------- 1 root  root   147639913 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+-rw------- 1 root  root  1072143704 Apr 27 17:53 GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+-rwx------ 1 root  root   111140514 Apr 27 14:27 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin ## 这个文件就是内核二进制的自解压文件
+-rw-r--r-- 1 20001 20001  147830880 Apr 27 14:27 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Server.tar.gz
+-rw-r--r-- 1 root  root          65 Apr 27 14:27 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.sha256
+drwxr-xr-x 7 root  root          67 Apr 27 14:27 unixodbc
+-rw------- 1 root  root          65 Apr 27 14:27 upgrade_sql_a.sha256
+-rw------- 1 root  root       55554 Apr 27 14:27 upgrade_sql_a.tar.gz
+-rw------- 1 root  root          65 Apr 27 14:27 upgrade_sql_m.sha256
+-rw------- 1 root  root      631061 Apr 27 14:27 upgrade_sql_m.tar.gz
+-rw------- 1 root  root          65 Apr 27 14:27 upgrade_sql_others.sha256
+-rw------- 1 root  root       41744 Apr 27 14:27 upgrade_sql_others.tar.gz
+-rw------- 1 root  root          65 Apr 27 14:27 upgrade_sql.sha256
+-rw------- 1 root  root     3188417 Apr 27 14:27 upgrade_sql.tar.gz
+-rw-r--r-- 1 root  root          47 Apr 27 14:27 version.cfg
+</code></pre>
+<p>最后得到的 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin 就是内核包，这是一个7z的自解压文件，直接运行即可解压内核到当前目录</p>
+<pre><code class="language-sh">[root@ky10-sp3 uncompress_gauss]# mkdir 
+[root@ky10-sp3 uncompress_gauss]# mv GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin app
+[root@ky10-sp3 uncompress_gauss]# cd app
+[root@ky10-sp3 app]# ll
+total 108536
+-rwx------ 1 root root 111140514 Jul 16 15:07 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+[root@ky10-sp3 app]# ./GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+
+7-Zip SFX 17.05 : Copyright (c) 1999-2021 Igor Pavlov : 2017-08-28
+p7zip Version 17.05 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,64 bits,8 CPUs x64)
+
+
+Extracting archive: ./GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+--
+Path = ./GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+Type = 7z
+
+Everything is Ok
+[root@ky10-sp3 app]# ll
+total 108552
+drwx------ 2 root root      4096 Jul 16 23:47 bin
+drwxr-xr-x 3 root root        22 Apr 27 14:27 etc
+-rwx------ 1 root root 111140514 Jul 16 15:07 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+drwxr-xr-x 5 root root        46 Apr 27 14:27 include
+drwx------ 5 root root      8192 Jul 16 23:47 lib
+drwxr-xr-x 5 root root        50 Apr 27 14:27 share
+</code></pre>
+<p>看到最后这个目录结构应该很熟悉了，后面就接上了openGauss手动安装的步骤。</p>
+<blockquote>
+<p>注意，这种手动解压的方式安装的GaussDB,不是GaussDB官方提供的方式，因此如果用出了任何问题，GaussDB官方都不会提供支持服务。</p>
+</blockquote>
+<h2 id="开发shell脚本">开发shell脚本</h2>
+<p>接下来就是写shell脚本，不过这年头有ai了，这种粗活不是分分钟搞定？<br/>
+于是我把我上面手动解压的步骤给到Cursor，并且下达指令</p>
+<pre><code>分析这些命令，并生成以下功能脚本
+# GaussDB 通用解压脚本
+# 用法: uncompress_gaussdb.sh &lt;tar包路径&gt; &lt;CPU架构&gt;
+# 架构支持: x86_64/x86/arm/arm64/aarch/aarch64 (忽略大小写，映射到x86_64和aarch64)
+# 功能: 提取集中式的*_Om_*.tar.gz *_Server_*.tar.gz *_Symbol*.tar.gz *Kernel*.bin 这4类文件到原始tar包的相同目录
+</code></pre>
+<p>然后Cursor就一股脑给我生成完了，虽然有些小BUG，但我人工修掉了（最新版本Cursor不能连kylin v10 sp3系统远程开发了，要不然就让Cursor自己测试和修复了）。</p>
+<p>脚本的执行效果</p>
+<pre><code class="language-sh">[root@ky10-sp3 uncompress_gauss]# ./uncompress_gaussdb.sh DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz x86_64
+[信息] 原始tar包: /root/uncompress_gauss/DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[信息] 工作目录: /root/uncompress_gauss
+[信息] 目标架构: x86_64
+[信息] 第1步: 解压主tar包...
+[信息] 进入目录: ./DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872
+[信息] 第2步: 解压_all.tar.gz文件...
+[信息] 解压文件: ./DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+[信息] 第3步: 解压_noarch.tar.gz文件...
+[信息] 解压文件: ./DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+[信息] 第4步: 解压RPM文件...
+[信息] 解压RPM文件: ./DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm
+[信息] 第5步: 解压架构相关的安装包...
+[信息] 解压架构文件: ./v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64_1cc3a7613759e3b6adf885c90adfd2b6ce835b95cb2b898538c14a86a0a914a0.tar.gz
+[信息] 第6步: 解压Server相关文件...
+[信息] 第7步: 查找并复制目标文件...
+[信息] 找到_Om_文件: GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+[信息] 找到_Server_文件: GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+[信息] 找到_Symbol_文件: GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+[信息] 找到Kernel文件: GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+[信息] 第8步: 清理临时目录...
+[信息] ============== 解压完成 ==============
+[信息] 原始tar包: DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[信息] 目标架构: x86_64
+[信息] 提取文件数: 4
+[信息] 输出目录: /root/uncompress_gauss
+[信息] 所有文件已提取到: /root/uncompress_gauss
+[信息] 请检查以下文件:
+-rw------- 1 root root   31990299 Jul 16 15:07 /root/uncompress_gauss/GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+-rw------- 1 root root  147639913 Jul 16 15:07 /root/uncompress_gauss/GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+-rw------- 1 root root 1072143704 Jul 16 15:07 /root/uncompress_gauss/GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+-rwx------ 1 root root  111140514 Jul 16 15:07 /root/uncompress_gauss/GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+</code></pre>
+<p>非常的赏心悦目哈！</p>
+<p>虽然只要一个bin文件就能启动GaussDB内核了，但这里我提取出4个文件，主要目的是这些文件以后可能也能用到，比如Symbol符号表，这个东西在遇上内核疑难杂症时可是必须的。</p>
+<h2 id="开发powershell脚本">开发powershell脚本</h2>
+<p>这是linux版本上的，假设要在windows上解压呢？<br/>
+直接和Cursor说让她根据这个sh脚本再生成一个windows上的，分分钟就生成了一个ps1文件，只是这下需要额外安装7z，还要装gitbash，而且BUG又稍微多了点，有长路径问题，还有环境变量上下文切换异常的问题。不过好在Cursor能自己测试自己修BUG，她全自动改了5个版本后，终于能正常运行了。</p>
+<pre><code class="language-powershell">PS G:\gaussdb506\gaussdb506_LTS\uncompress&gt; Set-ExecutionPolicy RemoteSigned -Scope Process -Force
+PS G:\gaussdb506\gaussdb506_LTS\uncompress&gt; .\uncompress_gaussdb.ps1 .\DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz x86_64                                                                                                                        [INFO] Original tar package: G:\gaussdb506\gaussdb506_LTS\uncompress\DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[INFO] Working directory: G:\gaussdb506\gaussdb506_LTS\uncompress
+[INFO] Target architecture: x86_64
+
+=== Checking Required Tools ===
+[INFO] Found tool: tar (path: tar)
+[INFO] Found tool: 7z (path: C:\Program Files\7-Zip\7z.exe)
+
+=== Step 1: Extracting main tar ===
+False
+[INFO] Entering directory: DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872
+False
+
+=== Step 2: Extracting _all.tar.gz file ===
+[INFO] Extracting file: DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_all.tar.gz
+[WARN] Long path detected in Step 2. Path length: 203
+[WARN] Switching to short path for remaining operations.
+[INFO] Working in short path: G:\gaussdb506\gaussdb506_LTS\uncompress\gaussdb_extract_638883094630095806\temp_extract_801137921
+True
+
+=== Step 3: Extracting _noarch.tar.gz file ===
+[INFO] Extracting file: DBS-GaussDB-kernel_9.0.0.SPC0100.20250427175024.kylin.107678083_noarch.tar.gz
+[WARN] Long path detected in Step 3. Path length: 173
+[WARN] Switching to short path for remaining operations.
+[INFO] Switched to shorter path: G:\gaussdb506\gaussdb506_LTS\uncompress\gaussdb_extract_638883094630095806\temp_872330166
+True
+
+=== Step 4: Extracting RPM file ===
+[INFO] Extracting RPM file: DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.rpm
+[INFO] Using 7z to extract RPM: C:\Program Files\7-Zip\7z.exe
+[INFO] Extracting CPIO file: DBS-GaussDB-kernel-src-9.0.0.SPC0100.20250427175024.kylin.107678083-1.noarch.cpio
+False
+
+=== Step 5: Extracting architecture-related installation packages ===
+[INFO] Extracting architecture file: v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64_1cc3a7613759e3b6adf885c90adfd2b6ce835b95cb2b898538c14a86a0a914a0.tar.gz
+False
+[WARN] Long path detected in Step 5 (install). Path length: 163
+[WARN] Switching to short path for remaining operations.
+[INFO] Switched to shorter path: G:\gaussdb506\gaussdb506_LTS\uncompress\gaussdb_extract_638883094630095806\temp_242132117
+True
+
+=== Step 6: Extracting Server-related files ===
+[INFO] Extracting Server file: GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+False
+[INFO] Extracting 64bit file: GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Server.tar.gz
+./components/cm/lib/libcjson.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libcjson.so'
+./components/cm/lib/libcjson.so.1: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libcjson.so.1'
+./components/cm/lib/libclient.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libclient.so'
+./components/cm/lib/libcom_err.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libcom_err.so'
+./components/cm/lib/libcom_err.so.3: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libcom_err.so.3'
+./components/cm/lib/libgssapi_krb5.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libgssapi_krb5.so'
+./components/cm/lib/libgssapi_krb5.so.2: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libgssapi_krb5.so.2'
+./components/cm/lib/libgssrpc.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libgssrpc.so'
+./components/cm/lib/libgssrpc.so.4: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libgssrpc.so.4'
+./components/cm/lib/libk5crypto.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libk5crypto.so'
+./components/cm/lib/libk5crypto.so.3: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libk5crypto.so.3'
+./components/cm/lib/libkrb5.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libkrb5.so'
+./components/cm/lib/libkrb5.so.3: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libkrb5.so.3'
+./components/cm/lib/libkrb5support.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libkrb5support.so'
+./components/cm/lib/libkrb5support.so.0: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libkrb5support.so.0'
+./components/cm/lib/liblz4.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\liblz4.so'
+./components/cm/lib/liblz4.so.1: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\liblz4.so.1'
+./components/cm/lib/libz.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libz.so'
+./components/cm/lib/libz.so.1: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libz.so.1'
+./components/cm/lib/libzstd.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libzstd.so'
+./components/cm/lib/libzstd.so.1: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\components\\cm\\lib\\libzstd.so.1'
+./dependency/lib/libcgroup.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\dependency\\lib\\libcgroup.so'
+./dependency/lib/libcgroup.so.2: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\dependency\\lib\\libcgroup.so.2'
+./dependency/lib/libstdc++.so.6: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\dependency\\lib\\libstdc++.so.6'
+./unixodbc/lib/libodbc.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbc.so'
+./unixodbc/lib/libodbc.so.2: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbc.so.2'
+./unixodbc/lib/libodbccr.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbccr.so'
+./unixodbc/lib/libodbccr.so.2: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbccr.so.2'
+./unixodbc/lib/libodbcinst.so: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbcinst.so'
+./unixodbc/lib/libodbcinst.so.2: Can't create '\\\\?\\G:\\gaussdb506\\gaussdb506_LTS\\uncompress\\gaussdb_extract_638883094630095806\\temp_242132117\\unixodbc\\lib\\libodbcinst.so.2'
+tar.exe: Error exit delayed from previous errors.
+False
+
+=== Step 7: Finding and copying target files ===
+[INFO] Found _Om_ file: GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+[INFO] Found _Server_ file: GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+[INFO] Found _Symbol file: GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+[INFO] Found Kernel file: GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+[INFO] Found Kernel file: GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+
+=== Extraction Complete ===
+[INFO] Original tar package: .\DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+[INFO] Target architecture: x86_64
+[INFO] Extracted files: 5
+[INFO] Output directory: G:\gaussdb506\gaussdb506_LTS\uncompress
+[INFO] All files have been extracted to: G:\gaussdb506\gaussdb506_LTS\uncompress
+[INFO] Please check the following files:
+  GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz (30.51 MB)
+  GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz (140.8 MB)
+  GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz (1022.48 MB)
+  GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin (105.99 MB)
+
+=== Cleaning up temporary directory ===
+[INFO] Cleaned up temporary directory: gaussdb_extract_638883094630095806
+[INFO]
+馃帀 Task completed! 馃帀
+
+PS G:\gaussdb506\gaussdb506_LTS\uncompress&gt; ls
+
+
+    目录: G:\gaussdb506\gaussdb506_LTS\uncompress
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----          2025/5/6     12:03     5058894815 DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz
+-a----         2025/4/27     17:53       31990299 GaussDB-Kernel_506.0.0.SPC0100.B010_Om_X86_Py3.7_Centralized.tar.gz
+-a----         2025/4/27     17:53      147639913 GaussDB-Kernel_506.0.0.SPC0100.B010_Server_X86_Centralized.tar.gz
+-a----         2025/4/27     17:53     1072143704 GaussDB-Kernel_506.0.0.SPC0100.B010_Symbol_X86_Centralized.tar.gz
+-a----         2025/4/27     14:27      111140514 GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit.bin
+-a----         2025/7/17      0:37          18364 uncompress_gaussdb.ps1
+</code></pre>
+<p>由于ai编程对中文字符集处理很容易出现乱码，我就让Cursor把中文全改成英文了，后面的那个“馃帀”其实是emoji 🎉。<br/>
+第6步里的那些报错不用管，那些是因为解压的包里有软链接，windows上不认linux的软链接。</p>
+<h2 id="总结">总结</h2>
+<ol>
+<li>时代变了，AI自动写代码的完成度已经非常高了(写完这篇，刚好Cursor高级模型开始封国内ip了...)</li>
+<li>建议GaussDB官方应该考虑下如何在安装测试数据库这个方面对开发者和DBA友好化（别说用openGauss，因为两者差别已经很大了）</li>
+<li>本文中使用到的shell脚本和powershell脚本已开源,实测在505.2版本和506.0版本都可以正确提取内核二进制<br/>
+<a href="https://gitee.com/darkathena/uncompress-gaussdb">https://gitee.com/darkathena/uncompress-gaussdb</a></li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -157,7 +157,68 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>前文<a href="https://www.darkathena.top/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令</a>中用常规分析的思路，针对windows环境的oracle数据库，做了一个通用的操作系统执行过程，在偶然间看到了oracle官方补丁包代码后<a href="https://www.darkathena.top/archives/oracle-linux-sh">【ORACLE】有时候看看oracle官方安装包的代码也能有一些百度上找不到的收获（数据库执行linux命令）</a>，发现如果活用参数，可以让代码更简洁，下面直接上代码。</p>
+<pre><code class="language-sql">create or replace procedure run_linux_sh_text(i_script varchar2) is
+/*by DarkAthena 2021-11-01*/
+  sched_job_name varchar2(30);
+begin
+  sched_job_name := dbms_scheduler.generate_job_name(prefix =&gt; 'SCRIPT_');
+  DBMS_SCHEDULER.create_job(job_name            =&gt; sched_job_name,
+                            job_type            =&gt; 'EXECUTABLE',
+                            job_action          =&gt; '/bin/sh',
+                            number_of_arguments =&gt; 2,
+                            enabled             =&gt; false,
+                            auto_drop           =&gt; true);
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 1, '-c');
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 2, i_script);
+  DBMS_SCHEDULER.run_job(job_name =&gt; sched_job_name);
+end;
+/
+</code></pre>
+<p>使用时，只需要把要执行的sh脚本的内容作为参数传入过程即可，比如</p>
+<pre><code class="language-sql">begin
+run_linux_sh_text(q'{#!/bin/bash
+mkdir /home/oracle/aaa
+exit 0 }');
+end;
+/
+</code></pre>
+<p>运行后即可看到 "aaa" 目录已经被创建，而且过程中生成的sched_job也没了。</p>
+<p>下面开始说明这个过程</p>
+<pre><code class="language-sql">sched_job_name := dbms_scheduler.generate_job_name(prefix =&gt; 'SCRIPT_');
+</code></pre>
+<p>dbms_scheduler.generate_job_name 这个函数，可以传入前缀字符串，然后使用内部序列拼接成一个唯一的job名称，如果不传参数，则默认为"JOB$_"。使用这个的目的是可以让多个命令并行执行。我之前没注意这个，之前写的版本里为了让多任务并行不冲突，是手动拼接了个随机数。</p>
+<pre><code class="language-sql">DBMS_SCHEDULER.create_job(job_name            =&gt; sched_job_name,
+                            job_type            =&gt; 'EXECUTABLE',
+                            job_action          =&gt; '/bin/sh',
+                            number_of_arguments =&gt; 2,
+                            enabled             =&gt; false,
+                            auto_drop           =&gt; true);
+</code></pre>
+<p>DBMS_SCHEDULER.create_job 这个过程创建一个job,</p>
+<ul>
+<li>job_name 为 job的名称</li>
+<li>job_type 为'EXECUTABLE'表示执行操作系统命令，</li>
+<li>job_action 为要执行的命令，由于我们要执行的命令可能太长，这里只放启动入口 '/bin/sh'</li>
+<li>number_of_arguments 为参数个数</li>
+<li>enabled 为是否启用，这里因为我们还要设参数，所以设置成不启用</li>
+<li>auto_drop 为运行后是否删除此job，因为这个通用的场景是一次性执行，所以设置为自动删除，如果是要调试的话，建议改成不自动删除，因为一旦设置成自动删除，那么不管是成功还是失败都会删掉，当然也可以去日志视图查看运行日志，因为删job不会删日志的。</li>
+</ul>
+<pre><code class="language-sql">DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 1, '-c');
+DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 2, i_script);
+</code></pre>
+<p>DBMS_SCHEDULER.set_job_argument_value 为设置job参数，它本身的三个参数分别为job名称，参数位置，参数内容，这里分别设置2个job参数，第一个参数 "-c" 是把后面的整个字串当成一条命令执行，第二个参数就是我们传入的要执行的sh内容。</p>
+<pre><code class="language-sql">DBMS_SCHEDULER.run_job(job_name =&gt; sched_job_name);
+end;
+</code></pre>
+<p>最后运行此job，完。</p>
+<p>我把这个整理出来后，没想到这个方式竟然比网上流传的java版本更简单，而且不像java那样还要进行复杂的授权。而且重点是，不再需要先在操作系统生成sh文件再去执行，而是在数据库中就提前准备好了所有指令，直接往操作系统发送即可。</p>
+<p>windows版本优化进行中...</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

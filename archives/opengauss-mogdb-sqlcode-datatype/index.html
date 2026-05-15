@@ -155,7 +155,167 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在openGauss/MogDB中，有一条这样的规则</p>
+<blockquote>
+<p>兼容O模式下，SQLCODE等于SQLSTATE</p>
+</blockquote>
+<p>原生PG中，SQLCODE是整型数值，SQLSTATE是5字符的字符串；ORACLE中的SQLCODE也是数值类型。<br/>
+于是之前基于ORACLE或者基于PG的应用程序，在迁移到openGauss/MogDB后，如果使用数值型变量接收sqlcode，或者对sqlcode进行数值大小判断时，都会可能出现类似这样的报错</p>
+<blockquote>
+<p>ERROR:  invalid input syntax for integer: "22P02"</p>
+</blockquote>
+<p>如果期望不丢失任何信息，将SQLCODE存下来，要么改应用程序的相关数据模型或者代码，改成用字符类型来存SQLCODE，要么就只能通过一种算法，将SQLCODE转成数值，并且需要能还原回原本的字符串。</p>
+<h2 id="内核源码分析">内核源码分析</h2>
+<p>在openGauss源码中，可以找到这样一段代码</p>
+<pre><code class="language-c">       if (u_sess-&gt;attr.attr_sql.sql_compatibility == A_FORMAT) {
+            assign_text_var(sqlcode_var, plpgsql_get_sqlstate(prev_error-&gt;sqlerrcode));
+        } else {
+            sqlcode_var-&gt;value = Int32GetDatum(prev_error-&gt;sqlerrcode);
+            sqlcode_var-&gt;freeval = false;
+            sqlcode_var-&gt;isnull = false;
+        }
+</code></pre>
+<p>这个大意就是，如果是A兼容模式，就用plpgsql_get_sqlstate这个函数获得sqlstate;否则直接用Int32GetDatum(prev_error-&gt;sqlerrcode) 。<br/>
+其实可以看到，无论是SQLCODE还是SQLSTATE,其实值的来源是一样，只是非A模式下，直接输出了整型；A模式下进行了个转换，输出了字符串。<br/>
+继续挖转换规则</p>
+<pre><code class="language-c">const char *plpgsql_get_sqlstate(int sqlcode)
+{
+    if (sqlcode &gt;= 0) {
+        return unpack_sql_state(sqlcode);
+    } else {
+        return plpgsql_code_int2cstring(sqlcode);
+    }
+}
+</code></pre>
+<p>当sqlcode大于等于0时，使用unpack_sql_state进行转换；否则用plpgsql_code_int2cstring进行转换。后面这个其实是自定义异常代码，这个先不管，继续看前面的unpack_sql_state</p>
+<pre><code class="language-c">const char* unpack_sql_state(int sql_state)
+{
+    char* buf = t_thrd.buf_cxt.unpack_sql_state_buf;
+    int i;
+
+    for (i = 0; i &lt; 5; i++) {
+        buf[i] = PGUNSIXBIT(sql_state);
+        sql_state &gt;&gt;= 6;
+    }
+
+    buf[i] = '\0';
+    return buf;
+}
+</code></pre>
+<p>这里可以看到它做了个循环来拼字符串buf，每次用PGUNSIXBIT算个值，然后把sql_state移动6位。<br/>
+接着看PGUNSIXBIT</p>
+<pre><code class="language-c">#define PGUNSIXBIT(val) (((val)&amp;0x3F) + '0')
+</code></pre>
+<p>这里就是将val和 0x3F (即十进制63)做位与操作 ，然后再加上 '0' ，注意此处的 '0'不是数字0 ，而是字符串'0' ，对应的ascii码十进制为48。</p>
+<p>到这里，这个使用数值型SQLCODE转换成字符串型的SQLSTATE的算法就完整的展现出来了，当然逆向将字符串的SQLSTATE转换回数值的SQLCODE也行。</p>
+<p>我们可以通过使用PLPGSQL语言，来对这个算法进行模拟，方便直接在数据库中来进行转换</p>
+<h2 id="自定义函数模拟算法">自定义函数模拟算法</h2>
+<p>数值转字符串</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION unpack_sql_state(sql_state INTEGER)
+RETURNS text AS $$
+DECLARE
+    result text := '';
+    i INTEGER;
+BEGIN
+    FOR i IN 1..5 LOOP
+        result := result||(chr((sql_state &amp; 63) + ascii('0'))) ;
+        sql_state := sql_state &gt;&gt; 6;
+    END LOOP;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+</code></pre>
+<p>字符串转数值</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION pack_sql_state(sql_state text)
+RETURNS INTEGER AS $$
+DECLARE
+    result INTEGER := 0;
+    i INTEGER;
+BEGIN
+    FOR i IN 1..5 LOOP
+        result := result &lt;&lt; 6;
+        result := result | (ascii(substr(sql_state, -i, 1)) - ascii('0'));
+    END LOOP;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+</code></pre>
+<h2 id="测试">测试</h2>
+<p>模拟一个报错语句，分别在openGauss的PG模式和A模式中进行测试，输出SQLCODE</p>
+<pre><code class="language-sql">ora_test=# declare
+x int;
+begin
+x:='a';
+exception when others then raise notice '%',sqlcode;
+end;
+ora_test$# /
+NOTICE:  22P02
+ANONYMOUS BLOCK EXECUTE
+ora_test=# \c pg
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+You are now connected to database "pg" as user "omm".
+pg=# declare
+x int;
+begin
+x:='a';
+exception when others then raise notice '%',sqlcode;
+end;
+pg$# /
+NOTICE:  33685634
+ANONYMOUS BLOCK EXECUTE
+</code></pre>
+<p>可以看到 "22P02"其实对应"33685634"，使用上面创建的自定义函数测试转换</p>
+<pre><code class="language-sql">ora_test=# select pack_sql_state('22P02');
+ pack_sql_state
+----------------
+       33685634
+(1 row)
+
+ora_test=# select unpack_sql_state(33685634);
+ unpack_sql_state
+------------------
+ 22P02
+(1 row)
+</code></pre>
+<p>可以发现计算结果和数据库内核表现完全一致。</p>
+<h2 id="应用">应用</h2>
+<p>修改前,会报错退出</p>
+<pre><code class="language-sql">ora_test=# declare
+ora_test-# l_sqlcode int;
+ora_test-# l_var int;
+ora_test-# begin
+ora_test$# l_var:='a';
+ora_test$# exception when others then
+ora_test$# l_sqlcode:=sqlcode;
+ora_test$# end;
+ora_test$# /
+ERROR:  invalid input syntax for integer: "22P02"
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at assignment
+</code></pre>
+<p>修改后，可以执行完成</p>
+<pre><code class="language-sql">ora_test=# declare
+ora_test-# l_sqlcode int;
+ora_test-# l_var int;
+ora_test-# begin
+ora_test$# l_var:='a';
+ora_test$# exception when others then
+ora_test$# l_sqlcode:=pack_sql_state(sqlcode);
+ora_test$# end;
+ora_test$# /
+ANONYMOUS BLOCK EXECUTE
+ora_test=#
+</code></pre>
+<h2 id="如何更进一步兼容oracle">如何更进一步兼容ORACLE？</h2>
+<p>且不去谈论在ORACLE中使用sqlcode数值去做数值比较来写业务逻辑是否合理，但真实场景中的确有这么用的，当大于多少走什么逻辑，当小于多少走什么逻辑，甚至还有等于某个值就进行什么处理的。于是乎，在让应用系统迁移体验更好的情况下，需要让应用系统尽量少改动，考虑到有不少应用程序需要ORACLE库和国产库双轨运行几年，期间还会不断去升级应用程序的版本，那么必然需要有一种方案，让sqlcode和ORACLE返回保持数值一致。<br/>
+当然，绝对一致是几乎不可能的，但是可以梳理下国产库和ORACLE库的报错代码，能映射的做好映射关系，这样就可以通过配置参数的方式，给用户选择，可以选择使用openGauss原版的报错代码，也可以选择使用兼容ORACLE的报错代码，最大限度降低程序走预期之外逻辑的可能性。之前有公众号文章说连报错代码都做到和ORACLE一样是完全没必要的，但真实情况是很多应用系统并不能一次性切换到国产库上。</p>
+<p>预告，MogDB会在5.2版本实装这个功能，支持返回ORACLE的sqlcode，敬请期待。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

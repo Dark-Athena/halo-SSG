@@ -153,7 +153,143 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>前一篇文章说了MogDB适配Halo,<a href="https://www.darkathena.top/archives/halo-mogdb">【MogDB】将流行的博客系统Halo后端的数据库设置为MogDB</a>,但是适配的是2.x版本，由于2.x版本已经引入了对postgresql的支持，而MogDB对于postgresql有很好的兼容性，因此适配起来很简单。但是由于halo2.x的版本进行了全部的重构，从1.6版本并不能无痛升到2.x版本，所以仍有很多用户在使用1.6版本。又由于Halo1.6版本并未适配postgresql，只支持H2和MYSQL两种数据库，因此不能像2.x那种适配直接改个数据库连接完事，需要对halo的源码进行一些调整，本文就记录一下MogDB适配Halo1.6的一些过程。</p>
+<h2 id="适配过程">适配过程</h2>
+<p>先参考halo官方文档中1.6版本里使用mysql的安装方式，把数据库连接进行修改，直接启动，会报错，找不到postgresql的驱动，这是因为halo1.6的jar程序并没有打包postgresql的驱动，所以还是得下载源码来进行手动修改了</p>
+<ol>
+<li>克隆halo1.6的代码</li>
+</ol>
+<pre><code>git clone -b release-1.6 https://gitee.com/halo-dev/halo.git
+</code></pre>
+<ol start="2">
+<li>打开build.gradle，在dependencies里引入jdbc驱动(用runtimeOnly 和implementation应该都行)</li>
+</ol>
+<pre><code>implementation 'io.mogdb:mogdb-jdbc:5.0.0.4.pg'
+</code></pre>
+<p>然后打包程序再试…<br/>
+等等，貌似没说这个程序要怎么打包，其实对于java开发人员来说这个打包很简单，我也就简单说下几个步骤，具体细节大家自己去搜吧</p>
+<ul>
+<li>装jdk环境，记得配环境变量</li>
+<li>装gradle环境，记得配环境变量</li>
+<li>命令行进入项目目录，执行 gradle build</li>
+</ul>
+<p>打包好了，启动程序，会发现报错</p>
+<blockquote>
+<p>Flyway Teams Edition or PostgreSQL upgrade required: PostgreSQL 9.2 is no longer supported by Flyway Community Edition</p>
+</blockquote>
+<p>Flyway是一个数据库对象版本管理的组件，可以用于在应用升级时，管理数据库对象的升级。这个报错信息提示，Flyway的社区版本已经不支持postgresql 9.2，建议改用更高的数据库版本或者使用Flyway Teams版本。<br/>
+其实这里由于Halo1.6已经停止维护，不会再有升级，因此我们可以把相关的代码完全去掉</p>
+<ol start="3">
+<li>打开.\halo\src\main\java\run\halo\app\listener\StartedListener.java ，找到以下代码进行如下注释</li>
+</ol>
+<pre><code class="prism language-java">public  void  onApplicationEvent(ApplicationStartedEvent  event) {
+
+/* try {
+
+this.migrate();
+
+} catch (SQLException e) {
+
+log.error("Failed to migrate database!", e);
+
+} */
+
+this.initDirectory();
+
+this.initThemes();
+
+this.printStartInfo();
+
+this.configGit();
+
+}
+</code></pre>
+<p>然后打包再试，发现可以成功启动了，前台web页面也可以打开。但是在前台页面进行初始化安装时，报错了</p>
+<pre><code>org.springframework.orm.jpa.JpaSystemException: could not insert: [run.halo.app.model.entity.Post]; nested exception is org.hibernate.exception.GenericJDBCException: could not insert: [run.halo.app.model.entity.Post]
+...
+Caused by: java.sql.SQLException: Start position [1] cannot exceed overall CLOB length [0]
+</code></pre>
+<p>网上查，说这是hibernate的bug,但是我觉得不像。这个报错的原因在于，halo里对表字段的注解，有几个字段加了@Lob ,并且又声明了是string，因此会把表建成对应数据库的文本大对象类型，比如oracle中是clob。但是在postgresql中，会建成text，这个类型并不是大对象，只是长度比较长的字符串类型而已，它不需要进行对象的初始化，而框架就会认为这是大对象，要插空时应该插入空对象，插入null就报错了。</p>
+<ol start="4">
+<li>于是，我们把所有的@Lob全部去掉，并手动指定这些字段类型为text（如果不指定，字段类型会变成varchar(255) 长度不够）,涉及到6个文件</li>
+</ol>
+<pre><code>.\halo\src\main\java\run\halo\app\model\entity\BasePost.java
+.\halo\src\main\java\run\halo\app\model\entity\Content.java
+.\halo\src\main\java\run\halo\app\model\entity\ContentPatchLog.java
+.\src\main\java\run\halo\app\model\entity\Journal.java
+.\src\main\java\run\halo\app\model\entity\Option.java
+.\src\main\java\run\halo\app\model\entity\ThemeSetting.java
+</code></pre>
+<p>以下为一处修改例子</p>
+<pre><code class="prism language-java">@Column(name =  "original_content" ,columnDefinition =  "text")
+
+//@Lob
+
+private  String  originalContent;
+</code></pre>
+<p>打包运行–正常<br/>
+在web页面操作初始化–正常<br/>
+新建文章，并保存发布-正常<br/>
+查看文章–报错，主题文件不存在</p>
+<p>由于源码中，默认的主题目录链接到github的另一个仓库里去了（./src/main/resources/templates/themes/<a href="https://github.com/halo-dev/halo-theme-anatole">anatole</a>  @  <a href="https://github.com/halo-dev/halo-theme-anatole/tree/3e7666fc41d82743a0f4daa379de7be970114733">3e7666f</a>），git clone可能没有把相关文件下载下来，所以我们打的包里没有主题文件，需要手动复制进去，这个只要将原始环境中的templates目录覆盖过来,并在后台启用主题即可</p>
+<h2 id="完整方案">完整方案</h2>
+<p>一、代码修改部分</p>
+<ol>
+<li>引入jdbc驱动</li>
+<li>去掉flyway的使用</li>
+<li>把@Lob都去掉，手动指定text类型</li>
+</ol>
+<p>二、启动配置文件部分</p>
+<pre><code>server:
+  port: 8090
+
+  # Response data gzip.
+  compression:
+    enabled: false
+spring:
+  datasource:
+
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:26050/halo160?stringtype=unspecified&amp;batchMode=off
+    username: halo
+    password: Halo@123
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        temp:
+          use_jdbc_metadata_defaults: false
+
+halo:
+
+  # Your admin client path is https://your-domain/{admin-path}
+  admin-path: admin
+
+  # memory or level
+  cache: memory
+
+</code></pre>
+<p>三、数据库部分</p>
+<ol>
+<li>创建PG兼容性的库</li>
+</ol>
+<pre><code>create database halo160 dbcompatibility ='PG';\c halo160
+</code></pre>
+<ol start="2">
+<li>创建连接用户</li>
+</ol>
+<pre><code>create user halo password 'Halo@123' ;
+</code></pre>
+<p>四、成品<br/>
+修改后的代码已上传到我的gitee仓库,欢迎测试和学习（和本篇文章内的修改略有不同）<br/>
+<a href="https://gitee.com/darkathena/halo/tree/dev-1.6-for-mogdb/">https://gitee.com/darkathena/halo/tree/dev-1.6-for-mogdb/</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

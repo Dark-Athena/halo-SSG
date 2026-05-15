@@ -153,7 +153,648 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="个人使用AI开发的-PlSqlRewrite4GaussDB-PLSQL自动转换工具-1-0-1-BETA-发布">个人使用AI开发的《PlSqlRewrite4GaussDB(PLSQL自动转换工具)1.0.1 BETA》发布</h2>
+<h1 id="前言">前言</h1>
+<p><a href="https://www.darkathena.top/archives/antlr4-part1-install-offline">基于语法树的SQL自动改写工具开发系列（1）-离线安装语法树解析工具antlr4</a><br/>
+<a href="https://www.darkathena.top/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战</a><br/>
+<a href="https://www.darkathena.top/archives/antlr4-part3-dev-with-java">基于语法树的SQL自动改写工具开发系列（3）-使用JAVA进行简单SQL改写的开发实战</a></p>
+<p>之前我写过这么几篇SQL自动改写的文章，然后我个人也开发了一个针对一些特定场景的ORACLE存储过程到GaussDB的自动转换工具<br/>
+<a href="https://gitee.com/darkathena/PlsqlRewrite4GaussDB">https://gitee.com/darkathena/PlsqlRewrite4GaussDB</a> ,这个工具同时支持在windows和linux上使用，但仅支持使用命令行的方式调用。</p>
+<p>20250710起，这个工具停止开发，合并到了<a href="https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web">https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web</a>，在保留了原本命令行使用方式外，还额外支持了web图形化使用，鼠标点一点就可以完成，不再需要手敲一堆参数。</p>
+<p>这个软件<strong>只有转换核心里有我手写的代码</strong>，而web的前端和后端的代码都是由AI生成的，全靠vibe coding，通过人工测试，反馈BUG和建议给AI，修修补补后看上去完成度还是很高的。</p>
+<p>这个软件主打就是可以自己在转换逻辑中加入自定义设置（改了设置后要重启服务），通过多种规则的组合，让代码<strong>有希望能一步转换到位</strong>。因为如果工具转换后还要人工改写，那么改造期间，源端还在进行版本迭代，如果不同时维护两个分支的代码，就会导致需要不断重复进行人工改写。<br/>
+另一个特殊点就是，本软件的转换核心是一个单独的jar包，可以单独用命令行使用，也可以集成到其他工具中去。这也意味着转换核心是可以单独替换的，而不用整个项目再重新编译。</p>
+<p>预览地址 ：<a href="https://plsqlrewrite.darkathena.top/">https://plsqlrewrite.darkathena.top/</a>  （admin/password ,阿里云提供的免费服务器，该地址使用期限截止到20250830）</p>
+<p>下面的这个readme也是AI自动生成的。当然界面图是我自己截的，不过插入图片是AI自己完成的。</p>
+<h1 id="README">README</h1>
+<hr/>
+<blockquote>
+<h1 id="PlSqlRewrite4GaussDB">PlSqlRewrite4GaussDB</h1>
+<div align="center">
+<p><img alt="Java" src="https://img.shields.io/badge/Java-17+-orange.svg"/><br/>
+<img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.2.5-brightgreen.svg"/><br/>
+<img alt="Vue.js" src="https://img.shields.io/badge/Vue.js-3.5.17-4FC08D.svg"/><br/>
+<img alt="ANTLR4" src="https://img.shields.io/badge/ANTLR4-4.13.2-blue.svg"/><br/>
+<img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg"/></p>
+<p><strong>🚀 开源、可自定义的PL/SQL转GaussDB工具</strong></p>
+<p><em>让Oracle到GaussDB的PLSQL迁移变得简单高效</em></p>
+<p><a href="https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web/readme_core.md">📖 核心模块文档</a> | <a href="#快速开始">🔧 快速开始</a> | <a href="#功能特性">📋 功能特性</a></p>
+</div>
+<hr/>
+<h2 id="--目录">📋 目录</h2>
+<ul>
+<li><a href="#项目简介">项目简介</a></li>
+<li><a href="#功能特性">功能特性</a></li>
+<li><a href="#系统架构">系统架构</a></li>
+<li><a href="#快速开始">快速开始</a></li>
+<li><a href="#详细使用指南">详细使用指南</a></li>
+<li><a href="#配置说明">配置说明</a></li>
+<li><a href="#开发指南">开发指南</a></li>
+<li><a href="#常见问题">常见问题</a></li>
+<li><a href="#更新日志">更新日志</a></li>
+<li><a href="#贡献指南">贡献指南</a></li>
+<li><a href="#许可证">许可证</a></li>
+</ul>
+<h2 id="--项目简介">🎯 项目简介</h2>
+<p>PlSqlRewrite4GaussDB 是一款专为国产化改造设计的开源PL/SQL转换工具，旨在解决Oracle到GaussDB迁移过程中的核心痛点：</p>
+<h3 id="--解决的核心问题">🔥 解决的核心问题</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>传统方案痛点</th>
+<th>我们的解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>语法兼容性</strong></td>
+<td>原厂工具转换后仍需手动修改</td>
+<td>✅ 内置50+转换规则，结合自定义转换规则，代码转换把控在自己手中</td>
+</tr>
+<tr>
+<td><strong>规则定制</strong></td>
+<td>无法自定义转换规则</td>
+<td>✅ 灵活配置系统，支持自定义规则</td>
+</tr>
+<tr>
+<td><strong>版本同步</strong></td>
+<td>源端更新需重复转换和手动修改</td>
+<td>✅ 自定义规则可覆盖原厂工具的缺陷，使转换后不再需要人工修改成为可能</td>
+</tr>
+<tr>
+<td><strong>响应速度</strong></td>
+<td>新语法支持需等待数月</td>
+<td>✅ 开源架构，可快速扩展新规则</td>
+</tr>
+<tr>
+<td><strong>可被集成</strong></td>
+<td>无法集成到用户自己的平台中</td>
+<td>✅ 可以用命令行方式或api方式集成</td>
+</tr>
+</tbody>
+</table>
+<h3 id="--核心优势">🌟 核心优势</h3>
+<ul>
+<li><strong>🔧 高度可定制</strong>：支持语法节点级和正则表达式级自定义规则</li>
+<li><strong>⚡ 高性能</strong>：支持多线程批量处理，大幅提升转换效率</li>
+<li><strong>🎯 精准转换</strong>：基于ANTLR4语法分析，确保转换准确性</li>
+<li><strong>🔄 持续更新</strong>：开源架构，支持快速响应新需求</li>
+<li><strong>📊 可视化界面</strong>：提供完整的Web管理界面</li>
+</ul>
+<h2 id="--功能特性">🚀 功能特性</h2>
+<h3 id="核心转换能力">核心转换能力</h3>
+<h4 id="--语法转换">🔄 语法转换</h4>
+<ul>
+<li><strong>数据类型映射</strong>：<code>PLS_INTEGER</code> → <code>INTEGER</code>、<code>CHAR</code> → <code>VARCHAR2</code></li>
+<li><strong>函数替换</strong>：<code>SYS_CONTEXT</code> → <code>pg_current_sessid()</code> 等</li>
+<li><strong>关键字处理</strong>：自动添加 <code>AS</code>关键字避免冲突</li>
+<li><strong>异常处理</strong>：<code>RAISE_APPLICATION_ERROR</code> → <code>REPORT_APPLICATION_ERROR</code></li>
+</ul>
+<h4 id="--高级功能">🎯 高级功能</h4>
+<ul>
+<li><strong>动态SQL处理</strong>：支持 <code>EXECUTE IMMEDIATE</code>动态SQL转换</li>
+<li><strong>游标优化</strong>：自动移除不必要的 <code>SELECT INTO</code></li>
+<li><strong>性能优化</strong>：<code>TABLE()</code>函数优化、连接条件优化</li>
+<li><strong>字符集处理</strong>：支持全角/半角字符自动转换</li>
+</ul>
+<h4 id="---配置系统">⚙️ 配置系统</h4>
+<ul>
+<li><strong>映射文件</strong>：支持数据类型、函数、异常等映射配置</li>
+<li><strong>正则规则</strong>：支持自定义正则表达式替换</li>
+<li><strong>查询块替换</strong>：支持基于哈希值的整段SQL替换</li>
+<li><strong>参数模板</strong>：支持批量参数配置</li>
+</ul>
+<h3 id="技术架构">技术架构</h3>
+<pre><code>┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   前端界面      │    │   后端服务      │    │   转换核心      │
+│   (Vue.js)      │◄──►│  (Spring Boot)  │◄──►│   (ANTLR4)      │
+│                 │    │                 │    │                 │
+│ • 项目管理      │    │ • REST API      │    │ • 语法解析      │
+│ • SQL转换       │    │ • 用户认证      │    │ • 规则转换      │
+│ • 批量处理      │    │ • 文件管理      │    │ • 配置管理      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+</code></pre>
+<h2 id="---系统架构">🏗️ 系统架构</h2>
+<h3 id="模块组成">模块组成</h3>
+<pre><code>PlSqlRewrite4GaussDB/
+├── 📁 src/                    # 转换核心模块
+│   ├── 📁 main/java/         # 核心转换逻辑
+│   ├── 📁 test/              # 单元测试
+│   └── 📁 resources/         # ANTLR4语法文件
+├── 📁 webapp/                # 后端服务模块
+│   ├── 📁 controller/        # REST API控制器
+│   ├── 📁 service/           # 业务逻辑服务
+│   └── 📁 model/             # 数据模型
+├── 📁 frontend/              # 前端界面模块
+│   ├── 📁 src/               # Vue.js源码
+│   └── 📁 public/            # 静态资源
+└── 📁 config/                # 配置文件目录
+   ├── 📄 *.properties       # 各种映射配置
+   └── 📄 *.yaml            # 高级规则配置
+</code></pre>
+<p><img alt="image-psbx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-psbx.png" srcset="/upload/image-psbx.png?width=1200 1200w, /upload/image-psbx.png?width=400 400w, /upload/image-psbx.png?width=1600 1600w, /upload/image-psbx.png?width=800 800w"/></p>
+<div align="center">
+<em>Web端项目列表界面预览</em>
+</div>
+<h3 id="技术栈">技术栈</h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>技术栈</th>
+<th>版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>转换核心</strong></td>
+<td>Java + ANTLR4</td>
+<td>Java 11+, ANTLR4 4.13.2</td>
+</tr>
+<tr>
+<td><strong>后端服务</strong></td>
+<td>Spring Boot</td>
+<td>3.2.5</td>
+</tr>
+<tr>
+<td><strong>前端界面</strong></td>
+<td>Vue.js + Element Plus</td>
+<td>Vue 3.5.17</td>
+</tr>
+<tr>
+<td><strong>数据库</strong></td>
+<td>SQLite</td>
+<td>3.45.1.0</td>
+</tr>
+</tbody>
+</table>
+<h2 id="--快速开始">🚀 快速开始</h2>
+<h3 id="环境要求">环境要求</h3>
+<ul>
+<li><strong>Java</strong>: JDK 17+ (推荐JDK 17)</li>
+<li><strong>Node.js</strong>: 16+ (仅前端开发需要)</li>
+<li><strong>Maven</strong>: 3.6+ (可选，转换核心支持离线构建)</li>
+</ul>
+<h3 id="一键构建">一键构建</h3>
+<pre><code class="language-bash"># 克隆项目
+git clone https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web.git
+cd PlsqlRewrite4GaussDB-web
+
+# 一键构建所有模块
+./build_full_release.sh    # Linux/Mac
+build_full_release.bat     # Windows
+</code></pre>
+<h3 id="快速启动">快速启动</h3>
+<pre><code class="language-bash"># 进入release目录
+cd release
+
+# 启动服务
+./start_server.sh          # Linux/Mac
+start_server.bat           # Windows
+</code></pre>
+<p>访问 http://127.0.0.1:8080，使用默认账号 <code>admin/password</code> 登录。</p>
+<h3 id="docker-镜像构建和容器创建">docker 镜像构建和容器创建</h3>
+<pre><code class="language-shell">docker build -t plsqlrewrite4gaussdb:1.0.0-beta .
+docker run --name plsqlrewrite4gaussdb-1.0.0-beta -d -p 8080:8080 plsqlrewrite4gaussdb:1.0.0-beta
+</code></pre>
+<h2 id="--详细使用指南">📖 详细使用指南</h2>
+<h3 id="1--命令行使用">1. 命令行使用</h3>
+<h4 id="单文件转换">单文件转换</h4>
+<pre><code class="language-bash"># 基本转换
+java -jar plsql-rewriter.jar input.sql output.sql
+
+# 指定字符集
+java -jar plsql-rewriter.jar input.sql output.sql GBK UTF-8
+
+# 使用便捷脚本
+./convert.sh input.sql output.sql
+</code></pre>
+<h4 id="批量转换">批量转换</h4>
+<pre><code class="language-bash"># 批量转换（10个并发）
+java -jar plsql-rewriter.jar input_dir output_dir 10
+
+# 使用便捷脚本
+./batch_convert.sh input_dir output_dir 10
+</code></pre>
+<h3 id="2--Web界面使用">2. Web界面使用</h3>
+<h4 id="登录界面">登录界面</h4>
+<p><img alt="image-szak.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-szak.png" srcset="/upload/image-szak.png?width=1200 1200w, /upload/image-szak.png?width=400 400w, /upload/image-szak.png?width=1600 1600w, /upload/image-szak.png?width=800 800w"/></p>
+<h4 id="创建项目">创建项目</h4>
+<p><img alt="image-sqdn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sqdn.png" srcset="/upload/image-sqdn.png?width=1200 1200w, /upload/image-sqdn.png?width=400 400w, /upload/image-sqdn.png?width=1600 1600w, /upload/image-sqdn.png?width=800 800w"/></p>
+<p><img alt="image-mgyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mgyz.png" srcset="/upload/image-mgyz.png?width=1200 1200w, /upload/image-mgyz.png?width=400 400w, /upload/image-mgyz.png?width=1600 1600w, /upload/image-mgyz.png?width=800 800w"/></p>
+<h4 id="项目列表">项目列表</h4>
+<p><img alt="image-dfls.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-dfls.png" srcset="/upload/image-dfls.png?width=1200 1200w, /upload/image-dfls.png?width=400 400w, /upload/image-dfls.png?width=1600 1600w, /upload/image-dfls.png?width=800 800w"/></p>
+<h4 id="转换详情与差异对比">转换详情与差异对比</h4>
+<p><img alt="image-lyba.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lyba.png" srcset="/upload/image-lyba.png?width=1200 1200w, /upload/image-lyba.png?width=400 400w, /upload/image-lyba.png?width=1600 1600w, /upload/image-lyba.png?width=800 800w"/></p>
+<p><img alt="image-mpwc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mpwc.png" srcset="/upload/image-mpwc.png?width=1200 1200w, /upload/image-mpwc.png?width=400 400w, /upload/image-mpwc.png?width=1600 1600w, /upload/image-mpwc.png?width=800 800w"/></p>
+<h4 id="在线SQL转换">在线SQL转换</h4>
+<p><img alt="image-nqyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nqyz.png" srcset="/upload/image-nqyz.png?width=1200 1200w, /upload/image-nqyz.png?width=400 400w, /upload/image-nqyz.png?width=1600 1600w, /upload/image-nqyz.png?width=800 800w"/></p>
+<h4 id="项目管理">项目管理</h4>
+<ol>
+<li><strong>创建项目</strong>：设置项目名称和描述</li>
+<li><strong>上传文件</strong>：支持单个或批量上传SQL文件</li>
+<li><strong>执行转换</strong>：一键转换所有文件，可在线对比差异</li>
+<li><strong>在线转换</strong>：粘贴SQL直接转换</li>
+</ol>
+<h4 id="转换配置">转换配置</h4>
+<ul>
+<li><strong>基础配置</strong>：数据类型映射、函数替换等</li>
+<li><strong>高级配置</strong>：正则表达式规则、查询块替换等</li>
+</ul>
+<h2 id="---配置说明">⚙️ 配置说明</h2>
+<h3 id="核心配置文件">核心配置文件</h3>
+<pre><code>├─config                          # 配置文件目录
+│  ├─add_func_into_pkg        # 对指定package增加自定义函数
+│  ├─replace_func_into_pkg        # 对指定package替换自定义函数
+│  ├─query_block_hash_map        # 基于哈希值的查询块替换配置
+│  ├─atom_mapping.properties      # 字段函数转换配置
+│  ├─config.properties           # 通用配置
+│  ├─datatype_mapping.properties # 数据类型映射
+│  ├─dynamic_sql.yaml # 动态SQL替换规则
+│  ├─exception_mapping.properties # 异常名称映射
+│  ├─general_element_mapping.properties # 函数表达式映射
+│  ├─patterns.yaml              # 正则替换规则
+│  ├─query_block_mapping.properties # 查询块规则
+│  ├─regular_id_mapping.properties # 标识符映射
+│  ├─token_mapping.properties    # 词法标记映射
+│  └─udtlist.properties         # 自定义类型列表
+</code></pre>
+<h3 id="配置示例">配置示例</h3>
+<pre><code class="language-properties"># config.properties
+tablefunctionreplace=unnest
+ownerconvert=schema
+convert_table_of_ele_to_select=true
+
+# datatype_mapping.properties
+PLS_INTEGER=INTEGER
+NUMBER=NUMERIC
+LONG=TEXT
+</code></pre>
+<pre><code class="language-yaml"># patterns.yaml
+rules:
+ - pattern: for\s*(\w*)\s*in\s*(\w*)\.first\s*\.\.\s*\w*\.last 
+   replacement: for $1 in 1..$2.count
+</code></pre>
+<h2 id="---开发指南">🛠️ 开发指南</h2>
+<h3 id="环境搭建">环境搭建</h3>
+<pre><code class="language-bash"># 1. 构建转换核心
+mvn clean package
+
+# 2. 构建后端服务
+cd webapp
+mvn clean package
+
+# 3. 构建前端界面
+cd frontend
+npm install
+npm run build
+</code></pre>
+<h3 id="测试框架">测试框架</h3>
+<pre><code class="language-bash"># 运行所有测试
+mvn test
+
+# 运行特定测试
+mvn test -Dtest=PlSqlRewriterTest#testBasicConversion
+
+# 手动测试
+./convert.sh test.sql output.sql
+./compare.sh output.sql expected.sql
+</code></pre>
+<h2 id="--常见问题">❓ 常见问题</h2>
+<h3 id="Q--转换后的SQL仍有语法错误怎么办-">Q: 转换后的SQL仍有语法错误怎么办？</h3>
+<p>A: 检查配置文件中是否有遗漏的映射规则，或使用正则表达式规则进行兜底处理。</p>
+<h3 id="Q--如何添加新的数据类型映射-">Q: 如何添加新的数据类型映射？</h3>
+<p>A: 在 <code>config/datatype_mapping.properties</code> 文件中添加映射关系，格式为 <code>源类型=目标类型</code>。</p>
+<h3 id="Q--批量转换时内存不足怎么办-">Q: 批量转换时内存不足怎么办？</h3>
+<p>A: 减少并发数量，或分批处理文件。</p>
+<h3 id="Q--如何自定义函数替换规则-">Q: 如何自定义函数替换规则？</h3>
+<p>A: 根据场景，使用token_mapping.properties或atom_mapping.properties或general_element_mapping.properties或patterns.yaml。</p>
+<h3 id="Q--转换性能如何优化-">Q: 转换性能如何优化？</h3>
+<p>A: 使用批量转换模式，合理设置并发数，避免处理过大的单个文件。</p>
+<h2 id="-注意事项">💡注意事项</h2>
+<ol>
+<li>本项目输入的SQL文件需要满足在sqlplus中可执行的SQL格式，若语法解析错误则直接失败</li>
+<li>本项目转换规则未覆盖ORACLE的所有语法规则，且部分默认自定义配置选项并非是所有场景的等价转换规则，请自行调整规则</li>
+<li>多个规则之间起冲突可能导致转换失败，请自行调整规则</li>
+</ol>
+<h2 id="--更新日志">📝 更新日志</h2>
+<h3 id="v0-0-0--2024-11-28-">v0.0.0 (2024-11-28)</h3>
+<ul>
+<li>✨ 初始版本发布</li>
+<li>🚀 支持50+核心转换规则</li>
+<li>🔧 灵活的配置系统</li>
+<li>⚡ 高性能批量处理</li>
+</ul>
+<h3 id="v1-0-0--2025-07-11-">v1.0.0 (2025-07-11)</h3>
+<ul>
+<li>🎨 完整的Web管理界面</li>
+</ul>
+<h2 id="--贡献指南">🤝 贡献指南</h2>
+<p>我们欢迎所有形式的贡献！</p>
+<h3 id="贡献方式">贡献方式</h3>
+<ol>
+<li><strong>报告问题</strong>：在GitHub Issues中报告bug或提出建议</li>
+<li><strong>提交代码</strong>：Fork项目并提交Pull Request</li>
+<li><strong>完善文档</strong>：帮助改进文档和示例</li>
+<li><strong>分享经验</strong>：分享使用经验和最佳实践</li>
+</ol>
+<h3 id="开发流程">开发流程</h3>
+<ol>
+<li>Fork项目到你的Github账户</li>
+<li>创建功能分支：<code>git checkout -b feature/your-feature</code></li>
+<li>提交更改：<code>git commit -am 'Add some feature'</code></li>
+<li>推送分支：<code>git push origin feature/your-feature</code></li>
+<li>提交Pull Request</li>
+</ol>
+<h3 id="代码规范">代码规范</h3>
+<ul>
+<li>遵循Java代码规范</li>
+<li>添加适当的注释和文档</li>
+<li>确保所有测试通过</li>
+<li>更新相关文档</li>
+</ul>
+<h2 id="--许可证">📄 许可证</h2>
+<p>本项目采用 <a href="./LICENSE">MIT License</a> 开源许可证。</p>
+<h2 id="--致谢">🙏 致谢</h2>
+<p>感谢以下开源项目的支持：</p>
+<ul>
+<li><a href="https://www.antlr.org/">ANTLR4</a> - 强大的语法解析器生成器</li>
+<li><a href="https://spring.io/projects/spring-boot">Spring Boot</a> - 企业级Java框架</li>
+<li><a href="https://vuejs.org/">Vue.js</a> - 渐进式JavaScript框架</li>
+<li><a href="https://element-plus.org/">Element Plus</a> - Vue 3组件库</li>
+</ul>
+<hr/>
+<div align="center">
+<p><strong>如果这个项目对你有帮助，请给我们一个 ⭐ Star！</strong></p>
+<p><a href="https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web"><img alt="star" src="https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web/badge/star.svg?theme=dark"/></a></p>
+</div>
+</blockquote>
+<hr/>
+<h1 id="源码分析">源码分析</h1>
+<p>deepwiki是一个免费（20250818还是免费的，后面不保证）的源代码分析工具，只需要把github仓库链接的github.com换成deepwiki.com，即可对源代码进行分析，第一次会需要等十分钟左右才能生成。</p>
+<p>这次我就用deepwiki对源代码进行了分析<br/>
+<a href="https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web">https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web</a></p>
+<p>只是deepwiki生成的mermaid图似乎有些符号不对，没有显示出来，需要手工修正错误的双引号和反引号，但也大差不差了。<br/>
+另外，我又用copilot开发了一个从deepwiki导出成docsify双语站点的工具：<br/>
+<a href="https://gitee.com/darkathena/py-deepwiki2docsify">https://gitee.com/darkathena/py-deepwiki2docsify</a></p>
+<pre><code>PS E:\gitee\py-deepwiki2docsify&gt; python deepwiki2docsify.py --multilingual -o docs https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web
+🚀 DeepWiki 到 Docsify 转换器 - 修复版本
+==================================================
+🌐 多语言模式：将生成中英文双语文档
+2025-08-18 15:33:31,913 - INFO - 🔄 第 1/3 次尝试启动 Selenium WebDriver...
+2025-08-18 15:33:31,913 - INFO - 🔄 第 1 次尝试启动 Microsoft Edge WebDriver...
+2025-08-18 15:33:31,914 - INFO - ====== WebDriver manager ======
+2025-08-18 15:33:32,984 - INFO - Get LATEST edgedriver version for Edge 139.0.3405
+2025-08-18 15:33:33,010 - WARNING - 无法下载EdgeDriver: Could not reach host. Are you offline?
+[15908:57408:0818/153333.740:ERROR:components\edge_ess\vbs_encoder.cc:100] LoadEnclaveImageW failed, error code 577
+
+DevTools listening on ws://127.0.0.1:51519/devtools/browser/0fd6194b-c352-49af-ac89-f3776f9cdc91
+[15908:57408:0818/153333.923:ERROR:components\edge_auth\edge_auth_errors.cc:535] EDGE_IDENTITY: Get Default OS Account failed: Error: Primary Error: kImplicitSignInFailure, Secondary Error: kAccountProviderFetchError, Platform error: 0, Error string: [empty]
+
+[15908:50264:0818/153333.957:ERROR:chrome\browser\importer\edge_china_browsers\edge_qqbrowser_importer_utils_win.cc:198] QQBrowser profile preference file doesn't exist
+[61304:62768:0818/153334.359:ERROR:net\socket\ssl_client_socket_impl.cc:928] handshake failed; returned -1, SSL error code 1, net_error -101
+[61304:62768:0818/153334.430:ERROR:net\socket\ssl_client_socket_impl.cc:928] handshake failed; returned -1, SSL error code 1, net_error -101
+[61304:62768:0818/153334.507:ERROR:net\socket\ssl_client_socket_impl.cc:928] handshake failed; returned -1, SSL error code 1, net_error -101
+[61304:62768:0818/153334.581:ERROR:net\socket\ssl_client_socket_impl.cc:928] handshake failed; returned -1, SSL error code 1, net_error -101
+2025-08-18 15:33:35,305 - INFO - 🚀 Microsoft Edge WebDriver 已启动
+2025-08-18 15:33:35,305 - INFO - 🚀 开始转换 DeepWiki 站点: https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web
+2025-08-18 15:33:35,305 - INFO - 🔄 正在加载页面（Selenium）: https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web
+2025-08-18 15:33:40,658 - INFO - ⏳ 等待JavaScript执行完成...
+2025-08-18 15:33:48,747 - INFO - ✅ 动态内容已加载
+2025-08-18 15:33:48,747 - INFO - 🔍 等待异步内容加载...
+2025-08-18 15:34:12,821 - INFO - 📄 获取页面源码: 398885 字符
+2025-08-18 15:34:12,878 - INFO - 🔗 发现 GitHub 仓库: https://github.com/Dark-Athena/PlsqlRewrite4GaussDB-web
+2025-08-18 15:34:12,894 - INFO - 🎯 发现 commit SHA: a6954e6f
+2025-08-18 15:34:12,894 - INFO - 🎯 提取动态导航数据...
+2025-08-18 15:34:12,894 - INFO - 🔍 分析动态导航数据...
+2025-08-18 15:34:12,909 - INFO - 🔍 分析页面中的 72 个链接...
+2025-08-18 15:34:12,972 - INFO - 🎯 找到序号链接: Overview -&gt; 1-overview
+2025-08-18 15:34:12,980 - INFO - 🎯 找到序号链接: System Architecture -&gt; 1.1-system-architecture
+2025-08-18 15:34:12,989 - INFO - 🎯 找到序号链接: Key Features -&gt; 1.2-key-features
+2025-08-18 15:34:12,998 - INFO - 🎯 找到序号链接: Getting Started -&gt; 2-getting-started
+2025-08-18 15:34:13,009 - INFO - 🎯 找到序号链接: Installation and Deployment -&gt; 2.1-installation-and-deployment
+2025-08-18 15:34:13,024 - INFO - 🎯 找到序号链接: Command Line Usage -&gt; 2.2-command-line-usage
+2025-08-18 15:34:13,034 - INFO - 🎯 找到序号链接: Web Interface Guide -&gt; 2.3-web-interface-guide
+2025-08-18 15:34:13,044 - INFO - 🎯 找到序号链接: Core Processing Engine -&gt; 3-core-processing-engine
+2025-08-18 15:34:13,055 - INFO - 🎯 找到序号链接: PL/SQL Rewriter Core -&gt; 3.1-plsql-rewriter-core
+2025-08-18 15:34:13,064 - INFO - 🎯 找到序号链接: Configuration System -&gt; 3.2-configuration-system
+2025-08-18 15:34:13,074 - INFO - 🎯 找到序号链接: Conversion Rules and Transformations -&gt; 3.3-conversion-rules-and-transformations
+2025-08-18 15:34:13,084 - INFO - 🎯 找到序号链接: Web Application -&gt; 4-web-application
+2025-08-18 15:34:13,093 - INFO - 🎯 找到序号链接: Backend API Reference -&gt; 4.1-backend-api-reference
+2025-08-18 15:34:13,103 - INFO - 🎯 找到序号链接: Frontend Components -&gt; 4.2-frontend-components
+2025-08-18 15:34:13,112 - INFO - 🎯 找到序号链接: Project Management System -&gt; 4.3-project-management-system
+2025-08-18 15:34:13,121 - INFO - 🎯 找到序号链接: HTTP Client and Request Handling -&gt; 4.4-http-client-and-request-handling
+2025-08-18 15:34:13,132 - INFO - 🎯 找到序号链接: Testing Framework -&gt; 5-testing-framework
+2025-08-18 15:34:13,142 - INFO - 🎯 找到序号链接: Core Engine Tests -&gt; 5.1-core-engine-tests
+2025-08-18 15:34:13,152 - INFO - 🎯 找到序号链接: SQL Test Cases -&gt; 5.2-sql-test-cases
+2025-08-18 15:34:13,162 - INFO - 🎯 找到序号链接: GROUP BY and Advanced SQL Tests -&gt; 5.3-group-by-and-advanced-sql-tests
+2025-08-18 15:34:13,171 - INFO - 🎯 找到序号链接: Development Guide -&gt; 6-development-guide
+2025-08-18 15:34:13,181 - INFO - 🎯 找到序号链接: Build Process -&gt; 6.1-build-process
+2025-08-18 15:34:13,191 - INFO - 🎯 找到序号链接: Utilities and Helper Components -&gt; 6.2-utilities-and-helper-components
+2025-08-18 15:34:13,209 - INFO - 🎯 找到序号链接: Core Processing Engine -&gt; 3-core-processing-engine
+2025-08-18 15:34:13,217 - INFO - 🎯 找到序号链接: Web Application -&gt; 4-web-application
+2025-08-18 15:34:13,227 - INFO - 🎯 找到序号链接: Getting Started -&gt; 2-getting-started
+2025-08-18 15:34:28,585 - INFO - 🎯 动态提取到 23 个真实文件名映射
+2025-08-18 15:34:28,586 - INFO - 🔗 分析导航栏链接...
+2025-08-18 15:34:28,604 - INFO - 🔗 找到导航链接: Overview -&gt; 1-overview
+2025-08-18 15:34:28,604 - INFO - 🔗 找到导航链接: System Architecture -&gt; 1.1-system-architecture
+2025-08-18 15:34:28,604 - INFO - 🔗 找到导航链接: Key Features -&gt; 1.2-key-features
+2025-08-18 15:34:28,604 - INFO - 🔗 找到导航链接: Getting Started -&gt; 2-getting-started
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: Installation and Deployment -&gt; 2.1-installation-and-deployment
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: Command Line Usage -&gt; 2.2-command-line-usage
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: Web Interface Guide -&gt; 2.3-web-interface-guide
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: Core Processing Engine -&gt; 3-core-processing-engine
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: PL/SQL Rewriter Core -&gt; 3.1-plsql-rewriter-core
+2025-08-18 15:34:28,605 - INFO - 🔗 找到导航链接: Configuration System -&gt; 3.2-configuration-system
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Conversion Rules and Transformations -&gt; 3.3-conversion-rules-and-transformations
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Web Application -&gt; 4-web-application
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Backend API Reference -&gt; 4.1-backend-api-reference
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Frontend Components -&gt; 4.2-frontend-components
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Project Management System -&gt; 4.3-project-management-system
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: HTTP Client and Request Handling -&gt; 4.4-http-client-and-request-handling
+2025-08-18 15:34:28,606 - INFO - 🔗 找到导航链接: Testing Framework -&gt; 5-testing-framework
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: Core Engine Tests -&gt; 5.1-core-engine-tests
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: SQL Test Cases -&gt; 5.2-sql-test-cases
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: GROUP BY and Advanced SQL Tests -&gt; 5.3-group-by-and-advanced-sql-tests
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: Development Guide -&gt; 6-development-guide
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: Build Process -&gt; 6.1-build-process
+2025-08-18 15:34:28,607 - INFO - 🔗 找到导航链接: Utilities and Helper Components -&gt; 6.2-utilities-and-helper-components
+2025-08-18 15:34:28,608 - INFO - 🔗 找到导航链接: Core Processing Engine -&gt; 3-core-processing-engine
+2025-08-18 15:34:28,608 - INFO - 🔗 找到导航链接: Web Application -&gt; 4-web-application
+2025-08-18 15:34:28,608 - INFO - 🔗 找到导航链接: Getting Started -&gt; 2-getting-started
+2025-08-18 15:34:28,608 - INFO - 📋 从导航栏提取到 23 个文件名映射
+2025-08-18 15:34:28,608 - INFO - 🔄 合并 23 个动态导航项...
+2025-08-18 15:34:28,609 - INFO - 🔍 提取页面内容...
+2025-08-18 15:34:28,631 - INFO - 🔍 分析 88 个脚本标签...
+2025-08-18 15:34:28,649 - INFO - 🎯 使用导航链接文件名: Overview -&gt; 1-overview
+2025-08-18 15:34:28,656 - INFO - 🎯 使用导航链接文件名: System Architecture -&gt; 1.1-system-architecture
+2025-08-18 15:34:28,664 - INFO - 🎯 使用导航链接文件名: Key Features -&gt; 1.2-key-features
+2025-08-18 15:34:28,671 - INFO - 🎯 使用导航链接文件名: Getting Started -&gt; 2-getting-started
+2025-08-18 15:34:28,677 - INFO - 🎯 使用导航链接文件名: Installation and Deployment -&gt; 2.1-installation-and-deployment
+2025-08-18 15:34:28,683 - INFO - 🎯 使用导航链接文件名: Command Line Usage -&gt; 2.2-command-line-usage
+2025-08-18 15:34:28,690 - INFO - 🎯 使用导航链接文件名: Web Interface Guide -&gt; 2.3-web-interface-guide
+2025-08-18 15:34:28,700 - INFO - 🎯 使用导航链接文件名: Core Processing Engine -&gt; 3-core-processing-engine
+2025-08-18 15:34:28,710 - INFO - 🎯 使用导航链接文件名: PL/SQL Rewriter Core -&gt; 3.1-plsql-rewriter-core
+2025-08-18 15:34:28,718 - INFO - 🎯 使用导航链接文件名: Configuration System -&gt; 3.2-configuration-system
+2025-08-18 15:34:28,726 - INFO - 🎯 使用导航链接文件名: Conversion Rules and Transformations -&gt; 3.3-conversion-rules-and-transformations
+2025-08-18 15:34:28,732 - INFO - 🎯 使用导航链接文件名: Web Application -&gt; 4-web-application
+2025-08-18 15:34:28,741 - INFO - 🎯 使用导航链接文件名: Backend API Reference -&gt; 4.1-backend-api-reference
+2025-08-18 15:34:28,749 - INFO - 🎯 使用导航链接文件名: Frontend Components -&gt; 4.2-frontend-components
+2025-08-18 15:34:28,758 - INFO - 🎯 使用导航链接文件名: Project Management System -&gt; 4.3-project-management-system
+2025-08-18 15:34:28,765 - INFO - 🎯 使用导航链接文件名: HTTP Client and Request Handling -&gt; 4.4-http-client-and-request-handling
+2025-08-18 15:34:28,771 - INFO - 🎯 使用导航链接文件名: Testing Framework -&gt; 5-testing-framework
+2025-08-18 15:34:28,778 - INFO - 🎯 使用导航链接文件名: Core Engine Tests -&gt; 5.1-core-engine-tests
+2025-08-18 15:34:28,784 - INFO - 🎯 使用导航链接文件名: SQL Test Cases -&gt; 5.2-sql-test-cases
+2025-08-18 15:34:28,790 - INFO - 🎯 使用导航链接文件名: GROUP BY and Advanced SQL Tests -&gt; 5.3-group-by-and-advanced-sql-tests
+2025-08-18 15:34:28,797 - INFO - 🎯 使用导航链接文件名: Development Guide -&gt; 6-development-guide
+2025-08-18 15:34:28,805 - INFO - 🎯 使用导航链接文件名: Build Process -&gt; 6.1-build-process
+2025-08-18 15:34:28,812 - INFO - 🎯 使用导航链接文件名: Utilities and Helper Components -&gt; 6.2-utilities-and-helper-components
+2025-08-18 15:34:28,820 - INFO - 📄 提取到 23 个完整页面
+2025-08-18 15:34:28,820 - INFO - 📋 提取到导航结构: 393 个条目
+2025-08-18 15:34:28,820 - INFO - 📋 发现 23 个页面
+2025-08-18 15:34:28,820 - INFO -   - Overview
+2025-08-18 15:34:28,820 - INFO -   - System Architecture
+2025-08-18 15:34:28,820 - INFO -   - Key Features
+2025-08-18 15:34:28,821 - INFO -   - Getting Started
+2025-08-18 15:34:28,821 - INFO -   - Installation and Deployment
+2025-08-18 15:34:28,821 - INFO -   - Command Line Usage
+2025-08-18 15:34:28,821 - INFO -   - Web Interface Guide
+2025-08-18 15:34:28,821 - INFO -   - Core Processing Engine
+2025-08-18 15:34:28,821 - INFO -   - PL/SQL Rewriter Core
+2025-08-18 15:34:28,822 - INFO -   - Configuration System
+2025-08-18 15:34:28,822 - INFO -   - Conversion Rules and Transformations
+2025-08-18 15:34:28,822 - INFO -   - Web Application
+2025-08-18 15:34:28,822 - INFO -   - Backend API Reference
+2025-08-18 15:34:28,822 - INFO -   - Frontend Components
+2025-08-18 15:34:28,822 - INFO -   - Project Management System
+2025-08-18 15:34:28,823 - INFO -   - HTTP Client and Request Handling
+2025-08-18 15:34:28,823 - INFO -   - Testing Framework
+2025-08-18 15:34:28,823 - INFO -   - Core Engine Tests
+2025-08-18 15:34:28,823 - INFO -   - SQL Test Cases
+2025-08-18 15:34:28,823 - INFO -   - GROUP BY and Advanced SQL Tests
+2025-08-18 15:34:28,823 - INFO -   - Development Guide
+2025-08-18 15:34:28,823 - INFO -   - Build Process
+2025-08-18 15:34:28,824 - INFO -   - Utilities and Helper Components
+2025-08-18 15:34:28,825 - INFO - 📄 创建页面: Overview -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1-overview.md
+2025-08-18 15:34:28,826 - INFO - 📄 创建页面: System Architecture -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1.1-system-architecture.md  
+2025-08-18 15:34:28,828 - INFO - 📄 创建页面: Key Features -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1.2-key-features.md
+2025-08-18 15:34:28,829 - INFO - 📄 创建页面: Getting Started -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2-getting-started.md
+2025-08-18 15:34:28,830 - INFO - 📄 创建页面: Installation and Deployment -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.1-installation-and-deployment.md
+2025-08-18 15:34:28,831 - INFO - 📄 创建页面: Command Line Usage -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.2-command-line-usage.md  
+2025-08-18 15:34:28,832 - INFO - 📄 创建页面: Web Interface Guide -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.3-web-interface-guide.md  
+2025-08-18 15:34:28,833 - INFO - 📄 创建页面: Core Processing Engine -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3-core-processing-engine.md2025-08-18 15:34:28,834 - INFO - 📄 创建页面: PL/SQL Rewriter Core -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.1-plsql-rewriter-core.md   
+2025-08-18 15:34:28,835 - INFO - 📄 创建页面: Configuration System -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.2-configuration-system.md  
+2025-08-18 15:34:28,835 - INFO - 📄 创建页面: Conversion Rules and Transformations -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.3-conversion-rules-and-transformations.md
+2025-08-18 15:34:28,836 - INFO - 📄 创建页面: Web Application -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4-web-application.md
+2025-08-18 15:34:28,838 - INFO - 📄 创建页面: Backend API Reference -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.1-backend-api-reference.md2025-08-18 15:34:28,839 - INFO - 📄 创建页面: Frontend Components -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.2-frontend-components.md  
+2025-08-18 15:34:28,840 - INFO - 📄 创建页面: Project Management System -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.3-project-management-system.md
+2025-08-18 15:34:28,841 - INFO - 📄 创建页面: HTTP Client and Request Handling -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.4-http-client-and-request-handling.md
+2025-08-18 15:34:28,842 - INFO - 📄 创建页面: Testing Framework -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5-testing-framework.md
+2025-08-18 15:34:28,843 - INFO - 📄 创建页面: Core Engine Tests -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.1-core-engine-tests.md
+2025-08-18 15:34:28,843 - INFO - 📄 创建页面: SQL Test Cases -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.2-sql-test-cases.md
+2025-08-18 15:34:28,844 - INFO - 📄 创建页面: GROUP BY and Advanced SQL Tests -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.3-group-by-and-advanced-sql-tests.md
+2025-08-18 15:34:28,845 - INFO - 📄 创建页面: Development Guide -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6-development-guide.md
+2025-08-18 15:34:28,846 - INFO - 📄 创建页面: Build Process -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6.1-build-process.md
+2025-08-18 15:34:28,847 - INFO - 📄 创建页面: Utilities and Helper Components -&gt; zh-cn\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6.2-utilities-and-helper-components.md
+2025-08-18 15:34:28,848 - INFO - 📄 创建页面: Overview -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1-overview.md
+2025-08-18 15:34:28,849 - INFO - 📄 创建页面: System Architecture -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1.1-system-architecture.md   
+2025-08-18 15:34:28,850 - INFO - 📄 创建页面: Key Features -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\1.2-key-features.md
+2025-08-18 15:34:28,851 - INFO - 📄 创建页面: Getting Started -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2-getting-started.md
+2025-08-18 15:34:28,851 - INFO - 📄 创建页面: Installation and Deployment -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.1-installation-and-deployment.md
+2025-08-18 15:34:28,852 - INFO - 📄 创建页面: Command Line Usage -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.2-command-line-usage.md
+2025-08-18 15:34:28,853 - INFO - 📄 创建页面: Web Interface Guide -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\2.3-web-interface-guide.md   
+2025-08-18 15:34:28,854 - INFO - 📄 创建页面: Core Processing Engine -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3-core-processing-engine.md   
+2025-08-18 15:34:28,855 - INFO - 📄 创建页面: PL/SQL Rewriter Core -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.1-plsql-rewriter-core.md  
+2025-08-18 15:34:28,856 - INFO - 📄 创建页面: Configuration System -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.2-configuration-system.md   
+2025-08-18 15:34:28,857 - INFO - 📄 创建页面: Conversion Rules and Transformations -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\3.3-conversion-rules-and-transformations.md
+2025-08-18 15:34:28,858 - INFO - 📄 创建页面: Web Application -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4-web-application.md
+2025-08-18 15:34:28,859 - INFO - 📄 创建页面: Backend API Reference -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.1-backend-api-reference.md   
+2025-08-18 15:34:28,860 - INFO - 📄 创建页面: Frontend Components -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.2-frontend-components.md   
+2025-08-18 15:34:28,861 - INFO - 📄 创建页面: Project Management System -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.3-project-management-system.md
+2025-08-18 15:34:28,862 - INFO - 📄 创建页面: HTTP Client and Request Handling -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\4.4-http-client-and-request-handling.md
+2025-08-18 15:34:28,863 - INFO - 📄 创建页面: Testing Framework -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5-testing-framework.md
+2025-08-18 15:34:28,864 - INFO - 📄 创建页面: Core Engine Tests -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.1-core-engine-tests.md
+2025-08-18 15:34:28,865 - INFO - 📄 创建页面: SQL Test Cases -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.2-sql-test-cases.md
+2025-08-18 15:34:28,866 - INFO - 📄 创建页面: GROUP BY and Advanced SQL Tests -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\5.3-group-by-and-advanced-sql-tests.md
+2025-08-18 15:34:28,867 - INFO - 📄 创建页面: Development Guide -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6-development-guide.md
+2025-08-18 15:34:28,868 - INFO - 📄 创建页面: Build Process -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6.1-build-process.md
+2025-08-18 15:34:28,868 - INFO - 📄 创建页面: Utilities and Helper Components -&gt; en\pages\Dark-Athena\PlsqlRewrite4GaussDB-web\6.2-utilities-and-helper-components.md
+2025-08-18 15:34:28,869 - INFO - 🌐 生成多语言 index.html...
+2025-08-18 15:34:28,870 - INFO - 📋 生成根目录侧边栏...
+2025-08-18 15:34:28,870 - INFO - 📄 生成语言选择页面...
+2025-08-18 15:34:28,873 - INFO - 📁 生成 中文 版本配置...
+2025-08-18 15:34:28,874 - INFO - 📁 生成 English 版本配置...
+2025-08-18 15:34:28,874 - INFO - 🌐 多语言文件生成完成
+2025-08-18 15:34:34,407 - INFO - 🛑 Selenium WebDriver 已关闭
+
+🎉 转换成功！
+📁 输出目录: E:\gitee\py-deepwiki2docsify\docs
+📄 处理页面: 23 个
+
+📋 项目信息:
+   名称: Dark-Athena/PlsqlRewrite4GaussDB-web
+   标题: Dark-Athena/PlsqlRewrite4GaussDB-web
+   原始页面: https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web
+
+💡 启动本地服务器:
+   cd docs
+   python -m http.server 3000
+   然后访问 http://localhost:3000
+
+🌍 部署到 GitHub Pages:
+   1. 将 docs 目录内容推送到 GitHub 仓库
+   2. 在仓库设置中启用 GitHub Pages
+   3. 选择从根目录或 docs 目录部署
+</code></pre>
+<p>再用扣子空间翻译出了对应的中文版本文件，直接上传到一个http站点就能正常显示了。</p>
+<p><img alt="image-ygue.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ygue.png" srcset="/upload/image-ygue.png?width=1200 1200w, /upload/image-ygue.png?width=400 400w, /upload/image-ygue.png?width=1600 1600w, /upload/image-ygue.png?width=800 800w"/></p>
+<p><img alt="image-sjwq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sjwq.png" srcset="/upload/image-sjwq.png?width=1200 1200w, /upload/image-sjwq.png?width=400 400w, /upload/image-sjwq.png?width=1600 1600w, /upload/image-sjwq.png?width=800 800w"/></p>
+<p>源码分析文档已经上传到我的个人博客站点：<br/>
+<a href="https://www.darkathena.top/PlsqlRewrite4GaussDB-web-wiki/index.html">https://www.darkathena.top/PlsqlRewrite4GaussDB-web-wiki/index.html</a></p>
+<p>同时也上传到了github和gitee的wiki</p>
+<p><a href="https://github.com/Dark-Athena/PlsqlRewrite4GaussDB-web/wiki/1-overview">https://github.com/Dark-Athena/PlsqlRewrite4GaussDB-web/wiki/1-overview</a></p>
+<p><a href="https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web/wikis/1-overview">https://gitee.com/darkathena/PlsqlRewrite4GaussDB-web/wikis/1-overview</a></p>
+<p><img alt="image-aevp.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aevp.png" srcset="/upload/image-aevp.png?width=1200 1200w, /upload/image-aevp.png?width=400 400w, /upload/image-aevp.png?width=1600 1600w, /upload/image-aevp.png?width=800 800w"/></p>
+<p>有点高大上的感觉了，顺手截了几个图</p>
+<p><img alt="image-gzxt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-gzxt.png" srcset="/upload/image-gzxt.png?width=1200 1200w, /upload/image-gzxt.png?width=400 400w, /upload/image-gzxt.png?width=1600 1600w, /upload/image-gzxt.png?width=800 800w"/></p>
+<p><img alt="image-wchx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wchx.png" srcset="/upload/image-wchx.png?width=1200 1200w, /upload/image-wchx.png?width=400 400w, /upload/image-wchx.png?width=1600 1600w, /upload/image-wchx.png?width=800 800w"/></p>
+<p><img alt="image-ysxk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ysxk.png" srcset="/upload/image-ysxk.png?width=1200 1200w, /upload/image-ysxk.png?width=400 400w, /upload/image-ysxk.png?width=1600 1600w, /upload/image-ysxk.png?width=800 800w"/></p>
+<p><img alt="image-jrhl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jrhl.png" srcset="/upload/image-jrhl.png?width=1200 1200w, /upload/image-jrhl.png?width=400 400w, /upload/image-jrhl.png?width=1600 1600w, /upload/image-jrhl.png?width=800 800w"/></p>
+<p><img alt="image-apjo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-apjo.png" srcset="/upload/image-apjo.png?width=1200 1200w, /upload/image-apjo.png?width=400 400w, /upload/image-apjo.png?width=1600 1600w, /upload/image-apjo.png?width=800 800w"/></p>
+<p><img alt="image-jfry.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jfry.png" srcset="/upload/image-jfry.png?width=1200 1200w, /upload/image-jfry.png?width=400 400w, /upload/image-jfry.png?width=1600 1600w, /upload/image-jfry.png?width=800 800w"/></p>
+<p><img alt="image-ymve.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ymve.png" srcset="/upload/image-ymve.png?width=1200 1200w, /upload/image-ymve.png?width=400 400w, /upload/image-ymve.png?width=1600 1600w, /upload/image-ymve.png?width=800 800w"/></p>
+<p><img alt="image-omqb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-omqb.png" srcset="/upload/image-omqb.png?width=1200 1200w, /upload/image-omqb.png?width=400 400w, /upload/image-omqb.png?width=1600 1600w, /upload/image-omqb.png?width=800 800w"/></p>
+<p>不过deepwiki生成的似乎并完全不正确，比如它说我这个程序的配置文件支持热加载，但这功能我就还没做。所以这个源码分析就图一乐吧，大概就这么回事，细节不能深究...</p>
+<h1 id="Docker镜像构建">Docker镜像构建</h1>
+<p>docker 镜像构建脚本也是AI生成的</p>
+<p><img alt="image-qqum.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qqum.png" srcset="/upload/image-qqum.png?width=1200 1200w, /upload/image-qqum.png?width=400 400w, /upload/image-qqum.png?width=1600 1600w, /upload/image-qqum.png?width=800 800w"/></p>
+<p>不过我还是手动做了一些优化，比如使用多阶段构建来减少镜像大小，以及规避了apt-get命令下载依赖包可能由于网路问题下载不到的问题。</p>
+<h1 id="打包工作流">打包工作流</h1>
+<p>自动打包工作流也是AI自动生成的</p>
+<p><img alt="image-iuek.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iuek.png" srcset="/upload/image-iuek.png?width=1200 1200w, /upload/image-iuek.png?width=400 400w, /upload/image-iuek.png?width=1600 1600w, /upload/image-iuek.png?width=800 800w"/></p>
+<p>不过由于还不算正式版本，我修改成了只能手动触发。</p>
+<p><a href="https://github.com/Dark-Athena/PlsqlRewrite4GaussDB-web/blob/Dark-Athena-patch-1/.github/workflows/main.yml">https://github.com/Dark-Athena/PlsqlRewrite4GaussDB-web/blob/Dark-Athena-patch-1/.github/workflows/main.yml</a></p>
+<h1 id="总结">总结</h1>
+<ol>
+<li>本软件并未覆盖全量的改写规则，仅对部分语法点做了可自定义修改的配置入口，默认的改写规则个数肯定不如原厂工具。但其价值在于给PL/SQL转换到GaussDB提供了一种新的可集成自定义规则的路径。原厂转换工具为了通用，只做绝对的等价改写，遇上不能等价改写的就保持原样了,而实际上客户知道自己的代码应该要怎么人工改写能符合原本的业务含义，此时一个可以配置自定义规则的工具就有了用武之地。</li>
+<li>现在AI的能力真的能替代很多工作了，只要把清晰的思路告诉AI，是真的可以让AI几乎完整地生成企业级的程序的。</li>
+<li>本项目有使用到的AI工具
+<ul>
+<li>NEW BING （免费，早期没有AI agent工具时，通过对话的方式，手动给转换核心一段一段代码进行开发）</li>
+<li>Cursor （付费，前后端代码和ReadMe生成）</li>
+<li>VSCode copilot（付费，Cursor 断供后，切换到VSCode进行bug修复；转换deepwiki生成的源代码文档到docsify格式；github打包工作流生成）</li>
+<li>deepwiki (免费，生成源代码解析文档）</li>
+<li>扣子空间（免费，翻译源代码解析文档的中文版本，主要是免费，不消耗宝贵的用于开发的token）</li>
+<li>天启 （免费，部分技术点可行性咨询，避免打断项目整体思路和token浪费）</li>
+</ul>
+</li>
+</ol>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

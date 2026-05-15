@@ -155,7 +155,310 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在看21c版本新特性的时候，注意到有一条是限定表达式的增强，而且了解到限定表达式是18c版本新增的。18c发布时，我还沉沦在天天赶项目进度的苦海，没有去了解这些新特性。</p>
+<p>现在有空看看这是个什么玩意了。</p>
+<p>先上官方文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-collections-and-records.html#GUID-4B379569-4068-4DB1-9D69-E706F4AC5758">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-collections-and-records.html#GUID-4B379569-4068-4DB1-9D69-E706F4AC5758</a></p>
+<p>看完这文档，估计大多数人还是一头雾水，因为这篇文档写了那么多代码的例子，却没一个例子是完整可执行的。</p>
+<p>然后就是Oracle官方提供的在线sql<br/>
+<a href="https://livesql.oracle.com/apex/livesql/file/content_F9WWD55FZB0LPDH74V0NVBSHU.html">https://livesql.oracle.com/apex/livesql/file/content_F9WWD55FZB0LPDH74V0NVBSHU.html</a><br/>
+<a href="https://livesql.oracle.com/apex/livesql/file/content_GAE2LUPS0UA1IU1SUIAZCB7W1.html">https://livesql.oracle.com/apex/livesql/file/content_GAE2LUPS0UA1IU1SUIAZCB7W1.html</a><br/>
+总算是有可以执行的脚本了，而且有提到，限定表达式其实以前叫做记录构造函数,但现在支持的范围更广，所以统一命名为限定表达式</p>
+<blockquote>
+<p>Qualified Expressions for Records (aka, record constructors)</p>
+</blockquote>
+<blockquote>
+<p>Aggregates and their necessary adjunct, qualified expressions, improve program clarity and programmer productivity. Through Oracle Database 12c release 2, it was possible to supply the value of a non-scalar datatype with an expression, for example by using the type constructor for a nested table. Starting with Oracle Database Release 18c, any PL/SQL value can be provided by an expression (for example for a record or for an associative array) like a constructor provides an abstract datatype value. In PL/SQL, we use the terms "qualified expression" and "aggregate" rather than the SQL term "type constructor", but the functionality is the same. Qualified expressions improve program clarity and developer productivity by providing the ability to declare and define a complex value in a compact form where the value is needed. A qualified expression combines expression elements to create values of a RECORD type or associative array type. Qualified expressions use an explicit type indication to provide the type of the qualified item. This explicit indication is known as a typemark.</p>
+</blockquote>
+<p>再用搜索引擎搜下，搜到国内的相关的只有itpub论坛的每日一题；国外的除了ORACLE官方文档就只剩Tim Hall的文章了<br/>
+<a href="https://oracle-base.com/articles/18c/qualified-expressions-in-plsql-18c">https://oracle-base.com/articles/18c/qualified-expressions-in-plsql-18c</a></p>
+<p>既然国内没人做完整介绍，我就来写写看吧。</p>
+<h2 id="语法">语法</h2>
+<pre><code>qualified_expression ::= typemark ( aggregate )
+
+aggregate ::= [ positional_choice_list ] [ explicit_choice_list ]
+
+positional_choice_list ::= ( expr )+
+                          | sequence_iterator_choice
+
+sequence_iterator_choice ::= FOR iterator SEQUENCE =&gt; expr
+
+explicit_choice_list ::= named_choice_list 
+                       | indexed_choice_list
+                       | basic_iterator_choice
+                       | index_iterator_choice
+
+named_choice_list ::= identifier =&gt; expr [,]+
+
+indexed_choice_list ::= expr =&gt; expr [,] +
+
+basic_iterator_choice ::= FOR iterator =&gt; expr
+
+index_iterator_choice ::= FOR iterator INDEX expr =&gt; expr
+</code></pre>
+<h2 id="限定表达式记录">限定表达式（记录）</h2>
+<p>这语法结构有点复杂，我们先只看第一行</p>
+<pre><code>qualified_expression ::= typemark ( aggregate )
+</code></pre>
+<p>这种必须要结合例子才能看懂<br/>
+例子：<br/>
+以前，我们在用一个type来构造一条记录时，一般是这么写的</p>
+<pre><code class="language-sql">DECLARE
+  TYPE t_rec IS RECORD (
+    id   NUMBER,
+    val1 VARCHAR2(10),
+    val2 VARCHAR2(10)
+  );
+  l_rec t_rec;
+BEGIN
+  l_rec.id   := 1;
+  l_rec.val1 := 'ONE';
+  l_rec.val2 := 'TWO';
+END;
+/
+</code></pre>
+<p>然后在18c可以这么写</p>
+<pre><code class="language-sql">DECLARE
+  TYPE t_rec IS RECORD (
+    id   NUMBER,
+    val1 VARCHAR2(10),
+    val2 VARCHAR2(10)
+  );
+  l_rec t_rec;
+BEGIN
+  l_rec := t_rec(1, 'ONE', 'TWO');
+
+--或者
+  l_rec := t_rec(id   =&gt; 1,
+                 val1 =&gt; 'ONE',
+                 val2 =&gt; 'TWO');
+END;
+/
+</code></pre>
+<p>还可以这样</p>
+<pre><code class="language-sql">DECLARE
+  TYPE t_rec IS RECORD (
+    id   NUMBER,
+    val1 VARCHAR2(10),
+    val2 VARCHAR2(10)
+  );
+  l_rec t_rec:= t_rec(1, 'ONE', 'TWO');
+BEGIN
+ null;
+END;
+/
+</code></pre>
+<p>很明显，18c支持的写法更简单,可以让代码更简洁且直接。<br/>
+官方语法描述中的“qualified_expression ::= typemark ( aggregate )”，在此例中其实就是对应的“l_rec := t_rec(1, 'ONE', 'TWO');”这一条。</p>
+<p>但是要注意的是，18c的这种写法对此条记录进行完全覆盖，不论是否有传值，比如下例</p>
+<pre><code class="language-sql">SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_rec IS RECORD (
+    id   NUMBER,
+    val1 VARCHAR2(10),
+    val2 VARCHAR2(10)
+  );
+  l_rec t_rec;
+BEGIN
+ 
+  l_rec := t_rec(id   =&gt; 1,
+                 val1 =&gt; 'ONE',
+                 val2 =&gt; 'TWO');
+  dbms_output.put_line(l_rec.id||'-'||l_rec.val2)    ;
+  l_rec := t_rec(id   =&gt; 1,
+                 val1 =&gt; 'ONE');
+  dbms_output.put_line(l_rec.id||'-'||l_rec.val2)    ;
+                 
+END;
+/
+
+------
+1-TWO
+1-
+
+</code></pre>
+<p>可以看到第二次对l_rec进行赋值的时候，没有传val2的值，所以第二次输出时，val2变成了空值。<br/>
+还有，它不支持"%ROWTYPE"的记录类型,如果运行如下代码</p>
+<pre><code class="language-sql">DECLARE 
+   l_REGIONS   hr.REGIONS%rowtype := hr.REGIONS%rowtype ('5', 'Mars'); 
+BEGIN 
+   NULL; 
+END;
+/
+</code></pre>
+<p>会报错:</p>
+<blockquote>
+<p>ORA-06550: 第 2 行, 第 38 列:<br/>
+PLS-00431: SQL 块属性必须使用一个索引<br/>
+ORA-06550: 第 0 行, 第 0 列:<br/>
+PL/SQL: Compilation unit analysis terminated</p>
+</blockquote>
+<p>上述其实就是限定表达式在record类型的用法。<br/>
+其实它还支持在数组中使用</p>
+<h2 id="限定表达式数组">限定表达式（数组）</h2>
+<pre><code class="language-sql">DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab;
+BEGIN
+  l_tab := t_tab(1 =&gt; 'ONE',
+                 2 =&gt; 'TWO',
+                 3 =&gt; 'THREE');           
+END;
+/
+
+--循环获取值
+SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(1 =&gt; 'ONE', 2 =&gt; 'TWO', 3 =&gt; 'THREE');
+BEGIN
+  for idx in 1 .. l_tab.count loop
+    dbms_output.put_line(l_tab(idx));
+  end loop;
+END;
+/
+</code></pre>
+<p>而在18c以前，它对应的写法是</p>
+<pre><code class="language-sql">DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab;
+BEGIN
+  l_tab(1) :=  'ONE';
+  l_tab(2) :=  'TWO';
+  l_tab(3) :=  'THREE';           
+END;
+/
+</code></pre>
+<p>另外，和上面按record记录的一样，18c的这种写法是完全覆盖，我们尝试执行以下代码</p>
+<pre><code class="language-sql">SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab;
+BEGIN
+  l_tab := t_tab(1 =&gt; 'ONE',
+                 2 =&gt; 'TWO',
+                 3 =&gt; 'THREE');
+
+  l_tab := t_tab(1 =&gt; 'ONE',
+                 3 =&gt; 'THREE');
+
+  DBMS_OUTPUT.put_line('2=' || l_tab(2));
+
+END;
+/
+</code></pre>
+<p>会报错</p>
+<blockquote>
+<p>ORA-01403: 未找到任何数据<br/>
+ORA-06512: 在 line 12</p>
+</blockquote>
+<p>其实就是index为2的记录已经没了。</p>
+<p>另外，根据语法的第2、3行来看，positional_choice_list是支持表达式的，也就是说，下面这种写法也是支持的</p>
+<pre><code class="language-sql">SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(1 =&gt; 'ONE', 2 =&gt; 'TWO', 3 =&gt; 'THREE');
+BEGIN
+  l_tab := t_tab(1           =&gt; 'ONE',
+                 2           =&gt; 'TWO',
+                 3           =&gt; 'THREE',
+                 l_tab.count + 1 =&gt; 'ADD',
+                 l_tab.count + 2 =&gt; l_tab.count + 2);
+  FOR I IN 1 .. l_tab.COUNT LOOP
+    DBMS_OUTPUT.put_line(l_tab(I));
+  END LOOP;
+END;
+/
+</code></pre>
+<p>截止到这里，其实那一大段语法，只有第4个和最后两个没有说了，其他都是些容易懂的，毕竟就只是优化下赋值的写法，下面的可能就有些烧脑了（如果之前学过一点python的可能容易懂一点）<br/>
+我们把没说的这3个抽出来</p>
+<h2 id="三种迭代器">三种迭代器</h2>
+<pre><code>sequence_iterator_choice ::= FOR iterator SEQUENCE =&gt; expr
+
+basic_iterator_choice ::= FOR iterator =&gt; expr
+
+index_iterator_choice ::= FOR iterator INDEX expr =&gt; expr
+</code></pre>
+<p>可以看到他们的共同特征是“FOR iterator”，其实就是个迭代器</p>
+<ul>
+<li>sequence_iterator_choice 序列迭代器</li>
+<li>basic_iterator_choice 基本迭代器</li>
+<li>index_iterator_choice 索引迭代器</li>
+</ul>
+<p>接下来只要对这三种分别举个例子就好懂了</p>
+<h3 id="序列迭代器">序列迭代器</h3>
+<pre><code class="language-sql">---sequence_iterator_choice
+SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(for seq in  2..5 
+                       SEQUENCE =&gt; seq);
+BEGIN
+  FOR I IN 1 .. l_tab.COUNT LOOP
+    DBMS_OUTPUT.put_line(i||':'|| l_tab(I));
+  END LOOP;
+END;
+/
+
+----
+1~2
+2~3
+3~4
+4~5
+
+</code></pre>
+<p>上面这段的赋值其实是 “SEQUENCE =&gt; seq”，SEQUENCE就是个从1开始的序列，然后前面的“for seq in  1..100 while seq&lt;=5” 就是循环往seq里填值</p>
+<h3 id="基本迭代器">基本迭代器</h3>
+<pre><code class="language-sql">--- basic_iterator_choice
+SET SERVEROUTPUT ON;
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(for i in 1..4 =&gt; i*2);
+BEGIN
+  FOR I IN 1 .. l_tab.COUNT LOOP
+    DBMS_OUTPUT.put_line(i||':'|| l_tab(I));
+  END LOOP;
+END;
+/
+
+---
+1:2
+2:4
+3:6
+4:8
+
+</code></pre>
+<p>这段最简单，就是个基本迭代</p>
+<h3 id="索引迭代器">索引迭代器</h3>
+<p>SET SERVEROUTPUT ON;</p>
+<pre><code class="language-sql">---index_iterator_choice
+DECLARE
+  TYPE t_tab IS TABLE OF VARCHAR2(10) INDEX BY pls_integer;
+  l_tab t_tab := t_tab(FOR i IN 2..10 INDEX i/2 =&gt; i);
+BEGIN
+  FOR I IN 1 .. l_tab.COUNT LOOP
+    DBMS_OUTPUT.put_line(i||':'|| l_tab(I));
+  END LOOP;
+END;
+/
+
+---
+1:2
+2:4
+3:6
+4:8
+5:10
+</code></pre>
+<p>这段索引迭代要注意的是“INDEX”。</p>
+<h2 id="未完">未完</h2>
+<p>至此官方贴出来的这个语法都已经有例子了，但是这个限定表达式其实还没说完。</p>
+<p>那就是与迭代器相关联的循环了，不过由于本篇内容已经过多，循环的部分将在下一篇进行讲解</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

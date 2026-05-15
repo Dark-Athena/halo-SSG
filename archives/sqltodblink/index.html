@@ -155,7 +155,256 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h3 id="一背景">一、背景</h3>
+<p>我工作的时候，有遇到一个场景，有很多个oracle数据库，表结构都一样，但是数据内容不一样，如果要查询一个数据，需要用同一个sql分别去查这很多个数据库的数据，存到同一个地方，再输出合并后的结果。</p>
+<p>一般情况下，会选择用java/python等语言写个程序来处理这个场景，如果是定时自动收取，这相当于又开了一个后台服务，多了一个运维检查点，而且我当时所处的工作环境无法提供新的硬件资源，也不会提供对应开发语言的开发人员或者运维人员，会sql的同事倒是很多，所以我就尝试用ORACLE来实现这一整套内容。</p>
+<p>ORACLE数据库有个很方便的功能，就是可以通过加“@远程数据库dblink名称”的方式来操作远程数据库，比如查询/删除/插入/更新/执行等，这个远程数据库甚至可以是MYSQL/SQLSERVER/ACCESS等，只要那个数据库支持ODBC，ORACLE数据库就可以连上去，有兴趣的可以自己去网上查找相关资料，这篇就不展开了。</p>
+<p>回到这个场景，其涉及到多线程管理/重试机制/异常处理机制/负载均衡机制等，这些也先不在此篇文章深入介绍，我们重点来看其中一个很简单但又很难以实现的问题，就是本篇文章的标题：</p>
+<blockquote>
+<p>将任意查询sql转换成带远程数据库DBLINK的sql</p>
+</blockquote>
+<h3 id="二分析">二、分析</h3>
+<p>既然是通过ORACLE管理其他ORACLE数据库，那么查询数据我已知有两种方式，使用DBLINK直接查表 或者 通过DBLINK使用远程数据库的DBMS_SQL包。由于DBMS_SQL包只能一个一个值的取，效率很低，因此我们选择使用DBLINK直接查表的方式来获取数据。<br/>
+比如<br/>
+原始SQL为</p>
+<pre><code class="language-sql">select col1,col2 from tmp_table where col1=2
+</code></pre>
+<p>假设远程数据库的DBLINK名称为 “DBLINK”,那么加上dblink的sql为</p>
+<pre><code class="language-sql">select col1,col2 from tmp_table@DBLINK where col1=2
+</code></pre>
+<p>再复杂点</p>
+<pre><code class="language-sql">select (SELECT EEE FROM TTT WHERE T1=456),* from tab5,
+ (select * from
+ taba1 , taba2 b ,TAB3
+
+ ),(select   user_from  /*这里是注释 FROM TAB */  from tabfrom
+
+ ) where 1=1
+</code></pre>
+<p>加上DBLINK后</p>
+<pre><code class="language-sql">select (SELECT EEE FROM TTT@DBLINK WHERE T1=456),* from tab5@DBLINK,
+ (select * from
+ taba1@DBLINK , taba2@DBLINK b ,TAB3@DBLINK
+
+ ),(select   user_from  /*这里是注释 FROM TAB */  from tabfrom@DBLINK
+
+ ) where 1=1
+</code></pre>
+<p>如果我们想要这个功能变成一个通用的功能，任意SQL传进去都能自动转换成带DBLINK的SQL，那么我们首要要实现的就是，如何定位到这个sql中的所有表。</p>
+<p>我第一个想到的就是，先用空格/回车/逗号/括号来对SQL进行分词，然后去找这些词是否存在于数据库的DBA_TABLES视图，如果存在，就用 "分词@dblink"替换"分词"。但是实际上，ORACLE数据库的字段名是可以和表名完全一致的，这样自动转换出来的sql经常会出错。</p>
+<p>所以我又在想，PLSQL Developer 等工具，支持对sql进行自动美化（或者说叫自动格式化），那么它肯定是能找到表在哪个位置，至于机制就不清楚了。<br/>
+我沿着这个思路，在网上找了好久，没有答案（2015年），我又提了个百度知道(<a href="https://zhidao.baidu.com/question/1448698078498703580.html">https://zhidao.baidu.com/question/1448698078498703580.html</a>)，也没有人能给出方案。</p>
+<p>既然找不到，那我就自己做。</p>
+<p>分析上面那个比较复杂的案例，先列出几个关键点，<br/>
+首先先要把SQL弄整洁，<br/>
+1.处理掉所有回车让其变成一行，<br/>
+2.两个空格的都缩成一个空格，<br/>
+3.再统一大小写<br/>
+<font size="1">(这些操作可能会导致SQL查询结果发生变化，因此能使用的SQL会受到一些限制,比如这些都是在静态字符串中 类似 select 'AbcD' from tab where id='98  54321' 这样的)</font></p>
+<pre><code class="language-sql">SELECT (SELECT EEE FROM TTT WHERE T1=456),* FROM TAB5,(SELECT * FROM TABA1 , TABA2 B ,TAB3),(SELECT USER_FROM /*这里是注释 FROM TAB */ FROM TABFROM ) WHERE 1=1
+</code></pre>
+<p>然后观察这些表的所在位置的特点<br/>
+1.表的前面某个位置一定能找到“FROM”，但“FROM”后面不一定就是表<br/>
+2.“FROM”可以在表名或者字段名中出现，那么真正意义上的“from”应该前后都有空格，即“ FROM ”<br/>
+3.表的后面如果有逗号，且逗号后面不是括号，那么逗号后面的一定也是个表<br/>
+4. "/*" 后面的某个位置如果有 "*/" ，那么这两个中间的就是注释,不管里面有什么都要忽略掉，否则可能影响判断，<br/>
+5. 表的后面可能有别名<br/>
+6. " FROM "后面找表，直到“ WHERE ”就停，然后找下一个" FROM "</p>
+<p>于是经过一系列脑补和手动调试，写了一段函数</p>
+<h3 id="三成果">三、成果</h3>
+<pre><code class="language-plsql">CREATE OR REPLACE FUNCTION SQL_TO_DBLINKSQL_F(l_sql varchar2,DB_LINK VARCHAR2) RETURN VARCHAR2 IS
+/*
+Copyright DarkAthena
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+/*该功能用来转换sql为DBLINK的SQL，
+作者 ：DarkAthena
+日期：20170128
+最后修改日期：20170522  在最后将错误生成的  (@DB_LINK  替换成  （
+规范1：不允许使用‘--’注释
+    2：FROM后面表的顺序必须是先表后子查询
+    3：查询字段允许使用子查询
+    4：查询条件中的静态字符串不要有 A.大小写混合，B.大于1个以上的空格，C.回车*/
+  str   varchar2(30000);
+  str2  varchar2(30000);
+  str_a varchar2(30000);
+  str_b varchar2(30000);
+  str_T varchar2(30000);
+
+  STR2_L NUMBER;
+  I      NUMBER;
+  J      NUMBER;
+  K      NUMBER;
+
+  L NUMBER;
+begin
+  l    := 0;
+ /* str  := 'select (SELECT EEE FROM TTT WHERE T1=456),* from
+ (select * from
+ taba1 , taba2 b ,TAB3
+
+ ),(select   user_from    from tabfrom
+
+ ) where 1=1
+  ';*/
+  str  := l_sql;
+  str2 := UPPER(str); ---大写
+  str2 := replace(str2, chr(10), chr(32)); ---回车转空格
+  str2 := replace(str2, chr(9), chr(32)); ---TAB转空格
+  str2 := replace(str2, chr(44), chr(32) || chr(44) || chr(32)); ---逗号前面后面加空格
+  str2 := replace(str2, chr(40), chr(32) || chr(40) || chr(32)); ---括号前面后面加空格
+  str2 := replace(str2, chr(41), chr(32) || chr(41) || chr(32)); ---括号前面后面加空格
+
+  --- STR2_L:=LENGTH(STR2);
+
+  LOOP
+    STR2_L := LENGTH(STR2);
+    STR2   := REPLACE(STR2, CHR(32) || CHR(32), CHR(32)); ---双空格替换成单空格
+    IF STR2_L = LENGTH(STR2) THEN
+      EXIT;
+    END IF;
+  END LOOP;
+  I     := 1;
+  str_b := STR2;
+  --- str_a:=SUBSTR(STR2,1,INSTR(STR2,' FROM ')+5);
+  LOOP
+
+    IF (SUBSTR(str2, I, 6) = CHR(32) || 'FROM' || CHR(32) and
+       SUBSTR(str2, I + 6, 1) &lt;&gt; chr(40) )---寻找 FROM 关键字 且后面不是左括号
+
+     THEN
+
+      IF L = 0 THEN
+        str_a := SUBSTR(STR2, 1, I + 5);  --初始，拼接第一个表前面一截
+      END IF;
+      if l &lt;&gt; 0 then
+        STR_A := STR_A || substr(str2, l - 1, i - l + 1) || CHR(32) ||
+                 'FROM' || CHR(32);  ---拼接表和表中间的部分 非逗号
+      end if;
+      J := 0;
+      LOOP
+        K := 1;
+
+        LOOP
+          IF SUBSTR(STR2, I + 6 + J + K, 1) = CHR(32)
+
+           THEN
+            STR_T := SUBSTR(STR2, I + 6 + J, K); ---取表名
+            STR_A := STR_A || STR_T || '@'||DB_LINK;
+            K     := K + 1;
+            EXIT;
+          END IF;
+          K := K + 1;
+        END LOOP;
+    /*   dbms_output.put_line('AAA ' || SUBSTR(STR2, I + 6 + J + K, 1));*/
+
+      /*   dbms_output.put_line('AAAA ' || SUBSTR(STR2, I + 6 + J + K+2, 1));*/
+        IF SUBSTR(STR2, I + 6 + J + K, 1) = chr(41)
+         and  SUBSTR(STR2, I + 6 + J + K+2, 1)&lt;&gt;CHR(44)*/---如果是右括号
+
+         THEN
+          l := i + j + k + 6;
+          EXIT;
+        elsif SUBSTR(STR2, I + 6 + J + K, 1) &lt;&gt; CHR(44) then  --如果不是逗号
+        /*  dbms_output.put_line(substr(str2, I + 6 + J + K, 30000));
+          dbms_output.put_line(instr(substr(str2, I + 6 + J + K, 30000),
+                                     chr(32)));
+          dbms_output.put_line(SUBSTR(STR2,
+                                      I + 6 + J + K,
+                                      instr(substr(str2,
+                                                   I + 6 + J + K,
+                                                   30000),
+                                            chr(32))));*/
+
+          str_a := str_a || chr(32) ||
+                   SUBSTR(STR2,
+                          I + 6 + J + K - 1,
+                          instr(substr(str2, I + 6 + J + K, 30000), chr(32)));--拼接表别名
+          k     := k + instr(substr(str2, I + 6 + J + K, 30000), chr(32));
+        /*  DBMS_OUTPUT.put_line(SUBSTR(STR2, I + 6 + J + K, 1));
+                    DBMS_OUTPUT.put_line( SUBSTR(STR2, I + 6 + J + K + 2, 1));*/
+
+          if SUBSTR(STR2, I + 6 + J + K, 1) &lt;&gt; CHR(44) /*OR
+             SUBSTR(STR2, I + 6 + J + K + 2, 1) = CHR(40)*/ then ---如果不是逗号
+            l := i + j + k + 6;
+            EXIT;
+
+          end if;
+
+        END IF;
+        STR_A := STR_A || chr(44);
+        J     := J + K + 1;
+      END LOOP;
+
+    END IF;
+
+    str_b := SUBSTR(str2, I + 1, 30000);
+    IF INSTR(str_b, CHR(32) || 'FROM' || CHR(32)) = 0 THEN
+      EXIT;
+    END IF;
+    I := I + 1;
+
+  END LOOP;
+  str_a := str_a || substr(str2, l - 1, 30000);
+ --- dbms_output.put_line(str_a);
+ str_a:=REPLACE(str_a,'(@'||DB_LINK,'(');
+  RETURN str_a;
+
+end;
+/
+</code></pre>
+<p>效果如下<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png" srcset="/upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1200 1200w, /upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=400 400w, /upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1600 1600w, /upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=800 800w"/></p>
+<h3 id="四缺陷">四、缺陷</h3>
+<p>这段程序是我有一年农历大年三十晚上到春节凌晨的那几个小时写的，因为是纯字符串的处理复杂处理，必须一次性搞定，否则就容易忘了中间某几步的参数会变成啥样。现在回头看，短时间很难完整的在脑海里进行模拟运行了，当然后期还是要进行一些优化，因为现在还有些SQL不能成功转换，要求已经写在代码中的注释内了</p>
+<blockquote>
+<p>规范<br/>
+1：不允许使用‘--’注释<br/>
+2：FROM后面表的顺序必须是先表后子查询<br/>
+3：查询字段允许使用子查询<br/>
+4：查询条件中的静态字符串不要有 A.大小写混合，B.大于1个以上的空格，C.回车</p>
+</blockquote>
+<p>特想攻克这个注释的问题，于是写了个超复杂的例子，如果能成功把注释都去掉就好了</p>
+<pre><code>SELECT 11 C1 --/*  66  
+/*77*/ ,22 C2  /* ---55*/, 33 C3
+ /*  88
+*/ /*/*/ FROM dual
+</code></pre>
+<p>咋一看以为语法有问题，实际还真没问题，可以执行<br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png" srcset="/upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1200 1200w, /upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=400 400w, /upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1600 1600w, /upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=800 800w"/><br/>
+像这种sql不能一开始就合成一行，因为“--”的后面是注释，但也不全是，因为“--”可能在“/* */”内，另外“/*”也不一定就代表注释开始，“/* */”不成对也可能是正常的。</p>
+<p>当时断断续续研究了3天左右，没搞定，也没时间研究了，所以当时就放那没管了，不过这个版本使用率还是很高的，毕竟这样查数据不用在工具上切换数据库了，想象假设有几百个数据库，把DBLINK的名字写个游标，循环跑或者多线程跑，每次都只用传个SQL进去就能把数据都获取到，还可以直接insert到本地的表，一步到位，多舒坦~</p>
+<p>之后如果有优化会在我的GITHUB上进行更新<br/>
+<a href="https://github.com/Dark-Athena/sql_to_dblink-oracle">https://github.com/Dark-Athena/sql_to_dblink-oracle</a></p>
+<h3 id="五后记">五、后记</h3>
+<p>在写这篇文章的时候，刚好发现代码高亮插件竟然能准确识别这个注释，或许可以参考一下</p>
+<pre><code class="language-sql">SELECT 11 C1 --/*  66  
+/*77*/ ,22 C2  /* ---55*/, 33 C3
+ /*  88
+*/ /*/*/ FROM dual
+
+</code></pre>
+<p><a href="https://prismjs.com/download.html#themes=prism-tomorrow&amp;languages=sql">https://prismjs.com/download.html#themes=prism-tomorrow&amp;languages=sql</a> （高亮插件代码下载）</p>
+<p>另外还发现一篇这样的文章，其处理方案还是太过粗暴，用上面这个例子，输出的结果不对<br/>
+<a href="https://www.xuebuyuan.com/1019319.html">https://www.xuebuyuan.com/1019319.html</a><br/>
+还有这篇文章，就是使用我前面所说的在数据字典中匹配的方式，如果有字段名和表名一样的，就会找错<br/>
+<a href="https://blog.csdn.net/weixin_42542420/article/details/116322502">https://blog.csdn.net/weixin_42542420/article/details/116322502</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

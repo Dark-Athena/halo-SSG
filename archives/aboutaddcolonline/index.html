@@ -149,13 +149,128 @@
         
         <span>2021-11-10</span>
         
-        <span>1487 阅读</span>
+        <span>1488 阅读</span>
         
         <a href="/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>有网友在墨天轮上提了个问题</p>
+<blockquote>
+<p>oracle大表增加字段需要注意什么<br/>
+版本：oracle 11.2.0.1.0单机<br/>
+OS：windows server 2008<br/>
+请问一下，2亿的大表新增字段需要注意什么？<br/>
+直接alter table emp add colum就行吗？</p>
+</blockquote>
+<p>然后有人回复，</p>
+<blockquote>
+<p>alter table emp add colum  not null  default 带上默认值，非空。两个要素。<br/>
+秒加。</p>
+</blockquote>
+<blockquote>
+<p>注意备份数据；</p>
+</blockquote>
+<blockquote>
+<p>注意不要加错字段了，否则删除会很麻烦</p>
+</blockquote>
+<blockquote>
+<p>11g开始新特性直接加就行了 ~~~~  default值会记录在数据字典中，并不会实际去更新此列，秒加~~~ 也不存在上面各位说的那些问题</p>
+</blockquote>
+<p>但我根据实际在生产环境中操作过的经验来看，给出的回复是</p>
+<blockquote>
+<p>加字段的时候表会被锁住，注意要在没有事务对表进行操作的时候加，对于oracle来说，2亿其实还好，这个操作的性能瓶颈在你的磁盘了</p>
+</blockquote>
+<p>但我又一想，上面有两位大佬都说是秒加，难道我记错了？于是我就自己测试了一下。不过我目前手头没有大表，也只有21c的环境，先测吧。</p>
+<h2 id="实际测试">实际测试</h2>
+<h3 id="场景一">场景一：</h3>
+<pre><code class="language-sql">--会话A
+create table test_add_col (a varchar2(1));
+insert into test_add_col values('1');
+--不commit;
+
+--会话B
+alter table TEST_ADD_COL add b date default date'2021-11-10' not null;
+</code></pre>
+<p>结果是<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png" srcset="/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1200 1200w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=400 400w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1600 1600w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=800 800w"/><br/>
+可以看到加字段这个动作被此表的dml会话操作给锁了，然后继续</p>
+<pre><code class="language-sql">--会话C
+insert into test_add_col values('1');
+--会话C没被锁，执行成功
+
+--会话A
+commit;
+--会话B也跑过去了
+
+--会话C
+commit;
+
+select  * from test_add_col；
+
+A	B
+1	2021/11/10
+1	2021/11/10
+
+</code></pre>
+<p>所以场景一的结论是，这种场景下，新增字段的会话不会引起DML操作被锁，但是dml事务的确会阻塞表新增字段，如果dml事务的时间比较长的话，新增字段的时间也会比较长，所以并不是完全没影响。</p>
+<h3 id="场景二">场景二</h3>
+<pre><code class="language-sql">--会话A
+drop table  test_add_col;
+create table test_add_col (a varchar2(1));
+insert into test_add_col(a) values('1');
+
+--会话B
+alter table TEST_ADD_COL add b date default sysdate not null;
+</code></pre>
+<p>和场景一是一样的被锁，接着</p>
+<pre><code class="language-sql">--会话C
+insert into test_add_col values('1');
+commit;
+---
+
+可以看到会话C还是没被锁，继续
+```sql
+---会话A
+commit;
+
+select * from test_add_col；
+
+A	B
+1	2021/11/10 12:49:00
+1	2021/11/10 12:49:00
+
+</code></pre>
+<p>虽然默认值用表达式，比如sysdate函数，锁表测试和场景一完全一致，但是，最终查询数据的结果，明显和预期不一致，两条数据记录的时间竟然是完全一样的！</p>
+<p>这个和上面有位大佬说的“default值会记录在数据字典中，并不会实际去更新此列”的确有关。但是在场景二下，它记录的default值只是在执行"alter table"那个时间点该表达式的结果，而不是表达式本身。这样在生产中，会出现，</p>
+<blockquote>
+<p>现在是11月12号凌晨，没有双十一的优惠，我下了一笔单，但系统记录我是11月11号下的单，所以我找客服的麻烦，<br/>
+客服说：“你是不是有穿越时空的能力？我们昨天还没看到这笔单，今天就看到了，就算系统有延时，你这价格的下单时间也不可能是昨天啊？”<br/>
+然后前后端开发找BUG找了一天，最后发现是这次升级过程中，新启用的这个字段引起的，程序代码都没错，但数据库sysdate默认值记录的时间竟然不是插表时间！</p>
+</blockquote>
+<h2 id="结论">结论</h2>
+<p>所以，什么时候加字段，怎么加，建议还是结合一下该字段的业务定义，避免出现类似上面的这种问题。</p>
+<p>另外，我还测试了更新、删除等场景，其特征都是，加字段会被dml锁，但dml不会被加字段锁，不论是否有设置字段默认值。</p>
+<p>以上仅代表21c环境测试结果，不代表其他版本。还有，如果表上有触发器，而且还自表更新，那情况就更复杂了。</p>
+<h2 id="后记">后记</h2>
+<p>有位大佬提出，我测试用的环境参数有问题，</p>
+<blockquote>
+<p>如果你的DDL_LOCK_TIMEOUT参数是默认值0的话 应该是立即返回resource busy 而不是一直等待</p>
+</blockquote>
+<p>于是我检查了一下</p>
+<pre><code>SQL&gt; show parameter ddl_lock_timeout; 
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+ddl_lock_timeout                     integer     0
+</code></pre>
+<p>参数没问题，</p>
+<p>但是，这个特性在11g的前后都有变化，暂不确定是不是21c版本才这样，需要有10g/11g/12c的环境来测试一下，目前内存和硬盘都有点吃紧，等以后给电脑升级下配置再试。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

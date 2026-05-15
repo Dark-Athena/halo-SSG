@@ -153,7 +153,523 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="【yashandb】oracle-sqlplsql兼容性测试记录">【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</h1>
+<p>本文内容比较零散，正常兼容的就不提了，仅记录测试过程中一些需要注意的点，不代表产品本身整体的好坏。</p>
+<h2 id="测试环境-：">测试环境 ：</h2>
+<ul>
+<li>源端 ：ORACLE 11g ，百万行级PLSQL对象的复杂系统</li>
+<li>目标端 ：YashanDB 23.4.2.104</li>
+<li>迁移工具 ：YMP 23.4.3.2</li>
+</ul>
+<h2 id="要点和问题记录">要点和问题记录</h2>
+<ol>
+<li>YMP迁移评估先尝试原SQL创建，如果失败则自动改写，但改写并不是针对失败原因进行改写，可能会把新版本已经支持的语法改写成错误的，因此这个改写规则没有根据目标库版本进行区分，或者是区分不够精确。</li>
+<li>YMP迁移的评估是真实执行DDL语句，可以选择在内置库上执行或者目标库上执行</li>
+<li>YMP迁移可以在评估后，在评估结果中可以手动修改不兼容的对象，并更新整体评估结果（似乎能处理依赖关系？）</li>
+<li>内核23.4.2版本新增支持subtype，之前版本不支持，而且YMP在之前内核版本上也会进行错误改写，改写后创建也是报错的</li>
+<li>sqlcode和ORACLE不一致，对于将内置sqlcode绑定到自定义异常名称的场景，无法兼容，需要手动修改绑定的内置sqlcode为Yashan对应的sqlcode，但目前Yashan并未提供sqlcode对应关系。像下面这个用例会报错，因为要求第二个参数为正数</li>
+</ol>
+<pre><code class="prism language-sql">PRAGMA EXCEPTION_INIT(lock_error,-54);  /* oracle -54 可能对应yashan 2024 ? */
+</code></pre>
+<ol start="6">
+<li>23.4.2版本，如果代码中有根据sqlcode的值进行if分支处理，这部分代码需要手动重写</li>
+</ol>
+<pre><code class="prism language-sql">if sqlcode&gt;-20000 
+  then ***;
+else ****;
+end if;
+</code></pre>
+<ol start="7">
+<li>package里支持的子对象个数有限，最多1024个，超过会报错</li>
+</ol>
+<pre><code class="prism language-sql">declare
+l_sql varchar2(32767);
+begin
+l_Sql:='create package test_1024 is
+';
+for i in 1..2048 loop
+l_sql:=l_sql||'function f'||i ||' return int;'||chr(10);
+end loop;
+l_sql:=l_sql||'end;
+';
+execute immediate l_sql;
+end;
+/
+</code></pre>
+<blockquote>
+<p>YAS-05275<br/>
+Message: too many package children<br/>
+Action：自定义高级包内变量、类型、子过程体等成员个数不能超过最大值1024，请减少自定义高级包中定义的成员的个数</p>
+</blockquote>
+<ol start="8">
+<li>建表语句不支持 <code>ROWDEPENDENCIES</code>，且YMP不会自动改写</li>
+<li>不支持以下授权 <code>ON COMMIT REFRESH</code>/<code>DEBUG</code>/<code>QUERY REWRITE</code>,且YMP不会自动改写</li>
+<li>with语句里不能使用pivot语法，“PIVOT clause is not allowed in CTE”</li>
+</ol>
+<p>截止到这里，暂时无法通过全量迁移来判断了，需内核去掉 package 里只能有1024个子对象的限制才能继续。相关需求已提交给Yashan，但由于本次属于个人自行测试，没有正式项目，因此排期未定。<br/>
+-----2025年9月3日</p>
+<hr/>
+<p>后面因为考ycp，用的是23.2版本，顺便测了下我别的ORACLE环境。所以后面混合两种版本的不兼容记录，部分特性是老版本不支持，新版本支持了。如果没有特别说明版本，均指23.4.2.104版本</p>
+<ol start="11">
+<li>在 v23.4.1 之前 不支持包内函数重载</li>
+</ol>
+<pre><code class="prism language-sql">create package as_zip is
+  function get_file_list
+    ( p_dir varchar2
+    , p_zip_file varchar2
+    , p_encoding varchar2 := null
+    )
+  return varchar2;
+  function get_file_list
+    ( p_zipped_blob blob
+    , p_encoding varchar2 := null
+    )
+  return varchar2;
+end;
+/
+
+[8:12]YAS-05290 duplicate item "GET_FILE_LIST" in package
+</code></pre>
+<ol start="12">
+<li>不支持DBMS_ID数据类型 (这个用得少)</li>
+</ol>
+<pre><code class="prism language-sql">FORMAT_TYPE_CSV   CONSTANT DBMS_ID := 'CSV';
+</code></pre>
+<ol start="13">
+<li>RAW类型最大长度在v23.4.1 之前只有8000，之后增加到65534</li>
+</ol>
+<pre><code class="prism language-sql">type convert_any_charset_type is RECORD(
+    original_str varchar2(4000),
+    original_HEX RAW(32767),
+    to_str       varchar2(4000),
+    to_hex       raw(32767),
+    from_charset varchar2(50),
+    to_charset   varchar2(50),
+    sql_text     varchar2(200));
+</code></pre>
+<ol start="14">
+<li>
+<p>没有内置数据类型 ora_mining_varchar2_nt</p>
+</li>
+<li>
+<p>在v23.4.1之前不支持索引表类型</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">create package test_index_table_type is
+ TYPE REC_COL_VALUE
+   IS
+      RECORD(COL_ID             NUMBER(3), COL_VALUE      VARCHAR2(2400));
+
+  TYPE TAB_COL_VALUE
+   IS
+      table of REC_COL_VALUE index by binary_integer;
+end;
+/
+[8:30]YAS-04115 ";" expected but missing
+</code></pre>
+<ol start="16">
+<li>
+<p>不支持UTL_SMTP</p>
+</li>
+<li>
+<p>不支持多态表</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PACKAGE "POLY_PKG" AS
+
+  FUNCTION my_ptf(tab IN TABLE)
+  RETURN TABLE PIPELINED
+    ROW POLYMORPHIC USING poly_pkg;
+
+  FUNCTION describe (tab IN OUT DBMS_TF.table_t)
+    RETURN DBMS_TF.describe_t;
+
+  PROCEDURE fetch_rows;
+END poly_pkg;
+/
+</code></pre>
+<ol start="18">
+<li>varchar类型最大长度在v23.4.1 之前只有8000，之后增加到65534</li>
+</ol>
+<pre><code>TYPE t_string_table IS TABLE OF VARCHAR2(32767);
+
+YAS-04204，number of String length must be between 1 and 32000
+</code></pre>
+<ol start="19">
+<li>
+<p>v23.4.4开始支持 utl_http</p>
+</li>
+<li>
+<p>UTL_FILE和DBMS_LOB支持不完全(常量、数据类型、函数)</p>
+</li>
+<li>
+<p>v23.2的文档里说支持pipelined，但实测不对</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PACKAGE  "FUN_GETDATE" is
+  type tb is table of data_view_20211224%rowtype;
+  function getdate(fun_date varchar2) return tb
+    pipelined;
+end fun_getdate;
+/
+CREATE OR REPLACE EDITIONABLE PACKAGE BODY  "FUN_GETDATE" is
+  function getdate(fun_date varchar2) return tb
+    pipelined is
+  begin
+    for rec in (select *
+                  from data_view_20211224 a
+                 where a.date_type = fun_date) loop
+      PIPE ROW(rec);
+    end loop;
+    RETURN;
+  end;
+end fun_getdate;
+/
+
+YAS-04209，unexpected word pipelined
+</code></pre>
+<ol start="22">
+<li>
+<p>v23.2不支持子函数子程序</p>
+</li>
+<li>
+<p>很多权限不支持</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">GRANT DEBUG CONNECT SESSION TO "DB_DEMO";
+GRANT CREATE EXTERNAL JOB TO "DB_DEMO";
+GRANT CREATE ANY JOB TO "DB_DEMO";
+GRANT DEBUG ANY PROCEDURE TO "DB_DEMO";
+GRANT READ ON "SYS"."DB_BACKUP_DIR" TO "DB_DEMO";
+GRANT ON COMMIT REFRESH ON "DB_DEMO1"."T_TB" TO "DB_DEMO";
+GRANT WRITE ON "SYS"."DB_BACKUP_DIR" TO "DB_DEMO";
+GRANT EXECUTE ON "SYS"."DB_BACKUP_DIR" TO "DB_DEMO";
+GRANT QUERY REWRITE ON "DB_DEMO1"."T_MAINC" TO "DB_DEMO";
+GRANT EXECUTE ON "SYS"."DBMS_LOCK" TO "DB_DEMO";
+GRANT CREATE EXTERNAL JOB TO "DB_DEMO";
+</code></pre>
+<ol start="24">
+<li>
+<p>v23.2不支持ORACLE语法的自定义聚合函数</p>
+</li>
+<li>
+<p>v23.2个人版不支持子分区</p>
+</li>
+<li>
+<p>v23.2的current_timestamp不支持指定非0精度</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">create table xxx(
+	"C_DATE_CURRENT_TIMESTAMP3" DATE DEFAULT current_timestamp(3));
+
+[2:43]YAS-04323 arguments count must be 0
+</code></pre>
+<ol start="27">
+<li>表字段不支持使用自定义类型</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE TYPE "AAA"."CUST_ADDRESS_TYP_NEW"                                          AS OBJECT
+    ( street_address     VARCHAR2(40)
+    , postal_code        VARCHAR2(10)
+    , city               VARCHAR2(30)
+    , state_province     VARCHAR2(10)
+    , country_id         CHAR(2)
+    );
+/
+CREATE TABLE "AAA"."CUSTOMER_ADDRESSES" 
+   (	"ADD_ID" NUMBER, 
+	"ADDRESS" REF "AAA"."CUST_ADDRESS_TYP_NEW" , 
+	SCOPE FOR ("ADDRESS") IS "AAA"."ADDRESS_TABLE" 
+   ) SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "USERS" ;
+  
+YAS-04209，unexpected word "AAA"
+</code></pre>
+<ol start="28">
+<li>表行不支持使用自定义类型</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE TYPE "AAA"."CUST_ADDRESS_TYP_NEW"                                          AS OBJECT
+    ( street_address     VARCHAR2(40)
+    , postal_code        VARCHAR2(10)
+    , city               VARCHAR2(30)
+    , state_province     VARCHAR2(10)
+    , country_id         CHAR(2)
+    );
+/
+CREATE TABLE "AAA"."ADDRESS_TABLE" OF "AAA"."CUST_ADDRESS_TYP_NEW" 
+ OIDINDEX  ( PCTFREE 10 INITRANS 2 MAXTRANS 255 
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "USERS" ) 
+ SEGMENT CREATION IMMEDIATE 
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+ NOCOMPRESS LOGGING
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "USERS" ;
+</code></pre>
+<ol start="29">
+<li>v23.2不支持对同一个列创建两个索引 ,v23.4支持</li>
+</ol>
+<pre><code class="prism language-sql">create table TAB1
+(
+  id   NUMBER,
+  col1 VARCHAR2(10)
+);
+-- Create/Recreate indexes 
+create unique index IND_TAB1_COL1 on TAB1 (COL1);
+create unique index IND_TAB1_COL1_DESC on TAB1 (COL1 DESC);
+
+YAS-02043，columns have been indexed
+</code></pre>
+<ol start="30">
+<li>YAS-04225，invalid word COMPUTE</li>
+</ol>
+<pre><code class="prism language-sql">CREATE UNIQUE INDEX "AAA"."SYS_C0012318" ON "AAA"."TABLE_O" ("ID") 
+  PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS 
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+  BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "USERS" 
+  PARALLEL ;
+</code></pre>
+<ol start="31">
+<li>表字段约束不支持格式校验</li>
+</ol>
+<pre><code class="prism language-sql">ALTER TABLE "AAA"."J_PURCHASEORDER" ADD CONSTRAINT "ENSURE_JSON" CHECK (po_document IS JSON) ENABLE ;
+
+YAS-04115，"NULL" expected but missing
+</code></pre>
+<ol start="32">
+<li>
+<p>不支持TO_BLOB/TO_CLOB函数</p>
+</li>
+<li>
+<p>v23.2不支持DBMS_SQL</p>
+</li>
+<li>
+<p>存储过程里定义游标报错？</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE FUNCTION  "SQL_TO_MARKDOWN" (
+                       l_sql           IN varchar2,
+                    --   l_text          OUT clob,
+                       l_head          IN varchar2 DEFAULT NULL) RETURN clob 
+                       authid current_user IS
+                       
+    cur_   SYS_REFCURSOR;
+    l_null number;
+    l_ct   number;
+    l_text CLOB;
+    CURSOR get_columns IS
+      SELECT t2.column_value.getrootelement() name,
+             EXTRACTVALUE(t2.column_value, 'node()') VALUE
+        FROM (SELECT * FROM TABLE(XMLSEQUENCE(cur_))) t1,
+             TABLE(XMLSEQUENCE(EXTRACT(t1.column_value, '/ROW/node()'))) t2;
+    pragma autonomous_transaction; 
+   
+  BEGIN
+  return null;
+ end;
+/ 
+YAS-04115 "Extract Format Type" expected but missing
+</code></pre>
+<ol start="35">
+<li>函数入参类型不支持指定"CHARACTER SET ANY_CS"</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE FUNCTION "CSLX"."URLDECODE" (url         IN VARCHAR2 CHARACTER SET ANY_CS,
+                                     url_charset IN VARCHAR2 DEFAULT 'AL32UTF8')
+  RETURN VARCHAR2 IS
+  L_RETURN VARCHAR2(2000);
+BEGIN
+  select CONVERT(UTL_RAW.cast_to_varchar2(LISTAGG(CASE
+                                                    WHEN LENGTH(A) = 3 THEN
+                                                     HEXTORAW(REPLACE(A, '%'))
+                                                    ELSE
+                                                     UTL_RAW.cast_to_raw(A)
+                                                  END) within group (order by 1)
+                                                  ),
+                 url_charset)
+    INTO L_RETURN
+    from (select REGEXP_SUBSTR(url, '(%.{2}|.)', 1, LEVEL) A
+            from DUAL
+          CONNECT BY LENGTH(REGEXP_SUBSTR(url, '(%.{2}|.)', 1, LEVEL)) &gt; 0) A;
+  RETURN L_RETURN;
+END;
+/
+</code></pre>
+<ol start="36">
+<li>DBMS_SCHEDULER支持不完整</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PROCEDURE "CSLX"."RUN_LINUX_SH_TEXT" (i_script varchar2) is
+  sched_job_name varchar2(30);
+begin
+  sched_job_name := dbms_scheduler.generate_job_name(prefix =&gt; 'SCRIPT_');
+  DBMS_SCHEDULER.create_job(job_name            =&gt; sched_job_name,
+                            job_type            =&gt; 'EXECUTABLE',
+                            job_action          =&gt; '/bin/sh',
+                            number_of_arguments =&gt; 2,
+                            enabled             =&gt; false,
+                            auto_drop           =&gt; true);
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 1, '-c');
+  DBMS_SCHEDULER.set_job_argument_value(sched_job_name, 2, i_script);
+  DBMS_SCHEDULER.run_job(job_name =&gt; sched_job_name);
+end;
+/
+
+YAS-04253 PL/SQL compiling errors:
+[4:21] YAS-04243 invalid identifier "DBMS_SCHEDULER"."GENERATE_JOB_NAME"
+[11:3] YAS-05398 invalid procedure "DBMS_SCHEDULER"."SET_JOB_ARGUMENT_VALUE"
+[12:3] YAS-05398 invalid procedure "DBMS_SCHEDULER"."SET_JOB_ARGUMENT_VALUE"
+</code></pre>
+<ol start="37">
+<li>不支持使用q转义字符串</li>
+</ol>
+<pre><code class="prism language-sql">select  q'{1}' from dual;
+
+[1:10]YAS-04115 "FROM" expected but missing
+</code></pre>
+<ol start="38">
+<li>
+<p>不支持 OWA_UTIL.who_called_me</p>
+</li>
+<li>
+<p>v23.4开始支持parallel_enable</p>
+</li>
+<li>
+<p>v23.2不支持函数的DETERMINISTIC属性</p>
+</li>
+<li>
+<p>不支持系统触发器</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE TRIGGER "AAA"."UNDROPSYSCONSTRAINT" 
+  before alter or create on database
+</code></pre>
+<blockquote>
+<p>YAS-04115，“INSERT|DELETE|UPDATE” expected but missing</p>
+</blockquote>
+<ol start="42">
+<li>
+<p>V23.2不支持instead of触发器</p>
+</li>
+<li>
+<p>dbms_xmlgen支持不完善</p>
+</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PROCEDURE "SQL_TO_CSV_XSLT" (p_sql       varchar2,
+                                 p_filename  varchar2 ,
+                                 p_dir       varchar2,
+                                 p_DELIMITER varchar2 default ',') as
+  l_ctx            dbms_xmlgen.ctxhandle;
+  l_num_rows       pls_integer;
+  l_xml            xmltype;
+  l_transform      xmltype;
+  l_xml_stylesheet varchar2(4000);
+  --
+
+  l_csv clob;
+begin
+ l_xml_stylesheet:= q'^&lt;xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+  &lt;xsl:template match="/"&gt;
+  &lt;xsl:apply-templates select="ROWSET/ROW[1]" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW"&gt;
+  &lt;xsl:apply-templates mode="th" /&gt;
+  &lt;xsl:apply-templates select="../ROW" mode="td" /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*" mode="th"&gt;
+  &lt;xsl:value-of select="local-name()" /&gt;
+  &lt;xsl:if test="position() != last()"&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:if&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW" mode="td"&gt;
+  &lt;xsl:text&gt;&amp;#xd;&lt;/xsl:text&gt;&lt;xsl:text&gt;&amp;#xa;&lt;/xsl:text&gt;&lt;xsl:apply-templates /&gt;
+  &lt;/xsl:template&gt;
+  &lt;xsl:template match="ROW/*"&gt;
+  &lt;xsl:apply-templates /&gt;
+  &lt;xsl:if test="position() != last()"&gt;
+  &lt;xsl:text&gt;:1&lt;/xsl:text&gt;
+  &lt;/xsl:if&gt;
+  &lt;/xsl:template&gt;
+  &lt;/xsl:stylesheet&gt;^';
+  l_xml_stylesheet := replace(l_xml_stylesheet, ':1', p_DELIMITER);
+  l_ctx            := dbms_xmlgen.newcontext(p_sql);
+  dbms_xmlgen.setnullhandling(l_ctx, dbms_xmlgen.empty_tag);
+  l_xml      := dbms_xmlgen.getxmltype(l_ctx, dbms_xmlgen.none);
+  l_num_rows := dbms_xmlgen.getnumrowsprocessed(l_ctx);
+  dbms_xmlgen.closecontext(l_ctx);
+  if l_num_rows &gt; 0 then
+    l_transform := l_xml.transform(xmltype(l_xml_stylesheet));
+  end if;
+  l_csv:=dbms_xmlgen.convert(l_transform.getclobval(),
+                                           dbms_xmlgen.entity_decode);
+   dbms_lob.clob2file(cl        =&gt; l_csv,
+                      flocation =&gt; p_dir,
+                      fname     =&gt; p_filename)    ;
+--  dbms_output.put_line(l_csv);
+
+exception
+  when others then
+    raise;
+end;
+/
+
+YAS-04253 PL/SQL compiling errors:
+[5:20] YAS-04229 invalid datatype
+[14:22] YAS-04251 symbol ; expected
+[39:3] YAS-04243 invalid identifier "L_CTX"
+[40:3] YAS-05398 invalid procedure "DBMS_XMLGEN"."SETNULLHANDLING"
+[41:17] YAS-04243 invalid identifier "DBMS_XMLGEN"."GETXMLTYPE"
+[42:17] YAS-04243 invalid identifier "DBMS_XMLGEN"."GETNUMROWSPROCESSED"
+[43:3] YAS-05398 invalid procedure "DBMS_XMLGEN"."CLOSECONTEXT"
+[45:20] YAS-04243 invalid identifier "L_XML"."TRANSFORM"
+[47:10] YAS-04243 invalid identifier "DBMS_XMLGEN"."CONVERT"
+[49:4] YAS-05398 invalid procedure "DBMS_LOB"."CLOB2FILE"
+
+</code></pre>
+<ol start="44">
+<li>不支持"DBMS_UTILITY".“FORMAT_ERROR_BACKTRACE”</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PROCEDURE  "TEST_BT_A" (i_err_bt varchar2 default dbms_utility.format_error_backtrace,i_sqlerm varchar2 default sqlerrm) is
+begin
+  dbms_output.put_line(i_err_bt ||i_sqlerm);
+end;
+/
+
+[1:55]YAS-04243 invalid identifier "DBMS_UTILITY"."FORMAT_ERROR_BACKTRACE"
+</code></pre>
+<ol start="45">
+<li>游标不支持for update</li>
+</ol>
+<pre><code class="prism language-sql">CREATE OR REPLACE EDITIONABLE PROCEDURE "TEST81_P" IS
+  CURSOR cur_ IS
+    SELECT id, processed FROM test81_t WHERE processed = 'N' FOR UPDATE;
+BEGIN
+  FOR rec IN cur_ LOOP
+    UPDATE test81_t2 SET processed = 'Y' WHERE CURRENT OF cur_;
+  END LOOP;
+END;
+/
+
+YAS-04209，unexpected word for update
+</code></pre>
+<h2 id="后记">后记</h2>
+<p>本文记录的这些问题，除了那个多态表例子是我造的，其他的均是真正来自于有生产环境在用的系统。<br/>
+YashanDB 将在2025年11月26号发布v23.5版本，届时估计本文中提到的有些问题点可能就已经没问题了，所以我赶在新版本发布前先把这篇发出来，避免被即将来领的大批同质化文章所掩盖。至于后续会不会复测一遍这些问题点，再说吧，有空就测测。</p>
+<p>本文看似列出了非常多的不兼容点，但只有真正在国产数据库兼容适配路上战斗过的，才会知道几十甚至几百个不兼容点根本不算什么，其他有些自称ORACLE兼容性99%的国产数据库测下来问题可能不比这个少。所以不要相信宣传材料中对ORACLE兼容性百分比的描述，ORACLE兼容性百分比在没有严格定语的情况下就是个伪指标。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

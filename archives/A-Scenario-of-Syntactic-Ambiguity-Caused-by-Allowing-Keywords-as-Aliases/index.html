@@ -153,7 +153,154 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>最近在看SQL语法解析器，发现了antlr4提供的PlSql语法树存在一个BUG，然后我顺着这个BUG，构造了一条SQL，在ORACLE执行，如下</p>
+<p><img alt="image-ghns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ghns.png" srcset="/upload/image-ghns.png?width=1200 1200w, /upload/image-ghns.png?width=400 400w, /upload/image-ghns.png?width=1600 1600w, /upload/image-ghns.png?width=800 800w"/></p>
+<p>然后神奇的事情出现了，这个查询竟然没有返回行！t1表左关联t2，而且对t1表没有过滤条件，那么无论如何t1表中的数据应该是全部展现的！<br/>
+然后有人可能认为ORACLE就是这样的，但下面这个图的出现可能会让人瞬间抓狂！</p>
+<p><img alt="image-nzct.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nzct.png" srcset="/upload/image-nzct.png?width=1200 1200w, /upload/image-nzct.png?width=400 400w, /upload/image-nzct.png?width=1600 1600w, /upload/image-nzct.png?width=800 800w"/></p>
+<p>两条长得完全一样的SQL，就是简单的两个表关联查询，竟然出现了结果不一致的情况！</p>
+<h2 id="起因">起因</h2>
+<p>在客户应用迁移到某国产数据库中，有一条类似这样的SQL</p>
+<pre><code class="language-sql">select * from t1 left join t2 on t1.id=t2.ids(+);
+</code></pre>
+<p>在该国产数据库中会报错 <code>ERROR: Operator "(+)" can only be used in WhereClause of Select-Statement or Subquery.</code></p>
+<p>即不允许操作符 <code>(+)</code>出现在select语句的where子句以外的地方。<br/>
+于是我们开始分析这样的SQL基于语法树应该如何改写。<br/>
+首先这个SQL是两个表的left join，一般正常的写法是</p>
+<pre><code class="language-sql">select * from t1,t2 where t1.id=t2.ids(+);
+</code></pre>
+<p>或</p>
+<pre><code class="language-sql">select * from t1 left join t2 on t1.id=t2.ids;
+</code></pre>
+<p>即两个表的左关联不需要同时使用 <code>left join</code>和 <code>(+)</code>，两种用法重复了，最简单的改法就是在原SQL上去掉 <code>(+)</code>号。<br/>
+但是只能针对两表的 <code>left join</code> 或 <code>right join</code>，对于 <code>join</code>则不能简单的去掉，因为 <code>join</code>的时候，<code>(+)</code>就有意义了。<br/>
+于是乎，我们试图通过语法树来看是否可以区分出 <code>join</code>和 <code>left join</code></p>
+<pre><code>join_clause
+    : query_partition_clause? (CROSS | NATURAL)? (INNER | outer_join_type)? JOIN table_ref_aux query_partition_clause? (
+        join_on_part
+        | join_using_part
+    )*
+    | (CROSS | OUTER) APPLY table_ref_aux
+    ;
+outer_join_type
+    : (FULL | LEFT | RIGHT) OUTER?
+    ;
+</code></pre>
+<p>从语法解析规则文件来看，似乎是可以区分的，然后解析一下这条SQL：</p>
+<pre><code class="language-sql">select * from t1 left join t2 on t1.id=t2.ids;
+^Z
+(sql_script
+   (unit_statement
+      (data_manipulation_language_statements
+         (select_statement
+            (select_only_statement
+               (subquery
+                  (subquery_basic_elements
+                     (query_block select
+                        (selected_list *)
+                        (from_clause from
+                           (table_ref_list
+                              (table_ref
+                                 (table_ref_aux
+                                    (table_ref_aux_internal
+                                       (dml_table_expression_clause
+                                          (tableview_name
+                                             (identifier
+                                                (id_expression
+                                                   (regular_id t1))))))
+                                    (table_alias
+                                       (identifier
+                                          (id_expression
+                                             (regular_id
+                                                (non_reserved_keywords_pre12c left))))))
+                                 (join_clause join
+                                    (table_ref_aux
+                                       (table_ref_aux_internal
+                                          (dml_table_expression_clause
+                                             (tableview_name
+                                                (identifier
+                                                   (id_expression
+                                                      (regular_id t2)))))))
+                                    (join_on_part on
+                                       (condition
+                                          (expression
+                                             (logical_expression
+                                                (unary_logical_expression
+                                                   (multiset_expression
+                                                      (relational_expression
+                                                         (relational_expression
+                                                            (compound_expression
+                                                               (concatenation
+                                                                  (model_expression
+                                                                     (unary_expression
+                                                                        (atom
+                                                                           (general_element
+                                                                              (general_element
+                                                                                 (general_element_part
+                                                                                    (id_expression
+                                                                                       (regular_id t1)))) .
+                                                                              (general_element_part
+                                                                                 (id_expression
+                                                                                    (regular_id
+                                                                                       (non_reserved_keywords_pre12c id)))))))))))
+                                                         (relational_operator =)
+                                                         (relational_expression
+                                                            (compound_expression
+                                                               (concatenation
+                                                                  (model_expression
+                                                                     (unary_expression
+                                                                        (atom
+                                                                           (general_element
+                                                                              (general_element
+                                                                                 (general_element_part
+                                                                                    (id_expression
+                                                                                       (regular_id t2)))) .
+                                                                              (general_element_part
+                                                                                 (id_expression
+                                                                                    (regular_id ids)))))))))))))))))))))))))))) ; &lt;EOF&gt;)
+</code></pre>
+<p>结果发现这里的 <code>left</code>竟然被当成了t1表的别名！ORACLE对于关键字作为表别名的一个重要特点就是不能加 <code>as</code>，而且ORACLE也的确支持 <code>left</code>作为表的别名。于是乎这里的语法似乎也可以说得过去，不是外关联，而是 <code>left</code>这个表和 <code>t2</code>表做 <code>join</code>。（其实是开源的语法解析器的问题https://github.com/antlr/grammars-v4/issues/1726 ）</p>
+<p>而ORACLE自然是不会允许这种情况发生的，ORACLE在语法解析的时候，读到left，会往后匹配一个词，如果是 <code>join</code>或 <code>outer join</code>，则一起识别为 <code>left join</code>,否则,就把 <code>left</code>识别为表的别名。但这样就会导致要执行更多的判断逻辑。而其他数据库禁止使用 <code>left</code>作为别名，或者禁止不带 <code>as</code>直接作为别名时，则不需要有这样判断，并且不会引起语法上的歧义</p>
+<h2 id="答案揭晓">答案揭晓</h2>
+<p>在做这个语法分析的过程中，我们发现了这一语法歧义，自然就可以想到，我们能不能通过某种手段，在oracle里让这个 <code>left</code>真的变为别名。<br/>
+其实很简单，<code>left</code>里有一个特殊的字母 <code>e</code>,经常做信息安全方面的人，以及经常识别假冒账号的人，对这个 <code>e</code>可以说是非常熟悉，比如下面这4个进程名，去对比字符，可以发现是完全不同的四个进程名</p>
+<pre><code>explorer.exe
+еxplorеr.exe
+еxplorer.exe
+explorеr.exe
+</code></pre>
+<pre><code class="language-sql">SQL&gt; with t as (
+  2  select 'explorer.exe' c from dual union all
+  3  select 'еxplorеr.exe' from dual union all
+  4  select 'еxplorer.exe' from dual union all
+  5  select 'explorеr.exe' from dual)
+  6  select c,utl_raw.cast_to_raw(c) from t;
+
+C              UTL_RAW.CAST_TO_RAW(C)
+-------------- --------------------------------------------------------------------------------
+explorer.exe   6578706C6F7265722E657865
+еxplorеr.exe   A7D678706C6F72A7D6722E657865
+еxplorer.exe   A7D678706C6F7265722E657865
+explorеr.exe   6578706C6F72A7D6722E657865
+</code></pre>
+<p>其实这里的 <code>е</code>不是 <code>e</code>，而是俄文的 <code>е</code>,没错，俄文里的 <code>e</code>，字形和英文字母的 <code>e</code>是一模一样的，但其实是两个不同的字符。<br/>
+所以文章开始的那两个SQL就是下面的看似一样的两条SQL查出来的</p>
+<pre><code class="language-sql">with t1 as (select 1 id from dual),
+t2 as (select 0 ids from dual)
+select * from t1 lеft join t2 on id=ids;
+
+with t1 as (select 1 id from dual),
+t2 as (select 0 ids from dual)
+select * from t1 left join t2 on id=ids;
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>虽然在国内的实际生产应用中，这里出现俄文的 <code>е</code>，概率是极低的，但养成良好的开发习惯，不过于依赖ORACLE这种宽松的SQL标准，比如别名就得加 <code>as</code>，不要使用关键字作为标识符，不要混用 <code>join</code>和 <code>(+)</code>等，这样能在异构数据库兼容改造时，省去不少麻烦。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

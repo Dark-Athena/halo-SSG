@@ -153,7 +153,1172 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>oceanbase开启了企业单机版邀测，安装后可以试用180天，官方页面需要填联系方式，等销售联系，审批通过才能下载，但实际上下载地址可以在网上搜到，然后根据url特征就得到各种平台的安装包。总算能不花钱在本地测试了oceanbase开启了企业单机版邀测，安装后可以试用180天，官方页面需要填联系方式，等销售联系，审批通过才能下载，但实际上下载地址可以在网上搜到，然后根据url特征就得到各种平台的安装包。总算能不花钱在本地测试。</p>
+<h2 id="企业单机版安装包下载地址">企业单机版安装包下载地址</h2>
+<ol>
+<li>el7 arm64<br/>
+<a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.aarch64.tar.gz">https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.aarch64.tar.gz</a></li>
+<li>el7 x86_64<br/>
+<a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.x86_64.tar.gz">https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.x86_64.tar.gz</a></li>
+<li>el8 x86_64<br/>
+<a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/8/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86_64.tar.gz">https://file.oceanbase.com/download-center/opensource/ob-standalone/8/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86_64.tar.gz</a></li>
+</ol>
+<h2 id="安装测试">安装测试</h2>
+<p>注：安装过程中需要指定数据库程序目录、数据目录和日志(clog)目录，如果不放在安装用户的home目录下，则建议提前建好目录并修改属主</p>
+<pre><code class="language-shell">#增加用户
+useradd oceanbase
+#修改密码
+passwd oceanbase
+#设置免密sudo
+echo "oceanbase ALL=(ALL)NOPASSWD:ALL" &gt;&gt;/etc/sudoers
+#设置open file（这一步在安装过程中会自动设置，但是由于没有重新登录，所以没有生效）
+echo "oceanbase soft nofile 655350" &gt;&gt; /etc/security/limits.d/nofile.conf
+echo "oceanbase hard nofile 655350" &gt;&gt; /etc/security/limits.d/nofile.conf
+#创建目录
+mkdir /opt/oceanbase
+#改属主
+chown oceanbase: /opt/oceanbase
+#切换用户
+su - oceanbase
+#进目录
+cd  /opt/oceanbase
+#下载安装包
+wget https://file.oceanbase.com/download-center/opensource/ob-standalone/8/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86\_64.tar.gz
+#解压
+tar -xf oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86\_64.tar.gz
+#进入解压后的目录
+cd oceanbase-standalone-all-in-one
+
+#安装obd （集群安装工具）
+bin/install_obd.sh
+#加载环境变量
+source ~/.oceanbase-all-in-one/bin/env.sh
+#安装数据库（交互式）
+bash bin/install_ob.sh
+
+#本地连接默认租户sys，系统库oceanbase
+obclient -h127.0.0.1 -P2881 -uroot@sys -p'IxTdN5zJHlYfRSlwEWyq' -Doceanbase -A
+#连接test租户
+obclient -h127.0.0.1 -P2881 -uSYS@test
+#修改sys密码
+alter user SYS IDENTIFIED BY "Ocean_123";
+#退出obclient
+exit;
+#测试连接
+obclient -h127.0.0.1 -P2881 -uSYS@test -p'Ocean_123'
+
+</code></pre>
+<h2 id="集群常规操作">集群常规操作</h2>
+<pre><code class="language-shell">#列出已安装集群
+obd cluster list
+#停止集群
+obd cluster stop standalone
+#启动集群
+obd cluster start standalone
+#删除集群（删除的集群在obd cluster list里还会显示，状态为destroyed）
+obd cluster destroy standalone -f
+</code></pre>
+<p>删除集群后，如果不想在list里在显示，可以进入<code>/home/oceanbase/.obd/cluster</code> ,手动删除不需要的集群目录，就不会在list中显示了</p>
+<h2 id="文档">文档</h2>
+<p><a href="https://www.oceanbase.com/docs/common-oceanbase-database-cn-standalone-1000000002701718">https://www.oceanbase.com/docs/common-oceanbase-database-cn-standalone-1000000002701718</a></p>
+<h2 id="开发者中心下载图形化开发工具">开发者中心下载（图形化开发工具）</h2>
+<p>虽然dbeaver支持连接oceanbase，但是只支持mysql租户，使用的jdbc驱动也是mysql驱动，因此对于ORACLE租户还是只能用官方的工具<br/>
+<a href="https://obbusiness-private.oss-cn-shanghai.aliyuncs.com/download-center/opensource/odc/v4.3.4/OceanBase-Developer-Center-4.3.4-win64.exe">https://obbusiness-private.oss-cn-shanghai.aliyuncs.com/download-center/opensource/odc/v4.3.4/OceanBase-Developer-Center-4.3.4-win64.exe</a><br/>
+这个工具的桌面版使用了chromium内核，实质上还是基于浏览器的，根据官方文档介绍，这个工具有web版和桌面版，操作体验是一致的。</p>
+<h2 id="使用模板安装非交互式">使用模板安装（非交互式）</h2>
+<p>交互式安装后，安装包目录会生成一个auto_config*.yaml文件，可以用于模板部署（用户名和密码全漏了...）</p>
+<pre><code class="language-yaml">user:
+  username: oceanbase
+  password: oceanbase
+  port: 22
+oceanbase-standalone:
+  servers:
+    - 192.168.1.123
+  global:
+    cluster_name: standalone
+    mysql_port: 2881
+    rpc_port: 2882
+    obshell_port: 2886
+    root_password: 3ulsOQCtK8dTIUX4jDuG
+    home_path: /home/oceanbase/standalone/oceanbase
+    data_dir: /home/oceanbase/data
+    redo_dir: /home/oceanbase/log
+    cpu_count: 8
+    memory_limit: 6G
+    datafile_size: 2G
+    datafile_maxsize: 12G
+    log_disk_size: 16G
+    system_memory: 0
+    __min_full_resource_pool_memory: 1073741824
+    zone: zone1
+obagent:
+  depends:
+    - oceanbase-standalone
+  servers:
+    - 192.168.1.123
+  global:
+    home_path: /home/oceanbase/standalone/obagent
+    monagent_http_port: 8088
+    mgragent_http_port: 8089
+prometheus:
+  depends:
+    - obagent
+  servers:
+    - 192.168.1.123
+  global:
+    home_path: /home/oceanbase/standalone/prometheus
+    port: 9090
+grafana:
+  depends:
+    - prometheus
+  servers:
+    - 192.168.1.123
+  global:
+    home_path: /home/oceanbase/standalone/grafana
+    port: 3000
+    login_password: oceanbase
+</code></pre>
+<pre><code class="language-sh">#使用模板安装
+obd cluster deploy obtest -c auto_config*.yaml
+</code></pre>
+<p>使用模板安装不会自动创建用户租户，需要手动创建</p>
+<pre><code class="language-sh">#创建ORACLE租户（如果剩余资源不够，创建会报错）
+obd cluster tenant create standalone -n test2 --max-cpu=2 --memory-size=2G --log-disk-size=3G --mode oracle
+</code></pre>
+<pre><code class="language-sh">#删除租户
+obd cluster tenant drop test -n test2
+</code></pre>
+<h2 id="进程分析">进程分析</h2>
+<pre><code class="language-sh">#observer
+/home/oceanbase/standalone/oceanbase/bin/observer -p 2881 -P 2882 -z zone1 -n standalone -c 1747891311 -d /home/oceanbase/data -I 192.168.1.123 -o __min_full_resource_pool_memory=1073741824,cluster_name=standalone,cpu_count=8,memory_limit=6G,datafile_size=2G,datafile_maxsize=12G,log_disk_size=16G,system_memory=1G,enable_syslog_wf=False,max_syslog_file_count=16
+
+#ob_agentd
+/home/oceanbase/standalone/obagent/bin/ob_agentd -c /home/oceanbase/standalone/obagent/conf/agentd.yaml
+
+#ob_mgragent
+/home/oceanbase/standalone/obagent/bin/ob_mgragent
+
+#ob_monagent
+/home/oceanbase/standalone/obagent/bin/ob_monagent
+
+#obshell server
+/home/oceanbase/standalone/oceanbase/bin/obshell server --ip 192.168.1.123 --port 2886
+
+#obshell daemon
+/home/oceanbase/standalone/oceanbase/bin/obshell daemon --ip 192.168.1.123 --port 2886
+
+#prometheus
+bash prometheusd.sh --config.file=/home/oceanbase/standalone/prometheus/prometheus.yaml --web.listen-address=0.0.0.0:9090 --storage.tsdb.path=/home/oceanbase/standalone/prometheus/data --web.enable-lifecycle  --web.config.file=/home/oceanbase/standalone/prometheus/web_config.yaml --daemon
+
+/home/oceanbase/standalone/prometheus/prometheus --config.file=/home/oceanbase/standalone/prometheus/prometheus.yaml --web.listen-address=0.0.0.0:9090 --storage.tsdb.path=/home/oceanbase/standalone/prometheus/data --web.enable-lifecycle --web.config.file=/home/oceanbase/standalone/prometheus/web_config.yaml
+
+#grafana
+/home/oceanbase/standalone/grafana/bin/grafana-server --homepath=/home/oceanbase/standalone/grafana --config=/home/oceanbase/standalone/grafana/conf/obd-grafana.ini --pidfile=/home/oceanbase/standalone/grafana/run/grafana.pid
+
+</code></pre>
+<h3 id="进程说明">进程说明</h3>
+<blockquote>
+<p><a href="https://github.com/oceanbase/obagent">https://github.com/oceanbase/obagent</a><br/>
+│   ├── mgragent: 运维进程主入口，后台运行的进程，不期望被用户使用；目标产物名称为 ob_mgragent。<br/>
+│   ├── monagent: 监控进程主入口，后台运行进程，不期望被用户使用；目标产物名称为 ob_monagent。<br/>
+│   ├── agentd: 守护进程，后台运行的进程，负责拉起异常退出的ob_mgragent和ob_monagent进程；目标产物名称为ob_agentd。</p>
+</blockquote>
+<blockquote>
+<p><a href="https://github.com/oceanbase/obshell/blob/master/README_CN.md">https://github.com/oceanbase/obshell/blob/master/README_CN.md</a><br/>
+OBShell (OceanBase Shell) 是 OceanBase 社区 为运维人员 &amp; 开发人员提供的免安装、开箱即用的本地集群命令行工具。OBShell 支持集群运维，同时基于 OBServer 对外提供运维管理 API，实现了不同生态产品对同一集群统一管理，从而方便第三方产品工具对接 OceanBase，同时降低了 OceanBase 集群管理难度和成本。</p>
+</blockquote>
+<p>prometheus 和grafana没什么好说的，流行的开源监控</p>
+<h3 id="server-线程">server 线程</h3>
+<pre><code class="language-sh">[oceanbase@kylinv10sp3-node1 oceanbase-standalone-all-in-one]$ ps -ef|grep observer
+oceanba+ 3132474       1 69 10:01 ?        00:03:34 /home/oceanbase/standalone/oceanbase/bin/observer -p 2881 -P 2882 -z zone1 -n standalone -c 1747891311 -d /home/
+oceanbase/data -I 192.168.1.123 -o __min_full_resource_pool_memory=1073741824,cluster_name=standalone,cpu_count=8,memory_limit=6G,datafile_size=2G,datafile_maxsiz
+e=12G,log_disk_size=16G,system_memory=1G,enable_syslog_wf=False,max_syslog_file_count=16
+oceanba+ 3135184 3107987  0 10:06 pts/0    00:00:00 grep observer
+[oceanbase@kylinv10sp3-node1 oceanbase-standalone-all-in-one]$ ps -T -p 3132474 |wc -l
+821
+</code></pre>
+<p>有820个线程</p>
+<pre><code class="language-sh">    PID    SPID TTY          TIME CMD
+3132474 3132474 ?        00:00:02 observer
+3132474 3132475 ?        00:00:00 ServerGTimer
+3132474 3132476 ?        00:00:00 FreezeTimer
+3132474 3132477 ?        00:00:00 SqlMemTimer
+3132474 3132478 ?        00:00:00 ServerTracerTim
+3132474 3132479 ?        00:00:12 CTASCleanUpTime
+3132474 3132480 ?        00:00:00 ConfigMgr
+3132474 3132481 ?        00:00:02 OB_PLOG
+3132474 3132482 ?        00:00:00 SyslogCompress
+3132474 3132484 ?        00:00:00 LogLimiterRefre
+3132474 3132485 ?        00:00:00 IO_TUNING0
+3132474 3132486 ?        00:00:00 DiskCB0
+3132474 3132487 ?        00:00:00 IO_GETEVENT0
+3132474 3132488 ?        00:00:00 IO_GETEVENT0
+3132474 3132489 ?        00:00:00 IO_GETEVENT0
+3132474 3132490 ?        00:00:00 IO_GETEVENT0
+3132474 3132491 ?        00:00:00 IO_GETEVENT0
+3132474 3132492 ?        00:00:00 IO_GETEVENT0
+3132474 3132493 ?        00:00:00 IO_GETEVENT0
+3132474 3132494 ?        00:00:00 IO_GETEVENT0
+3132474 3132495 ?        00:00:01 IO_SYNC_CH0
+3132474 3132496 ?        00:00:00 IO_SYNC_CH0
+3132474 3132497 ?        00:00:00 IO_SYNC_CH0
+3132474 3132498 ?        00:00:00 IO_SYNC_CH0
+3132474 3132499 ?        00:00:00 IO_SYNC_CH0
+3132474 3132500 ?        00:00:00 IO_SYNC_CH0
+3132474 3132501 ?        00:00:00 IO_SYNC_CH0
+3132474 3132502 ?        00:00:00 IO_SYNC_CH0
+3132474 3132503 ?        00:00:00 IO_GETEVENT0
+3132474 3132504 ?        00:00:00 IO_GETEVENT0
+3132474 3132505 ?        00:00:00 IO_GETEVENT0
+3132474 3132506 ?        00:00:00 IO_GETEVENT0
+3132474 3132507 ?        00:00:00 IO_GETEVENT0
+3132474 3132508 ?        00:00:00 IO_GETEVENT0
+3132474 3132509 ?        00:00:00 IO_GETEVENT0
+3132474 3132510 ?        00:00:00 IO_GETEVENT0
+3132474 3132511 ?        00:00:00 IO_SYNC_CH0
+3132474 3132512 ?        00:00:00 IO_SYNC_CH0
+3132474 3132513 ?        00:00:00 IO_SYNC_CH0
+3132474 3132514 ?        00:00:00 IO_SYNC_CH0
+3132474 3132515 ?        00:00:00 MemoryDump
+3132474 3132516 ?        00:00:02 KVCacheWash
+3132474 3132517 ?        00:00:00 KVCacheRep
+3132474 3132519 ?        00:00:00 DDLTransCtr
+3132474 3132520 ?        00:00:00 LeaseQueueTh0
+3132474 3132521 ?        00:00:00 DDLQueueTh0
+3132474 3132522 ?        00:00:00 DDLPQueueTh0
+3132474 3132523 ?        00:00:00 DDLPQueueTh1
+3132474 3132524 ?        00:00:00 MysqlQueueTh0
+3132474 3132525 ?        00:00:00 MysqlQueueTh1
+3132474 3132526 ?        00:00:00 DiagnoseQueueTh
+3132474 3132534 ?        00:00:00 ussl_loop
+3132474 3132535 ?        00:00:00 pnio1
+3132474 3132536 ?        00:00:00 pnio1
+3132474 3132537 ?        00:00:00 pnio1
+3132474 3132538 ?        00:00:00 pnio2
+3132474 3132539 ?        00:00:00 BRPC0
+3132474 3132540 ?        00:00:00 BRPC1
+3132474 3132541 ?        00:00:01 BRPC2
+3132474 3132542 ?        00:00:00 BRPC3
+3132474 3132543 ?        00:00:00 BRPC4
+3132474 3132544 ?        00:00:00 BRPC5
+3132474 3132545 ?        00:00:00 BRPC6
+3132474 3132546 ?        00:00:00 BRPC7
+3132474 3132547 ?        00:00:00 BRPC8
+3132474 3132548 ?        00:00:00 rl_mgr0
+3132474 3132549 ?        00:00:00 ObHeartbeat
+3132474 3132550 ?        00:00:00 SerScheQueue0
+3132474 3132551 ?        00:00:01 SerScheQueue1
+3132474 3132552 ?        00:00:00 EvtHisUpdTask
+3132474 3132553 ?        00:00:00 EvtHisUpdTask
+3132474 3132554 ?        00:00:00 EvtHisUpdTask
+3132474 3132555 ?        00:00:00 Occam
+3132474 3132556 ?        00:00:00 EventTimer
+3132474 3132557 ?        00:00:00 EvtHisUpdTask
+3132474 3132558 ?        00:00:00 TbltTblUp0
+3132474 3132559 ?        00:00:00 LSSysTblUp0
+3132474 3132560 ?        00:00:00 LSMetaTblUp0
+3132474 3132561 ?        00:00:00 LSUserTblUp0
+3132474 3132562 ?        00:00:00 RSAsyncTask
+3132474 3132563 ?        00:00:19 RSAsyncTask0
+3132474 3132564 ?        00:00:01 RSAsyncTask1
+3132474 3132565 ?        00:00:00 RSAsyncTask2
+3132474 3132566 ?        00:00:00 RSAsyncTask3
+3132474 3132567 ?        00:00:00 RSInspectTask
+3132474 3132568 ?        00:00:00 RSInspectTask
+3132474 3132569 ?        00:00:00 HBChecker
+3132474 3132570 ?        00:00:00 RsThreadChecker
+3132474 3132571 ?        00:00:00 EmptSvrCheck
+3132474 3132572 ?        00:00:00 LostRepCheck
+3132474 3132573 ?        00:00:02 RootBalance
+3132474 3132574 ?        00:00:00 EvtHisUpdTask
+3132474 3132575 ?        00:00:00 SchemaRec
+3132474 3132576 ?        00:00:00 ObTimer
+3132474 3132577 ?        00:00:00 DBMS_JOB_MASTER
+3132474 3132578 ?        00:00:00 RsMKM
+3132474 3132579 ?        00:00:00 DRTaskMgr
+3132474 3132580 ?        00:00:00 MaintainDepInfo
+3132474 3132582 ?        00:00:00 SysLocAsyncUp0
+3132474 3132583 ?        00:00:00 MetaLocAsyncUp0
+3132474 3132584 ?        00:00:00 UserLocAsyncUp0
+3132474 3132585 ?        00:00:00 SysLocAsyncUp0
+3132474 3132586 ?        00:00:00 MetaLocAsyncUp0
+3132474 3132587 ?        00:00:00 UserLocAsyncUp0
+3132474 3132588 ?        00:00:00 AutoLSLoc
+3132474 3132589 ?        00:00:00 AutoLSLocRpc
+3132474 3132590 ?        00:00:00 DumpLSLoc
+3132474 3132591 ?        00:00:00 TabletLSAUp0
+3132474 3132592 ?        00:00:00 TbltRefreshSer
+3132474 3132593 ?        00:00:00 TabletLocSender
+3132474 3132594 ?        00:00:00 TabletLocUpdate
+3132474 3132596 ?        00:00:00 VTblLocAsyncUp0
+3132474 3132597 ?        00:00:00 ClockGenerator
+3132474 3132599 ?        00:00:00 BlkMgr
+3132474 3132600 ?        00:00:00 DiskUseReport
+3132474 3132601 ?        00:00:00 LocltyRefTask
+3132474 3132602 ?        00:00:00 LocalityReload
+3132474 3132603 ?        00:00:00 TSWorker0
+3132474 3132605 ?        00:00:00 OB_SLOG
+3132474 3132606 ?        00:00:00 ServerCkptSlogH
+3132474 3132607 ?        00:00:00 Occam
+3132474 3132608 ?        00:00:00 Occam
+3132474 3132609 ?        00:00:00 GEleTimer
+3132474 3132610 ?        00:00:00 OptRefTask
+3132474 3132611 ?        00:00:00 TableStatRpt
+3132474 3132612 ?        00:00:00 MasterKeyMgr0
+3132474 3132613 ?        00:00:00 ObTimer
+3132474 3132614 ?        00:00:00 Blacklist
+3132474 3132615 ?        00:00:00 qth_mgr
+3132474 3132616 ?        00:00:00 ObDetectManager
+3132474 3132617 ?        00:00:00 SignalWorker
+3132474 3132618 ?        00:00:00 SignalHandle
+3132474 3132627 ?        00:00:01 TsMgr
+3132474 3132628 ?        00:00:00 RpcIO
+3132474 3132629 ?        00:00:00 RpcIO
+3132474 3132630 ?        00:00:00 RpcIO
+3132474 3132631 ?        00:00:00 EasyBasethPoolM
+3132474 3132632 ?        00:00:00 BatchIO
+3132474 3132633 ?        00:00:00 BatchIO
+3132474 3132634 ?        00:00:00 BatchIO
+3132474 3132635 ?        00:00:00 BatchIO
+3132474 3132636 ?        00:00:00 EasyBasethPoolM
+3132474 3132637 ?        00:00:00 MysqlUnix
+3132474 3132638 ?        00:00:00 EasyBasethPoolM
+3132474 3132639 ?        00:00:00 RpcUnix
+3132474 3132640 ?        00:00:00 EasyBasethPoolM
+3132474 3132641 ?        00:00:00 KeepAliveServer
+3132474 3132642 ?        00:00:00 KeepAliveClient
+3132474 3132643 ?        00:00:00 sql_nio0
+3132474 3132644 ?        00:00:00 sql_nio1
+3132474 3132645 ?        00:00:00 sql_nio2
+3132474 3132646 ?        00:00:00 IngressService
+3132474 3132647 ?        00:00:01 IO_SCHEDULE1
+3132474 3132648 ?        00:00:00 IO_SCHEDULE2
+3132474 3132649 ?        00:00:00 IO_HEALTH0
+3132474 3132650 ?        00:00:00 T508_L0_G0
+3132474 3132651 ?        00:00:00 T508_L0_G0
+3132474 3132652 ?        00:00:00 T508_L2_G0
+3132474 3132653 ?        00:00:00 T508_L3_G0
+3132474 3132654 ?        00:00:00 T508_L4_G0
+3132474 3132655 ?        00:00:00 T508_L5_G0
+3132474 3132656 ?        00:00:00 T508_L6_G0
+3132474 3132657 ?        00:00:00 T508_L7_G0
+3132474 3132658 ?        00:00:00 T508_L8_G0
+3132474 3132659 ?        00:00:00 T508_L9_G0
+3132474 3132660 ?        00:00:00 T508_L0_G0
+3132474 3132661 ?        00:00:00 T508_L0_G0
+3132474 3132662 ?        00:00:00 T508_L0_G0
+3132474 3132663 ?        00:00:00 T508_L0_G0
+3132474 3132664 ?        00:00:00 T508_L0_G0
+3132474 3132665 ?        00:00:00 T508_L0_G0
+3132474 3132666 ?        00:00:00 T508_L0_G0
+3132474 3132667 ?        00:00:00 T508_L0_G0
+3132474 3132668 ?        00:00:00 T508_L0_G0
+3132474 3132669 ?        00:00:00 T508_L0_G0
+3132474 3132670 ?        00:00:00 T508_L0_G0
+3132474 3132671 ?        00:00:00 T508_L0_G0
+3132474 3132672 ?        00:00:00 T508_L0_G0
+3132474 3132673 ?        00:00:00 T508_L0_G0
+3132474 3132674 ?        00:00:00 T508_L0_G0
+3132474 3132675 ?        00:00:00 T508_L0_G0
+3132474 3132676 ?        00:00:00 T508_L0_G0
+3132474 3132677 ?        00:00:00 T508_L0_G0
+3132474 3132678 ?        00:00:00 T508_L0_G0
+3132474 3132679 ?        00:00:00 T508_L0_G0
+3132474 3132680 ?        00:00:03 MultiTenant
+3132474 3132681 ?        00:00:01 OmtNodeBalancer
+3132474 3132682 ?        00:00:00 T508_L0_G0
+3132474 3132683 ?        00:00:00 WrTimer
+3132474 3132684 ?        00:00:00 T508_L0_G0
+3132474 3132685 ?        00:00:00 T508_L0_G0
+3132474 3132686 ?        00:00:00 T508_L0_G0
+3132474 3132687 ?        00:00:00 T508_L0_G0
+3132474 3132688 ?        00:00:00 T508_L0_G0
+3132474 3132689 ?        00:00:00 T508_L0_G0
+3132474 3132690 ?        00:00:00 T508_L0_G0
+3132474 3132691 ?        00:00:00 T508_L0_G0
+3132474 3132692 ?        00:00:00 T508_L0_G0
+3132474 3132693 ?        00:00:00 T508_L0_G0
+3132474 3132694 ?        00:00:00 T508_L0_G0
+3132474 3132695 ?        00:00:00 T508_L0_G0
+3132474 3132696 ?        00:00:00 T508_L0_G0
+3132474 3132697 ?        00:00:00 T508_L0_G0
+3132474 3132698 ?        00:00:00 T508_L0_G0
+3132474 3132699 ?        00:00:00 T508_L0_G0
+3132474 3132700 ?        00:00:00 T508_L0_G0
+3132474 3132701 ?        00:00:00 T508_L0_G0
+3132474 3132702 ?        00:00:00 T508_L0_G0
+3132474 3132703 ?        00:00:00 T508_L0_G0
+3132474 3132704 ?        00:00:00 T508_L0_G0
+3132474 3132705 ?        00:00:00 T508_L0_G0
+3132474 3132706 ?        00:00:00 T508_L0_G0
+3132474 3132707 ?        00:00:00 T508_L0_G0
+3132474 3132708 ?        00:00:00 T508_L0_G0
+3132474 3132709 ?        00:00:00 T508_L0_G0
+3132474 3132710 ?        00:00:00 T508_L0_G0
+3132474 3132711 ?        00:00:00 T508_L0_G0
+3132474 3132712 ?        00:00:00 T508_L0_G0
+3132474 3132713 ?        00:00:00 T1_Occam
+3132474 3132714 ?        00:00:00 T1_MdsT
+3132474 3132715 ?        00:00:00 T1_TransService
+3132474 3132717 ?        00:00:00 T1_Occam
+3132474 3132718 ?        00:00:00 T1_CoordTR
+3132474 3132719 ?        00:00:00 T1_Occam
+3132474 3132720 ?        00:00:00 T1_CoordTF
+3132474 3132721 ?        00:00:00 T1_Occam
+3132474 3132722 ?        00:00:00 T1_ElectTimer
+3132474 3132725 ?        00:00:00 T1_TabletStatRp
+3132474 3132726 ?        00:00:00 T1_ObCreateStan
+3132474 3132727 ?        00:00:00 T1_StandbySchem
+3132474 3132728 ?        00:00:00 T1_COMMONLSSe
+3132474 3132729 ?        00:00:00 T1_SimpleLSServ
+3132474 3132730 ?        00:00:00 T1_SimpleLSServ
+3132474 3132731 ?        00:00:00 T1_LSService0
+3132474 3132732 ?        00:00:00 T1_LSService1
+3132474 3132733 ?        00:00:00 T1_REST_SER
+3132474 3132734 ?        00:00:00 T1_SimpleLSServ
+3132474 3132735 ?        00:00:00 T1_BACKUP_SCHE
+3132474 3132736 ?        00:00:00 T1_BackupDataSr
+3132474 3132737 ?        00:00:00 T1_BackupCleanS
+3132474 3132738 ?        00:00:00 T1_ArchiveSvr
+3132474 3132739 ?        00:00:00 T1_ReqMemEvict
+3132474 3132740 ?        00:00:00 T1_PlanCacheEvi
+3132474 3132741 ?        00:00:00 T1_ReqMemEvict
+3132474 3132742 ?        00:00:00 T1_Occam
+3132474 3132743 ?        00:00:00 T1_Occam
+3132474 3132744 ?        00:00:00 T1_Occam
+3132474 3132745 ?        00:00:00 T1_Occam
+3132474 3132746 ?        00:00:00 T1_Occam
+3132474 3132747 ?        00:00:00 T1_Occam
+3132474 3132748 ?        00:00:00 T1_FrzTrigger
+3132474 3132749 ?        00:00:00 T1_LSFreeze0
+3132474 3132750 ?        00:00:00 T1_BFBuildTask
+3132474 3132751 ?        00:00:00 T1_DAG
+3132474 3132752 ?        00:00:00 T1_DAG
+3132474 3132753 ?        00:00:00 T1_DAG
+3132474 3132754 ?        00:00:00 T1_DAG
+3132474 3132755 ?        00:00:00 T1_DAG
+3132474 3132756 ?        00:00:00 T1_DAG
+3132474 3132757 ?        00:00:00 T1_DAG
+3132474 3132758 ?        00:00:00 T1_DAG
+3132474 3132759 ?        00:00:00 T1_DAG
+3132474 3132760 ?        00:00:00 T1_DAG
+3132474 3132761 ?        00:00:00 T1_DAG
+3132474 3132762 ?        00:00:00 T1_DAG
+3132474 3132763 ?        00:00:00 T1_DAG
+3132474 3132764 ?        00:00:00 T1_DAG
+3132474 3132765 ?        00:00:00 T1_DAG
+3132474 3132766 ?        00:00:00 T1_DAG
+3132474 3132767 ?        00:00:00 T1_DAG
+3132474 3132768 ?        00:00:00 T1_DAG
+3132474 3132769 ?        00:00:00 T1_DAG
+3132474 3132770 ?        00:00:00 T1_DAG
+3132474 3132771 ?        00:00:00 T1_DAG
+3132474 3132772 ?        00:00:00 T1_DAG
+3132474 3132773 ?        00:00:00 T1_DAG
+3132474 3132774 ?        00:00:00 T1_DAG
+3132474 3132775 ?        00:00:00 T1_DAG
+3132474 3132776 ?        00:00:00 T1_DAG
+3132474 3132777 ?        00:00:00 T1_DAG
+3132474 3132778 ?        00:00:00 T1_DAG
+3132474 3132779 ?        00:00:00 T1_DAG
+3132474 3132780 ?        00:00:00 T1_DAG
+3132474 3132781 ?        00:00:00 T1_DAG
+3132474 3132782 ?        00:00:00 T1_DAG
+3132474 3132783 ?        00:00:00 T1_DAG
+3132474 3132784 ?        00:00:00 T1_DAG
+3132474 3132785 ?        00:00:00 T1_DAG
+3132474 3132786 ?        00:00:00 T1_DAG
+3132474 3132787 ?        00:00:00 T1_DAG
+3132474 3132788 ?        00:00:00 T1_DAG
+3132474 3132789 ?        00:00:00 T1_DAG
+3132474 3132790 ?        00:00:00 T1_DAG
+3132474 3132791 ?        00:00:00 T1_DAG
+3132474 3132792 ?        00:00:00 T1_DAG
+3132474 3132793 ?        00:00:00 T1_DAG
+3132474 3132794 ?        00:00:00 T1_DagScheduler
+3132474 3132795 ?        00:00:00 T1_FreInfoReloa
+3132474 3132796 ?        00:00:00 T1_TransferSrv
+3132474 3132797 ?        00:00:00 T1_ReqMemEvict
+3132474 3132798 ?        00:00:00 T1_ReqMemEvict
+3132474 3132799 ?        00:00:00 T1_HBService
+3132474 3132800 ?        00:00:00 T1_HBService
+3132474 3132801 ?        00:00:00 T1_TntSharedTim
+3132474 3132802 ?        00:00:00 T1_TenantMetaMe
+3132474 3132803 ?        00:00:00 T1_DiskCB0
+3132474 3132804 ?        00:00:00 T1_OB_SLOG
+3132474 3132805 ?        00:00:00 T1_SSTableDefra
+3132474 3132806 ?        00:00:00 T1_TransTimeWhe
+3132474 3132807 ?        00:00:00 T1_TransTimeWhe
+3132474 3132808 ?        00:00:00 T1_DupTbLease
+3132474 3132809 ?        00:00:00 T1_LogIOCb0
+3132474 3132810 ?        00:00:00 T1_IOWorker
+3132474 3132811 ?        00:00:00 T1_LogSharedQue
+3132474 3132812 ?        00:00:00 T1_PalfGC
+3132474 3132813 ?        00:00:00 T1_FetchLog0
+3132474 3132814 ?        00:00:00 T1_LogLoop
+3132474 3132815 ?        00:00:00 T1_LogUpdater
+3132474 3132816 ?        00:00:00 T1_ApplySrv0
+3132474 3132817 ?        00:00:00 T1_ReplaySrv0
+3132474 3132818 ?        00:00:00 T1_ReplayProces
+3132474 3132819 ?        00:00:58 T1_RCSrv0
+3132474 3132820 ?        00:00:00 T1_CdcSrv
+3132474 3132821 ?        00:00:00 T1_RFLWorker
+3132474 3132822 ?        00:00:00 T1_RFLWorker
+3132474 3132823 ?        00:00:00 T1_LogRessvr
+3132474 3132824 ?        00:00:00 T1_LogArb
+3132474 3132825 ?        00:00:00 T1_GCCollector
+3132474 3132826 ?        00:00:00 T1_Occam
+3132474 3132827 ?        00:00:00 T1_ServerProbeS
+3132474 3132831 ?        00:00:00 T1_WriteCkpt
+3132474 3132832 ?        00:00:00 T1_LockWaitMgr
+3132474 3132833 ?        00:00:00 T1_Occam
+3132474 3132834 ?        00:00:00 T1_Occam
+3132474 3132835 ?        00:00:00 T1_OBJLockGC
+3132474 3132836 ?        00:00:00 T1_LSMetaCh
+3132474 3132837 ?        00:00:00 T1_TbMetaCh
+3132474 3132838 ?        00:00:00 T1_MysqlQueueTh
+3132474 3132839 ?        00:00:00 T1_MysqlQueueTh
+3132474 3132840 ?        00:00:00 T1_DetectorTime
+3132474 3132841 ?        00:00:00 T1_LCLSender
+3132474 3132842 ?        00:00:00 T1_XATimeWheel
+3132474 3132843 ?        00:00:00 T1_XATimeWheel
+3132474 3132844 ?        00:00:00 T1_ObXAHbWorker
+3132474 3132845 ?        00:00:00 T1_ObXAGCWorker
+3132474 3132847 ?        00:00:00 T1_ReqMemEvict
+3132474 3132848 ?        00:00:02 T1_TenantWeakRe
+3132474 3132849 ?        00:00:00 T1_TxCkpt
+3132474 3132850 ?        00:00:00 T1_Flush
+3132474 3132851 ?        00:00:00 T1_CKClogDisk
+3132474 3132852 ?        00:00:00 T1_TabletGC
+3132474 3132853 ?        00:00:00 T1_TabletShell
+3132474 3132854 ?        00:00:00 T1_LSArchiveMgr
+3132474 3132855 ?        00:00:00 T1_ArcSeq
+3132474 3132856 ?        00:00:00 T1_ArcFetcher
+3132474 3132857 ?        00:00:00 T1_ArcSender
+3132474 3132858 ?        00:00:00 T1_ArcTimer
+3132474 3132859 ?        00:00:00 T1_ArcSrv
+3132474 3132860 ?        00:00:00 T1_MergeLoop
+3132474 3132861 ?        00:00:00 T1_MediumLoop
+3132474 3132862 ?        00:00:00 T1_SSTableGC
+3132474 3132863 ?        00:00:00 T1_InfoPoolResi
+3132474 3132864 ?        00:00:00 T1_HAService
+3132474 3132865 ?        00:00:00 T1_TxLoopWorker
+3132474 3132866 ?        00:00:00 T1_TransferServ
+3132474 3132867 ?        00:00:00 T1_RebuildServi
+3132474 3132868 ?        00:00:01 T1_ArbSer
+3132474 3132869 ?        00:00:00 T1_TLD_Timer
+3132474 3132870 ?        00:00:00 T1_Occam
+3132474 3132871 ?        00:00:00 T1_MultiVersion
+3132474 3132872 ?        00:00:00 T1_DBMSSched
+3132474 3132873 ?        00:00:00 T1_L0_G0
+3132474 3132874 ?        00:00:00 T1_L0_G0
+3132474 3132875 ?        00:00:00 T1_L2_G0
+3132474 3132876 ?        00:00:00 T1_L3_G0
+3132474 3132877 ?        00:00:00 T1_L4_G0
+3132474 3132878 ?        00:00:00 T1_L5_G0
+3132474 3132879 ?        00:00:00 T1_L6_G0
+3132474 3132880 ?        00:00:00 T1_L7_G0
+3132474 3132881 ?        00:00:00 T1_L8_G0
+3132474 3132882 ?        00:00:00 T1_L9_G0
+3132474 3132883 ?        00:00:00 T1_L0_G0
+3132474 3132884 ?        00:00:00 T1_L0_G0
+3132474 3132885 ?        00:00:00 T1_L0_G0
+3132474 3132886 ?        00:00:00 T1_L0_G0
+3132474 3132887 ?        00:00:00 T1_L0_G0
+3132474 3132888 ?        00:00:00 T1_L0_G0
+3132474 3132889 ?        00:00:00 T1_L0_G0
+3132474 3132890 ?        00:00:00 T1_L0_G0
+3132474 3132891 ?        00:00:02 T1_L0_G0
+3132474 3132892 ?        00:00:03 T1_L0_G0
+3132474 3132893 ?        00:00:00 T1_L0_G0
+3132474 3132894 ?        00:00:00 T1_L0_G0
+3132474 3132895 ?        00:00:00 T1_L0_G0
+3132474 3132896 ?        00:00:06 T1_L0_G0
+3132474 3132897 ?        00:00:03 T1_L0_G0
+3132474 3132898 ?        00:00:03 T1_L0_G0
+3132474 3132899 ?        00:00:00 T1_L0_G0
+3132474 3132900 ?        00:00:00 T1_L0_G0
+3132474 3132901 ?        00:00:03 T1_L0_G0
+3132474 3132902 ?        00:00:00 T1_L0_G0
+3132474 3132903 ?        00:00:00 T1001_Occam
+3132474 3132904 ?        00:00:00 T1001_MdsT
+3132474 3132905 ?        00:00:00 T1001_TransServ
+3132474 3132907 ?        00:00:00 T1001_Occam
+3132474 3132908 ?        00:00:00 T1001_CoordTR
+3132474 3132909 ?        00:00:00 T1001_Occam
+3132474 3132910 ?        00:00:00 T1001_CoordTF
+3132474 3132911 ?        00:00:00 T1001_Occam
+3132474 3132912 ?        00:00:00 T1001_ElectTime
+3132474 3132915 ?        00:00:00 T1001_TabletSta
+3132474 3132916 ?        00:00:00 T1001_ObCreateS
+3132474 3132917 ?        00:00:00 T1001_StandbySc
+3132474 3132918 ?        00:00:02 T1001_COMMONLSS
+3132474 3132919 ?        00:00:00 T1001_SimpleLSS
+3132474 3132920 ?        00:00:00 T1001_SimpleLSS
+3132474 3132921 ?        00:00:00 T1001_LSService
+3132474 3132922 ?        00:00:00 T1001_LSService
+3132474 3132923 ?        00:00:00 T1001_REST_SER
+3132474 3132924 ?        00:00:00 T1001_SimpleLSS
+3132474 3132925 ?        00:00:00 T1001_BACKUP_SC
+3132474 3132926 ?        00:00:00 T1001_BackupDat
+3132474 3132927 ?        00:00:00 T1001_BackupCle
+3132474 3132928 ?        00:00:00 T1001_ArchiveSv
+3132474 3132929 ?        00:00:00 T1001_ReqMemEvi
+3132474 3132930 ?        00:00:00 T1001_PlanCache
+3132474 3132931 ?        00:00:00 T1001_ReqMemEvi
+3132474 3132932 ?        00:00:00 T1001_Occam
+3132474 3132933 ?        00:00:00 T1001_Occam
+3132474 3132934 ?        00:00:00 T1001_Occam
+3132474 3132935 ?        00:00:00 T1001_Occam
+3132474 3132936 ?        00:00:00 T1001_Occam
+3132474 3132937 ?        00:00:00 T1001_Occam
+3132474 3132938 ?        00:00:00 T1001_FrzTrigge
+3132474 3132939 ?        00:00:00 T1001_LSFreeze0
+3132474 3132940 ?        00:00:00 T1001_BFBuildTa
+3132474 3132941 ?        00:00:00 T1001_DAG
+3132474 3132942 ?        00:00:00 T1001_DAG
+3132474 3132943 ?        00:00:00 T1001_DAG
+3132474 3132944 ?        00:00:00 T1001_DAG
+3132474 3132945 ?        00:00:00 T1001_DAG
+3132474 3132946 ?        00:00:00 T1001_DAG
+3132474 3132947 ?        00:00:00 T1001_DAG
+3132474 3132948 ?        00:00:00 T1001_DAG
+3132474 3132949 ?        00:00:00 T1001_DAG
+3132474 3132950 ?        00:00:00 T1001_DAG
+3132474 3132951 ?        00:00:00 T1001_DAG
+3132474 3132952 ?        00:00:00 T1001_DAG
+3132474 3132953 ?        00:00:00 T1001_DAG
+3132474 3132954 ?        00:00:00 T1001_DAG
+3132474 3132955 ?        00:00:00 T1001_DAG
+3132474 3132956 ?        00:00:00 T1001_DAG
+3132474 3132957 ?        00:00:00 T1001_DAG
+3132474 3132958 ?        00:00:00 T1001_DAG
+3132474 3132959 ?        00:00:00 T1001_DAG
+3132474 3132960 ?        00:00:00 T1001_DAG
+3132474 3132961 ?        00:00:00 T1001_DAG
+3132474 3132962 ?        00:00:00 T1001_DAG
+3132474 3132963 ?        00:00:00 T1001_DAG
+3132474 3132964 ?        00:00:00 T1001_DAG
+3132474 3132965 ?        00:00:00 T1001_DAG
+3132474 3132966 ?        00:00:00 T1001_DAG
+3132474 3132967 ?        00:00:00 T1001_DAG
+3132474 3132968 ?        00:00:00 T1001_DAG
+3132474 3132969 ?        00:00:00 T1001_DAG
+3132474 3132970 ?        00:00:00 T1001_DAG
+3132474 3132971 ?        00:00:00 T1001_DAG
+3132474 3132972 ?        00:00:00 T1001_DAG
+3132474 3132973 ?        00:00:00 T1001_DAG
+3132474 3132974 ?        00:00:00 T1001_DAG
+3132474 3132975 ?        00:00:00 T1001_DAG
+3132474 3132976 ?        00:00:00 T1001_DAG
+3132474 3132977 ?        00:00:00 T1001_DAG
+3132474 3132978 ?        00:00:00 T1001_DAG
+3132474 3132979 ?        00:00:00 T1001_DAG
+3132474 3132980 ?        00:00:00 T1001_DAG
+3132474 3132981 ?        00:00:00 T1001_DAG
+3132474 3132982 ?        00:00:00 T1001_DAG
+3132474 3132983 ?        00:00:00 T1001_DAG
+3132474 3132984 ?        00:00:00 T1001_DagSchedu
+3132474 3132985 ?        00:00:00 T1001_FreInfoRe
+3132474 3132986 ?        00:00:00 T1001_TransferS
+3132474 3132987 ?        00:00:00 T1001_ReqMemEvi
+3132474 3132988 ?        00:00:00 T1001_ReqMemEvi
+3132474 3132989 ?        00:00:00 T1001_TntShared
+3132474 3132990 ?        00:00:00 T1001_TenantMet
+3132474 3132991 ?        00:00:00 T1001_DiskCB0
+3132474 3132992 ?        00:00:00 T1001_OB_SLOG
+3132474 3132993 ?        00:00:00 T1001_SSTableDe
+3132474 3132994 ?        00:00:00 T1001_TransTime
+3132474 3132995 ?        00:00:00 T1001_TransTime
+3132474 3132996 ?        00:00:00 T1001_DupTbLeas
+3132474 3132997 ?        00:00:00 T1001_LogIOCb0
+3132474 3132998 ?        00:00:00 T1001_IOWorker
+3132474 3132999 ?        00:00:00 T1001_LogShared
+3132474 3133000 ?        00:00:00 T1001_PalfGC
+3132474 3133001 ?        00:00:00 T1001_FetchLog0
+3132474 3133002 ?        00:00:00 T1001_LogLoop
+3132474 3133003 ?        00:00:00 T1001_LogUpdate
+3132474 3133004 ?        00:00:00 T1001_ApplySrv0
+3132474 3133005 ?        00:00:01 T1001_ReplaySrv
+3132474 3133006 ?        00:00:00 T1001_ReplayPro
+3132474 3133007 ?        00:00:00 T1001_RCSrv0
+3132474 3133008 ?        00:00:00 T1001_RFLWorker
+3132474 3133009 ?        00:00:00 T1001_RFLWorker
+3132474 3133010 ?        00:00:00 T1001_LogRessvr
+3132474 3133011 ?        00:00:00 T1001_LogArb
+3132474 3133012 ?        00:00:00 T1001_GCCollect
+3132474 3133013 ?        00:00:00 T1001_Occam
+3132474 3133014 ?        00:00:00 T1001_ServerPro
+3132474 3133016 ?        00:00:00 T1001_WriteCkpt
+3132474 3133017 ?        00:00:00 T1001_LockWaitM
+3132474 3133018 ?        00:00:00 T1001_Occam
+3132474 3133019 ?        00:00:00 T1001_Occam
+3132474 3133020 ?        00:00:00 T1001_OBJLockGC
+3132474 3133021 ?        00:00:00 T1001_LSMetaCh
+3132474 3133022 ?        00:00:00 T1001_TbMetaCh
+3132474 3133023 ?        00:00:00 T1001_DetectorT
+3132474 3133024 ?        00:00:00 T1001_LCLSender
+3132474 3133025 ?        00:00:00 T1001_XATimeWhe
+3132474 3133026 ?        00:00:00 T1001_XATimeWhe
+3132474 3133027 ?        00:00:00 T1001_ObXAHbWor
+3132474 3133028 ?        00:00:00 T1001_ObXAGCWor
+3132474 3133030 ?        00:00:00 T1001_ReqMemEvi
+3132474 3133031 ?        00:00:02 T1001_TenantWea
+3132474 3133032 ?        00:00:00 T1001_TxCkpt
+3132474 3133033 ?        00:00:00 T1001_Flush
+3132474 3133034 ?        00:00:00 T1001_CKClogDis
+3132474 3133035 ?        00:00:00 T1001_TabletGC
+3132474 3133036 ?        00:00:00 T1001_TabletShe
+3132474 3133037 ?        00:00:00 T1001_LSArchive
+3132474 3133038 ?        00:00:00 T1001_ArcSeq
+3132474 3133039 ?        00:00:00 T1001_ArcFetche
+3132474 3133040 ?        00:00:00 T1001_ArcSender
+3132474 3133041 ?        00:00:00 T1001_ArcTimer
+3132474 3133042 ?        00:00:00 T1001_ArcSrv
+3132474 3133043 ?        00:00:00 T1001_MergeLoop
+3132474 3133044 ?        00:00:00 T1001_MediumLoo
+3132474 3133045 ?        00:00:00 T1001_SSTableGC
+3132474 3133046 ?        00:00:00 T1001_InfoPoolR
+3132474 3133047 ?        00:00:00 T1001_HAService
+3132474 3133048 ?        00:00:00 T1001_TxLoopWor
+3132474 3133049 ?        00:00:00 T1001_TransferS
+3132474 3133050 ?        00:00:00 T1001_RebuildSe
+3132474 3133051 ?        00:00:02 T1001_ArbSer
+3132474 3133052 ?        00:00:00 T1001_TLD_Timer
+3132474 3133053 ?        00:00:00 T1001_Occam
+3132474 3133054 ?        00:00:00 T1001_MultiVers
+3132474 3133055 ?        00:00:00 T1001_DBMSSched
+3132474 3133056 ?        00:00:00 T1001_L0_G0
+3132474 3133057 ?        00:00:00 T1001_L0_G0
+3132474 3133058 ?        00:00:00 T1001_L2_G0
+3132474 3133059 ?        00:00:00 T1001_L3_G0
+3132474 3133060 ?        00:00:00 T1001_L4_G0
+3132474 3133061 ?        00:00:00 T1001_L5_G0
+3132474 3133062 ?        00:00:00 T1001_L6_G0
+3132474 3133063 ?        00:00:00 T1001_L7_G0
+3132474 3133064 ?        00:00:00 T1001_L8_G0
+3132474 3133065 ?        00:00:00 T1001_L9_G0
+3132474 3133066 ?        00:00:00 T1001_L0_G0
+3132474 3133067 ?        00:00:00 T1001_L0_G0
+3132474 3133068 ?        00:00:00 T1001_L0_G0
+3132474 3133069 ?        00:00:00 T1001_L0_G0
+3132474 3133070 ?        00:00:00 T1002_Occam
+3132474 3133071 ?        00:00:00 T1002_MdsT
+3132474 3133072 ?        00:00:00 T1002_TransServ
+3132474 3133074 ?        00:00:00 T1002_Occam
+3132474 3133075 ?        00:00:00 T1002_CoordTR
+3132474 3133076 ?        00:00:00 T1002_Occam
+3132474 3133077 ?        00:00:00 T1002_CoordTF
+3132474 3133078 ?        00:00:00 T1002_Occam
+3132474 3133079 ?        00:00:00 T1002_ElectTime
+3132474 3133082 ?        00:00:00 T1002_TabletSta
+3132474 3133083 ?        00:00:00 T1002_TenantInf
+3132474 3133084 ?        00:00:00 T1002_ObCreateS
+3132474 3133085 ?        00:00:00 T1002_StandbySc
+3132474 3133086 ?        00:00:01 T1002_TeRec
+3132474 3133087 ?        00:00:00 T1002_SimpleLSS
+3132474 3133088 ?        00:00:02 T1002_PLSSer
+3132474 3133089 ?        00:00:00 T1002_BalanceEx
+3132474 3133090 ?        00:00:00 T1002_LSService
+3132474 3133091 ?        00:00:00 T1002_LSService
+3132474 3133092 ?        00:00:00 T1002_SimpleLSS
+3132474 3133093 ?        00:00:00 T1002_TBalance
+3132474 3133094 ?        00:00:00 T1002_SimpleLSS
+3132474 3133095 ?        00:00:00 T1002_SimpleLSS
+3132474 3133096 ?        00:00:00 T1002_SimpleLSS
+3132474 3133097 ?        00:00:00 T1002_SimpleLSS
+3132474 3133098 ?        00:00:00 T1002_ReqMemEvi
+3132474 3133099 ?        00:00:00 T1002_PlanCache
+3132474 3133100 ?        00:00:00 T1002_ReqMemEvi
+3132474 3133101 ?        00:00:00 T1002_Occam
+3132474 3133102 ?        00:00:00 T1002_Occam
+3132474 3133103 ?        00:00:00 T1002_Occam
+3132474 3133104 ?        00:00:00 T1002_Occam
+3132474 3133105 ?        00:00:00 T1002_Occam
+3132474 3133106 ?        00:00:00 T1002_Occam
+3132474 3133107 ?        00:00:00 T1002_FrzTrigge
+3132474 3133108 ?        00:00:00 T1002_LSFreeze0
+3132474 3133109 ?        00:00:00 T1002_BFBuildTa
+3132474 3133110 ?        00:00:00 T1002_DAG
+3132474 3133111 ?        00:00:00 T1002_DAG
+3132474 3133112 ?        00:00:00 T1002_DAG
+3132474 3133113 ?        00:00:00 T1002_DAG
+3132474 3133114 ?        00:00:00 T1002_DAG
+3132474 3133115 ?        00:00:00 T1002_DAG
+3132474 3133116 ?        00:00:00 T1002_DAG
+3132474 3133117 ?        00:00:00 T1002_DAG
+3132474 3133118 ?        00:00:00 T1002_DAG
+3132474 3133119 ?        00:00:00 T1002_DAG
+3132474 3133120 ?        00:00:00 T1002_DAG
+3132474 3133121 ?        00:00:00 T1002_DAG
+3132474 3133122 ?        00:00:00 T1002_DAG
+3132474 3133123 ?        00:00:00 T1002_DAG
+3132474 3133124 ?        00:00:00 T1002_DAG
+3132474 3133125 ?        00:00:00 T1002_DAG
+3132474 3133126 ?        00:00:00 T1002_DAG
+3132474 3133127 ?        00:00:00 T1002_DAG
+3132474 3133128 ?        00:00:00 T1002_DAG
+3132474 3133129 ?        00:00:00 T1002_DAG
+3132474 3133130 ?        00:00:00 T1002_DAG
+3132474 3133131 ?        00:00:00 T1002_DAG
+3132474 3133132 ?        00:00:00 T1002_DAG
+3132474 3133133 ?        00:00:00 T1002_DAG
+3132474 3133134 ?        00:00:00 T1002_DAG
+3132474 3133135 ?        00:00:00 T1002_DAG
+3132474 3133136 ?        00:00:00 T1002_DAG
+3132474 3133137 ?        00:00:00 T1002_DAG
+3132474 3133138 ?        00:00:00 T1002_DAG
+3132474 3133139 ?        00:00:00 T1002_DAG
+3132474 3133140 ?        00:00:00 T1002_DAG
+3132474 3133141 ?        00:00:00 T1002_DAG
+3132474 3133142 ?        00:00:00 T1002_DAG
+3132474 3133143 ?        00:00:00 T1002_DAG
+3132474 3133144 ?        00:00:00 T1002_DAG
+3132474 3133145 ?        00:00:00 T1002_DAG
+3132474 3133146 ?        00:00:00 T1002_DAG
+3132474 3133147 ?        00:00:00 T1002_DAG
+3132474 3133148 ?        00:00:00 T1002_DAG
+3132474 3133149 ?        00:00:00 T1002_DAG
+3132474 3133150 ?        00:00:00 T1002_DAG
+3132474 3133151 ?        00:00:00 T1002_DAG
+3132474 3133152 ?        00:00:00 T1002_DAG
+3132474 3133153 ?        00:00:00 T1002_DagSchedu
+3132474 3133154 ?        00:00:00 T1002_FreInfoRe
+3132474 3133155 ?        00:00:00 T1002_TntTransf
+3132474 3133156 ?        00:00:00 T1002_ReqMemEvi
+3132474 3133158 ?        00:00:00 T1002_ReqMemEvi
+3132474 3133160 ?        00:00:00 T1_L0_G9
+3132474 3133161 ?        00:00:00 T1_L0_G9
+3132474 3133162 ?        00:00:01 T1002_TntShared
+3132474 3133163 ?        00:00:00 T1002_TenantMet
+3132474 3133164 ?        00:00:00 T1002_DiskCB0
+3132474 3133165 ?        00:00:00 T1002_OB_SLOG
+3132474 3133166 ?        00:00:00 T1002_SSTableDe
+3132474 3133167 ?        00:00:00 T1002_TransTime
+3132474 3133168 ?        00:00:00 T1002_TransTime
+3132474 3133169 ?        00:00:00 T1002_DupTbLeas
+3132474 3133179 ?        00:00:00 T1002_LogIOCb0
+3132474 3133180 ?        00:00:00 T1002_IOWorker
+3132474 3133181 ?        00:00:00 T1002_IOWorker
+3132474 3133182 ?        00:00:00 T1002_IOWorker
+3132474 3133183 ?        00:00:00 T1002_IOWorker
+3132474 3133184 ?        00:00:00 T1002_LogShared
+3132474 3133185 ?        00:00:00 T1002_PalfGC
+3132474 3133186 ?        00:00:00 T1002_FetchLog0
+3132474 3133187 ?        00:00:00 T1002_LogLoop
+3132474 3133188 ?        00:00:00 T1002_LogUpdate
+3132474 3133189 ?        00:00:00 T1002_ApplySrv0
+3132474 3133190 ?        00:00:00 T1002_ReplaySrv
+3132474 3133191 ?        00:00:00 T1002_ReplayPro
+3132474 3133192 ?        00:00:00 T1002_RCSrv0
+3132474 3133193 ?        00:00:00 T1002_CdcSrv
+3132474 3133195 ?        00:00:00 T1002_RFLWorker
+3132474 3133196 ?        00:00:00 T1002_RFLWorker
+3132474 3133197 ?        00:00:00 T1002_LogRessvr
+3132474 3133198 ?        00:00:00 T1002_LogArb
+3132474 3133199 ?        00:00:00 T1002_GCCollect
+3132474 3133200 ?        00:00:00 T1002_Occam
+3132474 3133201 ?        00:00:00 T1002_ServerPro
+3132474 3133202 ?        00:00:00 T1002_RFLWorker
+3132474 3133203 ?        00:00:00 T1002_WriteCkpt
+3132474 3133204 ?        00:00:00 T1002_LockWaitM
+3132474 3133205 ?        00:00:00 T1002_Occam
+3132474 3133206 ?        00:00:00 T1002_Occam
+3132474 3133207 ?        00:00:00 T1002_OBJLockGC
+3132474 3133208 ?        00:00:00 T1002_LSMetaCh
+3132474 3133209 ?        00:00:00 T1002_TbMetaCh
+3132474 3133210 ?        00:00:00 T1002_MysqlQueu
+3132474 3133211 ?        00:00:00 T1002_MysqlQueu
+3132474 3133212 ?        00:00:00 T1002_DetectorT
+3132474 3133213 ?        00:00:00 T1002_LCLSender
+3132474 3133214 ?        00:00:00 T1002_XATimeWhe
+3132474 3133215 ?        00:00:00 T1002_XATimeWhe
+3132474 3133216 ?        00:00:00 T1002_ObXAHbWor
+3132474 3133217 ?        00:00:00 T1002_ObXAGCWor
+3132474 3133218 ?        00:00:00 T1002_STSWorker
+3132474 3133219 ?        00:00:00 T1002_ReqMemEvi
+3132474 3133220 ?        00:00:02 T1002_TenantWea
+3132474 3133221 ?        00:00:00 T1002_TxCkpt
+3132474 3133222 ?        00:00:00 T1002_Flush
+3132474 3133223 ?        00:00:00 T1002_CKClogDis
+3132474 3133224 ?        00:00:00 T1002_TabletGC
+3132474 3133225 ?        00:00:00 T1002_TabletShe
+3132474 3133226 ?        00:00:00 T1002_LSArchive
+3132474 3133227 ?        00:00:00 T1002_ArcSeq
+3132474 3133228 ?        00:00:00 T1002_ArcFetche
+3132474 3133229 ?        00:00:00 T1002_ArcSender
+3132474 3133230 ?        00:00:00 T1002_ArcTimer
+3132474 3133231 ?        00:00:00 T1002_ArcSrv
+3132474 3133232 ?        00:00:00 T1002_MergeLoop
+3132474 3133233 ?        00:00:00 T1002_ArcSender
+3132474 3133234 ?        00:00:00 T1002_MediumLoo
+3132474 3133235 ?        00:00:00 T1002_ArcSender
+3132474 3133236 ?        00:00:00 T1002_SSTableGC
+3132474 3133237 ?        00:00:00 T1002_ArcFetche
+3132474 3133238 ?        00:00:00 T1002_InfoPoolR
+3132474 3133239 ?        00:00:00 T1002_HAService
+3132474 3133240 ?        00:00:00 T1002_TxLoopWor
+3132474 3133241 ?        00:00:00 T1002_TransferS
+3132474 3133242 ?        00:00:00 T1002_RebuildSe
+3132474 3133243 ?        00:00:08 T1002_DataDictT
+3132474 3133244 ?        00:00:00 T1002_TLD_Timer
+3132474 3133245 ?        00:00:00 T1002_Occam
+3132474 3133246 ?        00:00:00 T1002_MultiVers
+3132474 3133247 ?        00:00:00 T1002_DBMSSched
+3132474 3133248 ?        00:00:00 T1002_L0_G0
+3132474 3133249 ?        00:00:00 T1002_L0_G0
+3132474 3133250 ?        00:00:00 T1002_L2_G0
+3132474 3133251 ?        00:00:00 T1002_L3_G0
+3132474 3133252 ?        00:00:00 T1002_L4_G0
+3132474 3133253 ?        00:00:00 T1002_L5_G0
+3132474 3133254 ?        00:00:00 T1002_L6_G0
+3132474 3133255 ?        00:00:00 T1002_L7_G0
+3132474 3133256 ?        00:00:00 T1002_L8_G0
+3132474 3133257 ?        00:00:00 T1002_L9_G0
+3132474 3133258 ?        00:00:00 T1002_L0_G0
+3132474 3133259 ?        00:00:00 T1002_L0_G0
+3132474 3133260 ?        00:00:00 T1002_L0_G0
+3132474 3133261 ?        00:00:00 T1002_L0_G0
+3132474 3133262 ?        00:00:00 T1002_L0_G0
+3132474 3133263 ?        00:00:00 T1002_L0_G0
+3132474 3133264 ?        00:00:00 T1002_L0_G0
+3132474 3133265 ?        00:00:00 T1002_L0_G0
+3132474 3133266 ?        00:00:00 T1002_ReplaySrv
+3132474 3133267 ?        00:00:00 BlackListServic
+3132474 3133268 ?        00:00:00 RSMonitor
+3132474 3133269 ?        00:00:00 LeaseHB
+3132474 3133270 ?        00:00:00 ClusterTimer
+3132474 3133271 ?        00:00:00 MergeTimer
+3132474 3133272 ?        00:00:00 T1_ReplaySrv1
+3132474 3133273 ?        00:00:01 T1001_ReplaySrv
+3132474 3133275 ?        00:00:00 T1_ReplaySrv2
+3132474 3133276 ?        00:00:00 T1_ReplaySrv3
+3132474 3133277 ?        00:00:00 T1_ReplaySrv4
+3132474 3133278 ?        00:00:00 T1_ReplaySrv5
+3132474 3133279 ?        00:00:00 T1_ReplaySrv6
+3132474 3133280 ?        00:00:00 T1_ReplaySrv7
+3132474 3133281 ?        00:00:00 T1_ReplaySrv8
+3132474 3133282 ?        00:00:00 T1_ReplaySrv9
+3132474 3133283 ?        00:00:00 T1_ReplaySrv10
+3132474 3133284 ?        00:00:00 T1_ReplaySrv11
+3132474 3133285 ?        00:00:00 T1_ReplaySrv12
+3132474 3133286 ?        00:00:00 T1_ReplaySrv13
+3132474 3133287 ?        00:00:00 T1_ReplaySrv14
+3132474 3133288 ?        00:00:00 T1_ReplaySrv15
+3132474 3133289 ?        00:00:00 T1_ReplaySrv16
+3132474 3133290 ?        00:00:00 T1002_ReplaySrv
+3132474 3133291 ?        00:00:00 T1002_ReplaySrv
+3132474 3133292 ?        00:00:00 T1002_ReplaySrv
+3132474 3133293 ?        00:00:00 T1002_ReplaySrv
+3132474 3133294 ?        00:00:00 T1002_ReplaySrv
+3132474 3133295 ?        00:00:00 T1002_ReplaySrv
+3132474 3133296 ?        00:00:00 T1_ReplaySrv17
+3132474 3133297 ?        00:00:00 T1_ReplaySrv18
+3132474 3133298 ?        00:00:01 T1001_ReplaySrv
+3132474 3133299 ?        00:00:01 T1001_ReplaySrv
+3132474 3133300 ?        00:00:00 T1_ReplaySrv19
+3132474 3133343 ?        00:00:00 T1_L0_G2
+3132474 3133344 ?        00:00:00 T1_L0_G2
+3132474 3133348 ?        00:00:00 T1001_L0_G2
+3132474 3133361 ?        00:00:00 T1002_L0_G2
+3132474 3133362 ?        00:00:00 T1002_L0_G2
+3132474 3133364 ?        00:00:00 T1_FrzInfoDet
+3132474 3133365 ?        00:00:00 T1_MergeSchedul
+3132474 3133366 ?        00:00:00 T1_MFLaunch
+3132474 3133367 ?        00:00:00 DdlBuild
+3132474 3133368 ?        00:00:00 GlobalCtxTimer
+3132474 3133371 ?        00:00:00 T1_L0_G5
+3132474 3133372 ?        00:00:00 T1_L0_G5
+3132474 3133375 ?        00:00:00 T1001_FrzInfoDe
+3132474 3133376 ?        00:00:00 T1001_MergeSche
+3132474 3133377 ?        00:00:00 T1001_MFLaunch
+3132474 3133381 ?        00:00:00 DDLTaskExecutor
+3132474 3133382 ?        00:00:00 DDLTaskExecutor
+3132474 3133383 ?        00:00:00 DDLScanTask
+3132474 3133384 ?        00:00:00 HeartBeatCheckT
+3132474 3133385 ?        00:00:00 DRTaskTbUp0
+3132474 3133386 ?        00:00:00 T1_PsCacheEvict
+3132474 3133387 ?        00:00:00 T1002_FrzInfoDe
+3132474 3133388 ?        00:00:00 T1002_MergeSche
+3132474 3133389 ?        00:00:00 T1002_MFLaunch
+3132474 3133390 ?        00:00:00 SvrMetaCh
+3132474 3133391 ?        00:00:00 SvrMetaCh
+3132474 3133392 ?        00:00:00 TabletLSAUp1
+3132474 3133393 ?        00:00:00 BGThreadMonitor
+3132474 3133394 ?        00:00:00 ObStorageHADiag
+3132474 3133395 ?        00:00:00 LuaHandler
+3132474 3133396 ?        00:00:00 PxTargetMgr0
+3132474 3133397 ?        00:00:02 ActiveSessHist
+3132474 3133398 ?        00:00:00 ArbGCTimerP
+3132474 3133399 ?        00:00:00 TimezoneMgr
+3132474 3133402 ?        00:00:00 T1001_L0_G5
+3132474 3133403 ?        00:00:00 T1_L0_G25
+3132474 3133404 ?        00:00:00 T1002_TTLManage
+3132474 3133408 ?        00:00:00 T1002_TTLTablet
+3132474 3133409 ?        00:00:00 T1002_TTLTablet
+3132474 3133413 ?        00:00:00 T1_L0_G10
+3132474 3133414 ?        00:00:00 T1_L0_G10
+3132474 3135258 ?        00:00:00 T1002_L0_G18
+</code></pre>
+<h3 id="运行时环境变量">运行时环境变量</h3>
+<p>所有进程的<code>OBD_INSTALL_PRE=/</code></p>
+<p>只有observer的<code>LD_LIBRARY_PATH=/home/oceanbase/standalone/oceanbase/lib:</code><br/>
+其他进程的<code>LD_LIBRARY_PATH=/tmp/_MEIU4El9V</code>，但实际上这个目录不存在</p>
+<h2 id="下蛋分析">下蛋分析</h2>
+<p>home目录、安装目录、数据目录、日志目录 之外的其他路径下生成的目录或文件</p>
+<h3 id="软链接指向root用户文件">软链接指向root用户文件</h3>
+<pre><code class="language-sh">软链接路径: /home/oceanbase/.oceanbase-all-in-one/bin/env.sh -&gt; 目标路径: /etc/profile.d/obd.sh (目标所有者: root)
+软链接路径: /home/oceanbase/.oceanbase-all-in-one/obd/usr/obd/example -&gt; 目标路径: /usr/obd/example (目标所有者: root)
+</code></pre>
+<p><code>/usr/obd</code> 是obd的安装目录<br/>
+<code>/etc/profile.d/obd.sh</code> 里设置了obd命令的tab补全和操作系统的PATH变量，放到这里意味着所有用户都可以直接使用obd命令</p>
+<h3 id="root下二进制程序">root下二进制程序</h3>
+<p><code>/usr/bin/obclient</code><br/>
+<code>/usr/bin/obd</code></p>
+<h3 id="打开文件数限制">打开文件数限制</h3>
+<pre><code class="language-sh">/etc/security/limits.d/nofile.conf
+</code></pre>
+<h3 id="rpm程序">rpm程序</h3>
+<pre><code class="language-sh">rpm -qa |grep ob-deploy
+ob-deploy-3.2.0-2.el8.x86_64
+</code></pre>
+<h3 id="root下隐藏目录">root下隐藏目录</h3>
+<pre><code class="language-sh">/root/.obd/
+/root/.oceanbase-all-in-one/obd
+</code></pre>
+<p>这么看下来，单机企业版还算干净，并没有在操作系统里到处下蛋，用uninstall_obd.sh脚本能基本清理干净。只是<code>~/.bash_profile</code>里的<code>source env.sh</code>需要手动删除，root下的隐藏目录也需要手动删除。</p>
+<h2 id="日志和问题诊断">日志和问题诊断</h2>
+<h3 id="注意日志占用的存储空间">注意日志占用的存储空间</h3>
+<pre><code class="language-sh">[oceanbase@kylinv10sp3-node1 log]$ ll -lts
+总用量 7711852
+     0 drwxr-xr-x 2 oceanbase oceanbase        23  5月 26 08:51 alert
+249220 -rw-r--r-- 1 oceanbase oceanbase 255195617  5月 24 13:51 observer.log
+239640 -rw-r--r-- 1 oceanbase oceanbase 245386992  5月 24 13:51 rootservice.log
+ 11752 -rw-r--r-- 1 oceanbase oceanbase  12028977  5月 24 13:51 election.log
+133036 -rw-r--r-- 1 oceanbase oceanbase 136223785  5月 24 13:50 trace.log
+    24 -rw-r--r-- 1 oceanbase oceanbase     20911  5月 24 13:34 observer.log.wf
+262184 -rw-r--r-- 1 oceanbase oceanbase 268470569  5月 24 13:34 observer.log.20250524133431932
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435822  5月 24 13:10 observer.log.20250524131036348
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435904  5月 24 12:46 observer.log.20250524124630603
+     4 -rw-r--r-- 1 oceanbase oceanbase       299  5月 24 12:41 election.log.wf
+262164 -rw-r--r-- 1 oceanbase oceanbase 268435657  5月 24 12:41 election.log.20250524124106223
+262152 -rw-r--r-- 1 oceanbase oceanbase 268436129  5月 24 12:21 observer.log.20250524122134336
+262148 -rw-r--r-- 1 oceanbase oceanbase 268436420  5月 24 11:56 observer.log.20250524115635933
+262148 -rw-r--r-- 1 oceanbase oceanbase 268435615  5月 24 11:34 observer.log.20250524113459824
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435628  5月 24 11:11 observer.log.20250524111147815
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435509  5月 24 10:48 observer.log.20250524104805983
+262156 -rw-r--r-- 1 oceanbase oceanbase 268441332  5月 24 10:23 observer.log.20250524102342030
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435628  5月 24 09:59 observer.log.20250524095913497
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435510  5月 24 09:35 observer.log.20250524093558323
+262148 -rw-r--r-- 1 oceanbase oceanbase 268436807  5月 24 09:12 observer.log.20250524091204298
+     4 -rw-r--r-- 1 oceanbase oceanbase      1495  5月 24 08:55 rootservice.log.wf
+262164 -rw-r--r-- 1 oceanbase oceanbase 268437837  5月 24 08:55 rootservice.log.20250524085537233
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435549  5月 24 08:48 observer.log.20250524084828319
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435634  5月 24 08:23 observer.log.20250524082353810
+262172 -rw-r--r-- 1 oceanbase oceanbase 268457229  5月 22 17:13 observer.log.20250522171303177
+262156 -rw-r--r-- 1 oceanbase oceanbase 268439553  5月 22 16:24 observer.log.20250522162435164
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435624  5月 22 16:03 observer.log.20250522160328126
+262152 -rw-r--r-- 1 oceanbase oceanbase 268441031  5月 22 15:38 observer.log.20250522153833376
+262148 -rw-r--r-- 1 oceanbase oceanbase 268435615  5月 22 15:14 observer.log.20250522151450837
+262160 -rw-r--r-- 1 oceanbase oceanbase 268450743  5月 22 14:51 observer.log.20250522145101127
+262148 -rw-r--r-- 1 oceanbase oceanbase 268435498  5月 22 14:27 observer.log.20250522142708077
+262148 -rw-r--r-- 1 oceanbase oceanbase 268435481  5月 22 14:13 rootservice.log.20250522141348487
+262152 -rw-r--r-- 1 oceanbase oceanbase 268435523  5月 22 14:01 observer.log.20250522140155568
+262148 -rw-r--r-- 1 oceanbase oceanbase 268435511  5月 22 13:48 trace.log.20250522134834043
+262156 -rw-r--r-- 1 oceanbase oceanbase 268439670  5月 22 13:37 observer.log.20250522133736643
+[oceanbase@kylinv10sp3-node1 log]$ du -sh
+7.4G    .
+[oceanbase@kylinv10sp3-node1 log]$ pwd
+/home/oceanbase/standalone/oceanbase/log
+</code></pre>
+<p>日志增长很快，每小时生成约800MB（数据库没有任何业务操作）</p>
+<h3 id="crash分析">crash分析</h3>
+<p>在没有人操作的时候CRASH了</p>
+<pre><code class="language-sh">[2025-05-24 13:51:27.576975] INFO  [RPC.OBRPC] do_server_loop (ob_net_keepalive.cpp:484) [1920053][KeepAliveServer][T0][Y0-0000000000000000-0-0] [lt=12] socket need_disconn(n=0, errno=11)
+[2025-05-24 13:51:27.576997] INFO  [RPC.OBRPC] do_server_loop (ob_net_keepalive.cpp:514) [1920053][KeepAliveServer][T0][Y0-0000000000000000-0-0] [lt=20] server connection closed, fd: 107, addr: "192.168.1.123:41844"
+[2025-05-24 13:51:27.577067] WDIAG pkts_sk_consume (handle_io.t.h:66) [1919952][pnio1][T0][Y0-0000000000000000-0-0] [lt=4][errcode=0] PNIO do_decode fail: 9
+[2025-05-24 13:51:27.577099] INFO  eloop_handle_sock_event (eloop.c:112) [1919952][pnio1][T0][Y0-0000000000000000-0-0] [lt=20] PNIO sock destroy: sock=0x7f84d3c6ea98, connection=fd:113:local:"0.0.0.0:0":remote:"0.0.0.0:0", err=9
+[2025-05-24 13:51:27.577124] WDIAG sock_destroy (eloop.c:80) [1919952][pnio1][T0][Y0-0000000000000000-0-0] [lt=18][errcode=0] PNIO epoll_ctl delete fd faild, s=0x7f84d3c6ea98, s-&gt;fd=113, errno=9
+[2025-05-24 13:51:27.577146] WDIAG sock_destroy (eloop.c:86) [1919952][pnio1][T0][Y0-0000000000000000-0-0] [lt=13][errcode=0] PNIO close sock fd faild, s=0x7f84d3c6ea98, s-&gt;fd=113, errno=9
+[2025-05-24 13:51:27.577159] INFO  pkts_sk_delete (pkts_sk_factory.h:57) [1919952][pnio1][T0][Y0-0000000000000000-0-0] [lt=11] PNIO sk_destroy: s=0x7f84d3c6ea98 io=0x7f84d3004448
+CRASH ERROR!!! IP=556043dbe8f7, RBP=7f84e3063a30, sig=11, sig_code=1, sig_addr=0x58, RLIMIT_CORE=unlimited, timestamp=1748065887577326, tid=1919898, tname=ServerGTimer, trace_id=YB42C0A8A386-000635C732ED1D4C-0-0, lbt=0x18dc6a68 0x180b833d 0x7f84f53714bf 0x17bbe8f7 0x22c0b330 0x23127335 0x23278aa5 0x7f84f5366f1a 0x7f84f529e1bf, SQL_ID=, SQL_STRING=
+</code></pre>
+<p>安装obdiag来分析crash</p>
+<pre><code class="language-sh">obd obdiag deploy
+</code></pre>
+<p>生成配置文件</p>
+<pre><code class="language-sh">./obdiag config -h127.0.0.1 -P2881 -uroot@sys -p'IxTdN5zJHlYfRSlwEWyq'
+</code></pre>
+<p>但是似乎由于无法连接，所以无法采集</p>
+<pre><code class="language-sh">[oceanbase@kylinv10sp3-node1 oceanbase-diagnostic-tool]$ ./obdiag config -h127.0.0.1 -P2881 -uroot@sys -p'IxTdN5zJHlYfRSlwEWyq'
+obdiag version: 3.2.0
+[ERROR] connect OB: 127.0.0.1:2881 with user root@sys failed, error:(2003, "Can't connect to MySQL server on '127.0.0.1' ([Errno 111] Connection refused)")
+[ERROR] connect OB: 127.0.0.1:2881 with user root@sys failed, error:(2003, "Can't connect to MySQL server on '127.0.0.1' ([Errno 111] Connection refused)")
+[ERROR] get observer version fail. Please check conf about observer's node or obconnector's info.
+[ERROR] command failed. Please contact OceanBase community. e: get observer version fail. Please check conf about observer's node or obconnector's info.
+Trace ID: e7345d30-39d0-11f0-b6a4-000c2906074c
+If you want to view detailed obdiag logs, please run: ./obdiag display-trace e7345d30-39d0-11f0-b6a4-000c2906074c
+
+obdiag latest version is 3.4.0, current version is 3.2.0, please update obdiag to the latest version
+[oceanbase@kylinv10sp3-node1 oceanbase-diagnostic-tool]$ ./obdiag analyze log
+obdiag version: 3.2.0
+analyze_log start ...
+[ERROR] connect OB: 127.0.0.1:2881 with user root@sys failed, error:(2003, "Can't connect to MySQL server on '127.0.0.1' ([Errno 111] Connection refused)")
+[ERROR] connect OB: 127.0.0.1:2881 with user root@sys failed, error:(2003, "Can't connect to MySQL server on '127.0.0.1' ([Errno 111] Connection refused)")
+analyze log from_time: 2025-05-26 09:01:34, to_time: 2025-05-26 09:32:34
+analyze nodes's log start. Please wait a moment...
+[WARN] No found the qualified log file on Server [local]
+[WARN] 127.0.0.1 The number of log files is 0, No files found, Please adjust the query limit
+
+
+Analyze OceanBase Online Log Summary:
+
++-----------+----------------------+------------+--------------------+-------------+-----------+
+| Node      | Status               | FileName   | First Found Time   | ErrorCode   | Message   |
++===========+======================+============+====================+=============+===========+
+| 127.0.0.1 | Error:No files found |            |                    |             |           |
++-----------+----------------------+------------+--------------------+-------------+-----------+
+For more details, please run cmd ' cat /home/oceanbase/oceanbase-diagnostic-tool/obdiag_analyze_pack_20250526093134/result_details.txt '
+
+Trace ID: 28765848-39d1-11f0-b8ae-000c2906074c
+If you want to view detailed obdiag logs, please run: ./obdiag display-trace 28765848-39d1-11f0-b8ae-000c2906074c
+
+obdiag latest version is 3.4.0, current version is 3.2.0, please update obdiag to the latest version
+</code></pre>
+<p>换无配置文件的方式</p>
+<pre><code class="language-sh">[oceanbase@kylinv10sp3-node1 oceanbase-diagnostic-tool]$ ./obdiag gather scene run --scene=observer.cluster_down --from "2025-05-24 12:51:27" --to "2025-05-24 14:51
+:27" \
+&gt;     --config obcluster.servers.nodes[0].ip=192.168.1.123 \
+&gt;     --config obcluster.servers.global.ssh_username=oceanbase \
+&gt;     --config obcluster.servers.global.ssh_password=oceanbase \
+&gt;     --config obcluster.servers.global.home_path=/home/oceanbase/standalone/oceanbase
+obdiag version: 3.2.0
+gather_scenes_run start ...
+[ERROR] Failed to find yaml task path: /home/oceanbase/.obdiag/gather/tasks/
+[ERROR] 'NoneType' object is not subscriptable
+[ERROR] command failed. Please contact OceanBase community. e: 'NoneType' object is not subscriptable
+</code></pre>
+<p>也报错，于是分析coredump</p>
+<pre><code class="language-sh">[oceanbase@kylinv10sp3-node1 oceanbase-diagnostic-tool]$ addr2line -pCfe /home/oceanbase/standalone/oceanbase/bin/observer 0x18dc6a68 0x180b833d 0x7f84f53714bf 0x17
+bbe8f7 0x22c0b330 0x23127335 0x23278aa5 0x7f84f5366f1a 0x7f84f529e1bf
+safe_backtrace 于 ??:?
+oceanbase::common::coredump_cb(int, int, void*, void*) 于 ??:?
+?? ??:0
+oceanbase::share::ObLicenseExpirationCheckTask::runTimerTask() 于 0_cxx.cxx:?
+oceanbase::common::ObTimer::run1() 于 ??:?
+oceanbase::lib::Threads::run(long) 于 ??:?
+oceanbase::lib::Thread::__th_start(void*) 于 0_cxx.cxx:?
+?? ??:0
+?? ??:0
+</code></pre>
+<p>似乎与License有效期检查有关，但这刚装好几天，还没到180天的限制</p>
+<h2 id="总结">总结</h2>
+<p>安装还算简单，文档、工具也基本完善，但企业版最好还是购买支持服务来提供保障，对于普通用户而言，国产数据库的运维（尤其是非开源的）还是交给专业人士比较好。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

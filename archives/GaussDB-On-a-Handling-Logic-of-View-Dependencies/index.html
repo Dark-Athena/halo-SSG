@@ -153,7 +153,212 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb浅浅说下gaussdb中视图依赖关系的一个处理逻辑">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</h1>
+<p>先看一个比较有意思的问题：在 GaussDB 里，如果一个视图依赖了一个包里的函数，我把这个包删了，然后原样重建回来，视图还能正常查询吗？</p>
+<p>在 Oracle 里，删掉被依赖的对象，视图会变成 INVALID，后续需要重新编译才能恢复。在原生 PostgreSQL 里，压根不允许你删掉被视图引用的函数，直接报错阻止你。</p>
+<p>那 GaussDB 呢？它的做法和上面两个都不一样，而且这个"不一样"背后的设计思路，细想一下还挺有意思的。</p>
+<h2 id="测试环境">测试环境</h2>
+<ul>
+<li>GaussDB Kernel 506.0.0.SPC0500</li>
+<li>kylin v10 sp3 x86_64</li>
+</ul>
+<h2 id="第一步构造最基础的依赖关系">第一步：构造最基础的依赖关系</h2>
+<p>先创建一个带函数的包：</p>
+<pre><code class="language-sql">create or replace package pkg_test_dep is
+    function func(i int) return varchar;
+end;
+/
+
+create or replace package body pkg_test_dep is
+    function func(i int) return varchar is
+    begin
+        return i;
+    end;
+end;
+/
+</code></pre>
+<p>然后创建一个视图，引用这个包里的函数：</p>
+<pre><code class="language-sql">create or replace view v_test_dep as
+    select pkg_test_dep.func(count(1)::int) from dual;
+</code></pre>
+<p>正常查询：</p>
+<pre><code class="language-sql">select * from v_test_dep;
+</code></pre>
+<p>没有问题，视图正常返回结果。</p>
+<h2 id="第二步尝试直接修改函数">第二步：尝试直接修改函数</h2>
+<p>先试试直接修改函数的返回类型，把 <code>return varchar</code> 改成 <code>return int</code>：</p>
+<pre><code class="language-sql">create or replace package pkg_test_dep is
+    function func(i int) return int;
+end;
+/
+
+create or replace package body pkg_test_dep is
+    function func(i int) return int is
+    begin
+        return i;
+    end;
+end;
+/
+</code></pre>
+<p>报错了，提示存在视图依赖，禁止修改。</p>
+<p>这其实还是 PostgreSQL 原生的行为——改不了被依赖的对象。说个暴论，这里还保留了原本 PG 的防护机制，就说明 GaussDB 在视图依赖这条路径上的设计并不完整，至少在"修改"这个分支上没有做额外的处理。</p>
+<h2 id="第三步删掉包">第三步：删掉包</h2>
+<p>既然改不了，那我直接删：</p>
+<pre><code class="language-sql">drop package pkg_test_dep;
+</code></pre>
+<p>居然成功了。</p>
+<p>这一点和原生 PG 有本质区别。PG 里你不能删除被视图引用的函数，会直接报 <code>cannot drop function xxx because other objects depend on it</code>。但 GaussDB 允许你删掉包，说明它在 drop 路径上做了额外处理，没有走 PG 原生的依赖检查拦截。</p>
+<h2 id="第四步查询视图预期报错">第四步：查询视图（预期报错）</h2>
+<pre><code class="language-sql">select * from v_test_dep;
+</code></pre>
+<p>报错了。符合预期，包都删了，函数不存在了，视图查不了。</p>
+<h2 id="第五步原样重建包">第五步：原样重建包</h2>
+<pre><code class="language-sql">create or replace package pkg_test_dep is
+    function func(i int) return varchar;
+end;
+/
+
+create or replace package body pkg_test_dep is
+    function func(i int) return varchar is
+    begin
+        return i;
+    end;
+end;
+/
+</code></pre>
+<p>注意，这里我修改了返回类型，函数名和入参类型和之前一样。</p>
+<h2 id="第六步再查询视图">第六步：再查询视图</h2>
+<pre><code class="language-sql">select * from v_test_dep;
+</code></pre>
+<p>正常返回了。</p>
+<p>也就是说，GaussDB 在包重建后，视图自动恢复了有效性。看上去这个功能满足了视图重新生效的需求。</p>
+<p>但是问题来了：它是怎么做到的？</p>
+<h2 id="追踪pg_rewrite-里有没有记录原始-sql">追踪：pg_rewrite 里有没有记录原始 SQL？</h2>
+<p>按最简单的逻辑分析来说，一个视图要能在依赖对象被删又重建后自动恢复，那它必须保存了创建视图的原始 SQL，否则不可能知道该重建什么。</p>
+<p>先看 pg_rewrite：</p>
+<pre><code class="language-sql">select * from pg_rewrite where ev_class='v_test_dep'::regclass::oid;
+</code></pre>
+<p>ev_action 里记录了依赖对象的 oid，没有记录名称。也就是说，包被删除后，oid 对应的对象已经不存在了，仅凭 pg_rewrite 里的信息是无法反向还原出原始 SQL 的。</p>
+<p>再看 ev_action_def：</p>
+<pre><code class="language-sql">select * from pg_rewrite where ev_action_def is not null;
+</code></pre>
+<p>部分视图的 ev_action_def 中会记录 SQL 语句，但这个测试视图的 ev_action_def 是空的。</p>
+<p>因此，肯定需要有个地方能记录创建视图的原始 SQL，否则不可能在包重建后视图能正常查询。</p>
+<h2 id="发现gs_dep_source-系统表">发现：gs_dep_source 系统表</h2>
+<p>GaussDB 增加了一个系统表 <code>pg_catalog.gs_dep_source</code>，专门记录处理依赖关系所需要使用的数据。</p>
+<pre><code class="language-sql">select * from pg_catalog.gs_dep_source 
+    where object_oid='v_test_dep'::regclass::oid;
+</code></pre>
+<p>果然，source 字段里存着创建视图的原始 SQL。</p>
+<p>这就是 GaussDB 的底牌了。它在 pg_rewrite 之外，额外维护了一张表来记录对象的源码，专门用于依赖恢复。</p>
+<h2 id="依赖恢复的机制">依赖恢复的机制</h2>
+<p>跟踪 <code>pg_rewrite.ev_action</code> 的变化，发现在包重建后、查询 v_test_dep <strong>之前</strong>，ev_action 里的 funcid 就已经更新了。</p>
+<p>所以这个机制大致是这样的：</p>
+<pre><code>视图创建时
+  ├─ pg_rewrite 记录依赖对象的 oid（ev_action）
+  └─ gs_dep_source 记录视图的原始 SQL（source）
+
+包被删除时
+  ├─ pg_rewrite 中的 oid 变成悬空引用
+  └─ gs_dep_source 中的原始 SQL 保留不动
+
+包重建后
+  ├─ 从 gs_dep_source 取出原始 SQL
+  ├─ 重新解析并更新 ev_action 中的 funcid
+  └─ 视图恢复正常
+</code></pre>
+<p>简单来说，GaussDB 用空间换时间：多维护一张 gs_dep_source，把创建视图的原始 SQL 持久化存储，在依赖对象重建后通过重新解析来恢复关联关系。</p>
+<h2 id="和-oracle-的思路对比">和 Oracle 的思路对比</h2>
+<p>熟悉 Oracle 的人，可能会发现有不对劲的地方了。</p>
+<p>Oracle 的逻辑是：如果 A 强依赖于 B，修改 B 的时候，A 应该直接变成 INVALID。后续通过编译或其他机制重新变为 VALID。也就是说，Oracle 选择的是"先失效，再手动/自动恢复"。</p>
+<p>GaussDB 的逻辑是：删了包再重建，视图自动恢复，用户无感。</p>
+<p>看上去 GaussDB 的方案更友好，对吧？但问题是，如果遇到嵌套依赖或者循环依赖，复杂的关系会使处理逻辑变得异常复杂，有些路径上根本覆盖不到。Oracle 有些场景也要编译个两三次才能编译有效，这不是因为 Oracle 笨，而是因为依赖关系本身就是这么复杂。</p>
+<p>那 GaussDB 这个自动恢复的机制，能不能扛住嵌套依赖的场景？</p>
+<h2 id="嵌套依赖测试">嵌套依赖测试</h2>
+<p>构造一个嵌套依赖的场景，看看修改包对象后，视图里的定义是否还会级联修改。</p>
+<p>先清理环境：</p>
+<pre><code class="language-sql">drop view if exists v_test_dep;
+drop package if exists pkg_test_dep;
+drop package if exists pkg_subtype;
+</code></pre>
+<p>创建一个含有 subtype 的包：</p>
+<pre><code class="language-sql">create or replace package pkg_subtype is 
+    subtype varchar_8 is varchar(8);
+end;
+/
+</code></pre>
+<p>创建一个有函数的包，在函数里引用这个 subtype：</p>
+<pre><code class="language-sql">create or replace package pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8;
+end;
+/
+
+create or replace package body pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8 is
+    begin
+        return i::text;
+    end;
+end;
+/
+</code></pre>
+<p>创建一个视图，引用这个函数：</p>
+<pre><code class="language-sql">create or replace view v_test_dep as
+    select 1 from dual where pkg_test_dep.func('1')='1';
+</code></pre>
+<p>查询视图，正常返回。</p>
+<p>记录一下当前的 ev_action：</p>
+<pre><code class="language-sql">select * from pg_rewrite where ev_class='v_test_dep'::regclass::oid;
+</code></pre>
+<p>然后修改 subtype 的定义，把 <code>varchar(8)</code> 改成 <code>int</code>：</p>
+<pre><code class="language-sql">create or replace package pkg_subtype is 
+    subtype varchar_8 is int;
+end;
+/
+</code></pre>
+<p>查询 ev_action，发现没有变化。</p>
+<p>这一步是关键——subtype 的定义已经变了，但 pg_rewrite 里的依赖关系并没有跟着更新。也就是说，GaussDB 的依赖追踪在 subtype 这一层是断裂的。</p>
+<p>然后查询视图：</p>
+<pre><code class="language-sql">select * from v_test_dep;
+</code></pre>
+<p>数据库 coredump 了。</p>
+<h2 id="崩溃分析">崩溃分析</h2>
+<p>ffic_log 里的调用栈：</p>
+<pre><code>======= Call stack ====== 
+[gaussdb + 0x1845c6f] texteq
+[gaussdb + 0x188a0d6] exec_eval_func_expr_strict
+[gaussdb + 0x18808a6] exec_interp_expr
+[gaussdb + 0x187a34a] exec_qual_byflt
+[gaussdb + 0x18c6c05] exec_new_qual
+[gaussdb + 0x26ce5c4] gs_exec_scan&lt;SubqueryScanOperator&gt;
+[gaussdb + 0x26bec9a] PlanState::get_next
+[gaussdb + 0x18992b6] exec_standard_executor_run
+...
+</code></pre>
+<p>崩溃点在 <code>texteq</code>（文本等值比较），上面是表达式求值链路。也就是说，视图展开后的 WHERE 条件 <code>pkg_test_dep.func('1')='1'</code>，在实际执行时，函数返回的已经不是 varchar 而是 int 了，但比较表达式还在按 text 类型去做等值判断，类型不匹配导致段错误。</p>
+<p>把崩溃栈丢给 GPT 看了一下，它的判断也差不多：</p>
+<blockquote>
+<p>这是数据库内核执行期崩溃，不是普通 SQL 报错。触发点在谓词/表达式求值链路。因为崩在 texteq，且 SQL 指向视图 v_test_dep，较大概率与视图展开后的表达式、类型/collation 处理有关。</p>
+</blockquote>
+<h2 id="问题出在哪">问题出在哪</h2>
+<p>整个链路理一遍：</p>
+<ol>
+<li>视图 v_test_dep 依赖 pkg_test_dep.func，func 的返回类型间接依赖 pkg_subtype.varchar_8</li>
+<li>修改 pkg_subtype 的 subtype 定义后，<strong>pg_rewrite 里的依赖关系没有更新</strong></li>
+<li>gs_dep_source 里可能记录了原始 SQL，但 GaussDB 在 subtype 被修改后并没有触发重新解析</li>
+<li>查询视图时，函数按旧的类型信息执行，实际返回值的类型和表达式期望的类型不一致，直接 coredump</li>
+</ol>
+<p>根因就是：<strong>GaussDB 的依赖追踪没有覆盖到 subtype 的间接依赖关系</strong>。包一级的直接依赖能追踪到，但包里面的 subtype 被另一个包引用时，这个间接依赖链断裂了。</p>
+<h2 id="总结">总结</h2>
+<p>GaussDB 在视图依赖关系的处理上，引入了 <code>gs_dep_source</code> 系统表来持久化存储对象的创建 SQL，实现了一个"删了重建还能自动恢复"的机制。这个思路本身是有价值的，至少在简单的直接依赖场景下是能工作的。</p>
+<p>但遇到嵌套依赖时，问题就暴露了：依赖追踪在 subtype 这一层断裂，修改 subtype 定义后视图没有被标记为失效，查询时直接 coredump。这不是普通的报错，是数据库进程崩溃。</p>
+<p>其实这就是我之前在一些文章里表达过的观点：<strong>视图依赖和 PL/SQL 依赖是 PG/OG 系数据库想要兼容 Oracle 的一座大山</strong>。我们自己的产品在做 Oracle 兼容性时，针对这个上面折腾过很久，针对非常多的复杂场景去设计测试用例。看到 GaussDB 这个"自动恢复"的设计，我就感觉不太对劲，于是稍微改了下测试场景，直接就 coredump 了。</p>
+<p>其他更复杂的场景暂时不想测了，可能还有很多问题的根因和这个一样，测了也浪费时间。等华为先给个官方的逻辑说明吧，之后根据逻辑说明再去覆盖缺失的场景。</p>
+<p>如非必要，在 GaussDB 的正式文档和补丁明确覆盖这些场景之前，建议不要在生产环境中依赖视图自动恢复机制来处理包对象的重建。改了包的定义，最好直接重建使用了这个包的视图。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

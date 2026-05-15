@@ -149,13 +149,306 @@
         
         <span>2023-05-21</span>
         
-        <span>528 阅读</span>
+        <span>529 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>某客户，将应用的数据库从oracle迁移到openGauss系，源库中使用了大量的自定义type，所以java代码里也有很多对type对象的处理。在oracle中可以直接传对象给数据库，但是openGauss/postgresql的源码用例中，都是通过PGobject.setValue，把对象中的所有值拼成一个字符串，用逗号分隔，用括号括起来。如果对象中的某个值可能存在有逗号，那么就会出现异常。</p>
+<p>我以前没正经写过java，只能看懂个大概意思，当然，依葫芦画瓢也没啥问题。现在有chatGPT,只要思路清晰，应该也能写出来个解决方案。</p>
+<h2 id="%E9%97%AE%E9%A2%98%E8%A1%A8%E7%8E%B0" tabindex="-1">问题表现</h2>
+<p>在源码中 ，有如何使用自定义复合类型的示例<br/>
+\openGauss-connector-jdbc\pgjdbc\src\test\java\org\postgresql\test\jdbc3\CompositeTest.java</p>
+<pre><code class="language-java">@Before
+  public void setUp() throws Exception {
+    _conn = TestUtil.openDB();
+    TestUtil.createSchema(_conn, "\"Composites\"");
+    TestUtil.createCompositeType(_conn, "simplecompositetest", "i int, d decimal, u uuid");
+    TestUtil.createCompositeType(_conn, "nestedcompositetest", "t text, s simplecompositetest");
+    TestUtil.createCompositeType(_conn, "\"Composites\".\"ComplexCompositeTest\"",
+        "l bigint[], n nestedcompositetest[], s simplecompositetest");
+    TestUtil.createTable(_conn, "compositetabletest",
+        "s simplecompositetest, cc \"Composites\".\"ComplexCompositeTest\"[]");
+    TestUtil.createTable(_conn, "\"Composites\".\"Table\"",
+        "s simplecompositetest, cc \"Composites\".\"ComplexCompositeTest\"[]");
+  }
+
+ @Test
+  public void testSimpleArgumentSelect() throws SQLException {
+    PreparedStatement pstmt = _conn.prepareStatement("SELECT ?");
+    PGobject pgo = new PGobject();
+    pgo.setType("simplecompositetest");
+    pgo.setValue("(1,2.2,)");
+    pstmt.setObject(1, pgo);
+    ResultSet rs = pstmt.executeQuery();
+    assertTrue(rs.next());
+    PGobject pgo2 = (PGobject) rs.getObject(1);
+    assertEquals(pgo, pgo2);
+  }
+</code></pre>
+<p>这里关键的代码在下面这4行</p>
+<pre><code class="language-java">PGobject pgo = new PGobject();  // new一个PGobject()对象
+    pgo.setType("simplecompositetest");  //将这个对象设置成自定义类型
+    pgo.setValue("(1,2.2,)");  //设置这个对象的值
+    pstmt.setObject(1, pgo); //把这个对象绑定到sql的变量里
+
+</code></pre>
+<p>这里其实就有点难受了，simplecompositetest这个类型在数据库中已经定义，而且真实的业务代码中，java里往往会建一个对应的class，数据应该在这个class的对象里，而此处却需要将业务对象转换成字符串，再塞到PGobject对象里后，才能绑定变量到sql。</p>
+<h2 id="oracle%E6%80%8E%E4%B9%88%E5%81%9A%E7%9A%84" tabindex="-1">ORACLE怎么做的</h2>
+<pre><code class="language-java">You: 
+在oracle里创建自定义类型，然后在java里怎么使用这个自定义类型进行绑定变量的sql执行？
+
+Bot:
+在Oracle里创建自定义类型，你可以使用CREATE TYPE语句，例如：
+
+CREATE TYPE person_t AS OBJECT (
+  name VARCHAR2(50),
+  age NUMBER
+);
+这样就创建了一个名为person_t的自定义类型，它有两个属性：name和age。
+
+在Java里使用这个自定义类型进行绑定变量的SQL执行，你可以使用OraclePreparedStatement和它的方法setObjectAtName()，例如：
+
+//假设你已经建立了一个数据库连接conn
+String sql = "INSERT INTO person VALUES (:p)";
+OraclePreparedStatement stmt = (OraclePreparedStatement) conn.prepareStatement(sql);
+//创建一个person_t类型的对象
+Object[] person = new Object[2];
+person[0] = "张三";
+person[1] = 25;
+//将对象绑定到SQL语句中的变量p
+stmt.setObjectAtName("p", person);
+//执行SQL语句
+stmt.executeUpdate();
+这样就可以在Java里使用自定义类型进行绑定变量的SQL执行了。^1^ ^2^ ^3^
+
+希望这些信息对你有用。👍
+</code></pre>
+<p>oracle 里new的这个object，可以直接绑定到sql的变量里</p>
+<h2 id="opengauss%E9%87%8C%E6%80%8E%E4%B9%88%E5%A4%84%E7%90%86%EF%BC%9F" tabindex="-1">openGauss里怎么处理？</h2>
+<p>由于是连续对话，代码太长了，所以这里只截取关键的</p>
+<pre><code class="language-java">You: 
+我想定义一个class，能和数据库中的自定义类型ty_test对应上，
+因为setValue只能接受逗号分隔的字符串输入，如果某个值本身可能
+存在逗号或其他特殊符号，就会执行失败 ,ty_test的代码为 
+create type ty_test as (col1 text, col2 text, col3 int);
+
+Bot:
+我理解您的需求。如果您想定义一个class，能和数据库中的自定义类型ty_test对应上，
+您可以使用org.opengauss.util.PGobject类的子类，并重写它的setValue()和getValue()方法，以实现您自己的逻辑。例如：
+
+// Assume we have a custom composite type called ty_test with three fields col1, col2 and col3
+public class TY_TEST extends PGobject {
+  private String col1;
+  private String col2;
+  private int col3;
+
+  public TY_TEST() {
+    setType("ty_test"); // Set the type name in the database
+  }
+
+  public TY_TEST(String col1, String col2, int col3) {
+    this();
+    this.col1 = col1;
+    this.col2 = col2;
+    this.col3 = col3;
+  }
+
+  @Override
+  public void setValue(String value) throws SQLException {
+    // Parse the string value and assign to the fields
+    // You can use your own logic to handle special characters
+    // For example, you can use quotation marks to enclose the values
+    if (value != null &amp;&amp; value.startsWith("(") &amp;&amp; value.endsWith(")")) {
+      value = value.substring(1, value.length() - 1); // Remove the parentheses
+      String[] parts = value.split(","); // Split by comma
+      if (parts.length == 3) {
+        this.col1 = parts[0].replaceAll("\"", ""); // Remove the quotation marks
+        this.col2 = parts[1].replaceAll("\"", "");
+        this.col3 = Integer.parseInt(parts[2]);
+      } else {
+        throw new SQLException("Invalid value for ty_test: " + value);
+      }
+    } else {
+      throw new SQLException("Invalid value for ty_test: " + value);
+    }
+  }
+
+  @Override
+  public String getValue() {
+    // Return a string representation of the object
+    // You can use your own logic to handle special characters
+    // For example, you can use quotation marks to enclose the values
+    return "(" + "\"" + col1 + "\"" + "," + "\"" + col2 + "\"" + "," + col3 + ")";
+  }
+}
+
+// Then you can use the TY_TEST class as the parameter
+TY_TEST values = new TY_TEST("abc", "def", 1);
+pstmt.setObject(1, values);
+希望这些信息对您有所帮助。
+</code></pre>
+<p>这段代码的几个关键点</p>
+<ol>
+<li>extends PGobject</li>
+<li>setType(“ty_test”);</li>
+<li>this();</li>
+<li>getValue()</li>
+</ol>
+<p>我测了下，其实setValue可以去掉，因为本身就是用的java的类，不需要用字符串去传，所以整理好可以执行的代码如下</p>
+<pre><code class="language-java">import java.sql.*;
+import org.opengauss.util.PGobject;
+
+//create type ty_test as (col1 text, col2 text, col3 int);
+
+class TY_TEST extends PGobject{
+  private String col1;
+  private  String col2;
+  private  int col3;
+  
+  public TY_TEST() {
+    setType("ty_test"); 
+  }
+
+  public TY_TEST(String i_col1,String i_col2, int i_col3){
+    this();
+    this.col1=i_col1;
+    this.col2=i_col2;
+    this.col3=i_col3;
+  }
+
+  @Override
+  public String getValue() {
+    return "(" + "\"" + col1 + "\"" + "," + "\"" + col2 + "\"" + "," + col3 + ")";
+  }
+}
+
+public class test_type4 {
+
+  static final String jdbcString = "org.opengauss.Driver";
+  static final String urlString = "jdbc:opengauss://192.168.1.115:26000/postgres?batchMode=off";
+  static final String userName = "xxxxxxxx";
+  static final String password = "xxxxxxxx";
+
+  /**
+ * @param args
+ * @throws Exception
+ */
+public static void main(String[] args) throws SQLException {
+  Connection _conn = DriverManager.getConnection(urlString, userName, password);
+  PreparedStatement pstmt = _conn.prepareStatement("SELECT ?");
+  //PGobject pgo = new PGobject();
+  //pgo.setType("ty_test");
+  //pgo.setValue("(abc,def,1)");
+  TY_TEST values = new TY_TEST("abc","de,f",1);
+  pstmt.setObject(1, values);
+  ResultSet rs = pstmt.executeQuery();
+  rs.next();
+  System.out.println(rs.getString(1));
+  rs.close();
+  pstmt.close();
+  _conn.close();
+}
+}
+</code></pre>
+<p>执行执行输出为</p>
+<blockquote>
+<p>(abc,“de,f”,1)</p>
+</blockquote>
+<p>这样就不需要再去转换了。但是，实际上这个原理，还是转成了字符串，只是在字符类型的值上加了双引号。所以就算不扩展PGobject，也可以写段代码转换成字符串，比如</p>
+<pre><code class="language-java">  @Override public String toString(){
+    return "(\""+col1+"\",\""+col2+"\",\""+col3+"\")";
+  }
+</code></pre>
+<pre><code class="language-java">  PGobject pgo = new PGobject();
+  pgo.setType("ty_test");
+  TY_TEST values = new TY_TEST("abc","d,ef",1);
+  pgo.setValue(values.toString());
+  pstmt.setObject(1, pgo);
+</code></pre>
+<p>不过这样就多了几行代码，而且setType可能都会重复出现，还是扩展PGobject更干净。</p>
+<h2 id="%E5%85%B6%E4%BB%96%E9%97%AE%E9%A2%98" tabindex="-1">其他问题</h2>
+<p>目前已知这个方案，其实就是加双引号再拼字符串，那么如果值里本身就有双引号，该如何处理呢？<br/>
+当然，这里最简单的就是给双引号加转义了</p>
+<pre><code class="language-java">import java.sql.*;
+import org.opengauss.util.PGobject;
+
+//create type ty_test as (col1 text, col2 text, col3 int);
+
+class TY_TEST extends PGobject{
+  private String col1;
+  private  String col2;
+  private  int col3;
+  
+  public TY_TEST() {
+    setType("ty_test"); 
+  }
+
+  public TY_TEST(String i_col1,String i_col2, int i_col3){
+    this();
+    this.col1=i_col1;
+    this.col2=i_col2;
+    this.col3=i_col3;
+  }
+
+  @Override
+  public String getValue() {
+    return "(" + "\"" + col1.replaceAll("\"", "\"\"") + "\"" + "," + "\"" + col2.replaceAll("\"", "\"\"") + "\"" + "," + col3 + ")";
+  }
+}
+
+public class test_type4 {
+
+  static final String jdbcString = "org.opengauss.Driver";
+  static final String urlString = "jdbc:opengauss://192.168.1.115:26000/postgres?batchMode=off";
+  static final String userName = "xxxxxxxx";
+  static final String password = "xxxxxxxx";
+
+  /**
+ * @param args
+ * @throws Exception
+ */
+public static void main(String[] args) throws SQLException {
+  Connection _conn = DriverManager.getConnection(urlString, userName, password);
+  PreparedStatement pstmt = _conn.prepareStatement("SELECT ?");
+  TY_TEST values = new TY_TEST("abc","de,\"f",1);
+  pstmt.setObject(1, values);
+  ResultSet rs = pstmt.executeQuery();
+  rs.next();
+  System.out.println(rs.getString(1));
+  rs.close();
+  pstmt.close();
+  PreparedStatement pstmt2 = _conn.prepareStatement("insert into t_ty_test values (?) "); //create table t_ty_test(a ty_test);
+  pstmt2.setObject(1, values);
+  int rs2 = pstmt2.executeUpdate();
+  pstmt2.close();
+  _conn.close();
+}
+}
+</code></pre>
+<p>由于java打印出来的这个值长这样</p>
+<blockquote>
+<p>(abc,“de,”“f”,1)</p>
+</blockquote>
+<p>所以我建了个表，把值插进去看到底是什么样子</p>
+<pre><code class="language-sql">MogDB=&gt; select a, (a).col2 from t_ty_test ;
+        a         | col2
+------------------+-------
+ (abc,"de,""f",1) | de,"f
+(1 row)
+</code></pre>
+<p>看上去没有问题，显示两个双引号是自动转义出来的。<br/>
+于是，问题解决，分隔符和字符串标记符都能自动处理了。</p>
+<h2 id="%E8%99%BD%E7%84%B6%E4%BD%86%E6%98%AF%EF%BC%8C%E8%BF%98%E6%98%AF%E4%B8%8D%E5%BE%97%E5%8A%B2" tabindex="-1">虽然但是，还是不得劲</h2>
+<p>在oracle里代码那么少，openGauss里要实现同样的效果代码量翻了几倍，虽然这些代码规律性很强，可以写个框架自动生成，但是应该有办法通过修改jdbc驱动，实现和oracle相同的用法。<br/>
+这个课题就抛给感兴趣的人去试试了。</p>
+</div>
+</article>
     </div>
     
 </article>

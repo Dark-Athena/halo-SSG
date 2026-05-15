@@ -155,7 +155,167 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>前两天写了一篇openGauss3.1关于mysql的相关特性，但由于openGauss官网提供下载的版本还是9月30号第一次发布的版本，很多特性都还没合入，所以不少爱好者不能轻易体验到。<br/>
+虽然openGauss已经提供了“一键式编译脚本”,但是还是得做一些前提准备，对于一些不熟悉在linux编译程序的人来说，还是有些门槛。<br/>
+于是我整理了2个脚本，只要提前准备好一个能联网的centos7.9_x86_64，即可实现真正的一键式编译并自动安装及启动数据库，顺便创建好了一个B库。</p>
+<h2 id="%E8%84%9A%E6%9C%AC" tabindex="-1">脚本</h2>
+<ul>
+<li>新建一个/opt/onekey-build-og.sh文件，存入以下内容</li>
+</ul>
+<pre><code class="language-shell">#!/bin/bash
+# 环境 centos 7.9 4C 8G  (配置越高编译越快，4G内存编译不了，磁盘大概需要14GB)
+# 安装一些依赖 （libaio-devel如果不卸载重装，可能会找不到io_context_t）
+yum remove libaio-devel libaio -y
+yum install -y git gmp  gmp-devel  mpfr  mpfr-devel  libmpc  libmpc-devel libaio libaio-devel flex bison ncurese-devel glibc-devel patch rehat-lsb-core readline-devel perl gcc gcc-c++
+
+# 新建一个用户
+useradd omm310
+
+# 创建目录
+mkdir /opt/omm310
+chown omm310 /opt/omm310 -R
+
+# 切换用户执行编译及安装
+chown omm310 install.sh
+chmod 777 install.sh
+su - omm310 -c "cd /opt &amp;&amp; bash install.sh"
+</code></pre>
+<ul>
+<li>新建一个/opt/install.sh文件，存入以下内容</li>
+</ul>
+<pre><code class="language-shell">#!/bin/bash
+# 创建数据目录
+cd /opt/omm310
+mkdir data
+
+# 下载编译好的三方库并解压(这里下载的是Centos7.6_x86_64的版本，在7.6和7.9都能用)
+wget https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/binarylibs/openGauss-third_party_binarylibs_Centos7.6_x86_64.tar.gz
+tar -xvf openGauss-third_party_binarylibs_Centos7.6_x86_64.tar.gz
+
+# 克隆数据库源码仓
+git clone https://gitee.com/opengauss/openGauss-server
+
+# 配置环境变量(这里最核心的一点就是把gcc的默认路径改了，操作系统默认的版本太低)
+echo "export CODE_BASE=/opt/omm310/openGauss-server     # Path of the openGauss-server file " &gt;&gt; ~/.bash_profile
+echo "export BINARYLIBS=/opt/omm310/openGauss-third_party_binarylibs_Centos7.6_x86_64    # Path of the binarylibs file " &gt;&gt; ~/.bash_profile
+echo "export GAUSSHOME=\$CODE_BASE/dest/ " &gt;&gt; ~/.bash_profile
+echo "export GCC_PATH=\$BINARYLIBS/buildtools/gcc7.3/ " &gt;&gt; ~/.bash_profile
+echo "export CC=\$GCC_PATH/gcc/bin/gcc " &gt;&gt; ~/.bash_profile
+echo "export CXX=\$GCC_PATH/gcc/bin/g++ " &gt;&gt; ~/.bash_profile
+echo "export LD_LIBRARY_PATH=\$GAUSSHOME/lib:\$GCC_PATH/gcc/lib64:\$GCC_PATH/isl/lib:\$GCC_PATH/mpc/lib/:\$GCC_PATH/mpfr/lib/:\$GCC_PATH/gmp/lib/:\$LD_LIBRARY_PATH " &gt;&gt; ~/.bash_profile
+echo "export PATH=\$GAUSSHOME/bin:\$GCC_PATH/gcc/bin:\$PATH " &gt;&gt; ~/.bash_profile
+echo "export PGDATA=/opt/omm310/data" &gt;&gt; ~/.bash_profile
+echo "export PGPORT=26000" &gt;&gt; ~/.bash_profile
+echo "export PGDATABASE=postgres" &gt;&gt; ~/.bash_profile
+
+# 加载环境变量
+source ~/.bash_profile
+
+# 进入源码目录
+cd $CODE_BASE
+
+# 编译server (这里就是openGauss提供的一键式编译脚本)
+sh build.sh -m release -3rd $BINARYLIBS
+
+# 文件夹改名 (原文档说会生成dest目录，但实际上是生成到了mppdb_temp_install，所以改个名)
+mv mppdb_temp_install dest 
+
+# 克隆插件仓，并复制到server源码目录内(必须单独编译，因为如果先放到server源码内，server都会编译不成功)
+git clone https://gitee.com/opengauss/Plugin
+cp Plugin/contrib/*  $CODE_BASE/contrib/ -r
+
+# 编译dolphin插件
+cd contrib/dolphin
+make install
+
+# 复制插件到编译好的server目录
+cp *.so $GAUSSHOME/lib/postgresql/ 
+cp *.control $GAUSSHOME/share/postgresql/extension/ 
+cp *.sql $GAUSSHOME/share/postgresql/extension/ 
+
+# 初始化数据库
+gs_initdb --nodename=primary --pwpasswd=Enmo@123
+
+# 配置一些数据库参数
+echo "port=$PGPORT" &gt;&gt; $PGDATA/postgresql.conf
+echo "listen_addresses = '0.0.0.0'" &gt;&gt; $PGDATA/postgresql.conf
+echo "password_encryption_type = 0" &gt;&gt; $PGDATA/postgresql.conf
+echo "log_directory = 'pg_log'" &gt;&gt; $PGDATA/postgresql.conf
+echo "remote_read_mode=non_authentication" &gt;&gt; $PGDATA/postgresql.conf
+echo "host all all 0.0.0.0/0 md5" &gt;&gt; $PGDATA/pg_hba.conf
+
+# 启动数据库
+gs_ctl start 
+
+# 连接数据库并创建一个B库
+gsql -c "create database og_dolphin dbcompatibility='B'";
+
+# 开启一些mysql特性
+gsql -c "alter database og_dolphin set enable_set_variable_b_format = on;";
+gsql -c "alter database og_dolphin set dolphin.lower_case_table_names = 0;";
+gsql -c "alter database og_dolphin set dolphin.B_COMPATIBILITY_MODE = on;";
+gsql -c "alter system set  enable_dolphin_proto= on;";
+gsql -c "alter system set  dolphin_server_port=3307;";
+
+gs_ctl restart
+
+</code></pre>
+<ul>
+<li><a href="http://xn--onekey-build-og-6391a.sh" target="_blank">对onekey-build-og.sh</a> 授权可执行</li>
+</ul>
+<pre><code class="language-shell">chmod 777 onekey-build-og.sh
+</code></pre>
+<ul>
+<li>然后执行这个sh文件（4C 8G 100M宽带 大约30分钟）</li>
+</ul>
+<pre><code class="language-shell">./onekey-build-og.sh
+</code></pre>
+<h2 id="%E8%BF%9E%E6%8E%A5%E6%95%B0%E6%8D%AE%E5%BA%93" tabindex="-1">连接数据库</h2>
+<pre><code class="language-shell">su - omm310
+gsql -r -d og_dolphin
+</code></pre>
+<h2 id="%E6%B5%8B%E8%AF%95" tabindex="-1">测试</h2>
+<ul>
+<li>表名大小写敏感及反引号</li>
+</ul>
+<pre><code class="language-sql">create table Test_123 (`a` int, `B` int ,"Ab" int);
+\d+ "Test_123"
+select * from Test_123;--不会报错
+select * from test_123;--会报错
+</code></pre>
+<ul>
+<li>mysql客户端连接<br/>
+如果机器上没有安装mysql客户端，则先安装一下</li>
+</ul>
+<pre><code class="language-shell">yum -y install http://dev.mysql.com/get/mysql80-community-release-el7-7.noarch.rpm
+yum search mysql
+yum install -y mysql-community-client.x86_64
+</code></pre>
+<p>创建一个新的数据库用户</p>
+<pre><code class="language-shell">su - omm310
+gsql -c "create user test_user password 'openGauss123';"
+</code></pre>
+<p>用mysql客户端连接openGauss，不过目前在mysql命令行客户端上无法返回执行结果，使用其他工具测试正常，比如mogeaver</p>
+<pre><code class="language-shell">mysql -P 3307 -u test_user -popenGauss123 -h 127.0.0.1 -D og_dolphin
+</code></pre>
+<p><img alt="image-1671948314560" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671948314560.png" srcset="/upload/2022/12/image-1671948314560.png?width=1200 1200w, /upload/2022/12/image-1671948314560.png?width=400 400w, /upload/2022/12/image-1671948314560.png?width=1600 1600w, /upload/2022/12/image-1671948314560.png?width=800 800w"/><br/>
+<img alt="image-1671948465169" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671948465169.png" srcset="/upload/2022/12/image-1671948465169.png?width=1200 1200w, /upload/2022/12/image-1671948465169.png?width=400 400w, /upload/2022/12/image-1671948465169.png?width=1600 1600w, /upload/2022/12/image-1671948465169.png?width=800 800w"/></p>
+<h2 id="%E7%8E%AF%E5%A2%83%E6%B8%85%E7%90%86%E5%91%BD%E4%BB%A4" tabindex="-1">环境清理命令</h2>
+<p>如果编译出错，或者源码有更新，想重新编译，可以执行下面的命令清理环境，会把之前的源码和数据库程序、数据都删掉</p>
+<pre><code class="language-shell">su - omm310
+gs_ctl stop
+exit
+
+userdel omm310
+rm -rf /opt/omm310
+rm -rf /home/omm310
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

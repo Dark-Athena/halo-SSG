@@ -155,7 +155,152 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一背景">一、背景</h2>
+<p>在企业和一些三方数据分析公司合作时，会需要每天导出数据提供给第三方，一般双方会先约定好需要一些什么数据，包括每个数据有哪些字段，数据条件是怎样的。</p>
+<p>假设企业内部的数据是存储在多个ORACLE数据库中的，在不用JAVA/PYTHON等开发一个专用服务的情况下，能否仅通过windows下的cmd命令来实现连接到不同ORACLE数据库中导出不同的数据，并可以通过修改配置的方式新增需要导出的数据（事实情况是，员工编制严重不足，没有可用的程序员）</p>
+<h2 id="二初步分析">二、初步分析</h2>
+<p>1.因为有多个数据，所以肯定有多个sql，需要对这些sql命名<br/>
+2.因为有多个数据源，所以数据源也要进行命名<br/>
+3.一个sql对应一个数据源，所以这里需要定义一个数组<br/>
+4.ORACLE数据导出，在数据量很大的情况下，使用sqluldr2效率比较高<br/>
+5.每天都需要导出数据生成文件，为防止文件名重复导致文件覆盖，因此生成的文件名建议包含日期<br/>
+6.为了备查，建议生成日志文件<br/>
+7.在文件提供给第三方后，为了避免对方处理的文件和上传的文件不一致导致的各种猜疑，建议把生成的文件的MD5写入日志</p>
+<h2 id="三针对每条分析给出可执行的方案">三、针对每条分析给出可执行的方案</h2>
+<p>1.有两种方案，所有SQL都放在一个文本文件内，并编号，但是sql是会换行的，用bat解析这样的文本很麻烦，而且要定义一些特殊的标签来识别，所以我选择的是每个SQL分别存一个文件，并且文件名命名为对应的数据名称,比如这样<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-e5df482c57564e009e25285844285485.png" srcset="/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1200 1200w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=400 400w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1600 1600w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=800 800w"/></p>
+<p>2.多个数据源，直接用bat的临时变量进行赋值，比如</p>
+<pre><code class="language-bat">set db1=user/password@db1
+set db2=user/password@db2
+set db3=user/password@db3
+</code></pre>
+<p>3.在度娘搜索关键词 BAT+数组，可得方案，<br/>
+<a href="https://www.jb51.net/article/67630.htm">https://www.jb51.net/article/67630.htm</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png" srcset="/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1200 1200w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=400 400w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1600 1600w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=800 800w"/></p>
+<p>4.sqluldr2有windows版和linux版，也分32位和64位的，单文件，没有官方下载渠道，需要自行搜索下载<br/>
+(注：此程序非ORACLE官方出品，从程序说明来看，作者是个叫Lou Fangxin的中国人，经确认就是数据库圈内的知名人士-楼方鑫，另外关于商业授权，请自行斟酌<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png" srcset="/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1200 1200w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=400 400w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1600 1600w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=800 800w"/><br/>
+)<br/>
+附作者编写的sqluldr2详细文档（建议仔细阅读，没准有可以用上地方）<br/>
+<a href="https://www.doc88.com/p-6522591706862.html?r=1">https://www.doc88.com/p-6522591706862.html?r=1</a></p>
+<p>5.在bat下获取系统日期是个既简单又麻烦的事，因为日期是存在多种格式的，我们先在cmd里直接获取一下日期变量看显示的什么</p>
+<pre><code class="language-batch">echo %date%
+</code></pre>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png" srcset="/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1200 1200w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=400 400w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1600 1600w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=800 800w"/><br/>
+其实这个格式与操作系统中的设置的日期显示格式有关，用户可以自行修改，不同的设备上的默认格式也不一样，比如我改了之后，同样执行上面这个命令，格式就显示得不一样了<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png" srcset="/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1200 1200w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=400 400w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1600 1600w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=800 800w"/></p>
+<p>为了让最终的方案更通用，我们需要获取格式化的日期，度娘搜索关键词 “bat获取格式化日期”，得到一篇文章<br/>
+<a href="https://blog.csdn.net/zzh87615/article/details/6120987">https://blog.csdn.net/zzh87615/article/details/6120987</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png" srcset="/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1200 1200w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=400 400w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1600 1600w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=800 800w"/><br/>
+分析这个，其实就是字符串截取，默认操作系统的日期格式是什么样了，但如果操作系统的日期格式有变化，那么这段代码执行出来的结果实际是个错的。<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png" srcset="/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1200 1200w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=400 400w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1600 1600w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=800 800w"/><br/>
+在cmd命令中，这些参数变量什么的，是没有数据类型定义的，输出的结果就是个简单的文本而已，所以理论上在不知道日期格式设置的是什么的时候，是无法解析 %date%这个环境变量的。这个日期格式其实是保存在注册表中的，理论上只要通过bat读取到注册表对应的键值，再穷举所有可能键值的截取方式就行了，但注册表中的这个日期格式，用户是可以完全自定义的，输入几个其他字符也能正常显示，这个方法太过复杂，而且不能保证准确，所以只能换个方法。</p>
+<p>与bat类似，vbs是在windows环境下常用的脚本语言，能够实现更复杂的功能。<br/>
+参考这篇文章的第三个方案<br/>
+<a href="https://www.jb51.net/article/44361.htm">https://www.jb51.net/article/44361.htm</a><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png" srcset="/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1200 1200w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=400 400w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1600 1600w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=800 800w"/><br/>
+我们可以写个更灵活的vbs文件，因为生成的文件名中的日期有时候表示数据发生日期，即昨日</p>
+<pre><code class="language-vbscript">Set objArgs = WScript. Arguments  
+LastDate=NOW()-objArgs(0)  
+wscript.echo LastDate  
+FmtDate=right(year(LastDate),4) + right("0" + CStr( month(LastDate)),2) + right("0" + CStr(day(LastDate)),2) + right("0" + CStr(hour(LastDate)),2) + right("0" + CStr(minute(LastDate)),2) + right("0" + CStr(second(LastDate)),2) 
+wscript.echo FmtDate  
+
+</code></pre>
+<p>把以上代码保存成 GET_DATETIME.vbs ，供bat作为一个函数调用，可传距今多少天之前作为参数来获得对应日期的格式化字符串(注意，win10环境下VBS误报病毒很严重，请添加信任)。</p>
+<p>6.日志这个好办 ，加个 “&gt;&gt;日志文件名”就好了，sqluldr2也有输出日志的参数</p>
+<p>7.windows自带一个叫certutil的命令行工具，支持计算文件的hash值，当然也能计算文件的MD5</p>
+<h2 id="四最终方案整合">四、最终方案整合</h2>
+<pre><code class="language-batch">rem 进入当前目录
+pushd %~dp0
+rem 取日期 ，传1 表示当前日期减1天
+for /f %%a in ('cscript /nologo "GET_DATETIME.vbs" 1') do (set tt=%%a)
+for /f %%a in ('cscript /nologo "GET_DATETIME.vbs" 0') do (set t=%%a)
+rem 格式化日期 取YYYYMMDD
+set t1=%tt:~0,8%
+REM 预设需要用到的DB连接
+set db1=user1/password1@db1
+set db2=user2/password2@db2
+set db3=user3/password3@db3
+rem 设置项目主题(不同的项目建议分不同的文件夹，这个可以理解为子文件夹)
+set subject=AIO
+REM 设置导出文件夹
+set export_dir=output
+rem 设置日期文件夹
+set log_dir=log
+REM 开始生成日志
+echo %date% %time% begin 开始生成文件 %t%&gt;%log_dir%\FILEEXP_%t%.log
+
+rem 设置数组长度，即文件个数，bat需要初始化数组
+set objLength=7
+
+rem 设置生成清单,这里为配置项，新增数据的时候只要再加两行配置即可
+set obj[0].typ=STORE
+set obj[0].link=%db1%
+set obj[1].typ=SUPP
+set obj[1].link=%db1%
+set obj[2].typ=ITEM
+set obj[2].link=%db3%
+set obj[3].typ=ITEMSUPP
+set obj[3].link=%db1%
+set obj[4].typ=ITEMLOC
+set obj[4].link=%db1%
+set obj[5].typ=SALE
+set obj[5].link=%db2%
+set obj[6].typ=INV
+set obj[6].link=%db3%
+
+set objIndex=0
+
+:loopStart
+if %objIndex% equ %objLength% goto end
+
+set objCurrent.typ=0
+set objCurrent.link=0
+
+for /f "usebackq delims==. tokens=1-3" %%i in (`set obj[%objIndex%]`) do (
+    set objCurrent.%%j=%%k
+
+)
+
+SET typ=%objCurrent.typ%
+SET link=%objCurrent.link%
+
+REM 生成文件名
+set file=%export_dir%\%subject%_%typ%_%t1%.csv
+rem 导出数据
+sqluldr2 %link% sql=sql_increase\%typ%.sql field="|" record=0x0a charset=UTF8 head=yes file=%file% &gt;&gt;%log_dir%\FILEEXP_%t%.log
+rem 生成MD5
+certutil -hashfile %file% MD5 &gt;&gt;%log_dir%\FILEEXP_%t%.log
+
+set /a objIndex=%objIndex% + 1
+
+goto loopStart
+
+:end
+
+rem 结束生成日志
+echo %date% %time% end 生成完毕&gt;&gt;%log_dir%\FILEEXP_%t%.log
+</code></pre>
+<p>保存成 run_increment.bat</p>
+<p>目录结构<br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png" srcset="/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1200 1200w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=400 400w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1600 1600w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=800 800w"/></p>
+<p>其中多出来的几个文件<br/>
+run_history.bat用于引用不同条件的SQL，手动生成历史数据<br/>
+run_sync.bat和ossutil是数据同步相关文件，可参考我的这篇文章<br/>
+<a href="/archives/s3-cos-oss-cmd">【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理</a></p>
+<h2 id="五总结">五、总结</h2>
+<p>1.遇到需求，要能够拆解到足够细的粒度<br/>
+2.使用合理精准的关键词搜索，提高信息获取效率<br/>
+3.网络上找到别人的方案，一定要自己分析原理，如果没看懂就拿来直接用，很可能当时没问题，但未来出现严重问题<br/>
+4.有些需求不一定需要专职的开发人员，写几行批处理脚本就可以实现，能够节省很多成本，不需要部署什么语言环境，而且脚本也不复杂，门槛低，员工异动时也不会要交接太多内容<br/>
+5.无论是用目前流行的开发语言编程还是用本文这样的bat脚本，尽量要让代码变得通用，不局限于实现单一需求，而是能实现一大类需求，避免重复造轮子<br/>
+5.如果企业程序开发体系完善的话，建议还是走标准的开发模式，希望读者从本文中学到的不是具体的代码，而是思考方式</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

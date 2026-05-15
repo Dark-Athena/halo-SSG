@@ -154,7 +154,211 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>ORACLE中的表和索引为什么可以重名？</p>
+<p>查一下这个SQL</p>
+<pre><code>select distinct object_type,namespace from dba_objects order by 2;
+</code></pre>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>OBJECT_TYPE</th>
+<th>NAMESPACE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>INDEXTYPE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>TYPE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>PACKAGE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>SCHEDULER GROUP</td>
+<td>1</td>
+</tr>
+<tr>
+<td>TABLE SUBPARTITION</td>
+<td>1</td>
+</tr>
+<tr>
+<td>SYNONYM</td>
+<td>1</td>
+</tr>
+<tr>
+<td>JOB</td>
+<td>1</td>
+</tr>
+<tr>
+<td>TABLE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>DESTINATION</td>
+<td>1</td>
+</tr>
+<tr>
+<td>TABLE PARTITION</td>
+<td>1</td>
+</tr>
+<tr>
+<td>PROGRAM</td>
+<td>1</td>
+</tr>
+<tr>
+<td>PROCEDURE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>LIBRARY</td>
+<td>1</td>
+</tr>
+<tr>
+<td>FUNCTION</td>
+<td>1</td>
+</tr>
+<tr>
+<td>SCHEDULE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>SEQUENCE</td>
+<td>1</td>
+</tr>
+<tr>
+<td>WINDOW</td>
+<td>1</td>
+</tr>
+<tr>
+<td>OPERATOR</td>
+<td>1</td>
+</tr>
+<tr>
+<td>JOB CLASS</td>
+<td>1</td>
+</tr>
+<tr>
+<td>VIEW</td>
+<td>1</td>
+</tr>
+<tr>
+<td>JAVA CLASS</td>
+<td>1</td>
+</tr>
+<tr>
+<td>TYPE BODY</td>
+<td>2</td>
+</tr>
+<tr>
+<td>PACKAGE BODY</td>
+<td>2</td>
+</tr>
+<tr>
+<td>TRIGGER</td>
+<td>3</td>
+</tr>
+<tr>
+<td>INDEX PARTITION</td>
+<td>4</td>
+</tr>
+<tr>
+<td>INDEX</td>
+<td>4</td>
+</tr>
+<tr>
+<td>CLUSTER</td>
+<td>5</td>
+</tr>
+<tr>
+<td>LOB</td>
+<td>8</td>
+</tr>
+<tr>
+<td>LOB PARTITION</td>
+<td>8</td>
+</tr>
+<tr>
+<td>DIRECTORY</td>
+<td>9</td>
+</tr>
+<tr>
+<td>QUEUE</td>
+<td>10</td>
+</tr>
+<tr>
+<td>JAVA SOURCE</td>
+<td>13</td>
+</tr>
+<tr>
+<td>JAVA RESOURCE</td>
+<td>14</td>
+</tr>
+<tr>
+<td>MATERIALIZED VIEW</td>
+<td>19</td>
+</tr>
+<tr>
+<td>CONTEXT</td>
+<td>21</td>
+</tr>
+<tr>
+<td>RULE SET</td>
+<td>23</td>
+</tr>
+<tr>
+<td>RESOURCE PLAN</td>
+<td>24</td>
+</tr>
+<tr>
+<td>CONSUMER GROUP</td>
+<td>24</td>
+</tr>
+<tr>
+<td>XML SCHEMA</td>
+<td>25</td>
+</tr>
+<tr>
+<td>JAVA DATA</td>
+<td>32</td>
+</tr>
+<tr>
+<td>RULE</td>
+<td>36</td>
+</tr>
+<tr>
+<td>EVALUATION CONTEXT</td>
+<td>38</td>
+</tr>
+<tr>
+<td>UNDEFINED</td>
+<td>51</td>
+</tr>
+<tr>
+<td>EDITION</td>
+<td>64</td>
+</tr>
+</tbody>
+</table>
+</div><p>这里的namespace有别于一般意义上schema的概念，这里专门指对象类型所属的命名空间，即一个命名空间下的对象，都不能重名。从上面查询的结果可以看到，table和index是在两个不同的命名空间下的，所以可以重名；table和MATERIALIZED VIEW也在两个不同的命名空间下，因此也可以重名（不过此时的重名其实是创建物化视图时，会同时自动创建一张张同名表，sql语句查询时，其实是查的这张同名表,而非物化视图）。这和PG系数据库不一样，PG系中,namespace就是schema。PG系真正的命名空间其实是从pg_class里分出来的，基于pg_class中某个类型所构建的对象，都不能重名。</p>
+<p>ORACLE用不同命名空间的方式，可以便于在SQL语法中来识别应该使用何种对象，比如select * from somename ,此时的somename一定是namespace=1的对象，不会有同名歧义； select some.some from some,此时前一个some也一定是namespace=1的对象</p>
+<p>以上都是我的猜想，为了印证这个，我搜了一下资料，发现ORACLE官方文档中对此namespace字段没有说明<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/ALL_OBJECTS.html#GUID-AA6DEF8B-F04F-482A-8440-DBCB18F6C976">https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/ALL_OBJECTS.html#GUID-AA6DEF8B-F04F-482A-8440-DBCB18F6C976</a></p>
+<p>然后找到了asktom，帖子里的解释果然和我猜的一样<br/>
+<a href="https://asktom.oracle.com/pls/apex/f?p=100:11:0::::P11_QUESTION_ID:9532216500346723434">https://asktom.oracle.com/pls/apex/f?p=100:11:0::::P11_QUESTION_ID:9532216500346723434</a></p>
+<blockquote>
+<p>A table and an index can have the same name because they are in a different namespace. A table and a procedure <em>cannot</em> have the same name, because they are in the same namespace.</p>
+</blockquote>
+<p>这样就可以理解，oracle对命名空间的区分，是基于语法，或者说是基于场景的，比如你永远不可能<code>select * from 索引</code> ，所以索引名可以和表名重名，对用户使用更友好。而PG系的命名空间，是根据<code>类</code>来区分的，从数据库内核原理上看，这样的设计更标准，拓展性更强。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

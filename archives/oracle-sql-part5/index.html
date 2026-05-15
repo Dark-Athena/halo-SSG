@@ -155,7 +155,319 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>接上篇<br/>
+<a href="/archives/oracle-sql-part4">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part4</a></p>
+<hr/>
+<h1 id="29any-value">29.ANY_VALUE</h1>
+<p>作用：作为聚合函数，返回任意一个值（19c版本才添加的）。<br/>
+比如常见的一个查询，关联商品基础信息表和销售明细表，对销售明细进行汇总，然后同时又要显示商品编码和商品名称，大多数情况下都是这么写的</p>
+<pre><code class="language-sql">select a.item_id,a.item_name,sum(b.sale) 
+from item_info a,sale_detail b
+where a.item_id=b.item_id
+group by a.item_id,a.item_name
+</code></pre>
+<p>但是我们明知在商品信息表中，商品编码是唯一键，一个商品编码肯定只会对应一个商品名称，何必要再group by商品名称呢，这样不会浪费oracle的性能么？<br/>
+所以，这个sql有了以下变体</p>
+<pre><code class="language-sql">select a.item_id,max(a.item_name),sum(b.sale) 
+from item_info a,sale_detail b
+where a.item_id=b.item_id
+group by a.item_id
+</code></pre>
+<p>这样效率会比上面快不少，但是，max这个动作还是进行了一些计算，所以就有了any_value这个函数，这种情况下，使用any_value速度会更快，因为它不需要进行计算，读到哪条就是哪条</p>
+<pre><code class="language-sql">select a.item_id,any_value(a.item_name),sum(b.sale) 
+from item_info a,sale_detail b
+where a.item_id=b.item_id
+group by a.item_id
+</code></pre>
+<hr/>
+<h1 id="30approx-rankapprox-sumapprox-count">30.APPROX_RANK/APPROX_SUM/APPROX_COUNT</h1>
+<p>这几个函数带上了approx前缀，所以他们分别是RANK（排行）、sum（求和）、count（计数）这几个函数对应的近似函数，但是实际使用又有很大的区别。<br/>
+首先，使用这几个函数时必须有下面这一段</p>
+<pre><code class="language-sql">GROUP BY ...
+HAVING 
+  APPROX_RANK (... order by ) [&lt;&gt;=] ?    
+</code></pre>
+<p>这是因为，这几个函数存在的意义就是，在做聚合统计数据时，我们有时候只想看到排行前几名的统计值，而常规写法就是先对所有数据进行聚合，然后排名，再根据排名过滤，这样实际上有大量的计算并不会在最终的结果体现,我们也并不会关心前几名以外的统计数据。</p>
+<p>而此函数用近似的算法，先用having的条件把基础数据过滤掉，再进行统计，效率快了很多</p>
+<pre><code class="language-sql">SELECT department_id, job_id, 
+       APPROX_SUM(salary) 
+FROM   hr.employees
+GROUP BY department_id, job_id
+HAVING 
+  APPROX_RANK ( 
+  PARTITION BY department_id 
+  ORDER BY APPROX_SUM(salary) 
+  DESC ) &lt;= 10;
+</code></pre>
+<p>比如此例就是每个department_id 合计salary排行前十的job_id，对应的每个job_id的salary合计</p>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_SUM.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_SUM.html</a><br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_COUNT.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_COUNT.html</a><br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_RANK.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_RANK.html</a></p>
+<hr/>
+<h1 id="31approx-median">31.APPROX_MEDIAN</h1>
+<p>这个实际上是MEDIAN的近似函数，因为上面3个用法差异太大，和这个不是一个套路，所以分开来说</p>
+<pre><code class="language-sql">SELECT department_id "Department",
+       APPROX_MEDIAN(salary) "Median Salary"
+  FROM hr.employees
+  GROUP BY department_id
+  ORDER BY department_id;
+</code></pre>
+<p>看上去用法几乎和MEDIAN完全一样，其实还有点区别,如下</p>
+<pre><code class="language-sql">  SELECT department_id "Department",
+         MEDIAN(salary) "MEDIAN",
+         APPROX_MEDIAN(salary) "APPROX_MEDIAN",
+         APPROX_MEDIAN(salary DETERMINISTIC) "APPROX_MEDIAN_DET ",
+         APPROX_MEDIAN(salary , 'ERROR_RATE') "ERROR_RATE",
+         APPROX_MEDIAN(salary DETERMINISTIC, 'ERROR_RATE') "ERROR_RATE_DET",
+         APPROX_MEDIAN(salary , 'CONFIDENCE') "CONFIDENCE",
+         APPROX_MEDIAN(salary DETERMINISTIC, 'CONFIDENCE') "CONFIDENCE_DET"
+    FROM hr.employees
+   GROUP BY department_id
+   ORDER BY department_id;
+
+</code></pre>
+<p>这里出现了 DETERMINISTIC 、ERROR_RATE 、CONFIDENCE 三个词，其中<br/>
+加DETERMINISTIC的时候，统计的列只能为数字或者能to_number成数字的，如果是要取非数字的中位值，比如日期，就不能加上 DETERMINISTIC；<br/>
+ERROR_RATE意为错误率，返回的值表示这种近似统计的中位值错误率大概为多少<br/>
+CONFIDENCE意为置信度，返回的值表示这种近似统计的可信度有多高，其实满足 置信度+错误率=1</p>
+<p>实际上ERROR_RATE和CONFIDENCE在其他近似函数中也有些是可以使用的，这里就不展开了。</p>
+<p>这里提醒一下，尽管ORACLE官方希望大家优先使用近似函数，但是以我实测的经验来看，小量的数据尽量不要用近似函数，由于样本数不足的原因，偏差会太大，这个时候错误率和置信度都不靠谱</p>
+<pre><code class="language-sql"> SELECT department_id "Department",
+         MEDIAN(salary) "MEDIAN",
+         APPROX_MEDIAN(salary DETERMINISTIC) "APPROX_MEDIAN_DET ",
+         APPROX_MEDIAN(salary DETERMINISTIC, 'ERROR_RATE') "ERROR_RATE_DET",
+         APPROX_MEDIAN(salary DETERMINISTIC, 'CONFIDENCE') "CONFIDENCE_DET",
+        round( (APPROX_MEDIAN(salary DETERMINISTIC) -MEDIAN(salary))/MEDIAN(salary),2) e
+    FROM hr.employees
+   GROUP BY department_id
+   ORDER BY department_id;
+</code></pre>
+<table>
+<thead>
+<tr><th>Department</th><th>MEDIAN</th><th>APPROX_MEDIAN_DET</th><th>ERROR_RATE_DET</th><th>CONFIDENCE_DET</th><th>E</th></tr>
+</thead>
+<tbody>
+<tr><td>10</td><td>4400</td><td>4400</td><td>0.01</td><td>0.99</td><td>0</td></tr>
+<tr><td>20</td><td>9500</td><td>6000</td><td><font color="red">0.03</font></td><td>0.99</td><td><font color="red">-0.37</font></td></tr>
+<tr><td>30</td><td>2850</td><td>2800</td><td>0.03</td><td>0.99</td><td>-0.02</td></tr>
+<tr><td>40</td><td>6500</td><td>6500</td><td>0.01</td><td>0.99</td><td>0</td></tr>
+<tr><td>50</td><td>3100</td><td>3100</td><td>0.02</td><td>0.99</td><td>0</td></tr>
+<tr><td>60</td><td>4800</td><td>4800</td><td>0.02</td><td>0.99</td><td>0</td></tr>
+<tr><td>70</td><td>10000</td><td>10000</td><td>0.01</td><td>0.99</td><td>0</td></tr>
+<tr><td>80</td><td>8900</td><td>8800</td><td>0.03</td><td>0.99</td><td>-0.01</td></tr>
+<tr><td>90</td><td>17000</td><td>17000</td><td>0.03</td><td>0.99</td><td>0</td></tr>
+<tr><td>100</td><td>8000</td><td>7800</td><td>0.02</td><td>0.99</td><td>-0.03</td></tr>
+<tr><td>110</td><td>10154</td><td>8300</td><td>0.02</td><td>0.99</td><td>-0.18</td></tr>
+<tr><td>7000</td><td>7000</td><td>0.01</td><td>0.99</td><td>0</td><td></td></tr>
+</tbody>
+</table>
+<p>加了一列手动计算的差异百分比，可以明显看到 37% 和函数提供的 3% 相差巨大。</p>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_MEDIAN.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/APPROX_MEDIAN.html</a></p>
+<hr/>
+<h1 id="31next-day">31.NEXT_DAY</h1>
+<p>作用:返回指定日期的下个指定星期几是哪一天</p>
+<pre><code class="language-sql">  select next_day(date '2021-10-08', '星期一'),
+         next_day(date '2021-10-08', 2)
+    from dual;
+</code></pre>
+<table>
+<thead>
+<tr><th>NEXT_DAY(DATE'2021-10-08','星期一')</th><th>NEXT_DAY(DATE'2021-10-08',2)</th></tr>
+</thead>
+<tbody>
+<tr><td>2021-10-11</td><td>2021-10-11</td></tr>
+</tbody>
+</table>
+<p>第二个参数支持2种表达形式，<br/>
+第一种是该数据库会话环境对应的星期描述，可能是中文也可能是英文,如果是中文日期环境输入英文描述就会报错，反之亦然。<br/>
+第二种是一个星期的第几天，星期天是一个星期的第一天，所以传2就是代表星期一了</p>
+<p>为了代码兼容性，一般建议不要使用星期描述，应该采用直接传数字的方式，如果一定要传描述，那么建议做如下操作</p>
+<pre><code class="language-sql">
+declare
+  l_tmp varchar2(200);
+  L date;
+begin
+  --获取当前会话的日期语言
+  select value
+    into l_tmp
+    from v$nls_parameters H
+   WHERE H.PARAMETER = 'NLS_DATE_LANGUAGE';
+   --修改成AMERICAN
+  execute immediate q'{ALTER SESSION SET NLS_DATE_LANGUAGE='AMERICAN'}';
+  --使用英文星期描述进行操作
+  select next_day(date '2021-10-08', 'MONDAY') INTO L from dual;
+  --将当前会话的日期语言还原
+  execute immediate q'{ALTER SESSION SET NLS_DATE_LANGUAGE='}' || l_tmp || '''';
+end;
+</code></pre>
+<hr/>
+<h1 id="32nullif">32.NULLIF</h1>
+<p>作用：比较传入的两个参数，如果相等则返回空，如果不等则返回第一个参数<br/>
+等价于 CASE WHEN expr1 = expr2 THEN NULL ELSE expr1 END</p>
+<p>看上去很难想到使用场景，ORACLE官方举个例子，假设我们要出一张报表，要求给出每个人在本次公司组织架构调整后，之前的职位和当前的职位，如果职位没有调整，则之前的职位或者新的职位显示为空，</p>
+<pre><code class="language-sql">SELECT e.last_name, NULLIF(j.job_id, e.job_id) "Old Job ID"
+  FROM employees e, job_history j
+  WHERE e.employee_id = j.employee_id
+  ORDER BY last_name, "Old Job ID";
+</code></pre>
+<p>但是这貌似还是不太实用，那么我举另一个例子，<br/>
+我们偶尔会要出一张存在多个维度的报表，比如<br/>
+|省区|门店|昨日销售额|<br/>
+|-|-|-|<br/>
+|湖南省区|分店1|10000<br/>
+|湖南省区|分店2|10000<br/>
+|湖南省区|分店3|10000<br/>
+|四川省区|分店4|10000<br/>
+|四川省区|分店5|10000</p>
+<p>前面省区会出现重复的值，在报表中，用户认为只有一个值就够了，其他为空，即类似于透视表合并单元格的效果，像下面这样</p>
+<table>
+<thead>
+<tr><th>省区</th><th>门店</th><th>昨日销售额</th></tr>
+</thead>
+<tbody>
+<tr><td>湖南省区</td><td>分店1</td><td>10000</td></tr>
+<tr><td></td><td>分店2</td><td>10000</td></tr>
+<tr><td></td><td>分店3</td><td>10000</td></tr>
+<tr><td>四川省区</td><td>分店4</td><td>10000</td></tr>
+<tr><td></td><td>分店5</td><td>10000</td></tr>
+</tbody>
+</table>
+<p>这个时候NULLIF就有用了，按照官方的例子，一般会局限于一行内的两个值，其实oracle是有函数获取上面一个值或者下面一个值的，即使用开窗函数</p>
+<pre><code class="language-sql">select nullif(EMPLOYEE_ID, lag(EMPLOYEE_ID) over(order by EMPLOYEE_ID)) "nullif",
+       a.EMPLOYEE_ID
+  from hr.job_history a
+</code></pre>
+<table>
+<thead>
+<tr><th>nullif</th><th>EMPLOYEE_ID</th></tr>
+</thead>
+<tbody>
+<tr><td>101</td><td>101</td></tr>
+<tr><td> </td><td>101</td></tr>
+<tr><td>102</td><td>102</td></tr>
+<tr><td>114</td><td>114</td></tr>
+<tr><td>122</td><td>122</td></tr>
+<tr><td>176</td><td>176</td></tr>
+<tr><td> </td><td>176</td></tr>
+<tr><td>200</td><td>200</td></tr>
+<tr><td> </td><td>200</td></tr>
+<tr><td>201</td><td>201</td></tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="33ratio-to-report">33.RATIO_TO_REPORT</h1>
+<p>作用：返回每行该值占此列的百分比</p>
+<p>一般情况下，我们计算占比的时候，都是先算好汇总值，然后再用每行的数据去除这个汇总，实际上对此表进行两次查询，如果使用RATIO_TO_REPORT则只需要查一次</p>
+<pre><code class="language-sql">SELECT last_name,
+       salary,
+       round(RATIO_TO_REPORT(salary) OVER(), 4) * 100 || '%' AS rr
+  FROM hr.employees
+ WHERE job_id = 'PU_CLERK'
+ ORDER BY last_name, salary, rr
+</code></pre>
+<table>
+<thead>
+<tr><th>LAST_NAME</th><th>SALARY</th><th>RR</th></tr>
+</thead>
+<tbody>
+<tr><td>Baida</td><td>2900</td><td>20.86%</td></tr>
+<tr><td>Colmenares</td><td>2500</td><td>17.99%</td></tr>
+<tr><td>Himuro</td><td>2600</td><td>18.71%</td></tr>
+<tr><td>Khoo</td><td>3100</td><td>22.3%</td></tr>
+<tr><td>Tobias</td><td>2800</td><td>20.14%</td></tr>
+</tbody>
+</table>
+<p>另外，此函数由于是over分析函数，所以同样支持partition by 子句来进行分组求占比。</p>
+<p>有举一反三习惯的伙伴们这个时候可能会有点难受，从这个函数名 ratio_to_report来看，ratio意思就是占比了，report是报表或者报告，但一个报告肯定不会局限于看占比，那有没有其他的 to_report函数呢？<br/>
+答案是：目前没有！<br/>
+所以这个函数起名就很怪异了。。。</p>
+<hr/>
+<h1 id="34soundex">34.SOUNDEX</h1>
+<p>作用：输入任何英文字符串，返回四个字符，作为一个相似发音的代码</p>
+<pre><code class="language-sql">select soundex('an apple'),soundex('an ipol') from dual;
+</code></pre>
+<table>
+<thead>
+<tr><th>SOUNDEX('ANAPPLE')</th><th>SOUNDEX('ANIPOL')</th></tr>
+</thead>
+<tbody>
+<tr><td>A514</td><td>A514</td></tr>
+</tbody>
+</table>
+<p>这四个字符中，第一位其实是输入字符串的第一个字母。这个函数其实就是用来比较两个字符串发音是否类似的。</p>
+<p>官方给的例子是这样的</p>
+<pre><code class="language-sql">SELECT last_name, first_name
+     FROM hr.employees
+     WHERE SOUNDEX(last_name)
+         = SOUNDEX('SMYTHE')
+     ORDER BY last_name, first_name;
+
+LAST_NAME  FIRST_NAME
+---------- ----------
+Smith      Lindsey
+Smith      William
+</code></pre>
+<p>想象下，如果和语音识别及人工智能结合，用人声发出自然语言指令，比如说“告诉我，我们这里有几个叫史密斯的”，语音识别部分转化出一个句子，然后openai转化成查询sql，但是可能存在发音和史密斯很像但又不是史密斯这几个字的，比如斯迷斯之类的，这样就可以结合这个soundex函数找到更多“叫”史密斯的了</p>
+<hr/>
+<h1 id="35standard-hash">35.STANDARD_HASH</h1>
+<p>其实前面有提到hash，但是这个STANDARD_HASH函数用起来更简单，不用转来转去</p>
+<pre><code class="language-sql">select STANDARD_HASH('123','MD5') FROM DUAL;
+</code></pre>
+<table>
+<thead>
+<tr><th>STANDARD_HASH('123','MD5')</th></tr>
+</thead>
+<tbody>
+<tr><td>202CB962AC59075B964B07152D234B70</td></tr>
+</tbody>
+</table>
+<p>呵，熟悉的“202C”，不过别太高兴，这个函数是12C版本才添加的，11g及以下没有</p>
+<hr/>
+<h1 id="36width-bucket">36.WIDTH_BUCKET</h1>
+<p>作用：设定一个等距的组，返回传入参数所在的组数。</p>
+<pre><code class="language-sql">SELECT a.FIRST_NAME,
+       a.SALARY,
+       WIDTH_BUCKET(a.SALARY, 7000, 10000, 2) sa_group
+  FROM hr.employees a
+ where a.department_id = 100
+ order by SALARY
+</code></pre>
+<table>
+<thead>
+<tr><th>FIRST_NAME</th><th>SALARY</th><th>SA_GROUP</th></tr>
+</thead>
+<tbody>
+<tr><td>Luis</td><td>6900</td><td>0</td></tr>
+<tr><td>Ismael</td><td>7700</td><td>1</td></tr>
+<tr><td>Jose Manuel</td><td>7800</td><td>1</td></tr>
+<tr><td>John</td><td>8200</td><td>1</td></tr>
+<tr><td>Daniel</td><td>9000</td><td>2</td></tr>
+<tr><td>Nancy</td><td>12008</td><td>3</td></tr>
+</tbody>
+</table>
+<p>第一个参数是要分组的值，第二个是分组的最小值，第三个是分组的最大值，第四个是要分几组，如果超出分组范围，比如实际值小于设定的最小值，那么就会归到第0个组去，如果大于，则分到设定组数加1的那个组去。</p>
+<p>这里开下脑洞，有个常见的需求场景，要查出多个区间的数据，是不是想起被一堆case when支配的恐惧？后来会了pivot后，就尝试先用除法来做一个分组列，再用pivot给转换上去，但是列数却不能确定，因为简单除法只能实现等距，最大分多少组没有定。</p>
+<p>所以这个时候，WIDTH_BUCKET这个函数的出现就解决了这个痛点。</p>
+<p>这里我们尝试用常见的函数实现一下WIDTH_BUCKET的效果，方便理解，假设传入的4个参数分别为<br/>
+expr, min_value, max_value, num_buckets</p>
+<pre><code class="language-sql">case
+         when :expr &lt; :min_valuethen
+          0
+         when :expr &gt; :max_valuethen
+          :num_buckets + 1
+         else
+          trunc((:expr - :min_value+1) / ((:max_value- :min_value+ 1) / :num_buckets)) + 1
+       end
+</code></pre>
+<p>参考<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/WIDTH_BUCKET">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/WIDTH_BUCKET</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

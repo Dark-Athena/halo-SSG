@@ -157,7 +157,307 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="前言">前言</h2>
+<p>在前后端交互的开发中,经常会遇到需要将一些二进制数据,比如图片文件,编码成可打印的ascii字符进行传递；又者,开发人员不希望数据在传递中明文显示传递的文本内容,并且有些字符不是ascii字符,无法很好地兼容各种环境。所以这就涉及到了各种编码的转换。</p>
+<p>虽然目前各种开发语言均可处理此类编码,但的确是存在一些场景需要在数据库中对数据直接进行编解码的操作。比如应用直接将编码后的数据存到了数据库,但如果直接在数据库去进行查找时,发现编码后的数据无法读,无法写出想要的数据的检索条件。</p>
+<p>在oracle数据库中,有一个UTL_ENCODE包,里面就包含了各种编解码的函数<br/>
+官方文档 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/UTL_ENCODE.html">https://docs.oracle.com/en/database/oracle/oracle-database/21/arpls/UTL_ENCODE.html</a></p>
+<h2 id="函数列表">函数列表</h2>
+<table>
+<thead>
+<tr><th>函数列表</th><th>描述</th></tr>
+</thead>
+<tbody>
+<tr><td>BASE64_DECODE</td><td>Reads the base 64-encoded RAW input string and decodes it to its original RAW value</td></tr>
+<tr><td>BASE64_ENCODE</td><td>Encodes the binary representation of the RAW value into base 64 elements and returns it in the form of a RAW string</td></tr>
+<tr><td>MIMEHEADER_DECODE</td><td>Decodes a string from mime header format</td></tr>
+<tr><td>MIMEHEADER_ENCODE</td><td>Encodes a string into mime header format</td></tr>
+<tr><td>QUOTED_PRINTABLE_DECODE</td><td>Reads the varchar2 quoted printable format input string and decodes it to the corresponding RAW string</td></tr>
+<tr><td>QUOTED_PRINTABLE_ENCODE</td><td>Reads the RAW input string and encodes it to the corresponding quoted printable format string</td></tr>
+<tr><td>TEXT_DECODE</td><td>Decodes a character set sensitive text string</td></tr>
+<tr><td>TEXT_ENCODE</td><td>Encodes a character set sensitive text string</td></tr>
+<tr><td>UUDECODE</td><td>Reads the RAW uuencode format input string and decodes it to the corresponding RAW string</td></tr>
+<tr><td>UUENCODE</td><td>Reads the RAW input string and encodes it to the corresponding uuencode format string</td></tr>
+</tbody>
+</table>
+<h2 id="函数分类">函数分类</h2>
+<p>首先,"encode"在这里意思是"编码","decode"为解码,编码后的东西无法直接阅读,需要解码后才能识别。</p>
+<p>然后来给这几个函数划分一下类型<br/>
+从这个列表可以看出,它一共包含了5对编解码函数,但是,实际上,关于编解码的算法,这里只有3个,<br/>
+即</p>
+<ul>
+<li>BASE64</li>
+<li>QUOTED_PRINTABLE</li>
+<li>UUENCODE</li>
+</ul>
+<p>并且这3个函数的编码前和编码后的数据参数类型都是二进制类型(RAW),</p>
+<p>而另外的MIMEHEADER_ENCODE和TEXT_ENCODE这两个函数,需要传入一个编码类型的参数,如下</p>
+<pre><code class="language-sql">  -- Define constants for use by text_encode/decode and mimeheader_encode
+  -- in the 'encoding' parameter
+  base64           CONSTANT PLS_INTEGER := 1;
+  quoted_printable CONSTANT PLS_INTEGER := 2;
+</code></pre>
+<p>可以发现能够通过指定编码类型,来使用base64或者quoted_printable的编码方式(就是上面3个编码函数剔除了UUENCODE)。<br/>
+并且MIMEHEADER_ENCODE和TEXT_ENCODE这两个函数的编码前和编码后的数据参数类型都是文本(varchar2),<br/>
+其中TEXT_ENCODE只会输出编码后的字符串本身,而MIMEHEADER_ENCODE会同时输出字符集、编码方式、以及编码后的字符串。<br/>
+可以看下表的对比</p>
+<table>
+<thead>
+<tr><th>名称</th><th>编解码参数类型</th><th>函数名是否为编码算法</th><th>备注</th></tr>
+</thead>
+<tbody>
+<tr><td>BASE64</td><td>raw</td><td>Y</td><td>基于64个可打印字符来表示二进制数据</td></tr>
+<tr><td>QUOTED_PRINTABLE</td><td>raw</td><td>Y</td><td>可打印字符引用编码</td></tr>
+<tr><td>UUENCODE</td><td>raw</td><td>Y</td><td>非标准uuencode算法,存在bug</td></tr>
+<tr><td>TEXT</td><td>varchar2</td><td>N</td><td>可以选择BASE64或者QUOTED_PRINTABLE两种编码方式之一</td></tr>
+<tr><td>MIMEHEADER</td><td>varchar2</td><td>N</td><td>编码结果是在TEXT编码结果的前面加上字符集和编码方式</td></tr>
+</tbody>
+</table>
+<p>下面开始逐个进行说明</p>
+<h2 id="base64">BASE64</h2>
+<p>用法：</p>
+<pre><code class="language-sql">---编码
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.base64_encode(
+utl_raw.cast_to_raw('今天天气不错哇~')))
+from dual;
+--输出 '5LuK5aSp5aSp5rCU5LiN6ZSZ5ZOHfg=='
+
+--解码  
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.base64_decode(
+utl_raw.cast_to_raw('5LuK5aSp5aSp5rCU5LiN6ZSZ5ZOHfg==')))
+from dual;
+--输出 '今天天气不错哇~'
+</code></pre>
+<p>BASE64太常见了，oracle/mysql/postgresql等常用数据库和java/python等常用开发语言都有支持。BASE64的算法其实和UUENCODE重合度很高，由于后面会详细介绍UUENCODE的算法,因此本篇暂不会详细说明BASE64的算法了。</p>
+<p>简单来说，这个编码就是将数据对应的二进制值取3个字节（即24位2进制数据），按6位作为一个新字节，得到4个新字节，然后每个字节都可以表示64以内的数值，将其对应到64个可打印字符表即可得到其对应的BASE64编码，当然中间还是有一些换算及特殊处理，具体可参考百科<br/>
+<a href="https://baike.baidu.com/item/BASE64/8545775">https://baike.baidu.com/item/BASE64/8545775</a></p>
+<h2 id="quoted-printable">QUOTED_PRINTABLE</h2>
+<p>用法：</p>
+<pre><code class="language-sql">--编码
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.quoted_printable_encode(
+utl_raw.cast_to_raw('ABC567,今天天气不错哇~,A'))) A 
+from dual;
+--输出 'ABC567,=E4=BB=8A=E5=A4=A9=E5=A4=A9=E6=B0=94=E4=B8=8D=E9=94=99=E5=93=87~,A'
+
+--解码  
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.quoted_printable_decode(
+utl_raw.cast_to_raw('ABC567,=E4=BB=8A=E5=A4=A9=E5=A4=A9=E6=B0=94=E4=B8=8D=E9=94=99=E5=93=87~,A')))
+from dual;
+--输出 'ABC567,今天天气不错哇~,A'
+</code></pre>
+<p>通过对比编码前和编码后可以发现，如果本身就是可打印字符，那么编码后会保持不变；如果是不可打印字符，比如中文，那么编码后会根据其对二进制数据的十六进制数值，使用等于号拼上字节的形式表示，<br/>
+比如这里默认是UTF8编码，"今"字的UTF8编码的二进制数据的十六进制数值为 "E4BB8A",然后把这三个字节的每个字节前面加上等于号，就得到了"=E4=BB=8A".</p>
+<p>既然等于号是个关键的符号，那么如果原始数据里有等于号会不会导致解码出错呢？答案是不会，因为编码的时候如果遇到了等于号，会转换成"=3D"这个"3D" 其实就是等于号的十六进制ascii码。</p>
+<p>另外，这种编码方式其实像极了URLENCODE，只是符号有所区别而已，然后URLENCODE还多了几个保留符号</p>
+<h2 id="text">TEXT</h2>
+<p>用法</p>
+<pre><code class="language-sql">--编码，指定字符集,不指定编码方式，默认为 2，即 quoted_printable
+select 
+utl_encode.text_encode('A今天天气不错哇~2', 
+                       encode_charset =&gt; 'ZHS16GBK')
+from dual;
+--输出 'A=BD=F1=CC=EC=CC=EC=C6=F8=B2=BB=B4=ED=CD=DB~2'
+
+--编码,指定字符集，指定编码方式为1，即BASE64
+select 
+utl_encode.text_encode('A今天天气不错哇~2', 
+                       encode_charset =&gt; 'ZHS16GBK',
+                       encoding =&gt; 1)
+from dual;
+--输出 'Qb3xzOzM7Mb4sru07c3bfjI='
+
+--解码，针对base64字符串，指定字符集
+select 
+utl_encode.text_decode('Qb3xzOzM7Mb4sru07c3bfjI=', 
+                       encode_charset =&gt; 'ZHS16GBK',
+                       encoding =&gt; 1)
+from dual
+--输出 'A今天天气不错哇~2'
+</code></pre>
+<p>其实可以看到，如果是要对纯文本进行编码或者解码，用TEXT的这种方式会比用base64或者quoted_printable本身的那两个函数要简单得多，不用在raw和varchar2之间转来转去，而且还能指定字符集，要知道对于中文来说，GBK的长度只有UTF8的三分之二。<br/>
+但是，这种方式解码的时候，必须要知道这个字符串是用什么字符集及什么方式编码得到的，否则很可能就无法正确解码，所以，此时可以用 MIMEHEADER 这种方式</p>
+<h2 id="mimeheader">MIMEHEADER</h2>
+<p>用法</p>
+<pre><code class="language-sql">--编码，指定字符集,不指定编码方式，默认为 2，即 quoted_printable
+select 
+utl_encode.mimeheader_encode('A今天天气不错哇~2', 
+                       encode_charset =&gt; 'ZHS16GBK')
+from dual;
+--输出 '=?ZHS16GBK?Q?A=BD=F1=CC=EC=CC=EC=C6=F8=B2=BB=B4=ED=CD=DB~2?='
+
+--编码,指定字符集，指定编码方式为1，即BASE64
+select 
+utl_encode.mimeheader_encode('A今天天气不错哇~2', 
+                       encode_charset =&gt; 'ZHS16GBK',
+                       encoding =&gt; 1)
+from dual;
+--输出 '=?ZHS16GBK?B?Qb3xzOzM7Mb4sru07c3bfjI=?='
+
+--解码,
+select 
+utl_encode.mimeheader_decode('=?ZHS16GBK?Q?A=BD=F1=CC=EC=CC=EC=C6=F8=B2=BB=B4=ED=CD=DB~2?=')
+from dual;
+--输出 'A今天天气不错哇~2'
+
+--解码
+select 
+utl_encode.mimeheader_decode('=?ZHS16GBK?B?Qb3xzOzM7Mb4sru07c3bfjI=?=')
+from dual;
+--输出 'A今天天气不错哇~2'
+</code></pre>
+<p>和text方式对比可以发现，mimeheader这种方式只是在text的基础上，前后增加了一点东西而已，具体格式为</p>
+<blockquote>
+<p>=?<font color="red">字符集</font>?<font color="red">编码方式</font>?<font color="red">text编码字符串</font>?=</p>
+</blockquote>
+<p>即等于号开始、等于号结尾，用问号把3个参数及开始结束符分隔开，其中编码方式只有2种</p>
+<blockquote>
+<p>B :BASE64<br/>
+Q :quoted_printable</p>
+</blockquote>
+<p>由于在编码后输出的字符串中已经带上了编码信息，因此解码的时候就不需要再指定字符集和编码方式了。</p>
+<h2 id="uuencode">UUENCODE</h2>
+<p>用法:<br/>
+有4个输入参数，</p>
+<ol>
+<li>r:需要编码的raw值</li>
+<li>type:类型（1表示头加身体加尾巴，2表示头加身体，3表示只要身体，4表示身体加尾巴）</li>
+<li>filename:文件名</li>
+<li>permission:许可</li>
+</ol>
+<p>其中文件名和许可都包含在输出的头部信息里，也就是说，只有类型为1或2时，文件名和许可才会被输出</p>
+<pre><code class="language-sql">--编码，其余参数值默认
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.uuencode(
+utl_raw.cast_to_raw('今天天气真好哇~') )) 
+from dual;
+</code></pre>
+<pre><code>--输出
+begin 0 uuencode.txt
+&gt;Y+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?@  
+
+end
+</code></pre>
+<pre><code class="language-sql">--编码，指定type，指定文件名，指定许可
+select 
+utl_raw.cast_to_varchar2(
+utl_encode.uuencode(r          =&gt; utl_raw.cast_to_raw('今天天气真好哇~'),
+                    type       =&gt; 1 ,
+                    filename   =&gt; 'filename.txt', 
+                    permission =&gt; 777)
+) 
+from dual;
+</code></pre>
+<pre><code>--输出
+begin 777 filename.txt
+&gt;Y+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?@  
+
+end
+
+</code></pre>
+<p>首先要说明一下，以上执行结果是来自于oracle数据库，但实际上这个输出结果是<font size="6">错误的！</font><br/>
+将生成的这串编码放到在线uuencode解码的网站中去解码的话，解码后的数据会存在数据缺失的情况！<br/>
+因此不建议使用ORACLE数据库中的UUENCODE编码函数，这个函数有严重的BUG!<br/>
+这是Oracle中少见的持续了几十年还不修复的BUG！</p>
+<p>ORACLE数据库的utl_encode.uuencode函数,和标准的uuencode有区别,标准里规定每行60个字符,除最后一行外,应该都是大写字母"M"开头,但oracle中的是每行77个字符,以小写字母"l"开头,在mos上有记录BUG,<br/>
+<a href="https://support.oracle.com/epmos/faces/DocumentDisplay?_afrLoop=5058161925243&amp;parent=EXTERNAL_SEARCH&amp;sourceId=PROBLEM&amp;id=2197134.1&amp;_afrWindowMode=0&amp;_adf.ctrl-state=13sc0vrk13_4">UTL_ENCODE.UUENCODE Does Not Follow The Standard Uuencode Format (文档 ID 2197134.1)</a><br/>
+官方解决方案是</p>
+<blockquote>
+<p>Until Bug:6655881 is addressed, use a workaround or use a 3rd party external procedure based on the uuencode/uudecode standard</p>
+</blockquote>
+<p>简单来说就是这个bug已经收录,官方建议使用第三方外部过程,直到BUG修复</p>
+<p>但这个bug是2016年报告的呀,这都5年多了。。。不过utl_encode.uudecode倒是能解析各种各样的长度(但是oracle解析标准的uuencode编码会丢失数据)</p>
+<p>当然,uuencode这种编码已经被base64取代了,oracle不把这个bug当回事也情有可原,毕竟这个功能开发出来几十年了,也没多少人反馈有问题。</p>
+<p>但强迫症难忍啊。</p>
+<p>于是，我仔细研究uuencode的通用标准，然后在openGauss里，完整地重写了一次uuencode和uudecode函数。</p>
+<h3 id="uuencode算法">uuencode算法</h3>
+<p>以下面这句话为例，字符集为UTF8</p>
+<blockquote>
+<p>今天天气真好哇~明天天气怎么样呢？</p>
+</blockquote>
+<p>获取其二进制数据（这里为了节省长度，以十六进制展示）</p>
+<blockquote>
+<p>e4bb8ae5a4a9e5a4a9e6b094e79c9fe5a5bde593877ee6988ee5a4a9e5a4a9e6b094e6808ee4b988e6a0b7e591a2</p>
+</blockquote>
+<p>取前3个字节</p>
+<blockquote>
+<p>e4 bb 8a</p>
+</blockquote>
+<p>其二进制表达形式为</p>
+<blockquote>
+<p>11100100 10111011 10001010</p>
+</blockquote>
+<p>然后按6位一组，前面补两位0(可以不补，这里仅做完整字节的示意)，变成4个字节</p>
+<blockquote>
+<p><font color="red">00</font>111001 <font color="red">00</font>001011 <font color="red">00</font>101110 <font color="red">00</font>001010</p>
+</blockquote>
+<p>得到这4个字节的十进制数值为</p>
+<blockquote>
+<p>57 11 46 10</p>
+</blockquote>
+<p>这4个数字分别都加上十进制的32，得</p>
+<blockquote>
+<p>89 43 78 42</p>
+</blockquote>
+<p>对照ASCII码表，得这4个数字分别对应的ascii字符为</p>
+<blockquote>
+<p>Y + N *</p>
+</blockquote>
+<p>这样就处理好了前三个字节的数据。<br/>
+这里有个需要注意的地方，由于6位二进制最小可以为'000000'，其十进制为0，再加32得32，对应的ascii字符为一个空格（space），此时需要将其替换成十进制96对应的ascii字符 "`",即常规电脑键盘左上角的重音符号。<br/>
+接着继续处理后三个字节，就这么一直循环处理到最后，如果最后不足3个字节，则用二进制的"00000000"补足到3个字节来处理，因此你会发现，使用uuencode编码的结果，后面经常会出现重音符号，这和base64编码末尾经常出现的等于号其实是一个原因。</p>
+<p>所有的三个字节编码完后，拼起来得到:</p>
+<pre><code>Y+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?N:8CN6DJ&gt;6DJ&gt;:PE.:`CN2YB.:@M^61HN^\GP``
+</code></pre>
+<p>接下来就要做换行处理了，标准是60个字符一行，即</p>
+<pre><code>Y+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?N:8CN6DJ&gt;6DJ&gt;:PE.:`CN2YB.:@M^61
+HN^\GP``
+</code></pre>
+<p>然后在每行前面补一个代表长度的字符</p>
+<p>此时的字符，其实每4个字符来源之前的3个字节，也就是说，60个字符是对应之前的45个字节，将这个45加32，得77，取77对应的ascii字符"M",所以这个编码的第一行前面要拼个"M",<br/>
+同理，第2行有8个字符，对应之前6个字节，6加32得38，即 "&amp;" (其实这里有个问题，有些算法会算出来这里为36,即"$"，但这一般不会影响解码结果，因为大部分解码程序都不会去校验这个长度，所以这也是这种编码的一个槽点)，</p>
+<pre><code>MY+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?N:8CN6DJ&gt;6DJ&gt;:PE.:`CN2YB.:@M^61
+$HN^\GP``
+</code></pre>
+<p>然后换一行，加一个重音符号</p>
+<pre><code>MY+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?N:8CN6DJ&gt;6DJ&gt;:PE.:`CN2YB.:@M^61
+$HN^\GP``
+`
+</code></pre>
+<p>到此，主体部分编码就完成了，然后根据需要，在前面或者后面加上头部信息及尾部信息</p>
+<pre><code>begin 0 uuencode.txt
+MY+N*Y:2IY:2IYK"4YYR?Y:6]Y9.'?N:8CN6DJ&gt;6DJ&gt;:PE.:`CN2YB.:@M^61
+$HN^\GP``
+`
+end
+</code></pre>
+<p>这样就完成了。</p>
+<p>可以看到，一般情况下，如果生成多行主体，那么除去最后一行外的每一行，第一个字符都应该为大写的"M"（ascii码77），而ORACLE为小写的"l",很可能是因为ORACLE开发人员自作聪明，以为是每行放77个字符，减去表示长度的这个字符，还剩76个字符，然后76加32得108，108对应的ascii字符就是小写的英文字母"l"!</p>
+<p>从整个编码过程来看，中间的3字节转4字节是相当巧妙，但是那个分行加长度，以及空格替换成重音符号又是相当坑，而且这64个字符中是可能出现其他开发语言的保留符号的，传输过程中还得进行转义，所以这种编码方式已经被base64取代了。</p>
+<p>base64与uuencode的不同点是，uuencode是直接映射到ascii码表，而base64则是单独定义了要映射到哪64个字符，并且base64没有这么坑爹的要加行长度。</p>
+<p>下面是两种编码方式的映射字符表，可以看到都是64个字符，但BASE64少了很多奇奇怪怪的符号</p>
+<pre><code>base64      ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+uuencode    `!"#$%&amp;'()*+,-./0123456789:;&lt;=&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+</code></pre>
+<p>因此，如果懂了UUENCODE是如何编码的，那么同理也可以写出BASE64的编码程序</p>
+<h2 id="总结">总结</h2>
+<p>这篇虽然不及上一篇关于<a href="https://www.darkathena.top/archives/about-utl-raw-and-emulate-cal">UTL_RAW</a>的更接近底层逻辑，但是这篇更接近开发的实际使用场景，让大家知道其实数据库里也是可以做一些复杂的事情的。</p>
+<p>另外，这篇文章也算是我在写完openGauss的UTL_ENCODE兼容包的一个总结吧，兼容代码可以在我的项目或者compat_tools项目中找到<br/>
+<a href="https://gitee.com/darkathena/opengauss-oracle/blob/main/oracle-package/utl_encode.sql">utl_encode.sql</a><br/>
+<a href="https://gitee.com/enmotech/compat-tools">compat-tools</a></p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

@@ -153,7 +153,685 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb深度解析创建存储过程卡死且无法kill会话的疑难排查">【GaussDB】深度解析：创建存储过程卡死且无法Kill会话的疑难排查</h1>
+<h2 id="一现象">一、现象</h2>
+<h3 id="环境与问题描述">环境与问题描述</h3>
+<ul>
+<li><strong>内核版本</strong>：集中式 <code>gaussdb (GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release</code></li>
+<li><strong>安装方式</strong>：使用 TPOPS 下发，参数均保持默认</li>
+<li><strong>问题描述</strong>：一个文本文件，里面是一个 <code>create package</code> 的代码，有一万多行，有使用很多 PL/SQL 语法特性，package里面的 SQL 也很多，有的 SQL 有几百行。通过 <code>gsql</code> 运行这个文件，持续两天没有执行完。</li>
+</ul>
+<p>由于已经定位到了问题，为方便本地复现演示，本文将用例简化，并且手动解压内核包安装了实例，调整参数和 TPOPS 下发的一致，模拟当时排查问题的过程。</p>
+<h3 id="复现问题的存储过程">复现问题的存储过程</h3>
+<p><strong>存储过程代码：</strong></p>
+<pre><code class="language-sql">create procedure test_p_union is 
+cur sys_refcursor;
+begin
+open cur for
+select 1 from dual
+union all 
+select null from 
+ (select a from 
+   (select a from 
+     (select null a from dual  
+     )
+   )
+ );
+ end;
+ /
+</code></pre>
+<p>在 <code>gsql</code> 中执行，会话被卡住，按 <code>Ctrl+C</code> 也无法取消。</p>
+<pre><code class="language-sql">gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=# create procedure test_p_union is
+gaussdb$# cur sys_refcursor;
+gaussdb$# begin
+gaussdb$# open cur for
+gaussdb$# select 1 from dual
+gaussdb$# union all
+gaussdb$# select null from
+gaussdb$#  (select a from
+gaussdb$#    (select a from
+gaussdb$#      (select null a from dual
+gaussdb$#      )
+gaussdb$#    )
+gaussdb$#  );
+gaussdb$#  end;
+gaussdb$#  /
+^CCancel request sent
+^CCancel request sent
+^CCancel request sent
+^CCancel request sent
+</code></pre>
+<hr/>
+<h2 id="二诊断过程">二、诊断过程</h2>
+<h3 id="1-查看会话状态">1. 查看会话状态</h3>
+<p>在另一个连接中查看会话状态，发现会话处于 <code>active</code> 状态，并且没有被任何会话阻塞。</p>
+<pre><code class="language-sql">gaussdb=# select pid,sessionid,state,query from pg_stat_activity where state='active' and application_name='gsql';
+       pid       | sessionid | state  |                                                  query
+-----------------+-----------+--------+----------------------------------------------------------------------------------------------------------
+ 140567079548672 |         7 | active | select pid,sessionid,state,query from pg_stat_activity where state='active' and application_name='gsql';
+ 140567529387776 |         2 | active | create procedure test_p_union is                                                                        +
+                 |           |        | cur sys_refcursor;                                                                                      +
+                 |           |        | begin                                                                                                   +
+                 |           |        | open cur for                                                                                            +
+                 |           |        | select 1 from dual                                                                                      +
+                 |           |        | union all                                                                                               +
+                 |           |        | select null from                                                                                        +
+                 |           |        |  (select a from                                                                                         +
+                 |           |        |    (select a from                                                                                       +
+                 |           |        |      (select null a from dual                                                                           +
+                 |           |        |      )                                                                                                  +
+                 |           |        |    )                                                                                                    +
+                 |           |        |  );                                                                                                     +
+                 |           |        |  end;                                                                                                   +
+                 |           |        |                                                                                                         +
+                 |           |        |
+(2 rows)
+
+gaussdb=# select * from pg_thread_wait_status where tid=140567529387776 and sessionid=2;
+ node_name | db_name  | thread_name |     query_id     |       tid       | sessionid |  lwtid  | psessionid | tlevel | smpid | wait_status | wait_event | locktag |
+lockmode | block_sessionid | global_sessionid
+-----------+----------+-------------+------------------+-----------------+-----------+---------+------------+--------+-------+-------------+------------+---------+-
+---------+-----------------+------------------
+ primary   | postgres | gsql        | 5629499534213636 | 140567529387776 |         2 | 2014538 |            |      0 |     0 | none        | none       |         |
+         |                 | 0:0#0
+</code></pre>
+<h3 id="2-尝试-kill-会话">2. 尝试 Kill 会话</h3>
+<p>尝试使用 <code>pg_terminate_session</code>、<code>pg_terminate_backend</code> 和 <code>alter system kill session</code> 等多种方式 Kill 会话，均告失败。会话依然存在。</p>
+<pre><code class="language-sql">gaussdb=# select pg_terminate_session(140567529387776,2);
+WARNING:  tid: 140567529387776, sid: 2 still exists and begin to send sigusr1 to close client socket
+CONTEXT:  referenced column: pg_terminate_session
+ pg_terminate_session
+----------------------
+ t
+(1 row)
+
+gaussdb=# select pg_terminate_backend(140567529387776);
+WARNING:  tid 140567529387776, sid 2 still exists and begin to send sigusr1 to close client socket
+CONTEXT:  referenced column: pg_terminate_backend
+WARNING:  tid 140567529387776 and sessionid 2 do not match with valid active session
+CONTEXT:  referenced column: pg_terminate_backend
+ pg_terminate_backend
+----------------------
+ t
+(1 row)
+
+gaussdb=# alter system kill session '140567529387776,0' immediate;
+WARNING:  tid 140567529387776, sid 2 still exists and begin to send sigusr1 to close client socket
+CONTEXT:  referenced column: pg_terminate_backend
+WARNING:  tid 140567529387776 and sessionid 2 do not match with valid active session
+CONTEXT:  referenced column: pg_terminate_backend
+ pg_terminate_backend
+----------------------
+ t
+(1 row)
+gaussdb=# select pid,sessionid,state,query from pg_stat_activity where state='active' and application_name='gsql';
+       pid       | sessionid | state  |                                                  query
+-----------------+-----------+--------+----------------------------------------------------------------------------------------------------------
+ 140567044945664 |         7 | active | select pid,sessionid,state,query from pg_stat_activity where state='active' and application_name='gsql';
+ 140567529387776 |         2 | active | create procedure test_p_union is                                                                        +
+                 |           |        | cur sys_refcursor;                                                                                      +
+                 |           |        | begin                                                                                                   +
+                 |           |        | open cur for                                                                                            +
+                 |           |        | select 1 from dual                                                                                      +
+                 |           |        | union all                                                                                               +
+                 |           |        | select null from                                                                                        +
+                 |           |        |  (select a from                                                                                         +
+                 |           |        |    (select a from                                                                                       +
+                 |           |        |      (select null a from dual                                                                           +
+                 |           |        |      )                                                                                                  +
+                 |           |        |    )                                                                                                    +
+                 |           |        |  );                                                                                                     +
+                 |           |        |  end;                                                                                                   +
+                 |           |        |                                                                                                         +
+                 |           |        |
+(2 rows)
+</code></pre>
+<h3 id="3-查看系统资源占用">3. 查看系统资源占用</h3>
+<h4 id="cpu-占用">CPU 占用</h4>
+<p>通过 <code>top</code> 命令发现 <code>gaussdb</code> 进程 CPU 占用率达到了 100%。</p>
+<pre><code class="language-sh">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+2014479 gaussdb+  20   0 9955.6m   4.6g   3.8g S 108.0  17.6  13:22.71 gaussdb
+</code></pre>
+<h4 id="线程占用">线程占用</h4>
+<p>进一步观察进程内的线程，发现一个 <code>TPLworker</code> 线程CPU占用了几乎达到100%。</p>
+<pre><code class="language-sh">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+2014538 gaussdb+  20   0 9955.6m   4.6g   3.8g R  96.0  17.6  12:58.39 TPLworker
+2014709 gaussdb+  20   0 9955.6m   4.6g   3.8g S   9.6  17.6   1:18.77 TrackStmtWorker
+2014725 gaussdb+  20   0 9955.6m   4.6g   3.8g S   0.7  17.6   0:04.76 undorecycler
+2014688 gaussdb+  20   0 9955.6m   4.6g   3.8g S   0.3  17.6   0:06.01 WALwriter
+2014704 gaussdb+  20   0 9955.6m   4.6g   3.8g S   0.3  17.6   0:01.93 ashworker
+2014721 gaussdb+  20   0 9955.6m   4.6g   3.8g S   0.3  17.6   0:00.37 WLMmonitor
+2014479 gaussdb+  20   0 9955.6m   4.6g   3.8g S   0.0  17.6   0:02.87 gaussdb
+</code></pre>
+<h3 id="4-关联数据库会话与操作系统线程">4. 关联数据库会话与操作系统线程</h3>
+<p>通过查询 <code>pg_catalog.pg_os_threads</code> 视图，确认了高 CPU 占用的线程 <code>2014538</code> 正是执行卡死 SQL 的会话所对应的操作系统线程。</p>
+<pre><code class="language-sql">gaussdb=#  select * from pg_catalog.pg_os_threads where  pid=140567529387776;
+ node_name |       pid       |  lwpid  | thread_name |         creation_time         | dbid
+-----------+-----------------+---------+-------------+-------------------------------+-------
+ primary   | 140567529387776 | 2014538 | gsql        | 2025-06-25 10:20:13.740054+08 | 13130
+(1 row)
+</code></pre>
+<h3 id="5-查看日志">5. 查看日志</h3>
+<p>查看数据库日志，没有发现与此问题直接相关的错误或警告信息。</p>
+<pre><code class="language-c">2025-06-25 10:35:02.544 primary gaussdb506 postgres localhost 140565869491968 0[0:0#0] 0 gs_perf 00000 0 [BACKEND] LOG:  00000: Auto perf record failed. Send comman
+d failed.
+2025-06-25 10:35:02.544 primary gaussdb506 postgres localhost 140565869491968 0[0:0#0] 0 gs_perf 00000 0 [BACKEND] LOCATION:  perf_main, instr_perf_main.cpp:343
+2025-06-25 10:35:02.955 primary [unknown] [unknown] localhost 140564091631360 0[0:0#0] 0 [unknown] 00000 0 [BACKEND] LOG:  00000: Start autovacuum on database "postgres"
+2025-06-25 10:35:02.955 primary [unknown] [unknown] localhost 140564091631360 0[0:0#0] 0 [unknown] 00000 0 [BACKEND] LOCATION:  autovac_worker_main, autovacuum.cpp:
+1759
+2025-06-25 10:35:03.008 primary gaussdb506 postgres localhost 140564091631360 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] LOG:  22023: Spc open failed. spc_node is: 1663, db_node is 13130
+2025-06-25 10:35:03.008 primary gaussdb506 postgres localhost 140564091631360 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] CAUSE:  segment is not initialized.
+2025-06-25 10:35:03.008 primary gaussdb506 postgres localhost 140564091631360 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] ACTION:  please check segment space status.
+2025-06-25 10:35:03.008 primary gaussdb506 postgres localhost 140564091631360 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] LOCATION:  gs_local_free_remain_segment_auto, p
+gstatfuncs_segment.cpp:3948
+2025-06-25 10:35:09.601 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:632]update global_recycle_xid: oldest_xmin=856289, recycle_xmin=856273, globalFrozenXid=856289, global_recycle_xid=856268, newRecycleXid=856270.
+2025-06-25 10:35:09.601 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:
+632
+2025-06-25 10:35:09.601 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:648]update old_global_max_recycle_xid: oldest_xmin=856289, recycle_xmin=856273, globalFrozenXid=856289, old_global_max_recycle_xid=856267, new_global_max_recycle_xid=856270.
+2025-06-25 10:35:09.601 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:
+648
+2025-06-25 10:35:09.618 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:632]update global_recycle_xid: oldest_xmin=856289, recycle_xmin=856273, globalFrozenXid=856289, global_recycle_xid=856270, newRecycleXid=856273.
+2025-06-25 10:35:09.618 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:
+632
+2025-06-25 10:35:09.618 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:648]update old_global_max_recycle_xid: oldest_xmin=856289, recycle_xmin=856273, globalFrozenXid=856289, old_global_max_recycle_xid=856270, new_global_max_recycle_xid=856272.
+2025-06-25 10:35:09.618 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:
+648
+2025-06-25 10:35:12.626 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:632]update global_recycle_xid: oldest_xmin=856289, recycle_xmin=856274, globalFrozenXid=856289, global_recycle_xid=856273, newRecycleXid=856274.
+2025-06-25 10:35:12.626 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:632
+2025-06-25 10:35:12.626 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOG:  00000: [recycle_main:648]update old_global_m
+ax_recycle_xid: oldest_xmin=856289, recycle_xmin=856274, globalFrozenXid=856289, old_global_max_recycle_xid=856272, new_global_max_recycle_xid=856273.
+2025-06-25 10:35:12.626 primary [unknown] [unknown] localhost 140566328637184 0[0:0#0] 0 [unknown] 00000 0 [UNDO] LOCATION:  recycle_main, storage_undo_recycle.cpp:648
+2025-06-25 10:35:12.743 primary [unknown] [unknown] localhost 140563904984832 0[0:0#0] 0 [unknown] 00000 0 [BACKEND] LOG:  00000: Start autovacuum on database "testdb"                                                                                                                                                                 2025-06-25 10:35:12.743 primary [unknown] [unknown] localhost 140563904984832 0[0:0#0] 0 [unknown] 00000 0 [BACKEND] LOCATION:  autovac_worker_main, autovacuum.cpp:1759
+2025-06-25 10:35:12.772 primary gaussdb506 testdb localhost 140563904984832 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] LOG:  22023: Spc open failed. spc_node is: 1663, db_node is 16732
+2025-06-25 10:35:12.772 primary gaussdb506 testdb localhost 140563904984832 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] CAUSE:  segment is not initialized.
+2025-06-25 10:35:12.772 primary gaussdb506 testdb localhost 140563904984832 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] ACTION:  please check segment space status.
+2025-06-25 10:35:12.772 primary gaussdb506 testdb localhost 140563904984832 0[0:0#0] 0 [unknown] 22023 0 [BACKEND] LOCATION:  gs_local_free_remain_segment_auto, pgstatfuncs_segment.cpp:3948 
+</code></pre>
+<p><code>LOG:  22023: Spc open failed. spc_node is: 1663, db_node is 16732</code>是段页式的定时检查所产生的日志，就算没有使用段页式的表也会持续打印这个日志，与本文排查的问题无关。</p>
+<hr/>
+<h2 id="三gdb-深度调试">三、GDB 深度调试</h2>
+<p>此时只能通过跟踪内核堆栈来进行定位（<strong>生产环境慎用 GDB，误操作容易宕机</strong>）。</p>
+<h3 id="1-准备-gdb-调试环境">1. 准备 GDB 调试环境</h3>
+<ul>
+<li><strong>获取符号表</strong>：从官方发布包 <code>DBS-GaussDB-Kylin-Kernel_25.1.30.10.968045292423872.tar.gz</code> 中开始逐层解压,找到对应平台架构的 <code>GaussDB-Kernel_506.0.0.SPC0100_Symbol_X86_Centralized.tar.gz</code>解压，再解压里面的 <code>GaussDB-Kernel_506.0.0.SPC0100_Kylin_64bit_Symbol.tar</code>,再解压得到 <code>symbols</code> 目录，并将其下的 <code>bin</code> 和 <code>lib</code> 目录复制到 <code>$GAUSSHOME</code> 目录下。</li>
+<li><strong>获取进程号</strong>：使用 <code>ps</code> 命令找到 <code>gaussdb</code> 主进程的 PID。</li>
+</ul>
+<pre><code class="language-sh">[gaussdb506@ky10-sp3 ~]$ ps -ef|grep gaussdb
+root     1997065 1992968  0 09:46 pts/0    00:00:00 su - gaussdb506
+gaussdb+ 1997070 1997065  0 09:46 pts/0    00:00:00 -bash
+root     2001709 2001576  0 09:55 pts/1    00:00:00 su - gaussdb506
+gaussdb+ 2001716 2001709  0 09:55 pts/1    00:00:00 -bash
+root     2008121 2007968  0 10:07 pts/2    00:00:00 su - gaussdb506
+gaussdb+ 2008126 2008121  0 10:07 pts/2    00:00:00 -bash
+gaussdb+ 2014479       1 99 10:19 pts/0    00:23:53 /data/gaussdb506/app/bin/gaussdb
+gaussdb+ 2014886 2001716  0 10:20 pts/1    00:00:00 gsql -r
+gaussdb+ 2022930 2008126  0 10:35 pts/2    00:00:00 vi gaussdb-current.log
+gaussdb+ 2026667 1997070  0 10:42 pts/0    00:00:00 ps -ef
+gaussdb+ 2026668 1997070  0 10:42 pts/0    00:00:00 grep gaussdb
+[gaussdb506@ky10-sp3 ~]$ 
+</code></pre>
+<h3 id="2-附加-gdb-到进程">2. 附加 GDB 到进程</h3>
+<pre><code class="language-sh">[gaussdb506@ky10-sp3 ~]$ gdb -p 2014479
+</code></pre>
+<blockquote>
+<p>GDB 启动时可能会出现一些 <code>warning</code>，例如 <code>libthread_db</code> 相关的警告，这些通常不影响本次的问题定位。</p>
+<ul>
+<li>为了方便调试，可以执行 <code>set pagination off</code> 关闭分页。</li>
+<li>为了避免 GDB 被某些信号中断，可以执行以下命令：
+<pre><code>handle SIGUSR1 nostop noprint
+handle SIGUSR2 nostop noprint
+handle SIGPIPE nostop
+</code></pre>
+</li>
+</ul>
+<p><strong>注意</strong>：当 GDB 附加到进程后，整个数据库服务都会被暂停，直到 GDB 分离。</p>
+</blockquote>
+<h3 id="3-查看线程信息并定位问题线程">3. 查看线程信息并定位问题线程</h3>
+<p>使用 <code>info thread</code> 命令列出所有线程，找到之前定位到的高 CPU 线程（LWP 2014538），其状态显示正在执行 <code>list_nth_cell</code> 函数。</p>
+<pre><code class="language-c">(gdb) info thread
+  Id   Target Id                     Frame
+* 1    LWP 2014479 "gaussdb"         0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  2    LWP 2014480 "jemalloc_bg_thd" 0x00007fd9cc56fcf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  3    LWP 2014526 "gaussdb"         0x00007fd9cc3e31dc in sigtimedwait () from /usr/lib64/libc.so.6
+  4    LWP 2014529 "syslogger"       0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  5    LWP 2014530 "alarm"           0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  6    LWP 2014531 "reaper"          0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  7    LWP 2014533 "jemalloc_bg_thd" 0x00007fd9cc56fcf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  8    LWP 2014534 "jemalloc_bg_thd" 0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  9    LWP 2014535 "jemalloc_bg_thd" 0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  10   LWP 2014536 "TPLlistener"     0x00007fd9cc4a14e7 in epoll_wait () from /usr/lib64/libc.so.6
+  11   LWP 2014537 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  12   LWP 2014538 "TPLworker"       0x000055a54969f631 in list_nth_cell (list=0x7fd8604e8ce0, n=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp:654
+  13   LWP 2014539 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  14   LWP 2014540 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  15   LWP 2014541 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  16   LWP 2014542 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  17   LWP 2014543 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  18   LWP 2014544 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  19   LWP 2014545 "TPLlistener"     0x00007fd9cc4a14e7 in epoll_wait () from /usr/lib64/libc.so.6
+  20   LWP 2014546 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  21   LWP 2014547 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  22   LWP 2014548 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  23   LWP 2014549 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  24   LWP 2014550 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  25   LWP 2014551 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  26   LWP 2014552 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  27   LWP 2014553 "TPLworker"       0x00007fd9cc56fa0c in pthread_cond_wait () from /usr/lib64/libpthread.so.0
+  28   LWP 2014554 "TPLscheduler"    0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  29   LWP 2014628 "checkpointer"    0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  30   LWP 2014629 "Spbgwriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  31   LWP 2014630 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  32   LWP 2014631 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  33   LWP 2014632 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  34   LWP 2014633 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  35   LWP 2014634 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  36   LWP 2014635 "pagewriter"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  37   LWP 2014636 "aiwatchdog"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  38   LWP 2014688 "WALwriter"       0x00007fd9cc56fcf6 in pthread_cond_timedwait () from /usr/lib64/libpthread.so.0
+  39   LWP 2014689 "WALwriteraux"    0x00007fd9cc4a3047 in semop () from /usr/lib64/libc.so.6
+  40   LWP 2014691 "AVClauncher"     0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  41   LWP 2014692 "asyncundolaunch" 0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  42   LWP 2014694 "globalstats"     0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  43   LWP 2014695 "applylauncher"   0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  44   LWP 2014696 "txnsnapcapturer" 0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  45   LWP 2014697 "rbcleaner"       0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  46   LWP 2014698 "txnlsnworker"    0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  47   LWP 2014699 "2pccleaner"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  48   LWP 2014700 "COMMstatuscheck" 0x00007fd9cc4a14e7 in epoll_wait () from /usr/lib64/libc.so.6
+  49   LWP 2014701 "statscollector"  0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  50   LWP 2014702 "snapshotworker"  0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  51   LWP 2014703 "percentworker"   0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  52   LWP 2014704 "ashworker"       0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  53   LWP 2014705 "perfworker"      0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  54   LWP 2014706 "BlackBoxWorker"  0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  55   LWP 2014707 "abnormal sql"    0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  56   LWP 2014708 "spmworker"       0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  57   LWP 2014709 "TrackStmtWorker" 0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  58   LWP 2014710 "auditor"         0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  59   LWP 2014719 "faultmonitor"    0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  60   LWP 2014720 "WLMworker"       0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  61   LWP 2014721 "WLMmonitor"      0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  62   LWP 2014722 "WLMarbiter"      0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  63   LWP 2014723 "LicenseMonitor"  0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  64   LWP 2014724 "AntiRecycler"    0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  65   LWP 2014725 "undorecycler"    0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  66   LWP 2014726 "abolauncher"     0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  67   LWP 2014727 "Jobscheduler"    0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  68   LWP 2014728 "wlrworker"       0x00007fd9cc4966e9 in poll () from /usr/lib64/libc.so.6
+  69   LWP 2014729 "CompileMaster"   0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+  70   LWP 2014730 "CompileWorker"   0x00007fd9cc498d9f in select () from /usr/lib64/libc.so.6
+(gdb)
+</code></pre>
+<h3 id="4-分析问题线程堆栈">4. 分析问题线程堆栈</h3>
+<p>切换到问题线程 (<code>thread 12</code>)，并使用 <code>bt</code> (backtrace) 命令打印其调用堆栈。</p>
+<pre><code class="language-cpp">(gdb) t 12
+[Switching to thread 12 (LWP 2014538)]
+#0  0x000055a54969f631 in list_nth_cell (list=0x7fd8604e8ce0, n=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp:654
+654     /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp: No such file or directory.
+(gdb) bt
+#0  0x000055a54969f631 in list_nth_cell (list=0x7fd8604e8ce0, n=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp:654
+#1  0x000055a54969f8c6 in list_nth (list=0x7fd8604e8ce0, n=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp:693
+#2  0x000055a5497b150e in semtc_check_resolve_unknowns_in_unionop (pstate=0x7fd8604e64d8, node=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp:359
+#3  0x000055a5497b2f5d in semtc_resolve_target_list_unknowns (pstate=0x7fd8604e64d8, targetlist=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp:380
+#4  0x000055a549748dcd in lexical_select_stmt (pstate=0x7fd8604e64d8, stmt=0x7fd8604e4c80, is_first_node=&lt;optimized out&gt;, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:4496
+#5  0x000055a54974ecda in lexical_stmt (pstate=0x7fd8604e64d8, parse_tree=0x7fd8604e4c80, is_first_node=true, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:746
+#6  0x000055a549750ae3 in lexical_parse_sub_analyze (parse_tree=0x7fd8604e4c80, parent_parse_state=0x7fd8604e5d70, parent_cte=0x0, locked_from_parent=&lt;optimized out&gt;, resolve_unknowns=true) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:342
+#7  0x000055a549761dd4 in semtc_range_subselect (r=0x7fd8604e4da0, pstate=0x7fd8604e5d70) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_clause.cpp:901
+#8  semtc_from_clauseItem (pstate=0x7fd8604e5d70, n=0x7fd8604e4da0, top_rte=0x7fd86da416e0, top_rti=0x7fd86da416dc, right_rte=0x0, right_rti=0x0, relnamespace=0x7fd86da416e8, is_first_node=true, is_create_view=false, is_merge_into=false, add_update_table=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_clause.cpp:1766
+#9  0x000055a54976489f in semtc_from_clause (pstate=0x7fd8604e5d70, frm_list=&lt;optimized out&gt;, is_first_node=true, is_create_view=false, add_update_table=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_clause.cpp:178
+#10 0x000055a5497488ff in lexical_select_stmt (pstate=0x7fd8604e5d70, stmt=0x7fd8604e4ef0, is_first_node=&lt;optimized out&gt;, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:4388
+#11 0x000055a54974ecda in lexical_stmt (pstate=0x7fd8604e5d70, parse_tree=0x7fd8604e4ef0, is_first_node=true, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:746
+#12 0x000055a549750ae3 in lexical_parse_sub_analyze (parse_tree=0x7fd8604e4ef0, parent_parse_state=0x7fd85ed461b0, parent_cte=0x0, locked_from_parent=false, resolve_unknowns=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:342
+#13 0x000055a549750c84 in lexical_set_operation_tree (pstate=0x7fd85ed461b0, stmt=0x7fd8604e4ef0, is_top_level=false, targetlist=0x7fd86da41b50) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:5269
+#14 0x000055a549750f69 in lexical_set_operation_tree (pstate=0x7fd85ed461b0, stmt=0x7fd8604e5010, is_top_level=true, targetlist=0x0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:5357
+#15 0x000055a54974f93d in lexical_set_operation_stmt (stmt=0x7fd8604e5010, pstate=0x7fd85ed461b0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:4908
+#16 lexical_stmt (pstate=0x7fd85ed461b0, parse_tree=0x7fd8604e5010, is_first_node=true, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:748
+#17 0x000055a549752453 in lexical_top_level_stmt (pstate=0x7fd85ed461b0, parse_tree=&lt;optimized out&gt;, is_first_node=true, is_create_view=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/analyze.cpp:490
+#18 0x000055a54a9e6c4e in pg_analyze_and_rewrite_params (parsetree=0x7fd8604e5010, query_string=0x7fd84e9b60a8 "select 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )))", parserSetup=0x55a54c221710 &lt;gsplsql_parser_setup(ParseState*, GSPLSQLExpr*)&gt;, parserSetupArg=0x7fd8602e84d8, is_parameterized=false, m_param_info=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:1323
+#19 0x000055a54c229bf5 in get_cursor_tuple_desc (expr=0x7fd8602e84d8, isOnlySelect=false, isOnlyParse=true, forceCompile=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_comp.cpp:3185
+#20 0x000055a54c21a26c in gsplsql_yyparse () at gram.y:5911
+#21 0x000055a54a03a1e9 in gsplsql_yyparse_save_restore (parent_compile_cxt=0x0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_yylex.cpp:1029
+#22 0x000055a54a00f6eb in do_compile (fcinfo=0x7fd86da45d40, proc_tup=0x7fd8602490e0, func=0x7fd8604be050, compile_func_head_info=0x7fd86da465d0, for_validator=true, hashkey=0x7fd86da459d0) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp:1529
+#23 0x000055a54a014f3b in gsplsql_compile (fcinfo=0x7fd86da45d40, compile_func_head_info=0x7fd86da465d0, for_validator=true, isRecompile=false, func_runtime_state=0x7fd86da45b98) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_comp/pl_comp_func_main.cpp:3106
+#24 0x000055a54c243eeb in plpgsql_validator (fcinfo=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/pl/plpgsql/src/pl_handler.cpp:1481
+#25 0x000055a549e846cb in OidFunctionCall4Coll (function_id=10790, collation=0, arg1=64306, arg2=0, arg3=0, arg4=140567529154000, is_null=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/fmgr/fmgr.cpp:2512
+#26 0x000055a5494e9c26 in ProcedureCreate (procedureName=0x7fd85ed28b88 "test_p_union", procNamespace=2200, propackageid=0, isOraStyle=&lt;optimized out&gt;, replace=false, returnsSet=&lt;optimized out&gt;, returnType=2278, proOwner=10, languageObjectId=10791, languageValidator=10790, prosrc=0x7fd85ed29d10 " DECLARE \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n );\n end", probin=&lt;optimized out&gt;, isAgg=false, isWindowFunc=false, security_definer=true, isLeakProof=false, isStrict=false, volatility=118 'v', parameterTypes=0x7fd85ed46170, paramTypDependExt=0x0, retTypDependExt=0x7fd7a190e050, allParameterTypes=0, parameterModes=0, parameterNames=0, parameterDefaults=0x0, proconfig=0, procost=100, prorows=0, prodefaultargpos=0x0, fenced=false, shippable=false, package=&lt;optimized out&gt;, proIsProcedure=true, proargsrc=0x0, isPrivate=false, isTrigger=false, stmt=0x7fd85ed28c58, create_func_type_enum=CREATE_SCHEMA_FUNC, func_definition=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., compile_func_head_info=0x7fd86da47210) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/catalog/pg_proc.cpp:2582
+#27 0x000055a54a636aa3 in sqlcmd_create_function (stmt=0x7fd85ed28c58, query_string=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., compile_func_head_info=0x7fd86da47210, pkg_oid=0, isTrigger=false) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/commands/functioncmds.cpp:1550
+#28 0x000055a54aa0dc05 in sqlcmd_standard_process_utility (parse_tree=0x7fd85ed28c58, query_string=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., params=0x0, is_top_level=&lt;optimized out&gt;, dest=0x7fd85ee62170, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fd86da4a260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:6308
+#29 0x00007fd9cc19d759 in gsaudit_ProcessUtility_hook (parsetree=0x7fd85ed28c58, queryString=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., params=0x0, isTopLevel=&lt;optimized out&gt;, dest=0x7fd85ee62170, sentToRemote=&lt;optimized out&gt;, completionTag=0x7fd86da4a260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/security_plugin/security_policy_plugin.cpp:856
+#30 0x000055a54af7ff52 in audit_process_utility (parsetree=0x7fd85ed28c58, query_string=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., params=&lt;optimized out&gt;, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fd86da4a260 "", is_ctas=false) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/security/audit/security_auditfuncs.cpp:1512
+#31 0x000055a54aa1b71d in sqlcmd_process_utility (parse_tree=0x7fd85ed28c58, query_string=0x7fd85ee62050 "create procedure test_p_union is \ncur sys_refcursor;\nbegin\nopen cur for\nselect 1 from dual\nunion all \nselect null from \n (select a from \n   (select a from \n     (select null a from dual  \n     )\n   )\n"..., params=0x0, is_top_level=&lt;optimized out&gt;, dest=&lt;optimized out&gt;, sent_to_remote=&lt;optimized out&gt;, completion_tag=0x7fd86da4a260 "", isCTAS=false) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/utility.cpp:1974
+#32 0x000055a54a9fc83f in PortalRunUtility (portal=0x7fd8602e4050, utilityStmt=0x7fd85ed28c58, isTopLevel=true, dest=0x7fd85ee62170, completionTag=0x7fd86da4a260 "") at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2140
+#33 0x000055a54a9fe0be in PortalRunMulti (portal=0x7fd8602e4050, isTopLevel=true, dest=0x7fd85ee62170, altdest=0x7fd85ee62170, completionTag=0x7fd86da4a260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:2326
+#34 0x000055a54aa022dc in PortalRun (portal=0x7fd8602e4050, count=9223372036854775807, isTopLevel=true, dest=0x7fd85ee62170, altdest=0x7fd85ee62170, completionTag=0x7fd86da4a260 "", snapshot=0x0, bii_state=0x0) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/pquery.cpp:1501
+#35 0x000055a54a9e8276 in exec_simple_query (query_string=&lt;optimized out&gt;, msg=0x7fd86da4a530, messageType=QUERY_MESSAGE) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:3513
+#36 0x000055a54a9f4e38 in gs_process_command (firstchar=&lt;optimized out&gt;, input_message=0x7fd86da4a530, send_ready_for_query=0x7fd86da4a526) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11743
+#37 0x000055a54a9fa9c0 in PostgresMain (argc=&lt;optimized out&gt;, argv=0x7fd8645f5b20, dbname=&lt;optimized out&gt;, username=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/tcop/postgres.cpp:11313
+#38 0x000055a54a97e2df in backend_run (port=0x7fd86da4a890) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:12482
+#39 0x000055a54a9bd1b0 in gauss_db_worker_thread_main&lt;(knl_thread_role)2&gt; (arg=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:19086
+#40 0x000055a54a97e39a in internal_thread_func (args=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/proc/postmaster/postmaster.cpp:20196
+#41 0x00007fd9cc569f1b in ?? () from /usr/lib64/libpthread.so.0
+#42 0x00007fd9cc4a11c0 in clone () from /usr/lib64/libc.so.6
+(gdb)
+</code></pre>
+<p>从堆栈信息可以推断出执行流程：</p>
+<ul>
+<li><code>exec_simple_query</code>: 执行SQL语句</li>
+<li><code>ProcedureCreate</code>: 创建存储过程</li>
+<li><code>plpgsql_validator</code> -&gt; <code>gsplsql_compile</code> -&gt; <code>gsplsql_yyparse</code>: 对 PL/SQL 代码进行校验、编译和解析</li>
+<li><code>get_cursor_tuple_desc</code>: 获取游标的元组描述（字段信息）</li>
+<li><code>pg_analyze_and_rewrite_params</code>: 解析 SQL 和重写参数</li>
+<li><code>semtc_resolve_target_list_unknowns</code> -&gt; <code>semtc_check_resolve_unknowns_in_unionop</code>: 处理 <code>SELECT</code> 列表和 <code>UNION</code> 操作中的 <code>unknown</code> 类型</li>
+<li><code>list_nth</code> 和 <code>list_nth_cell</code>: 最终陷入了对链表的操作</li>
+</ul>
+<p><strong>推测</strong>：在创建存储过程时，内核需要编译和解析其中的 <code>OPEN CURSOR</code> 语句，以确定游标返回的列类型。当处理到一个包含层层嵌套子查询、并且 <code>UNION ALL</code> 两侧存在 <code>NULL</code>（即 <code>unknown</code> 类型）的复杂 SQL 时，内核在类型推断的逻辑中陷入了死循环。</p>
+<h3 id="5-提取关键-sql-并确认死循环">5. 提取关键 SQL 并确认死循环</h3>
+<p>从堆栈信息 <code>#18</code> 中可以提取出导致问题的核心 SQL：</p>
+<pre><code class="language-sql">select 1 from dual
+union all 
+select null from 
+ (select a from 
+   (select a from 
+     (select null a from dual  
+     )
+   )
+ );
+</code></pre>
+<p>通过在 GDB 中使用 <code>n</code> (next) 命令进行单步调试，可以观察到程序指针在 <code>parse_target.cpp</code> 文件的几行代码之间反复跳转，从而证实了循环的存在。至于是不是死循环，需要继续n，并观察每次循环中变量的变化，篇幅有限就不全部贴出来了。结论是的确存在死循环，但死循环跨越了几个文件，并不是仅在 <code>parse_target.cpp</code> 中循环。</p>
+<pre><code class="language-c">(gdb) t 12
+[Switching to thread 12 (LWP 2014538)]
+#0  0x000055a54969f869 in list_nth (list=0x7fd8604e8ef8, n=0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp:691
+691     /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp: No such file or directory.
+(gdb) n
+[LWP 2069741 exited]
+[New LWP 2069918]
+692     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp
+(gdb) n
+[LWP 2069743 exited]
+[New LWP 2069921]
+693     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp
+(gdb) n
+[LWP 2069918 exited]
+[New LWP 2069922]
+694     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/nodes/list.cpp
+(gdb) n
+[LWP 2069921 exited]
+[LWP 2069922 exited]
+semtc_check_resolve_unknowns_in_unionop (pstate=0x7fd8604e64d8, node=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp:354
+354     /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp: No such file or directory.
+(gdb) n
+[New LWP 2070509]
+359     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+360     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070532]
+[New LWP 2070533]
+338     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070532 exited]
+[New LWP 2070535]
+342     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070536]
+[LWP 2070533 exited]
+346     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070537]
+[LWP 2070535 exited]
+350     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+351     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070536 exited]
+352     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070537 exited]
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+354     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+359     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070509 exited]
+[New LWP 2070587]
+360     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+338     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070587 exited]
+342     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070611]
+346     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+350     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070611 exited]
+351     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+352     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070637]
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+354     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+359     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070640]
+360     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+338     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070640 exited]
+342     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070663]
+[New LWP 2070664]
+346     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+350     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+351     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070663 exited]
+352     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070664 exited]
+354     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+359     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070693]
+[New LWP 2070694]
+360     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+338     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070693 exited]
+[New LWP 2070710]
+[New LWP 2070711]
+342     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070694 exited]
+346     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070720]
+[LWP 2070711 exited]
+350     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+351     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+352     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+354     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070720 exited]
+[New LWP 2070746]
+359     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+360     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070710 exited]
+338     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070746 exited]
+[New LWP 2070771]
+[New LWP 2070772]
+342     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+346     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070771 exited]
+350     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[LWP 2070772 exited]
+351     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+352     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070797]
+353     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb) n
+[New LWP 2070800]
+354     in /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/parser/parse_target.cpp
+(gdb)
+</code></pre>
+<p>最后，按 <code>q</code> 退出 GDB，让数据库恢复运行。</p>
+<pre><code class="language-c">(gdb) q
+A debugging session is active.
+
+        Inferior 1 [process 2014479] will be detached.
+
+Quit anyway? (y or n) y
+Detaching from program: /data/gaussdb506/app/bin/gaussdb, process 2014479
+[Inferior 1 (process 2014479) detached]
+</code></pre>
+<hr/>
+<h2 id="四问题根因分析与规避">四、问题根因分析与规避</h2>
+<h3 id="1-问题复现与分析">1. 问题复现与分析</h3>
+<p>将上述从 GDB 提取的 SQL 单独在 <code>gsql</code> 中执行 <code>EXPLAIN</code>，会话同样会卡死，并且 <code>gaussdb</code> 进程会瞬间占满一个新的 CPU核心。<br/>
+<code>top</code></p>
+<pre><code class="language-sh">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+2014479 gaussdb+  20   0    9.8g   4.6g   3.9g S 193.8  17.8 125:38.25 gaussdb
+</code></pre>
+<p><code>top -Hp 2014479</code></p>
+<pre><code class="language-sh">    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+2014538 gaussdb+  20   0    9.8g   4.6g   3.9g R  96.3  17.8  72:40.82 TPLworker
+2014551 gaussdb+  20   0    9.8g   4.6g   3.9g R  96.0  17.8  45:01.28 TPLworker
+2014709 gaussdb+  20   0    9.8g   4.6g   3.9g S   9.6  17.8   7:16.08 TrackStmtWorker
+2014688 gaussdb+  20   0    9.8g   4.6g   3.9g S   0.7  17.8   0:30.97 WALwriter
+</code></pre>
+<p>原始提取出来的SQL有两百多行，比较复杂，可以通过把变量变常量、逐个字段剔除、逐层子查询去掉、并且尝试变更select的内容，并且测试是否会卡住，最后得到了一个这样的SQL结构，可以稳定复现。</p>
+<p>分析该 SQL 的特征：</p>
+<pre><code class="language-sql">select 1 from dual --任意查询,常量/变量/字段无关
+union all  --带union 
+select null from --套子查询,常量/变量/字段无关
+ (select a from --第二次引用null的字段
+   (select a from  --第一次引用null的字段
+     (select null a from dual  --最里层有null
+     )
+   )
+ );
+</code></pre>
+<ol>
+<li>使用了 <code>UNION ALL</code>。</li>
+<li><code>UNION ALL</code> 的一部分是一个 <code>SELECT NULL</code>，<code>NULL</code> 的类型是未知的 (<code>unknown</code>)。</li>
+<li>这个 <code>NULL</code> 被层层嵌套的子查询引用。</li>
+</ol>
+<p>这似乎与 GaussDB 506.0 版本的一个特性更新有关。版本说明中提到：</p>
+<blockquote>
+<p>union操作中支持其余类型字段与NULL(text类型)进行合并<br/>
+<strong>规格约束</strong>：当union左边为非text值，union右边select语句中的null如果存在于子查询，那么子查询需要跟随from子句</p>
+</blockquote>
+<p>这个更新是为了解决旧版本中 <code>INTEGER</code>（或其他非文本类型） 与 <code>NULL</code> (被隐式当作 <code>TEXT</code>) <code>UNION</code> 时会报错的问题，以增强 Oracle 兼容性。例如，以下 SQL 在旧版本会报错，但在 506.0 版本中可以正常执行：</p>
+<pre><code class="language-sql">gaussdb=# select * from (select a from (select 1 a from dual) union all select a from (select null a from dual) );
+ERROR:  UNION types integer and text cannot be matched
+LINE 1: ...ct a from (select 1 a from dual) union all select a from (se...
+                                                             ^
+gaussdb=# select version();
+                                                          version                                                          
+---------------------------------------------------------------------------------------------------------------------------
+ gaussdb (GaussDB Kernel 505.2.0.SPC0100 build 8db8eac8) compiled at 2024-11-02 19:03:49 commit 9980 last mr 20502 release
+(1 row)
+
+gaussdb=# 
+</code></pre>
+<pre><code class="language-sql">gaussdb=# select * from (select a from (select 1 a from dual) union all select a from (select null a from dual) );
+ a
+---
+ 1
+
+(2 rows)
+
+gaussdb=# select version();
+                                                    version
+---------------------------------------------------------------------------------------------------------------
+ gaussdb (GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release
+(1 row)
+
+gaussdb=#
+</code></pre>
+<p>然而，这个为了兼容性所做的修改，在处理更复杂的嵌套子查询引用 <code>NULL</code> 的场景时，意外地引入了类型推断的死循环 Bug。</p>
+<h3 id="2-解决方案与规避">2. 解决方案与规避</h3>
+<ul>
+<li><strong>升级数据库内核补丁</strong>：这个问题华为云应该已经发现了，但不确定是否已经发布对应补丁</li>
+<li><strong>紧急处理</strong>：由于会话无法被正常 Kill，且是单进程多线程模型，不能在操作系统层面单独 Kill 线程。因此，<strong>唯一恢复服务的办法是重启整个数据库实例</strong>。</li>
+<li><strong>代码规避</strong>：要从根本上避免触发这个问题，必须在 SQL 中对 <code>NULL</code> 进行显式类型转换，杜绝 <code>unknown</code> 类型的出现。可以使用 <code>CAST</code> 函数或者 <code>::</code> 类型转换语法。</li>
+</ul>
+<p>例如，将有问题的 SQL 修改为以下任意一种形式即可：<br/>
+（这里number类型只是例子，实际类型需要保证和union另一侧的类型一致）</p>
+<pre><code class="language-sql">-- 使用 ::number 进行类型转换
+select 1 from dual 
+union all
+select null::number from 
+ (select a from 
+   (select a from  
+     (select null::number a from dual  
+     )
+   )
+ );
+</code></pre>
+<pre><code class="language-sql">-- 使用 CAST AS number 进行类型转换
+select 1 from dual 
+union all
+select cast(null as number) from 
+ (select a from 
+   (select a from  
+     (select cast(null as number) a from dual  
+     )
+   )
+ );
+</code></pre>
+<hr/>
+<h2 id="五总结">五、总结</h2>
+<p>本文详细记录了一次 GaussDB 疑难问题的完整诊断过程，从现象观察、初步诊断、资源监控到最终通过 GDB 进行深度调试，成功定位了内核级别的 Bug。</p>
+<p>这个案例表明，对于复杂的数据库问题，仅仅掌握 SQL 和基本运维是远远不够的。深入理解数据库内核的基本原理、熟悉 GDB 等调试工具，对于问题定位至关重要。希望本文的诊断思路能为读者在未来遇到类似问题时提供有价值的参考。</p>
+<p>对于软件开发而言，新功能引入新问题非常常见，强如甲骨文公司，在其ORACLE数据库上也曾一个BUG修了十几年发布了n个针对性补丁才修好，所以不能根据一个BUG来评判软件的质量，重点在于软件厂商是否足够可靠，不会轻易跑路。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

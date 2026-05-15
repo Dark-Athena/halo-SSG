@@ -155,7 +155,401 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="%E5%89%8D%E8%A8%80" tabindex="-1">前言</h2>
+<p>在9月30号，openGauss推出了3.1.0这一预览版（注意，openGauss的“x.y.z”版本号，“y”的位置如果不是0，就不是长期支持版，不建议生产使用）。<br/>
+这个版本增加了不少新内容，<br/>
+<a href="https://docs.opengauss.org/zh/docs/3.1.0/docs/Releasenotes/%E7%89%B9%E6%80%A7%E4%BB%8B%E7%BB%8D.html" target="_blank">https://docs.opengauss.org/zh/docs/3.1.0/docs/Releasenotes/特性介绍.html</a><br/>
+但让我最感兴趣的是其中关于mysql兼容的部分，其中有很多都是通过<strong>dolphin</strong> 插件支持的</p>
+<ul>
+<li>
+<p>兼容性：兼容MySQL大部分常用功能和语法</p>
+</li>
+<li>
+<p>提供dolphin插件，从关键字、数据类型、常量与宏、函数和操作符、表达式、类型转换、DDL/DML/DCL语法、存储过程/自定义函数、系统视图等方面兼容MySQL。</p>
+</li>
+<li>
+<p>3.1.0版本新增对以下语法点的支持（只列举部分典型语法，详情请参见《开发者指南》中“MySQL兼容性说明”章节）：</p>
+</li>
+<li>
+<p>数据类型：ENUM、SET、FIXED、LONGBLOB、MEDIUMBLOB、TINYBLOB、MEDIUM INT、DATETIME、YEAR、NVARCHAR以及无符号整数。</p>
+</li>
+<li>
+<p>操作符：:=、^(异或)、&lt;=&gt;（不等于）、||、&amp;&amp;、regexp、not regexp、rlike、DIV、MOD、XOR、like binary、not like binary。</p>
+</li>
+<li>
+<p>系统函数：if、ifnull、isnull、strcmp、locate、lcase、ucase、insert、bin、chara、elt、field、find_int_set、hex、space、soundex、length、convert、format、rand、crc32、conv、now、sysdate、current_time、dayofmonth、is_ipv4、inet_aton、inet_ntoa、is_ipv6、inet6_aton、export_set、bit_bool、json_array、json_quote、last_insert_id、group_concat。</p>
+</li>
+<li>
+<p>DDL：</p>
+</li>
+<li>
+<p>支持创建database时带 if not exists。</p>
+</li>
+<li>
+<p>支持在字段/table/index/procedure/function里对comment注释的创建和修改。</p>
+</li>
+<li>
+<p>支持建表、建索引时option里选项无序排列，支持表名区分大小写。</p>
+</li>
+<li>
+<p>支持建表时指定索引和约束。</p>
+</li>
+<li>
+<p>支持对添加、删除、交换、重组、TRUNCATE、ANALYZE、REBUILD、REPAIR、REMOVE分区的兼容。</p>
+</li>
+<li>
+<p>支持建表指定on update current_timestamp。</p>
+</li>
+<li>
+<p>支持自增列。</p>
+</li>
+<li>
+<p>DML：</p>
+</li>
+<li>
+<p>支持INSERT、UPDATE、DELETE带IGNORE关键词，对出现冲突时，能忽略掉报错。</p>
+</li>
+<li>
+<p>delete语句支持order by，delete支持指定分区。</p>
+</li>
+<li>
+<p>delete支持多表删除，update支持多表更新。</p>
+</li>
+<li>
+<p>支持REPLACE INTO语法。</p>
+</li>
+<li>
+<p>PL/SQL：</p>
+</li>
+<li>
+<p>PL/SQL 支持设置DEFINER。</p>
+</li>
+<li>
+<p>支持在存储过程中命名变量。</p>
+</li>
+<li>
+<p>使用call关键字调用有参数的存储过程。</p>
+</li>
+<li>
+<p>支持使用DELIMITER 定义分隔符。</p>
+</li>
+<li>
+<p>DCL：</p>
+</li>
+<li>
+<p>各类show语法兼容，包括show databases、show processlist、show tables、show create table、show create view、show master status等。</p>
+</li>
+<li>
+<p>支持USE db_name，DESC table_name。</p>
+</li>
+<li>
+<p>网络协议兼容：可兼容MySQL客户端基本网络协议。</p>
+</li>
+<li>
+<p>兼容性：支持兼容性评估工具</p>
+</li>
+<li>
+<p>基于openGauss内核语法树的兼容性评估工具，支持评估主流数据库兼容性。</p>
+</li>
+</ul>
+<p>以上取自目前官网介绍，但实际上，由于openGauss是开源的，因此3.1.0的源码里，截止到目前，又增加了不少新的功能，如果要体验最新版的，需要下载源码自行编译安装<br/>
+<a href="https://gitee.com/opengauss/openGauss-server" target="_blank">https://gitee.com/opengauss/openGauss-server</a><br/>
+<a href="https://gitee.com/opengauss/Plugin/tree/master/contrib/dolphin" target="_blank">https://gitee.com/opengauss/Plugin/tree/master/contrib/dolphin</a></p>
+<p>内容太多，没法一一测试，就挑几个说说吧。</p>
+<p>注意，本文测试环境为</p>
+<blockquote>
+<p>(openGauss 3.1.0 build cd1244c5) compiled at 2022-11-24 14:18:04 commit 0 last mr   on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 7.3<br/>
+.0, 64-bit</p>
+</blockquote>
+<p>且创建了B兼容数据库，安装了dolphin插件</p>
+<h2 id="set%E8%87%AA%E5%AE%9A%E4%B9%89%E5%8F%98%E9%87%8F" tabindex="-1">set自定义变量</h2>
+<p>在mysql中，经常会有如下用法</p>
+<pre><code class="language-sql">set @var_name := 123;
+</code></pre>
+<p>在openGauss中，该语法默认没有打开，需要先修改一个环境变量</p>
+<pre><code class="language-sql">alter database db_name set enable_set_variable_b_format = on;
+</code></pre>
+<p>然后即可使用</p>
+<pre><code class="language-sql">set @var_name := 123;
+select @var_name;
+</code></pre>
+<p><img alt="image-1671714989283" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671714989283.png" srcset="/upload/2022/12/image-1671714989283.png?width=1200 1200w, /upload/2022/12/image-1671714989283.png?width=400 400w, /upload/2022/12/image-1671714989283.png?width=1600 1600w, /upload/2022/12/image-1671714989283.png?width=800 800w"/></p>
+<p>实际应用：</p>
+<pre><code class="language-sql">create function getRowId (RESET BIT) RETURNS INT(11)
+ NO SQL
+ BEGIN
+ 	IF RESET THEN 
+ 	  SET @VAR:=0;
+ 	 ELSE 
+ 	 SET @VAR:=IFNULL(@VAR,0)+1;
+ 	END IF;
+ RETURN @VAR;
+ END;
+</code></pre>
+<p>上面是mysql中的自定义函数，只要稍作修改（由于我手上版本非最新，不支持delimeter，只能使用pg语法的delimeter了）</p>
+<pre><code class="language-sql">create or replace function getRowId (RESET BIT) RETURNS INT(11) as
+$$
+ BEGIN
+ 	IF RESET THEN 
+ 	  SET @VAR:=0;
+ 	 ELSE 
+ 	 SET @VAR:=IFNULL(@VAR,0)+1;
+ 	END IF;
+ RETURN @VAR::int;
+ END;
+$$language plpgsql;
+</code></pre>
+<p><img alt="image-1671727402606" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671727402606.png" srcset="/upload/2022/12/image-1671727402606.png?width=1200 1200w, /upload/2022/12/image-1671727402606.png?width=400 400w, /upload/2022/12/image-1671727402606.png?width=1600 1600w, /upload/2022/12/image-1671727402606.png?width=800 800w"/><br/>
+可以看到这个函数的执行效果和mysql中完全一致</p>
+<h2 id="definer%E5%AE%9A%E4%B9%89%E5%B1%9E%E4%B8%BB" tabindex="-1">DEFINER定义属主</h2>
+<p>目前在openGauss中，支持在创建视图时用和mysql一样的语法定义属主</p>
+<pre><code class="language-sql">create definer=username view test_def_v as select proname from pg_proc limit 5;
+</code></pre>
+<p><img alt="image-1671715666696" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671715666696.png" srcset="/upload/2022/12/image-1671715666696.png?width=1200 1200w, /upload/2022/12/image-1671715666696.png?width=400 400w, /upload/2022/12/image-1671715666696.png?width=1600 1600w, /upload/2022/12/image-1671715666696.png?width=800 800w"/></p>
+<h2 id="auto_increment%E8%87%AA%E5%A2%9E%E5%88%97" tabindex="-1">AUTO_INCREMENT自增列</h2>
+<pre><code class="language-sql">create table test_AUTO_INCREMENT 
+(id int AUTO_INCREMENT, 
+val varchar(10),
+PRIMARY KEY (id)
+);
+insert into test_AUTO_INCREMENT(val) values ('a');
+insert into test_AUTO_INCREMENT(val) values ('b');
+select * from test_AUTO_INCREMENT;
+</code></pre>
+<p><img alt="image-1671715981330" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671715981330.png" srcset="/upload/2022/12/image-1671715981330.png?width=1200 1200w, /upload/2022/12/image-1671715981330.png?width=400 400w, /upload/2022/12/image-1671715981330.png?width=1600 1600w, /upload/2022/12/image-1671715981330.png?width=800 800w"/></p>
+<h2 id="group_concat%E5%87%BD%E6%95%B0" tabindex="-1">group_concat函数</h2>
+<p>这个函数类似于ORACLE中的listagg/wm_concat、PG中的string_agg,<br/>
+但是，由于这个函数里有语法关键词，所以不能创建一个自定义函数来实现，需要修改sql语法解析, 因此是在内核里实现的</p>
+<pre><code class="language-sql">SELECT datcompatibility,
+    group_concat(DATNAME ORDER BY DATNAME DESC separator '|')
+FROM PG_DATABASE
+GROUP BY datcompatibility;
+</code></pre>
+<p><img alt="image-1671716811599" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671716811599.png" srcset="/upload/2022/12/image-1671716811599.png?width=1200 1200w, /upload/2022/12/image-1671716811599.png?width=400 400w, /upload/2022/12/image-1671716811599.png?width=1600 1600w, /upload/2022/12/image-1671716811599.png?width=800 800w"/></p>
+<h2 id="aes_decrypt%2Faes_encrypt-%E5%8A%A0%E8%A7%A3%E5%AF%86%E5%87%BD%E6%95%B0" tabindex="-1">aes_decrypt/aes_encrypt 加解密函数</h2>
+<pre><code class="language-sql">select aes_encrypt('openGauss','123456vfhex4dyu,vdaladhjsadad','1234567890123456');
+--由于加密返回的不是可读文本信息，因此这里演示解密是套了一层
+select aes_decrypt(aes_encrypt('openGauss','123456vfhex4dyu,vdaladhjsadad','1234567890123456'),'123456vfhex4dyu,vdaladhjsadad','1234567890123456');
+</code></pre>
+<p><img alt="image-1671717107294" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717107294.png" srcset="/upload/2022/12/image-1671717107294.png?width=1200 1200w, /upload/2022/12/image-1671717107294.png?width=400 400w, /upload/2022/12/image-1671717107294.png?width=1600 1600w, /upload/2022/12/image-1671717107294.png?width=800 800w"/></p>
+<p>并且，基于安全角度考虑，在gsql中使用了包含此函数的sql，都不会记录到gsql的历史记录中（上下翻找不到）</p>
+<h2 id="sha%2Fsha1%2Fsha2-%E5%87%BD%E6%95%B0" tabindex="-1">sha/sha1/sha2 函数</h2>
+<p>sha和sha1一样，sha2的可选算法为</p>
+<blockquote>
+<p>0(SHA-256)、224(SHA-224)、256(SHA-256)、384(SHA-384)、512(SHA-512)</p>
+</blockquote>
+<pre><code class="language-sql">select sha('ABC');
+select sha2('ABC',256);
+</code></pre>
+<p><img alt="image-1671717443983" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717443983.png" srcset="/upload/2022/12/image-1671717443983.png?width=1200 1200w, /upload/2022/12/image-1671717443983.png?width=400 400w, /upload/2022/12/image-1671717443983.png?width=1600 1600w, /upload/2022/12/image-1671717443983.png?width=800 800w"/></p>
+<h2 id="enum-%E6%9E%9A%E4%B8%BE%E7%B1%BB%E5%9E%8B" tabindex="-1">ENUM 枚举类型</h2>
+<pre><code class="language-sql">CREATE TABLE shirts (
+  name VARCHAR(40),
+  size ENUM('small', 'medium', 'large')
+);
+</code></pre>
+<p><img alt="image-1671717684798" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717684798.png" srcset="/upload/2022/12/image-1671717684798.png?width=1200 1200w, /upload/2022/12/image-1671717684798.png?width=400 400w, /upload/2022/12/image-1671717684798.png?width=1600 1600w, /upload/2022/12/image-1671717684798.png?width=800 800w"/></p>
+<p>使用时需要注意，在枚举类型中不能出现"anonymous_enum"的字样，在create type时，type名称的构成里也不能包含"anonymous_enum" （我猜这里用了字符串解析）</p>
+<h2 id="like-(binary)-%E6%93%8D%E4%BD%9C%E7%AC%A6" tabindex="-1">like (binary) 操作符</h2>
+<p>在mysql中，默认的排序方式会让字符串的值不区分大小写，使用 "="或者"like"时，能进行不区分大小写的匹配，需要使用 "binary"关键字才是准确的字符串匹配。注意，要先修改参数 B_COMPATIBILITY_MODE</p>
+<pre><code class="language-sql">set B_COMPATIBILITY_MODE= on;
+SELECT 'a' like 'A';
+SELECT 'a' like binary 'A';
+</code></pre>
+<p><img alt="image-1671718396038" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671718396038.png" srcset="/upload/2022/12/image-1671718396038.png?width=1200 1200w, /upload/2022/12/image-1671718396038.png?width=400 400w, /upload/2022/12/image-1671718396038.png?width=1600 1600w, /upload/2022/12/image-1671718396038.png?width=800 800w"/></p>
+<h2 id="week-%E5%87%BD%E6%95%B0" tabindex="-1">week 函数</h2>
+<p>在mysql中,可以通过配置default_week_format这个参数，或者指定week的第二个参数，来得出某天在不同的算法时，是第几周。<br/>
+在openGauss中，同样引入了这个变量</p>
+<pre><code class="language-sql">show default_week_format;
+select week('2000-1-1');
+alter system set default_week_format = 2;
+select week('2000-1-1');
+select week('2000-1-1',0);
+</code></pre>
+<p><img alt="image-1671718862569" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671718862569.png" srcset="/upload/2022/12/image-1671718862569.png?width=1200 1200w, /upload/2022/12/image-1671718862569.png?width=400 400w, /upload/2022/12/image-1671718862569.png?width=1600 1600w, /upload/2022/12/image-1671718862569.png?width=800 800w"/><br/>
+但是，需要注意的是，同时支持的<strong>yearweek</strong>函数，目前不受default_week_format这个参数的影响，需要手动指定第二个参数mode（这点很奇怪）<br/>
+另外，我手上这个版本，如果设置了default_week_format参数，重启数据库，会无法启动，因为这个参数会写入postgresql.conf文件，在启动时会识别是未知参数，所以如果测试的时候遇到了，就先在postgresql.conf里手工去掉default_week_format</p>
+<h2 id="json%E7%9B%B8%E5%85%B3%E5%87%BD%E6%95%B0" tabindex="-1">json相关函数</h2>
+<p>在openGauss3.0中，有不少json函数，但没有任何一个是可以修改原json节点值的，因此如果要修改json串，是个极其麻烦的事。而到了3.1版本，通过dolphin又引入了不少json函数，终于能对json进行一些操作了</p>
+<pre><code class="language-sql">select json_set('{"student":{"id":1,"gender":"man"}}','$.age',23,'$.student.id',3);
+select json_replace('{"a": 1, "b": 2, "c": 3}', '$.b', 9);
+select json_insert('{"student":{"id":1,"gender":"man"}}', '$.age', 26);
+SELECT JSON_REMOVE('{"x": 1, "y": 2}', '$.x');
+</code></pre>
+<p><img alt="image-1671719594636" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671719594636.png" srcset="/upload/2022/12/image-1671719594636.png?width=1200 1200w, /upload/2022/12/image-1671719594636.png?width=400 400w, /upload/2022/12/image-1671719594636.png?width=1600 1600w, /upload/2022/12/image-1671719594636.png?width=800 800w"/></p>
+<h2 id="create-table-%E8%AF%AD%E6%B3%95" tabindex="-1">create table 语法</h2>
+<h3 id="engine%E3%80%81charset%E3%80%81collate" tabindex="-1">ENGINE、CHARSET、COLLATE</h3>
+<p>mysql的create table 语法中有ENGINE、CHARSET、COLLATE，openGauss3.1在语法上支持了，但功能还不支持，不过排序大小写可以通过前面提到的参数B_COMPATIBILITY_MODE进行修改，或者在字段上指定排序方式。而字符集一般在一个数据库中应该保持统一。</p>
+<pre><code class="language-">CREATE TABLE test_COLLATE2(
+  id int(11) NOT NULL,
+  name varchar(255) collate 'zh_CN.gbk' DEFAULT null ,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+</code></pre>
+<p><img alt="image-1671720905691" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671720905691.png" srcset="/upload/2022/12/image-1671720905691.png?width=1200 1200w, /upload/2022/12/image-1671720905691.png?width=400 400w, /upload/2022/12/image-1671720905691.png?width=1600 1600w, /upload/2022/12/image-1671720905691.png?width=800 800w"/></p>
+<h3 id="on-update-current_timestamp" tabindex="-1">ON UPDATE CURRENT_TIMESTAMP</h3>
+<p>MySQL的这个特性可以在表记录被更新时，自动更新指定的字段为当前时间，这个功能在旧版本的Oracle中，只能通过触发器实现</p>
+<pre><code class="language-sql">CREATE TABLE test_on_update(a int,last_update_time timestamp ON UPDATE CURRENT_TIMESTAMP);
+insert into test_on_update(a) values (1);
+select * from test_on_update;
+update test_on_update set a=2 where 1=1;
+select * from test_on_update;
+update test_on_update set a=3 where 1=1;
+select * from test_on_update;
+</code></pre>
+<p><img alt="image-1671770444013" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671770444013.png" srcset="/upload/2022/12/image-1671770444013.png?width=1200 1200w, /upload/2022/12/image-1671770444013.png?width=400 400w, /upload/2022/12/image-1671770444013.png?width=1600 1600w, /upload/2022/12/image-1671770444013.png?width=800 800w"/></p>
+<h2 id="show-create-table-%E8%AF%AD%E6%B3%95" tabindex="-1">show create table 语法</h2>
+<pre><code class="language-sql">show create table test_collate2;
+</code></pre>
+<p><img alt="image-1671721151989" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721151989.png" srcset="/upload/2022/12/image-1671721151989.png?width=1200 1200w, /upload/2022/12/image-1671721151989.png?width=400 400w, /upload/2022/12/image-1671721151989.png?width=1600 1600w, /upload/2022/12/image-1671721151989.png?width=800 800w"/></p>
+<h2 id="kill-%E8%AF%AD%E6%B3%95" tabindex="-1">kill 语法</h2>
+<pre><code class="language-sql">show processlist;
+kill query 140287740606208;
+</code></pre>
+<p><img alt="image-1671721502719" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721502719.png" srcset="/upload/2022/12/image-1671721502719.png?width=1200 1200w, /upload/2022/12/image-1671721502719.png?width=400 400w, /upload/2022/12/image-1671721502719.png?width=1600 1600w, /upload/2022/12/image-1671721502719.png?width=800 800w"/></p>
+<h2 id="use-db_name" tabindex="-1">USE db_name</h2>
+<p>在mysql中，可以用use来切换当前数据库，openGauss3.1也实现了类似的操作，不过此语法是切换schema</p>
+<pre><code class="language-sql">create table test_use(a int);
+create schema test_schema;
+use test_schema;
+create table test_use(a int);
+</code></pre>
+<p><img alt="image-1671721882558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721882558.png" srcset="/upload/2022/12/image-1671721882558.png?width=1200 1200w, /upload/2022/12/image-1671721882558.png?width=400 400w, /upload/2022/12/image-1671721882558.png?width=1600 1600w, /upload/2022/12/image-1671721882558.png?width=800 800w"/></p>
+<h2 id="sql_mode" tabindex="-1">sql_mode</h2>
+<p>目前openGauss3.1版本中，sql_mode里可以设置下面6个值</p>
+<pre><code class="language-c">    {"sql_mode_defaults", OPT_SQL_MODE_DEFAULT},
+    {"sql_mode_strict", OPT_SQL_MODE_STRICT},
+    {"sql_mode_full_group", OPT_SQL_MODE_FULL_GROUP},
+    {"pipes_as_concat", OPT_SQL_MODE_PIPES_AS_CONCAT},
+    {"ansi_quotes", OPT_SQL_MODE_ANSI_QUOTES},
+    {"no_zero_date", OPT_SQL_MODE_NO_ZERO_DATE},
+</code></pre>
+<p>其中的sql_mode_full_group是很多mysql初学者会遇到的一个参数，5.7版本能执行的sql，到8.0就报错，很大的概率就是与这个参数有关，这篇就不细讲了。</p>
+<ul>
+<li>
+<p>sql_mode_strict/sql_mode_full_group<br/>
+<a href="https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin-GUC%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E.html#sql_modea-namesection203671436821a" target="_blank">https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin-GUC%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E.html#sql_modea-namesection203671436821a</a></p>
+</li>
+<li>
+<p>pipes_as_concat （管道符是用来拼接字符串还是表示逻辑或）<br/>
+<a href="https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin-%E9%80%BB%E8%BE%91%E6%93%8D%E4%BD%9C%E7%AC%A6.html" target="_blank">https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin-%E9%80%BB%E8%BE%91%E6%93%8D%E4%BD%9C%E7%AC%A6.html</a></p>
+</li>
+<li>
+<p>ansi_quotes （控制双引号是否能表示字符串）<br/>
+<a href="https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/ansi_quotes_test.out" target="_blank">https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/ansi_quotes_test.out</a></p>
+</li>
+<li>
+<p>no_zero_date (是否允许非法时间)<br/>
+<a href="https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/b_compatibility_time_type.out" target="_blank">https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/b_compatibility_time_type.out</a><br/>
+（目前官方文档还未完善所有参数说明,有的参数只能看源码了）</p>
+</li>
+</ul>
+<h2 id="" tabindex="-1"></h2>
+<h2 id="delimiter%E5%88%86%E9%9A%94%E7%AC%A6" tabindex="-1">DELIMITER分隔符</h2>
+<p>这个特性是在11月28号合入的，我本地版本还不支持，可参考源码中的测试用例</p>
+<pre><code class="language-sql">delimiter //
+CREATE PROCEDURE p()
+  BEGIN
+  DECLARE v INT DEFAULT 1;
+  CASE v
+  WHEN 2 THEN SELECT v;
+  WHEN 3 THEN SELECT 0;
+  ELSE
+  BEGIN
+  END;
+  END CASE;
+END;
+//
+</code></pre>
+<p><a href="https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/sql/create_function_test/m_type_create_proc.sql" target="_blank">https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/sql/create_function_test/m_type_create_proc.sql</a></p>
+<h2 id="%E5%8F%8D%E5%BC%95%E5%8F%B7%E6%94%AF%E6%8C%81" tabindex="-1">反引号支持</h2>
+<p>我手上的非最新版，暂时无法测试，请参考源码中的示例</p>
+<pre><code class="language-sql">create table `test`("ID" int);
+insert into `test` values(10);
+\d+ test
+                         Table "public.test"
+ Column |  Type   | Modifiers | Storage | Stats target | Description 
+--------+---------+-----------+---------+--------------+-------------
+ ID     | integer |           | plain   |              | 
+Has OIDs: no
+Options: orientation=row, compression=no
+
+select * from `test` where "ID"=10;
+ ID 
+----
+ 10
+(1 row)
+</code></pre>
+<p><a href="https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/case_sensitive_test_backquote/quoted.out" target="_blank">https://gitee.com/opengauss/Plugin/blob/master/contrib/dolphin/expected/case_sensitive_test_backquote/quoted.out</a></p>
+<h2 id="mysql%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9E%E6%8E%A5opengauss" tabindex="-1">MySQL客户端连接openGauss</h2>
+<p><a href="https://gitee.com/opengauss/openGauss-server/issues/I5PCM3" target="_blank">https://gitee.com/opengauss/openGauss-server/issues/I5PCM3</a></p>
+<p>简单来说，就是数据库如果有B库，且装了dolphin时，会新起一个监听端口，模拟mysql数据库的通讯协议，从而实现mysql客户端连接openGauss。<br/>
+相关的guc参数为</p>
+<ul>
+<li>enable_dolphin_proto<br/>
+是否启用mysql协议</li>
+<li>dolphin_server_port<br/>
+MySQL协议端口</li>
+<li>default_database_name<br/>
+mysql客户端连接时指定的数据库名称</li>
+</ul>
+<p>另外，还在pg_authid上增加了一个字段，用于存储mysql客户端连接时使用的密码（因为mysql 5.7不支持sha256）</p>
+<h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
+<p>由于这次更新增加的内容实在太多，以至于大部分情况下，完全可以把openGauss当成mysql使用，甚至连客户端驱动都可以沿用mysql的，所以没法通过一篇文章把所有内容说完。官网文档单独为MySQL兼容性这一块做了章节，有独立的语法说明和系统参数说明，有兴趣的可以去openGauss官网了解。</p>
+<ul>
+<li>
+<p>插件兼容部分<br/>
+<a href="https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin%E8%AF%AD%E6%B3%95%E4%BB%8B%E7%BB%8D.html" target="_blank">https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/dolphin%E8%AF%AD%E6%B3%95%E4%BB%8B%E7%BB%8D.html</a></p>
+</li>
+<li>
+<p>内核兼容部分<br/>
+<a href="https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/B-compatibility-kernel.html" target="_blank">https://docs.opengauss.org/zh/docs/3.1.0/docs/Developerguide/B-compatibility-kernel.html</a></p>
+</li>
+</ul>
+<p>目前源码仓库里还在不断合并新的pr，相当期待明年发布的正式版会是什么样子。</p>
+<h2 id="%E9%99%84%3Adolphin%E5%AE%89%E8%A3%85%E4%BC%9A%E5%88%9D%E5%A7%8B%E5%8C%96%E7%9A%84guc%E5%8F%82%E6%95%B0%E5%88%97%E8%A1%A8" tabindex="-1">附:dolphin安装会初始化的GUC参数列表</h2>
+<pre><code class="language-">b_compatibility_mode
+sql_mode
+b_db_timestamp
+lower_case_table_names
+default_week_format
+lc_time_names
+version_comment
+auto_increment_increment
+character_set_client
+character_set_connection
+character_set_results
+character_set_server
+collation_server
+collation_connection
+init_connect
+interactive_timeout
+license
+max_allowed_packet
+net_buffer_length
+net_write_timeout
+query_cache_size
+query_cache_type
+system_time_zone
+time_zone
+wait_timeout
+</code></pre>
+<h2 id="%E6%9B%B4%E6%96%B0%E4%B8%A4%E5%BC%A0%E6%9C%80%E6%96%B0%E7%BC%96%E8%AF%91%E7%89%88%E6%9C%AC%E7%9A%84%E6%B5%8B%E8%AF%95%EF%BC%8820221223%EF%BC%89" tabindex="-1">更新两张最新编译版本的测试（20221223）</h2>
+<ul>
+<li>
+<p>mysql客户端连接openGauss<br/>
+<img alt="image-1671813502860" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671813502860.png" srcset="/upload/2022/12/image-1671813502860.png?width=1200 1200w, /upload/2022/12/image-1671813502860.png?width=400 400w, /upload/2022/12/image-1671813502860.png?width=1600 1600w, /upload/2022/12/image-1671813502860.png?width=800 800w"/></p>
+</li>
+<li>
+<p>delimiter 和 反引号<br/>
+<img alt="image-1671813645327" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671813645327.png" srcset="/upload/2022/12/image-1671813645327.png?width=1200 1200w, /upload/2022/12/image-1671813645327.png?width=400 400w, /upload/2022/12/image-1671813645327.png?width=1600 1600w, /upload/2022/12/image-1671813645327.png?width=800 800w"/></p>
+</li>
+</ul>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

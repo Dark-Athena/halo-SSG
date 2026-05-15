@@ -155,7 +155,750 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一前言">一、前言</h2>
+<p>在原生PG中，创建一个自定义函数或者存储过程，如果出入参的类型不存在，那么创建将会报错；但在ORACLE中仍然可以创建，只是状态为失效，后续补上缺少的类型即可。而原生PG则必须依照特定的顺序来创建数据库对象。openGauss2.1版本起新增了package这种可以内建类型、函数、过程的对象，整个依赖关系变得更加复杂，自动化迁移工具已经无法一次性自动将ORACLE的全部对象在openGauss中进行一次性创建。</p>
+<p>在某客户项目中，MogDB联合openGauss社区，由社区提供初版代码，MogDB侧进行大范围（真实应用系统中数百万行存储过程代码的各种混合场景）的测试验证及BUG修复，完成了<strong>PLSQL编译依赖</strong>这一重要功能；另外，MogDB5.2.0版本中，相较于openGauss 6.0版本，还额外增加了<strong>PLSQL增量编译</strong>这个特性。<br/>
+注意，本文以MogDB5.2.0版本进行演示，部分实现和openGauss6.0中的<strong>PLSQL编译依赖</strong>存在区别。</p>
+<h2 id="二常见场景">二、常见场景</h2>
+<h3 id="1创建一个package-其中有一个function的入参是一个自定义类型但该自定义类型还没创建">1.创建一个package ，其中有一个function的入参是一个自定义类型，但该自定义类型还没创建</h3>
+<p>在不开启编译依赖功能时，这个场景会报错。“<code>ERROR:</code>”，意味着该语句执行不成功，因此这个包也没有创建到数据库中,所以也无法再接着创建package body</p>
+<pre><code class="language-sql">openGauss=# create package pkg_test1 is
+openGauss$# function f1(i ty_xyz) return int;
+openGauss$# end pkg_test1;
+openGauss$# /
+ERROR:  type ty_xyz does not exist
+openGauss=#
+</code></pre>
+<p>如果开启了编译依赖功能，则可以创建成功，并同时发出警告“<code>WARNNING:</code>”</p>
+<pre><code class="language-sql">MogDB=&gt; create package pkg_test1 is
+MogDB$&gt; function f1(i ty_xyz) return int;
+MogDB$&gt; end pkg_test1;
+MogDB$&gt; /
+WARNING:  Type ty_xyz does not exist.
+WARNING:  The header information of function f1 is not defined.
+CONTEXT:  compilation of PL/pgSQL package or object near line 1
+WARNING:  Package or object created with compilation errors.
+CREATE PACKAGE
+MogDB=&gt;
+</code></pre>
+<p>继续创建package body和缺少的类型</p>
+<pre><code class="language-sql">MogDB=&gt; create package body pkg_test1 is
+MogDB$&gt; function f1(i ty_xyz) return int is
+MogDB$&gt; begin
+MogDB$&gt; return 1;
+MogDB$&gt; end;
+MogDB$&gt; end pkg_test1;
+MogDB$&gt; /
+WARNING:  Type ty_xyz does not exist.
+WARNING:  The header information of function f1 is not defined.
+CONTEXT:  compilation of PL/pgSQL package or object near line 1
+WARNING:  The header information of function f1 is not defined.
+CONTEXT:  compilation of PL/pgSQL package or object near line 2
+WARNING:  Package or object Body created with compilation errors.
+CREATE PACKAGE BODY
+MogDB=&gt; create type ty_xyz is object(a int);
+MogDB$&gt; /
+CREATE OBJECT TYPE
+MogDB=&gt;
+</code></pre>
+<p>就可以正常调用函数了</p>
+<pre><code class="language-sql">MogDB=&gt; call pkg_test1.f1(ty_xyz(1));
+ f1
+----
+  1
+(1 row)
+</code></pre>
+<p>到这里，可能会有人说，制定一个开发规范，必须先建自定义类型，再建依赖这个自定义类型的包不就好了嘛！<br/>
+且不谈如果对象出现了互相依赖怎么办，如果这个时候开发人员要修改已经创建的自定义类型怎么办？<br/>
+在openGauss5.0版本中，不支持<code>create or replace type</code>（OG6.0支持了，但有一些功能约束），因此想要修改一个自定义类型，必须先把它drop掉，然后再创建。但是由于这个类型被函数所依赖了，无法drop，提示要加cascade</p>
+<pre><code class="language-sql">openGauss=# drop type ty_xyz;
+ERROR:  cannot drop type ty_xyz because other objects depend on it
+DETAIL:  function public.f1(ty_xyz) depends on type ty_xyz
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+</code></pre>
+<p>如果加cascade去drop</p>
+<pre><code class="language-sql">openGauss=# drop type ty_xyz cascade;
+NOTICE:  drop cascades to function public.f1(ty_xyz)
+DROP TYPE
+openGauss=# select pkgname from gs_package where pkgname='pkg_test1';
+  pkgname
+-----------
+ pkg_test1
+(1 row)
+openGauss=# select count(1) from pg_proc where proname='f1';
+ count
+-------
+     0
+(1 row)
+</code></pre>
+<p>会发现包还在，但里面的函数不见了，引起元数据缺失。就算此时再把这个类型补上去，丢失的函数也不会自动补回来。如果启用了<strong>PLSQL编译依赖</strong>功能，则不会存在此问题，因为删除类型的时候就不会去删除依赖这个类型的对象了。</p>
+<h3 id="2package-a中的function入参类型是package-b中定义的类型修改package-b并replace">2.package A中的function入参类型是package B中定义的类型，修改package B并replace</h3>
+<p>在openGauss5.0版本中，先按顺序创建两个package</p>
+<pre><code class="language-sql">openGauss=# create package pkg_test_b is
+openGauss$# type sty_123 is record(a int);
+openGauss$# end pkg_test_b;
+openGauss$# /
+CREATE PACKAGE
+openGauss=# create package pkg_test_a is
+openGauss$# function f2( i pkg_test_b.sty_123) return int;
+openGauss$# end pkg_test_a;
+openGauss$# /
+CREATE PACKAGE
+openGauss=# create package body pkg_test_a is
+openGauss$# function f2( i pkg_test_b.sty_123) return int is
+openGauss$# begin
+openGauss$# return 1;
+openGauss$# end;
+openGauss$# end pkg_test_a;
+openGauss$# /
+CREATE PACKAGE BODY
+openGauss=# 
+</code></pre>
+<p>此时调用函数是正常的</p>
+<pre><code class="language-sql">openGauss=# call pkg_test_a.f2(null);
+ f2
+----
+  1
+(1 row)
+</code></pre>
+<p>然后修改pkg_test_b，原本的代码不动，在里面新增一个类型</p>
+<pre><code class="language-sql">openGauss=# create or replace package pkg_test_b is
+openGauss$# type sty_123 is record(a int);
+openGauss$# type sty_456 is record(b int);
+openGauss$# end pkg_test_b;
+openGauss$# /
+CREATE PACKAGE
+openGauss$#
+</code></pre>
+<p>再去调用这个函数</p>
+<pre><code class="language-sql">openGauss=# call pkg_test_a.f2(null);
+ERROR:  function "f2" doesn't exist
+</code></pre>
+<p>结果函数不存在了，但这个操作明明没有对pkg_test_a进行直接操作。这是因为replace pkg_test_b的时候，对pkg_test_b里所有的对象做了自动的级联删除，依赖了这个包的其他对象，都被自动删了，和前一个场景中提到的问题一样。<br/>
+如果开启了<strong>PLSQL编译依赖</strong>功能，则该问题也不再存在</p>
+<h2 id="三原理说明">三、原理说明</h2>
+<p>在openGauss6.0.0版本中，通过设置<code>behavior_compat_options=plpgsql_dependency</code>来开启此功能；<br/>
+在MogDB 5.2.0版本中，通过设置<code>enable_plsql_compiledepend=on</code>来开启此功能。</p>
+<p>对于每一个创建成功的function，必须明确头部的参数类型，在pg_proc中会记录对应这些类型的oid。当引用的类型不存在时，则无法获取其oid。因此该功能引入了一个<code>undefined</code>类型（oid=4408）,只要根据类型名称找不到类型，就先将该函数的该参数类型设置为<code>undefined</code>；在gs_dependencies_obj、gs_dependencies中记录引用的依赖关系；并且pg_object中记录该procedure为失效状态</p>
+<pre><code class="language-sql">MogDB=&gt; create procedure f_test_1 (l_abc abc,l_def out def)
+MogDB-&gt; is
+MogDB$&gt; begin
+MogDB$&gt; null;
+MogDB$&gt; end;
+MogDB$&gt; /
+WARNING:  The header information of function f_test_1 is not defined.
+CONTEXT:  compilation of PL/pgSQL function "f_test_1" near line 2
+WARNING:  Procedure created with compilation errors.
+CREATE PROCEDURE
+MogDB=&gt;
+</code></pre>
+<pre><code class="language-sql">MogDB=&gt; \x
+Expanded display is on.
+MogDB=&gt; select oid,* from pg_proc where proname='f_test_1';
+-[ RECORD 1 ]-------+------------------------
+oid                 | 26632
+proname             | f_test_1
+pronamespace        | 16783
+proowner            | 16781
+prolang             | 12563
+procost             | 100
+prorows             | 0
+provariadic         | 0
+protransform        | -
+proisagg            | f
+proiswindow         | f
+prosecdef           | t
+proleakproof        | f
+proisstrict         | f
+proretset           | f
+provolatile         | v
+pronargs            | 1
+pronargdefaults     | 0
+prorettype          | 4408
+proargtypes         | 4408
+proallargtypes      | {4408,4408}
+proargmodes         | {i,o}
+proargnames         | {l_abc,l_def}
+proargdefaults      |
+prosrc              |  DECLARE
+                    | begin
+                    | null;
+                    | end
+probin              |
+proconfig           |
+proacl              | {system=X/system}
+prodefaultargpos    |
+fencedmode          | f
+proshippable        | f
+propackage          | f
+prokind             | p
+proargsrc           | l_abc abc,l_def out def
+propackageid        | 0
+proisprivate        | f
+proargtypesext      |
+prodefaultargposext |
+allargtypes         | 4408 4408
+allargtypesext      |
+objecttypeoid       |
+methodtype          |
+isfinal             |
+instantiable        |
+overriding          |
+inherited           |
+
+MogDB=&gt;
+</code></pre>
+<pre><code class="language-sql">MogDB=&gt; select oid,* from pg_catalog.gs_dependencies_obj where name like 'f_test_1%' or name in ('abc','def');
+-[ RECORD 1 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26630
+schemaname  | system
+packagename | null
+type        | 3
+name        | abc
+objnode     | {DependenciesUndefined}
+-[ RECORD 2 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26631
+schemaname  | system
+packagename | null
+type        | 3
+name        | def
+objnode     | {DependenciesUndefined}
+-[ RECORD 3 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26633
+schemaname  | system
+packagename | null
+type        | 5
+name        | f_test_1(pg_catalog.undefined,pg_catalog.undefined)
+objnode     | {DependenciesProchead :undefined true :proName f_test_1 :proArgSrc l_abc\ abc,l_def\ out\ def :funcHeadSrc create\ procedure\ f_test_1\ \(l_abc\ abc,l_def\ out\ def\)}
+
+</code></pre>
+<pre><code class="language-sql">MogDB=&gt; select * from pg_catalog.gs_dependencies where objectname  like 'f_test_1%' ;
+-[ RECORD 1 ]----------------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26630
+objectname  | f_test_1(pg_catalog.undefined,pg_catalog.undefined)
+-[ RECORD 2 ]----------------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26631
+objectname  | f_test_1(pg_catalog.undefined,pg_catalog.undefined)
+
+MogDB=&gt;
+</code></pre>
+<pre><code class="language-sql">MogDB=&gt; select * from pg_object where object_oid=26632;
+-[ RECORD 1 ]------------------------------
+object_oid  | 26632
+object_type | P
+creator     | 16781
+ctime       | 2024-11-06 14:12:06.944254+08
+mtime       | 2024-11-06 14:12:06.944254+08
+createcsn   |
+changecsn   |
+valid       | f
+
+MogDB=&gt;
+</code></pre>
+<p>此时如果将不存在的类型补上,则procedure会自动根据类型名称更新相关表。<br/>
+比如我们先把abc这个类型建上，可以发现procedure的Undefined类型只有一个了，但此时pg_object 里仍然是失效状态</p>
+<pre><code class="language-sql">MogDB=&gt; create type abc is (a int);
+CREATE TYPE
+MogDB=&gt; select oid from pg_type where typname='abc';
+-[ RECORD 1 ]
+oid | 26636
+MogDB=&gt; select oid,* from pg_catalog.gs_dependencies_obj where name like 'f_test_1%' or name in ('abc','def');
+-[ RECORD 1 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26631
+schemaname  | system
+packagename | null
+type        | 3
+name        | def
+objnode     | {DependenciesUndefined}
+-[ RECORD 2 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26630
+schemaname  | system
+packagename | null
+type        | 3
+name        | abc
+objnode     | {DependenciesType :typType c :typCategory C :attrInfo a:pg_catalog.int4, :isRel false :elemTypName &lt;&gt; :idxByTypName &lt;&gt; :baseTypeOid 0}
+-[ RECORD 3 ]------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26633
+schemaname  | system
+packagename | null
+type        | 5
+name        | f_test_1(system.abc,pg_catalog.undefined)
+objnode     | {DependenciesProchead :undefined true :proName f_test_1 :proArgSrc l_abc\ abc,l_def\ out\ def :funcHeadSrc create\ procedure\ f_test_1\ \(l_abc\ abc,l_def\ out\ def\)}
+
+MogDB=&gt; select * from pg_catalog.gs_dependencies where objectname  like 'f_test_1%' ;
+-[ RECORD 1 ]------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26630
+objectname  | f_test_1(system.abc,pg_catalog.undefined)
+-[ RECORD 2 ]------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26631
+objectname  | f_test_1(system.abc,pg_catalog.undefined)
+
+MogDB=&gt; select oid,* from pg_proc where proname='f_test_1';
+-[ RECORD 1 ]-------+------------------------
+oid                 | 26632
+proname             | f_test_1
+pronamespace        | 16783
+proowner            | 16781
+prolang             | 12563
+procost             | 100
+prorows             | 0
+provariadic         | 0
+protransform        | -
+proisagg            | f
+proiswindow         | f
+prosecdef           | t
+proleakproof        | f
+proisstrict         | f
+proretset           | f
+provolatile         | v
+pronargs            | 1
+pronargdefaults     | 0
+prorettype          | 4408
+proargtypes         | 26636
+proallargtypes      | {26636,4408}
+proargmodes         | {i,o}
+proargnames         | {l_abc,l_def}
+proargdefaults      |
+prosrc              |  DECLARE
+                    | begin
+                    | null;
+                    | end
+probin              |
+proconfig           |
+proacl              | {system=X/system}
+prodefaultargpos    |
+fencedmode          | f
+proshippable        | f
+propackage          | f
+prokind             | p
+proargsrc           | l_abc abc,l_def out def
+propackageid        | 0
+proisprivate        | f
+proargtypesext      |
+prodefaultargposext |
+allargtypes         | 26636 4408
+allargtypesext      |
+objecttypeoid       |
+methodtype          |
+isfinal             |
+instantiable        |
+overriding          |
+inherited           |
+
+MogDB=&gt;
+</code></pre>
+<pre><code class="language-sql">MogDB=&gt; select * from pg_object where object_oid=26632;
+-[ RECORD 1 ]------------------------------
+object_oid  | 26632
+object_type | P
+creator     | 16781
+ctime       | 2024-11-06 14:12:06.944254+08
+mtime       | 2024-11-06 14:12:06.944254+08
+createcsn   |
+changecsn   |
+valid       | f
+
+MogDB=&gt;
+</code></pre>
+<p>我们接着把另一个类型补上</p>
+<pre><code class="language-sql">MogDB=&gt; create type def is (a int);
+CREATE TYPE
+MogDB=&gt; select oid from pg_type where typname='def';
+-[ RECORD 1 ]
+oid | 26643
+
+MogDB=&gt; select oid,* from pg_catalog.gs_dependencies_obj where name like 'f_test_1%' or name in ('abc','def');
+-[ RECORD 1 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26630
+schemaname  | system
+packagename | null
+type        | 3
+name        | abc
+objnode     | {DependenciesType :typType c :typCategory C :attrInfo a:pg_catalog.int4, :isRel false :elemTypName &lt;&gt; :idxByTypName &lt;&gt; :baseTypeOid 0}
+-[ RECORD 2 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26631
+schemaname  | system
+packagename | null
+type        | 3
+name        | def
+objnode     | {DependenciesType :typType c :typCategory C :attrInfo a:pg_catalog.int4, :isRel false :elemTypName &lt;&gt; :idxByTypName &lt;&gt; :baseTypeOid 0}
+-[ RECORD 3 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26633
+schemaname  | system
+packagename | null
+type        | 5
+name        | f_test_1(system.abc,system.def)
+objnode     | {DependenciesProchead :undefined false :proName f_test_1 :proArgSrc l_abc\ abc,l_def\ out\ def :funcHeadSrc create\ procedure\ f_test_1\ \(l_abc\ abc,l_def\ out\ def\)}
+
+MogDB=&gt; select * from pg_catalog.gs_dependencies where objectname  like 'f_test_1%' ;
+-[ RECORD 1 ]--------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26630
+objectname  | f_test_1(system.abc,system.def)
+-[ RECORD 2 ]--------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26631
+objectname  | f_test_1(system.abc,system.def)
+
+MogDB=&gt; select oid,* from pg_proc where proname='f_test_1';
+-[ RECORD 1 ]-------+------------------------
+oid                 | 26632
+proname             | f_test_1
+pronamespace        | 16783
+proowner            | 16781
+prolang             | 12563
+procost             | 100
+prorows             | 0
+provariadic         | 0
+protransform        | -
+proisagg            | f
+proiswindow         | f
+prosecdef           | t
+proleakproof        | f
+proisstrict         | f
+proretset           | f
+provolatile         | v
+pronargs            | 1
+pronargdefaults     | 0
+prorettype          | 26643
+proargtypes         | 26636
+proallargtypes      | {26636,26643}
+proargmodes         | {i,o}
+proargnames         | {l_abc,l_def}
+proargdefaults      |
+prosrc              |  DECLARE
+                    | begin
+                    | null;
+                    | end
+probin              |
+proconfig           |
+proacl              | {system=X/system}
+prodefaultargpos    |
+fencedmode          | f
+proshippable        | f
+propackage          | f
+prokind             | p
+proargsrc           | l_abc abc,l_def out def
+propackageid        | 0
+proisprivate        | f
+proargtypesext      |
+prodefaultargposext |
+allargtypes         | 26636 26643
+allargtypesext      |
+objecttypeoid       |
+methodtype          |
+isfinal             |
+instantiable        |
+overriding          |
+inherited           |
+
+MogDB=&gt; select * from pg_object where object_oid=26632;
+-[ RECORD 1 ]------------------------------
+object_oid  | 26632
+object_type | P
+creator     | 16781
+ctime       | 2024-11-06 14:12:06.944254+08
+mtime       | 2024-11-06 14:12:06.944254+08
+createcsn   |
+changecsn   |
+valid       | f
+
+MogDB=&gt;
+</code></pre>
+<p>可以看到这个procedure的参数没有undefined类型了，但是pg_object中仍然为失效状态，此时可以通过执行<code>alter procedure {procedure_name} compile</code>命令来让它重新编译，编译通过即更新为有效状态；或者直接执行这个procedure，也会触发自动编译。</p>
+<pre><code class="language-sql">MogDB=&gt; alter procedure f_test_1 compile;
+ALTER PROCEDURE
+MogDB=&gt; select * from pg_object where object_oid=26632;
+-[ RECORD 1 ]------------------------------
+object_oid  | 26632
+object_type | P
+creator     | 16781
+ctime       | 2024-11-06 14:12:06.944254+08
+mtime       | 2024-11-06 15:31:58.694414+08
+createcsn   |
+changecsn   | 24098
+valid       | t
+
+MogDB=&gt;
+</code></pre>
+<p>如果此时再drop掉其中一个type,可以发现procedure里那个类型又变成了undefined，并且procedure也变成了失效状态</p>
+<pre><code class="language-sql">MogDB=&gt; drop type abc;
+DROP TYPE
+MogDB=&gt; select oid,* from pg_proc where proname='f_test_1';
+-[ RECORD 1 ]-------+------------------------
+oid                 | 26632
+proname             | f_test_1
+pronamespace        | 16783
+proowner            | 16781
+prolang             | 12563
+procost             | 100
+prorows             | 0
+provariadic         | 0
+protransform        | -
+proisagg            | f
+proiswindow         | f
+prosecdef           | t
+proleakproof        | f
+proisstrict         | f
+proretset           | f
+provolatile         | v
+pronargs            | 1
+pronargdefaults     | 0
+prorettype          | 26643
+proargtypes         | 4408
+proallargtypes      | {4408,26643}
+proargmodes         | {i,o}
+proargnames         | {l_abc,l_def}
+proargdefaults      |
+prosrc              |  DECLARE
+                    | begin
+                    | null;
+                    | end
+probin              |
+proconfig           |
+proacl              | {system=X/system}
+prodefaultargpos    |
+fencedmode          | f
+proshippable        | f
+propackage          | f
+prokind             | p
+proargsrc           | l_abc abc,l_def out def
+propackageid        | 0
+proisprivate        | f
+proargtypesext      |
+prodefaultargposext |
+allargtypes         | 4408 26643
+allargtypesext      |
+objecttypeoid       |
+methodtype          |
+isfinal             |
+instantiable        |
+overriding          |
+inherited           |
+
+MogDB=&gt;select oid,* from pg_catalog.gs_dependencies_obj where name like 'f_test_1%' or name in ('abc','def');
+-[ RECORD 1 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26631
+schemaname  | system
+packagename | null
+type        | 3
+name        | def
+objnode     | {DependenciesType :typType c :typCategory C :attrInfo a:pg_catalog.int4, :isRel false :elemTypName &lt;&gt; :idxByTypName &lt;&gt; :baseTypeOid 0}
+-[ RECORD 2 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26630
+schemaname  | system
+packagename | null
+type        | 3
+name        | abc
+objnode     | {DependenciesUndefined}
+-[ RECORD 3 ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+oid         | 26644
+schemaname  | system
+packagename | null
+type        | 5
+name        | f_test_1(pg_catalog.undefined,system.def)
+objnode     | {DependenciesProchead :undefined true :proName f_test_1 :proArgSrc l_abc\ abc,l_def\ out\ def :funcHeadSrc create\ or\ replace\ procedure\ f_test_1\ \(l_abc\ abc,l_def\ out\ def\)}
+
+MogDB=&gt; select * from pg_catalog.gs_dependencies where objectname  like 'f_test_1%' ;
+-[ RECORD 1 ]------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26631
+objectname  | f_test_1(pg_catalog.undefined,system.def)
+-[ RECORD 2 ]------------------------------------------
+schemaname  | system
+packagename | null
+refobjpos   | 4
+refobjoid   | 26630
+objectname  | f_test_1(pg_catalog.undefined,system.def)
+
+MogDB=&gt; select * from pg_object where object_oid=26632;
+-[ RECORD 1 ]------------------------------
+object_oid  | 26632
+object_type | P
+creator     | 16781
+ctime       | 2024-11-06 14:12:06.944254+08
+mtime       | 2024-11-06 15:31:58.694414+08
+createcsn   |
+changecsn   | 24098
+valid       | f
+
+</code></pre>
+<p>以上即为这个功能的基本原理。<br/>
+但MogDB将这个功能运用于真实的应用场景中，还遇到了不少问题。</p>
+<h2 id="四初版方案的问题">四、初版方案的问题</h2>
+<h3 id="1并发编译">1.并发编译</h3>
+<p>当有procedure失效时，此时如果同时有多个会话去执行这个procedure，则每个会话都会自动触发编译，并且去更新系统表，而并发更新系统表时，会出现<code>tuple concurrently updated</code>的报错。<br/>
+<a href="https://gitee.com/opengauss/openGauss-server/issues/I9AZ7T">https://gitee.com/opengauss/openGauss-server/issues/I9AZ7T</a><br/>
+另外，这个自动编译功会尝试进行级联编译，则可能会出现在一个事务中，更新系统表中的多行记录，此时如果存储过程复杂，各种嵌套，那么很有可能出现有两个会话对系统表相同行的更新顺序不一样，从而触发<code>deadlock</code>。<br/>
+<a href="https://gitee.com/opengauss/openGauss-server/issues/I991AN">https://gitee.com/opengauss/openGauss-server/issues/I991AN</a></p>
+<p>有开发经验的自然会想到，要不要在每次编译单个对象时，先加行锁，然后抛个自治事务去编译，再回来释放这个行锁？我们对比了Oracle执行存储过程时的自动编译，发现存储过程有效状态变化与主事务之间没有关系，就算存储过程没执行完，事务没提交，存储过程依然从无效变成了有效。<br/>
+最后openGauss/MogDB的确也采取了自动使用自治事务去编译这种方式去解决这个问题。</p>
+<h3 id="2依赖关系过多的情况下replace-package非常慢">2.依赖关系过多的情况下，replace package非常慢</h3>
+<p>某客户自研了一些应用系统，将所有存储过程里会用到的类型，均在一个package里建了subtype，此时所有存储过程都不再使用基本类型，而是统一使用这个package里的subtype。某天需要对这个package新增一个subtype，就会执行<code>create or replace package</code> 。<br/>
+但openGauss对<code>replace package</code>的操作为，先逐个drop掉这个package里的所有type/function/procedure，然后再重新执行create package，逐个建立package里的type/function/procedure。试想，如果有上万个存储过程使用了这个package里的subtype作为参数类型，那么把type给drop后，则需要把这上万个存储过程的系统元数据全部更新一次，中间还会触发到级联编译，整个处理就变得非常慢。当时第一版代码进行这个场景的验证时，执行了1小时没执行完。</p>
+<h3 id="3replace-package会导致使用了这个package内函数的自定义视图查询报错">3.replace package会导致使用了这个package内函数的自定义视图，查询报错</h3>
+<pre><code class="language-sql">openGauss=# show behavior_compat_options;
+ behavior_compat_options
+-------------------------
+ plpgsql_dependency
+(1 row)
+
+openGauss=# create package pkg_test_view is
+openGauss$# function f1 return int;
+openGauss$# end pkg_test_view;
+openGauss$# /
+CREATE PACKAGE
+openGauss=#
+openGauss=# create package body pkg_test_view is
+openGauss$# function f1 return int is
+openGauss$# begin
+openGauss$# return 1;
+openGauss$# end;
+openGauss$# end pkg_test_view;
+openGauss$# /
+CREATE PACKAGE BODY
+openGauss=# create view view_test as
+openGauss-# select pkg_test_view.f1() as a;
+CREATE VIEW
+openGauss=# select * from view_test;
+ a
+---
+ 1
+(1 row)
+
+openGauss=# create or replace package pkg_test_view is
+openGauss$# v1 int;
+openGauss$# function f1 return int;
+openGauss$# end pkg_test_view;
+openGauss$# /
+CREATE PACKAGE
+openGauss=#
+openGauss=# create or replace package body pkg_test_view is
+openGauss$# function f1 return int is
+openGauss$# begin
+openGauss$# return 1;
+openGauss$# end;
+openGauss$# end pkg_test_view;
+openGauss$# /
+CREATE PACKAGE BODY
+openGauss=# select * from view_test;
+ERROR:  cache lookup failed for function 23296
+openGauss=# select * from pg_views where viewname='view_test';
+ERROR:  cache lookup failed for function 23296
+CONTEXT:  referenced column: definition
+openGauss=# select pg_get_viewdef('view_test');
+ERROR:  cache lookup failed for function 23296
+CONTEXT:  referenced column: pg_get_viewdef
+openGauss=#
+</code></pre>
+<pre><code>[og600@kylinv10sp3-node1 ~]$ gs_dump postgres -t view_test
+gs_dump[port='21200'][postgres][2024-11-07 09:55:33]: Begin scanning database.
+Progress: [==================================================] 100% (38/37, cur_step/total_step). finish scanning database
+gs_dump[port='21200'][postgres][2024-11-07 09:55:33]: Finish scanning database.
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33] WARNING: could not resolve dependency loop among these items:
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   FUNCTION test_f3  (ID 442 OID 16420)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   object type 21  (ID 4065 OID 16419)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   PRE-DATA BOUNDARY  (ID 4069)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33] WARNING: could not resolve dependency loop among these items:
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   FUNCTION test_f3  (ID 444 OID 16424)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   object type 21  (ID 4066 OID 16423)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   PRE-DATA BOUNDARY  (ID 4069)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33] WARNING: could not resolve dependency loop among these items:
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   FUNCTION x  (ID 445 OID 23291)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   object type 21  (ID 4067 OID 23290)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   PRE-DATA BOUNDARY  (ID 4069)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33] WARNING: could not resolve dependency loop among these items:
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   FUNCTION f1  (ID 447 OID 23301)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   object type 21  (ID 4068 OID 23295)
+gs_dump: [port='21200'] [postgres] [sorter] [2024-11-07 09:55:33]   PRE-DATA BOUNDARY  (ID 4069)
+gs_dump[port='21200'][postgres][2024-11-07 09:55:33]: Start dumping objects
+gs_dump: [port='21200'] [postgres] [archiver (db)] [2024-11-07 09:55:33] query failed: ERROR:  cache lookup failed for function 23296
+CONTEXT:  referenced column: viewdef
+gs_dump: [port='21200'] [postgres] [archiver (db)] [2024-11-07 09:55:33] query was: SELECT pg_catalog.pg_get_viewdef('23297'::pg_catalog.oid) AS viewdef
+[og600@kylinv10sp3-node1 ~]$
+</code></pre>
+<p>问题2中说明了openGauss对replace package的处理方式，这个处理方式同时也会导致自定义视图无法查询<code>ERROR:  cache lookup failed for function 23296</code>，因为函数被自动drop重建了，哪怕这个函数本身没有任何变化，这个函数的oid也不是之前的值了。而且出现这个问题的视图还无法查询视图的定义SQL，逻辑备份也会被中断。如果没有备份视图的原始SQL，那么这个问题将无法修复。MogDB在之前的版本中，相较openGauss，额外有多一个获取视图原始定义的函数<code>pg_get_ori_viewdef</code>，在遇到这个问题时，还有办法补救。</p>
+<p>另外，openGauss这种处理方式，意味着修改package时，哪怕package body没有任何变化，也必须把package和package body的创建代码都执行一次。</p>
+<h2 id="五mogdb对plsql编译依赖功能的额外增强">五、MogDB对PLSQL编译依赖功能的额外增强</h2>
+<p>MogDB 5.2.0版本 ,在<strong>PLSQL编译依赖</strong>这个功能的基础上，额外增加了对replace package的增量处理逻辑--<strong>PLSQL增量编译</strong>。也就是说，在MogDB 5.2.0版本中，replace package，只会对系统表进行最低限度的变更，不再全部drop包内的全部对象，而是对type/function/procedure进行replace操作(replace 操作一般不变oid)；如果function head没变，则不会触发plsql编译依赖冗长的处理逻辑，如果function body也没变，则replace的操作也会直接忽略。简单来说，就是处理速度变快，而且不会丢东西了。</p>
+<pre><code class="language-sql">MogDB=&gt; create view view_test as
+MogDB$&gt; select pkg_test_view.f1() as a;
+CREATE VIEW
+MogDB=&gt; select * from view_test;
+ a
+---
+ 1
+(1 row)
+
+MogDB=&gt; create or replace package pkg_test_view is
+MogDB$&gt; function f1 return int;
+MogDB$&gt; end pkg_test_view;
+MogDB$&gt; /
+CREATE PACKAGE
+MogDB=&gt;
+MogDB=&gt; create or replace package body pkg_test_view is
+MogDB$&gt; function f1 return int is
+MogDB$&gt; begin
+MogDB$&gt; return 1;
+MogDB$&gt; end;
+MogDB$&gt; end pkg_test_view;
+MogDB$&gt; /
+CREATE PACKAGE BODY
+MogDB=&gt; create or replace package pkg_test_view is
+MogDB$&gt; i int;
+MogDB$&gt; function f1 return int;
+MogDB$&gt; end pkg_test_view;
+MogDB$&gt; /
+CREATE PACKAGE
+MogDB=&gt; select * from view_test;--package头里加东西也不需要重建body了
+ a
+---
+ 1
+(1 row)
+
+MogDB=&gt;create or replace package body pkg_test_view is
+MogDB$&gt; function f1 return int is
+MogDB$&gt; begin
+MogDB$&gt; return 1;
+MogDB$&gt; end;
+MogDB$&gt; end pkg_test_view;
+MogDB$&gt; /
+CREATE PACKAGE BODY
+MogDB=&gt; select * from view_test;
+ a
+---
+ 1
+(1 row)
+
+MogDB=&gt;
+</code></pre>
+<p>MogDB在openGauss的基础上进行创新，加入了<strong>PLSQL增量编译</strong>逻辑，一次性解决了历史遗留的多个问题。</p>
+<h2 id="六总结">六、总结</h2>
+<p>对于拥有非常多存储过程的应用系统，尤其是那些有非常多package及自定义类型的应用来说，PLSQL编译依赖是必须要有的一个功能，否则根本无法实现从ORACLE到国产库的顺利迁移。对于PG/OG系数据库来说，这也是一个非常复杂的功能，因为存在既定框架的限制，需要相当大的研发测试投入，以及大量的真实测试场景输入，才可能把这个功能做完善做稳定。<br/>
+MogDB 5.2.0支持这个功能后，对ORACLE应用迁移将变得更加顺畅。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

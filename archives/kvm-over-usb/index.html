@@ -153,7 +153,164 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="背景">背景</h2>
+<p>有时候在一些外网隔离的环境里，偶尔会遇到一些问题，需要找人进行远程支持诊断，但是往往有很多用于诊断的信息，无法从这些设备中传出来，造成了很多问题迟迟得不到解决。</p>
+<p>还有我家里的服务器有时候会出些问题，重启起不来，需要查看启动时显示什么，但由于我长期出差，就很不方便，如果弄个设备采集服务器的显示输出，并且能模拟键鼠输入操作服务器就好了。</p>
+<p>于是本文尝试做一种方案，将未接入互联网的设备屏幕能传递到有互联网的设备中。</p>
+<blockquote>
+<p><strong>声明：本文仅为技术研究，禁止用于违法行为</strong></p>
+</blockquote>
+<h2 id="搜索方案">搜索方案</h2>
+<p>其实很早我就知道玩客云刷pikvm，能远程管理服务器，甚至还可以远程调BIOS，而且整套方案做下来还不到100元。<br/>
+基本原理就是把其中一个USB模拟成键鼠，另一个USB插上HDMI采集卡，然后在固件里做一个web服务，用于显示采集卡传进来的画面。这个固件是开源的，很多硬件都可以刷。但是这个盒子还是有点大了，还要额外插电，盒子还必须连接网络，而且走网络必然会加大延迟。</p>
+<p>另外，实际上我想做的方案是脱离固件的，不需要真正的远程，而是直接连接随身的笔记本电脑和无网络的设备，然后在笔记本电脑上查看无网设备的桌面，并且用笔记本电脑控制这个无网设备。</p>
+<p>之前GPD有出几款设备，可以安装KVM模块，这就是我想要的效果。</p>
+<p><img alt="36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg" srcset="/upload/36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg?width=1200 1200w, /upload/36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg?width=400 400w, /upload/36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg?width=1600 1600w, /upload/36e232ca5b4f76142d83ee862608add1_552413540923dd541a1e907d8c09b3de9c824869_tbpicau=2025-08-06-05_0081a859a89658be63b82bb628cc3c1c.jpg?width=800 800w"/></p>
+<p>虽然看到GPD的KVM模块非常小，但是由于我手上没有这个设备，无法知道这个设备的原理。有一天看到了一张截图，显示的是GDP用win10自带的相机显示另一台机器的桌面，我就知道视频信号肯定就是用采集卡了。但是键鼠信号是怎么过去的？</p>
+<p>我问过AI如何能让两台笔记本电脑的USB相连，然后一台笔记本能操作另一台笔记本，并且被控端无法安装任何软件而且没有网络，但AI回复的所有方案都是不能简单直接落地的方案。不过AI说的串口模拟键鼠倒是我认为可能唯一可行的方案，只是这样就必须要编程了，而且对不同串口设备写代码还有差异。</p>
+<p>于是这几个年来，我每想起这回事，就会去搜一搜有没有什么现成的方案能实现我这个需求。</p>
+<p>然后有一次，搜到了个 https://wiki.sipeed.com/hardware/zh/kvm/NanoKVM/introduction.html</p>
+<p><img alt="61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png" srcset="/upload/61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png?width=1200 1200w, /upload/61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png?width=400 400w, /upload/61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png?width=1600 1600w, /upload/61a7d2921f1a65651fe8b3c273b51c64_nanokvm.42ca4d2e.png?width=800 800w"/></p>
+<p>加拿大白嫖王也测试了这个玩意。</p>
+<p>这个东西和玩客云KVM那套方案一样，但是体积非常小。<br/>
+我想，如果不要里面的荔枝派芯片，不要操作系统不要服务，体积应该可以更小。</p>
+<p>后来我其实在某宝上有找到USB双公头线，里面是一个 USB转串口的芯片+串口模拟USB HID的芯片，我知道这根线是我需要的，但是我没有软件，我也没做过串口开发，我不知道如何捕获笔记本键鼠的输入转发到串口。</p>
+<p>但是这几年AI发展起来了，之前不会做的，直接让AI来就行了。</p>
+<h2 id="自制">自制</h2>
+<p>想象中应该是个这样的原理：</p>
+<pre><code>┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   主控端PC       │ USB │   MS2130采集卡  │HDMI│   被控端设备     │
+│                  │◄──►│(HDMI虚拟成摄像头)│◄──►│                 │
+│  显示被控端屏幕   │    └─────────────────┘    │   输出HDMI信号   │
+│                  │    ┌─────────────────┐    │                 │
+│键鼠操作转发到被控端│USB │ CH9329+CH340    │USB │  接收USB键鼠输入 │
+│                  │◄──►│ (虚拟成USB键鼠)  │◄──►│                 │
+└──────────────────┘    └─────────────────┘    └─────────────────┘
+</code></pre>
+<p>在确认我的想法能成后，我买了“MS2130采集卡”和“CH9329+CH340UART/TTL 串口转USB HID” 这两根成品线，一共也就40元左右。</p>
+<p><img alt="image-wroo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wroo.png" srcset="/upload/image-wroo.png?width=1200 1200w, /upload/image-wroo.png?width=400 400w, /upload/image-wroo.png?width=1600 1600w, /upload/image-wroo.png?width=800 800w"/></p>
+<p>接下来就是写代码，我把我的需求给AI说了后，AI给了我好几套方案</p>
+<ol>
+<li>rust vue</li>
+<li>c++ qt</li>
+<li>python+opencv</li>
+<li>纯html+js</li>
+</ol>
+<p>最后我试下来，rust的方案，AI一直跑不通；c++的方案要装qt,环境依赖太重；而python的性能太差。最后用了纯html+js的方案。由于js可以直接放在html里，所以最后就只需要一个html文件了。</p>
+<p>不过这个过程也不是一帆风顺的，反复修了很多BUG，看这一堆按键就知道，很多都是AI加的用于调试和强制复位的。。。</p>
+<p><img alt="07e4e28339d952ea4e3c61d30093f1a0_preview.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/07e4e28339d952ea4e3c61d30093f1a0_preview.png" srcset="/upload/07e4e28339d952ea4e3c61d30093f1a0_preview.png?width=1200 1200w, /upload/07e4e28339d952ea4e3c61d30093f1a0_preview.png?width=400 400w, /upload/07e4e28339d952ea4e3c61d30093f1a0_preview.png?width=1600 1600w, /upload/07e4e28339d952ea4e3c61d30093f1a0_preview.png?width=800 800w"/></p>
+<p>代码已开源<br/>
+<a href="https://gitee.com/darkathena/usbkvm-pro">https://gitee.com/darkathena/usbkvm-pro</a></p>
+<p>虽然键鼠反馈还是有些延时，但是用于远程问题诊断已经绰绰有余了。</p>
+<h2 id="优化方案-">优化方案？</h2>
+<p>但是，现在主控机上还是要插两根USB线，显得不够整洁。<br/>
+既然都是USB，能不能弄个USB HUB，这样主控机上就只用插一根线了？<br/>
+不过实际上这样线就显得更杂乱了。<br/>
+最理想的方案是，ms2130和CH9329+CH340直接封装到一起，然后两根线连受控机，一根线连主控机。<br/>
+如果把ms2130换成ms2131，还可以增加一路HDMI显示环出，显示环出是无延迟的。</p>
+<p>要开始玩EDA设计了么？现在手头工作还比较忙，没打算开始深入涉足这个领域，虽然之前的确弄过一些小玩意，但也就只有USB-HUB、继电器这种简单的电路。</p>
+<h2 id="别人已经做过了">别人已经做过了</h2>
+<p>后来发现，Nano KVM的厂商Sipeed出了NanoKVM-USB ，这个设备不再需要网络，和我的想法如出一辙<br/>
+但是，这玩意感觉有点贵了，要两百多元，还没有现货。</p>
+<p><img alt="8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png" srcset="/upload/8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png?width=1200 1200w, /upload/8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png?width=400 400w, /upload/8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png?width=1600 1600w, /upload/8ae87fd42eff043c36fba4ec11ff5b50_head.0b24c988.png?width=800 800w"/></p>
+<p>然后我看了下这个的界面实现，也是可以用本地网页提供显示，官网也直接提供了代码：<br/>
+<a href="https://cdn.sipeed.com/nanokvm/NanoKVM-USB.zip">https://cdn.sipeed.com/nanokvm/NanoKVM-USB.zip</a></p>
+<p>我就在想是不是他们这个代码也适用于我的这个丐版usbkvm。</p>
+<p>于是我下载了这个压缩包，直接打开网页文件是全白的，需要启动一个web服务，这个用python启动一个就行。<br/>
+显示信号采集没有问题，连接串口设备一直失败。<br/>
+然后我让AI分析了一下这个玩意的串口实现，发现波特率不一样，它的是57600，而我的是9600，于是我就把它代码里的波特率改了，然后就好了，键盘鼠标都能正常使用。键鼠控制效果貌似比我的那个要好一点。。。</p>
+<p>虽然没去买NanoKVM,但是用上了他们开发的这个控制端服务。早发现这玩意，我就没必要自己写一个了。。。（这个其实是2025年才出来的，我也就晚了几个月。。。）</p>
+<p>NanoKVM有很多东西是开源的，顺便去github上瞅瞅，发现了这个主控端软件还有桌面版<br/>
+https://github.com/sipeed/NanoKVM-USB</p>
+<p>果断下载下来，直接把波特率一改，编译（注意要使用管理员身份编译），</p>
+<pre><code class="language-powershell">PS C:\WINDOWS\system32&gt; cd E:\github\NanoKVM-USB\desktop
+PS E:\github\NanoKVM-USB\desktop&gt; pnpm build:win
+
+&gt; nanokvm-usb@1.0.1 build:win E:\github\NanoKVM-USB\desktop
+&gt; npm run build &amp;&amp; electron-builder --win
+
+
+&gt; nanokvm-usb@1.0.1 build
+&gt; npm run typecheck &amp;&amp; electron-vite build
+
+
+&gt; nanokvm-usb@1.0.1 typecheck
+&gt; npm run typecheck:node &amp;&amp; npm run typecheck:web
+
+
+&gt; nanokvm-usb@1.0.1 typecheck:node
+&gt; tsc --noEmit -p tsconfig.node.json --composite false
+
+
+&gt; nanokvm-usb@1.0.1 typecheck:web
+&gt; tsc --noEmit -p tsconfig.web.json --composite false
+
+vite v6.1.0 building SSR bundle for production...
+✓ 11 modules transformed.
+out/main/index.js  14.14 kB
+✓ built in 167ms
+vite v6.1.0 building SSR bundle for production...
+✓ 1 modules transformed.
+out/preload/index.js  0.42 kB
+✓ built in 17ms
+vite v6.1.0 building for production...
+✓ 4679 modules transformed.
+../../out/renderer/index.html                     0.46 kB
+../../out/renderer/assets/icon-BDjY6N_A.png      16.38 kB
+../../out/renderer/assets/index-2xABgJMO.css     46.98 kB
+../../out/renderer/assets/index-DQ8B9NTf.js   2,003.82 kB
+✓ built in 12.63s
+  • electron-builder  version=25.1.8 os=10.0.19045
+  • loaded configuration  file=E:\github\NanoKVM-USB\desktop\electron-builder.yml
+  • writing effective config  file=dist\builder-effective-config.yaml
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=win32 arch=x64 electron=34.2.0 appOutDir=dist\win-unpacked
+  • updating asar integrity executable resource  executablePath=dist\win-unpacked\NanoKVM-USB.exe
+  • downloading     url=https://npmmirror.com/mirrors/electron-builder-binaries/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://npmmirror.com/mirrors/electron-builder-binaries/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=830ms
+  • signing with signtool.exe  path=dist\win-unpacked\NanoKVM-USB.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building        target=nsis file=dist\NanoKVM-USB-1.0.1-setup.exe archs=x64 oneClick=false perMachine=true
+  • downloading     url=https://npmmirror.com/mirrors/electron-builder-binaries/nsis-3.0.4.1/nsis-3.0.4.1.7z size=1.3 MB parts=1
+  • downloaded      url=https://npmmirror.com/mirrors/electron-builder-binaries/nsis-3.0.4.1/nsis-3.0.4.1.7z duration=642ms
+  • signing with signtool.exe  path=dist\win-unpacked\resources\elevate.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • downloading     url=https://npmmirror.com/mirrors/electron-builder-binaries/nsis-resources-3.4.1/nsis-resources-3.4.1.7z size=731 kB parts=1
+  • downloaded      url=https://npmmirror.com/mirrors/electron-builder-binaries/nsis-resources-3.4.1/nsis-resources-3.4.1.7z duration=539ms
+  • signing with signtool.exe  path=dist\__uninstaller-nsis-nanokvm-usb.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • signing with signtool.exe  path=dist\NanoKVM-USB-1.0.1-setup.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building block map  blockMapFile=dist\NanoKVM-USB-1.0.1-setup.exe.blockmap
+</code></pre>
+<p>打开编译的exe，完美呀。</p>
+<p><img alt="image-qlme.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qlme.png" srcset="/upload/image-qlme.png?width=1200 1200w, /upload/image-qlme.png?width=400 400w, /upload/image-qlme.png?width=1600 1600w, /upload/image-qlme.png?width=800 800w"/></p>
+<p>​</p>
+<blockquote>
+<p>AI能让完全不会的人做出他想要的东西，但是不一定能做好做精。有时候还是得靠专业的人。</p>
+</blockquote>
+<h2 id="为什么波特率会有差异-">为什么波特率会有差异？</h2>
+<p>事后，我又在想，NanoKVM-USB的串口波特率是57600，而我的CH9329是9600,会不会前者的键鼠同步效率更高？然后我翻了CH9329的文档，发现它默认是9600，可以支持57600，也就是说可以进行调整。</p>
+<p>于是找老板要了CH9329的设置软件准备调调试试</p>
+<p><img alt="bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png" srcset="/upload/bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png?width=1200 1200w, /upload/bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png?width=400 400w, /upload/bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png?width=1600 1600w, /upload/bf7c05d711f6219c95713980a20b017b_image-202422131332-fvql.png?width=800 800w"/></p>
+<p>打开串口、获取参数，然后在 "串口波特率"这里选择57600，再点击设置参数就行了，这样就不用修改NanoKVM-USB的软件源码了。</p>
+<h2 id="完美主义作祟">完美主义作祟</h2>
+<p>要不还是改一下源码吧，让波特率支持可以选择。</p>
+<p>一两句话的事，直接让AI加了：</p>
+<p><img alt="image-qnzv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qnzv.png" srcset="/upload/image-qnzv.png?width=1200 1200w, /upload/image-qnzv.png?width=400 400w, /upload/image-qnzv.png?width=1600 1600w, /upload/image-qnzv.png?width=800 800w"/></p>
+<p><img alt="image-brfm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-brfm.png" srcset="/upload/image-brfm.png?width=1200 1200w, /upload/image-brfm.png?width=400 400w, /upload/image-brfm.png?width=1600 1600w, /upload/image-brfm.png?width=800 800w"/></p>
+<p>另外额外加了个重置设置的功能</p>
+<p><img alt="image-ilcm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ilcm.png" srcset="/upload/image-ilcm.png?width=1200 1200w, /upload/image-ilcm.png?width=400 400w, /upload/image-ilcm.png?width=1600 1600w, /upload/image-ilcm.png?width=800 800w"/></p>
+<p>然后我基本测试没啥问题，顺手就给NanoKVM-USB提了个PR</p>
+<p>https://github.com/sipeed/NanoKVM-USB/pull/60</p>
+<p>至于他们愿不愿意接受，我就不管了，虽然他们的硬件本身就没提供改波特率的方式，也就没必要支持在连接时选择波特率。如果支持可选波特率，那么像我这样几十元自己组的USBKVM可以不用改芯片设置也能用。</p>
+<p>如果他们不合我这个代码，就先在我fork的这个分支更新吧</p>
+<p>https://github.com/Dark-Athena/NanoKVM-USB</p>
+</div>
+</article>
     </div>
     
 </article>

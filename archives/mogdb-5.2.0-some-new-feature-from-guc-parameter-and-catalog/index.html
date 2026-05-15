@@ -149,13 +149,743 @@
         
         <span>2024-10-07</span>
         
-        <span>225 阅读</span>
+        <span>226 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一、前言">一、前言</h2>
+<p>MogDB 5.2.0版本于9月30号发布，该版本继承MogDB5.0版本的所有特性，并且在ORACLE兼容性上进行了非常大的提升，官方说法是新增了九十多项兼容性，但作为整个版本的全程亲历者，我知道新增的远远不止九十多项，因为有些小功能合并成了一个大功能，还有一些点当成是对已有功能的优化没算进来。如果全部打散成一个个小的功能点，应该是超过两百项的！<br/>
+功能点的个数，可能还不太有感觉，换个说法吧:<br/>
+某个应用软件具有以下特征：</p>
+<ol>
+<li>在ORACLE的<code>user_source</code>中能查到数百万行plsql代码</li>
+<li>有数千个表和数千个自定义类型</li>
+<li>在<code>user_dependencies</code>中能查到几万条依赖</li>
+<li>JAVA应用端不会发起任何DML语句，甚至连一个select都没有，全部是封装object调用存储过程，查询数据也是通过存储过程返回游标</li>
+<li>该应用还有一套完整的建库脚本，在windows上调用bat语言，调用sqlplus和sqlldr执行各种cmd命令及sql文件来完成建库。</li>
+</ol>
+<p>这样的应用软件，MogDB5.2.0从脚本建对象到应用软件升级到应用端正常使用，整个端到端保持和ORACLE端相同的建库代码、应用代码和PLSQL代码，真正意义上在该应用软件上实现了无损迁移！</p>
+<p>像这样超多的兼容性引入，分散在各个细节里，一篇文章根本无法说完，本篇仅从数据库参数和数据字典的一些变化，来说说这些比较明显的新特性。</p>
+<h2 id="二、pg_setting">二、pg_setting</h2>
+<p>导出MogDB 5.0.6版本以及MogDB5.2.0版本的pg_setting参数，比较MogDB5.2.0新增的部分，可以得到如下列表</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>allow_arithmetic_operation_reordering</td>
+</tr>
+<tr>
+<td>debug_select_o</td>
+</tr>
+<tr>
+<td>enable_cache_function_result</td>
+</tr>
+<tr>
+<td>enable_ddl_logical_record</td>
+</tr>
+<tr>
+<td>enable_global_plsql_cache</td>
+</tr>
+<tr>
+<td>enable_global_sequence_cache</td>
+</tr>
+<tr>
+<td>enable_mergeinto_subqueryalias</td>
+</tr>
+<tr>
+<td>enable_multitable_update</td>
+</tr>
+<tr>
+<td>enable_oracle_comment</td>
+</tr>
+<tr>
+<td>enable_plsql_compiledepend</td>
+</tr>
+<tr>
+<td>enable_plsql_ddl_auto_commit</td>
+</tr>
+<tr>
+<td>enable_plsql_return_hold_cursor</td>
+</tr>
+<tr>
+<td>enable_security_func_inline</td>
+</tr>
+<tr>
+<td>enable_select_multi_object_into</td>
+</tr>
+<tr>
+<td>enable_sqlcode_int</td>
+</tr>
+<tr>
+<td>enable_usrpwd_case_insensitive</td>
+</tr>
+<tr>
+<td>fixed_numeric_scale</td>
+</tr>
+<tr>
+<td>function_result_cache_max_mem</td>
+</tr>
+<tr>
+<td>gpc_max_memory</td>
+</tr>
+<tr>
+<td>plsql_global_cache_clean_percent</td>
+</tr>
+<tr>
+<td>plsql_global_cache_clean_timeinterval</td>
+</tr>
+<tr>
+<td>plsql_global_cache_max_memory</td>
+</tr>
+<tr>
+<td>track_internal_query</td>
+</tr>
+<tr>
+<td>track_internal_query_size</td>
+</tr>
+<tr>
+<td>track_query_plan</td>
+</tr>
+<tr>
+<td>track_query_plan_size</td>
+</tr>
+</tbody>
+</table>
+</div><h3 id="allow_arithmetic_operation_reordering">1.allow_arithmetic_operation_reordering</h3>
+<p>这个直译，就是允许算数操作重排序。<br/>
+先来看原生PG(14)</p>
+<pre><code class="prism language-sql">postgres=# create table t_test (a int,b float,c numeric);
+insert into t_test values (1,1,1);
+insert into t_test values (4,4,4);
+CREATE TABLE
+INSERT 0 1
+INSERT 0 1
+postgres=# select 
+a/3 "a/3",b/3 "b/3",c/3 "c/3",
+a/3*3 "a/3*3",b/3*3 "b/3*3",c/3*3 "c/3*3"
+from t_test;
+ a/3 |        b/3         |          c/3           | a/3*3 | b/3*3 |         c/3*3          
+-----+--------------------+------------------------+-------+-------+------------------------
+   0 | 0.3333333333333333 | 0.33333333333333333333 |     0 |     1 | 0.99999999999999999999
+   1 | 1.3333333333333333 |     1.3333333333333333 |     3 |     4 |     3.9999999999999999
+(2 rows)
+
+postgres=# 
+</code></pre>
+<p>这个用例中暴露了原生PG中很多问题</p>
+<ol>
+<li>整型除以整型返回整型，导致丢失了小数点，<code>1/3=0</code>，这个问题在openGauss已经解决</li>
+<li>numeric的除法，在整数部分是否大于0时，保留的小数位数不一样（MogDB 5.2.0已解决 ，见参数 <code>fixed_numeric_scale</code>）</li>
+<li>numeric的乘除法的结果不满足交换律 ,<code>c/3*3&lt;&gt;c*3/3</code>，因为它是从左到右顺序进行计算的，而且由于内核固定了精度位数，导致除法除不尽后必然会有丢失，再乘回来就不是之前的那个数了。非精确数的float反而结果是正确的。</li>
+</ol>
+<p>在金融行业中，有时候会用到trunc或者ceil这样的函数对数值进行舍尾取整，上面这个例子就会得到 <code>trunc(1/3*3)=0</code>这种离谱的结果，而且PG这么多年就一直没去解决这个问题，或者说PG一直以来认为这不是数据库的问题，而是使用者的用法的问题。<br/>
+MogDB 5.2.0 引入了<code>allow_arithmetic_operation_reordering</code> 这个参数，让numeric类型的乘除法，先计算乘再计算除，以达到尽可能保证计算的准确性</p>
+<pre><code class="prism language-sql">testdb=# set allow_arithmetic_operation_reordering to on;
+SET
+testdb=# create table t_test (a int,b float,c numeric);
+CREATE TABLE
+testdb=# insert into t_test values (1,1,1);
+INSERT 0 1
+testdb=# insert into t_test values (4,4,4);
+INSERT 0 1
+testdb=# select
+testdb-# a/3 "a/3",b/3 "b/3",c/3 "c/3",
+testdb-# a/3*3 "a/3*3",b/3*3 "b/3*3",c/3*3 "c/3*3"
+testdb-# from t_test;
+       a/3        |       b/3        |          c/3          | a/3*3 | b/3*3 | c/3*3
+------------------+------------------+-----------------------+-------+-------+-------
+ .333333333333333 | .333333333333333 | .33333333333333333333 |     1 |     1 |     1
+ 1.33333333333333 | 1.33333333333333 |    1.3333333333333333 |     4 |     4 |     4
+(2 rows)
+
+testdb=#
+</code></pre>
+<h3 id="fixed_numeric_scale">2.fixed_numeric_scale</h3>
+<p>上面说了numeric的乘除交换怎么解决的，再来说说除法的小数位数怎么处理。先看原生PG里这个例子</p>
+<pre><code class="prism language-sql">postgres=# create table t_test1(a numeric);
+insert into t_test1 values (1);
+insert into t_test1 values (5);
+CREATE TABLE
+INSERT 0 1
+INSERT 0 1
+postgres=# select 
+sum(a) "sum(a)",
+sum(a/3) "sum(a/3)",
+sum(a)/3 "sum(a)/3" 
+from t_test1;
+ sum(a) |        sum(a/3)        |      sum(a)/3      
+--------+------------------------+--------------------
+      6 | 2.00000000000000003333 | 2.0000000000000000
+(1 row)
+
+postgres=#
+</code></pre>
+<p>看查询结果的第二列，我们可以发现这个结果长得很奇怪，后面为啥会多出4个3？其实这就是除法计算后，保留的小数位数不一致引起的。</p>
+<pre><code class="prism language-sql">postgres=# select a/3 "a/3" from t_test1;
+          a/3           
+------------------------
+ 0.33333333333333333333
+     1.6666666666666667
+(2 rows)
+</code></pre>
+<p>在原生PG中，<br/>
+如果numeric除法计算后整数位为0，且小数点后第一位为有效数值，那么小数位保留20位；<br/>
+第一个有效数值在小数点后第4位，那么小数位数为24位；<br/>
+如果第一个有效数值是个位，那么小数位数为16；<br/>
+第一个有效位数在万位，那么小数位数为12位；</p>
+<pre><code class="prism language-sql">postgres=# select 100000::numeric/3 n
+union all
+select 10000::numeric/3
+union all
+select 1000::numeric/3
+union all
+select 100::numeric/3
+union all
+select 10::numeric/3
+union all
+select 1::numeric/3
+union all
+select 0.1::numeric/3
+union all
+select 0.01::numeric/3
+union all
+select 0.001::numeric/3
+union all
+select 0.0001::numeric/3
+;
+             n              
+----------------------------
+         33333.333333333333
+      3333.3333333333333333
+       333.3333333333333333
+        33.3333333333333333
+         3.3333333333333333
+     0.33333333333333333333
+     0.03333333333333333333
+     0.00333333333333333333
+     0.00033333333333333333
+ 0.000033333333333333333333
+(10 rows)
+
+postgres=# 
+</code></pre>
+<p>大概可以这么理解，PG的处理方式是让这个数的有效数值位数不低于16位，最大20位，所以可以看到这个有效位数从16位到20位的都有；然后小数位数是按4位来加，所以小数位数可能会存在4、8、16、20、24这样的情况。<br/>
+只是除一下当成最终结果也没问题，但一旦还要把除之后的东西再加起来，这个结果和ORACLE的差异就远了。<br/>
+所以MogDB 5.2引入了一个<code>fixed_numeric_scale</code>参数，可以固定numeric除法后的小数位数</p>
+<pre><code class="prism language-sql">testdb=# set fixed_numeric_scale=40;
+SET
+testdb=# create table t_test1(a numeric);
+CREATE TABLE
+testdb=# insert into t_test1 values (1);
+INSERT 0 1
+testdb=# insert into t_test1 values (5);
+INSERT 0 1
+testdb=# select
+testdb-# sum(a) "sum(a)",
+testdb-# sum(a/3) "sum(a/3)",
+testdb-# sum(a)/3 "sum(a)/3"
+testdb-# from t_test1;
+ sum(a) | sum(a/3) | sum(a)/3
+--------+----------+----------
+      6 |        2 |        2
+(1 row)
+</code></pre>
+<h3 id="enable_cache_function_resultfunction_result_cache_max_mem">3.enable_cache_function_result/function_result_cache_max_mem</h3>
+<p>在openGauss中，如果在一个行数很多的查询中，使用自定义函数，性能相比ORACLE可以说是非常差，虽然说ORACLE本身在这种场景下也好不到哪去，还得依赖result_cache这种功能才能勉强可用。<br/>
+MogDB5.2引入了语句级函数结果缓存功能，在函数有声明deterministic/immutable/stable这三者任一的情况下，开启<code>enable_cache_function_result</code>，可以在单条语句中缓存每个参数的值以及函数返回的结果，以便在接下来的行中能通过缓存快速获得函数返回值，SQL执行完后即释放缓存，不影响下一次的查询结果。<br/>
+典型场景：</p>
+<pre><code class="prism language-sql">create function get_first_name(i_id number) return varchar2 
+deterministic
+ is
+  ret varchar2(200);
+begin
+  select h.first_name
+    into ret
+    from hr.employees h
+   where h.employee_id = i_id;
+  return ret;
+end;
+/
+
+select t.*, get_first_name(t.employee_id) first_name from hr.job_history t;
+</code></pre>
+<p>该功能使用的最大缓存大小，可以通过参数<code>function_result_cache_max_mem</code>进行配置。缓存的使用情况，在sql语句执行过程中可以通过上下文<code>FunctionResultCache</code>进行跟踪（查询gs_session_memory_detail视图）</p>
+<h3 id="enable_global_sequence_cache">4.enable_global_sequence_cache</h3>
+<p>在原生PG和openGauss中，sequence是会话级缓存，这样会导致cache大于1时，频繁出现跳号以及不能保证时序的问题，就像下面这种效果</p>
+<pre><code class="prism language-sql">--会话1
+openGauss=# create sequence seq_test cache 10;
+CREATE SEQUENCE
+openGauss=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       1 | 2024-10-07 16:12:47.746282+08
+(1 row)
+
+openGauss=# select seq_test.nextval,systimestamp;
+ nextval |       pg_systimestamp
+---------+------------------------------
+       2 | 2024-10-07 16:12:49.85297+08
+(1 row)
+
+--会话2
+openGauss=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+      11 | 2024-10-07 16:12:57.211623+08
+(1 row)
+
+openGauss=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+      12 | 2024-10-07 16:12:59.512341+08
+(1 row)
+      
+--会话1
+openGauss=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       3 | 2024-10-07 16:13:02.689327+08
+(1 row)
+</code></pre>
+<p>会话2没有从缓存里取到3，而是重新自己申请了缓存，从11开始，不同会话间出现了跳号；并且3出现的时间点比11出现的时间点要靠后。</p>
+<p>在openGauss官方文档里有这么一段</p>
+<blockquote>
+<p>不建议同时定义cache和maxvalue或minvalue。因为定义cache后不能保证序列的连续性，可能会产生空洞，造成序列号段浪费</p>
+</blockquote>
+<p>设置cache会产生空洞，可以理解，但这与maxvalue和minvalue有什么关系？就算不设置maxvalue和minvalue，也会设置个默认值上去。之前特意问过openGauss社区，也没人能给出说明。所以文档里这个建议，我们暂时不管。</p>
+<p>合理设置序列的缓存，是可以带来明显的性能提升的。我们曾测过典型场景下，cache 为 1和不为1，性能差异能达到5%~10%，所以MogDB新增了<code>enable_global_sequence_cache</code>这个参数，在开启后，可以让序列的缓存变成全局的，效果如下</p>
+<pre><code class="prism language-sql">--会话1
+testdb=# show enable_global_sequence_cache;
+ enable_global_sequence_cache
+------------------------------
+ on
+(1 row)
+
+testdb=# create sequence seq_test cache 10;
+CREATE SEQUENCE
+testdb=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       1 | 2024-10-07 16:34:40.692146+08
+(1 row)
+
+testdb=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       2 | 2024-10-07 16:34:43.788491+08
+(1 row)
+
+--会话2
+testdb=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       3 | 2024-10-07 16:34:59.168467+08
+(1 row)
+
+testdb=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       4 | 2024-10-07 16:35:02.590096+08
+(1 row)
+
+--会话1
+testdb=# select seq_test.nextval,systimestamp;
+ nextval |        pg_systimestamp
+---------+-------------------------------
+       5 | 2024-10-07 16:35:06.595963+08
+(1 row)
+</code></pre>
+<h3 id="enable_oracle_comment">5.enable_oracle_comment</h3>
+<p>在ORACLE中，经常有人喜欢这么写注释</p>
+<pre><code class="prism language-sql">create or replace package pkg_test as 
+/***************************
+/* 功能： test
+/* 作者： xxx
+/* 创建日期：19xx-xx-xx
+/* 变更记录：
+****************************/
+function fun_test ;
+end;
+</code></pre>
+<p>但是这种注释在PG/OG中是不支持的，因为PG/OG要求块注释的 <code>/*</code> 和 <code>*/</code> 必须像括号一样成对出现，即可以有注释中的注释，比如</p>
+<pre><code>select /* 注释1 /* 注释2 */ 注释3 */ 1 a from pg_database;
+</code></pre>
+<p>但这种用法在ORACLE中又不支持，ORACLE不允许块注释嵌套，无论有多少个块注释的开始，遇到第一个块注释的结尾即认为整段注释完成了。于是两者出现了绝对不可同时兼容的冲突。</p>
+<p>为了让ORACLE里的这种注释能原样在MogDB中使用，又还能支持之前的行为，MogDB新增了<code>enable_oracle_comment</code>这个参数，用于内核执行SQL时区分注释风格；并且新增了客户端的参数，用于控制客户端的预解析行为（gsql中是配置操作系统环境变量<code>PGCOMMENT=oracle</code> ,mogeaver中是在连接时勾选<code>C style comment</code>）</p>
+<pre><code class="prism language-sql">testdb=# show enable_oracle_comment;
+ enable_oracle_comment
+-----------------------
+ on
+(1 row)
+
+testdb=# select /* 注释1 /* 注释2 */ 1 a from pg_database;
+ a
+---
+ 1
+ 1
+ 1
+ 1
+(4 rows)
+</code></pre>
+<h3 id="enable_plsql_compiledepend">6.enable_plsql_compiledepend</h3>
+<p>在openGauss 6.0中，新增了一个PLSQL编译依赖功能，即可以无视依赖对象的先后顺序来创建package/procedure/function，但是配置成了一个会话级参数 <code>behavior_compat_options=plpgsql_dependency</code>，经过我们的大量验证，如果反复开关这个参数，容易引起依赖关系混乱，因此MogDB将这个参数从会话级参数中移除，放到了postmaster级别，即修改后需要重启数据库才能生效。<br/>
+对于学院派的PG，总是认为必须先有1才能有2，比如创建一个function，如果入参是一个自定义类型，那么这个自定义类型必须要先于function来创建，否则创建function时就会报错，该类型不存在，该function的代码也不会写入数据字典。而在ORACLE中，这种情况是可以创建function的，function也会写入数据字典，只是该对象状态为失效，等后续缺失的自定义类型创建后，再编译，即可变为有效。<br/>
+openGauss6.0/MogDB5.2新增的这个功能，实现了ORACLE创建plsql对象无视依赖顺序的效果，可以先创建，再编译，也可以查到对象的生效失效状态(pg_object.valid)。</p>
+<h3 id="enable_plsql_ddl_auto_commit">7.enable_plsql_ddl_auto_commit</h3>
+<p>在原生PG/OG中，事务中的DDL语句是不会自动提交的，但是ORACLE中执行DDL会在该语句的前后都自动进行一次隐式提交。看上去这个点并不影响多少兼容性，顶多就是将提交后置了，可能会由于未及时提交而产生一些锁而已。但是PG/OG中存在一个限制，如果一个表已经被游标打开，那么这个表将不能进行truncate。下面是在openGauss6.0中的测试</p>
+<pre><code class="prism language-sql">create table test_cursor_truncate(a number);
+insert into test_cursor_truncate values (1);
+
+declare
+  cursor c is
+    select * from test_cursor_truncate;
+  x int;
+begin
+  open c;
+  loop
+    fetch c into x;
+    exit when c%notfound;
+  end loop;
+  execute immediate 'truncate table  test_cursor_truncate';
+end;
+/
+
+</code></pre>
+<blockquote>
+<p>ERROR: cannot TRUNCATE “test_cursor_truncate” because it is being used by active queries in this session</p>
+</blockquote>
+<p>其实解决这个报错有很多种方式，比如从游标本身着手，但是MogDB深入挖掘Oracle的机制，认为实现DDL的自提交才是解决这个问题的更好的方式。不过需要注意的是，本次新增的参数，作用范围仅限在plsql语句中使用execute的方式来执行动态SQL。</p>
+<h3 id="enable_plsql_return_hold_cursor">8.enable_plsql_return_hold_cursor</h3>
+<p>postgresql及openGauss中，都有一个限制，即获取存储过程的游标出参时，必须开启一个事务，将会话设置为非自动提交，否则会出现报错</p>
+<blockquote>
+<p>ERROR: cursor “&lt;unnamed portal 1&gt;” does not exist</p>
+</blockquote>
+<p>因为postgresql及openGauss的游标生命周期是在主事务提交后结束，所以应用程序里调用存储过程后自动执行了commit后，游标就释放了。<br/>
+在原生pg里，可以把对应游标的属性加上hold，这样在执行commit后游标还存在，而ORACLE并无hold属性，那么从ORACLE迁移过来的存储过程在不进行任何改造的情况下，也要能支持hold游标的效果，于是MogDB新增了<code>enable_plsql_return_hold_cursor</code>这个参数，让应用程序不需要再改成非自动提交。</p>
+<h3 id="enable_select_multi_object_into">9.enable_select_multi_object_into</h3>
+<p>这个比较简单，就只是为了支持一种用法，select 两个构造 into 到两个变量</p>
+<pre><code class="prism language-sql">create type tp1 as object (a int);
+create type tp2 as object (a int);
+
+declare
+p1 tp1;
+p2 tp2;
+begin
+select tp1(a),tp2(a) into p1,p2 from t;
+end;
+</code></pre>
+<p>原生PG/OG把复合类型认为是一种行类型(rowtype)，支持select 多个列 into到一个rowtype的变量中。而上面这个例子却在一个行里并排出现了两个行，导致出现冲突。因此MogDB新增了enable_select_multi_object_into这个参数，能切换OG/ORACLE两种不同的行为。</p>
+<h3 id="enable_sqlcode_int">10.enable_sqlcode_int</h3>
+<p>在openGauss的A模式中，sqlcode是字符类型，而ORACLE是数值类型，存储过程中如果使用了数值类型变量接收sqlcode，或者进行了值范围的判断，则会报错，而MogDB新增了<code>enable_sqlcode_int</code>这个参数，在开启后可以让sqlcode也成为数值类型，并且和ORACLE的sqlcode做了一些映射</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>映射Oracle整形错误码</th>
+<th>错误码含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-1</td>
+<td>违反唯一约束</td>
+</tr>
+<tr>
+<td>-54</td>
+<td>资源不可用</td>
+</tr>
+<tr>
+<td>-60</td>
+<td>检测到死锁</td>
+</tr>
+<tr>
+<td>-100</td>
+<td>select into 没有行数据</td>
+</tr>
+<tr>
+<td>-904</td>
+<td>无效的标识符</td>
+</tr>
+<tr>
+<td>-923</td>
+<td>语法报错</td>
+</tr>
+<tr>
+<td>-942</td>
+<td>对象不存在</td>
+</tr>
+<tr>
+<td>-1001</td>
+<td>无效的游标</td>
+</tr>
+<tr>
+<td>-1001</td>
+<td>游标已关闭</td>
+</tr>
+<tr>
+<td>-1031</td>
+<td>权限不足</td>
+</tr>
+<tr>
+<td>-1031</td>
+<td>权限不足（drop database）</td>
+</tr>
+<tr>
+<td>-1031</td>
+<td>权限不足（grant 子句）</td>
+</tr>
+<tr>
+<td>-1400</td>
+<td>违反非空约束</td>
+</tr>
+<tr>
+<td>-1422</td>
+<td>select into 有多行</td>
+</tr>
+<tr>
+<td>-1427</td>
+<td>单行子查询返回多于一个行</td>
+</tr>
+<tr>
+<td>-1476</td>
+<td>除数为0</td>
+</tr>
+<tr>
+<td>-904</td>
+<td>列未定义</td>
+</tr>
+<tr>
+<td>-6502</td>
+<td>字符串数据超长</td>
+</tr>
+<tr>
+<td>-6502</td>
+<td>无效的小数数据</td>
+</tr>
+<tr>
+<td>-6503</td>
+<td>函数没有返回值</td>
+</tr>
+<tr>
+<td>-6511</td>
+<td>游标重复打开</td>
+</tr>
+<tr>
+<td>-27102</td>
+<td>申请内存失败</td>
+</tr>
+<tr>
+<td>-30006</td>
+<td>锁等待超时</td>
+</tr>
+</tbody>
+</table>
+</div><p>ORACLE有些错误码没有对应的预定义异常名称，所以经常可以看到有些存储过程里会用ORACLE的错误码来绑一个自定义的异常名称。</p>
+<pre><code class="prism language-sql">CREATE OR REPLACE PACKAGE PKGTEST IS
+  RESOURCE_BUSY EXCEPTION;
+  PRAGMA EXCEPTION_INIT(RESOURCE_BUSY, -54);
+END PKGTEST;
+</code></pre>
+<p>上面这个代码在openGauss中是支持创建的，但是这个<code>-54</code>在ORACLE中是一个内置的错误码，显然不会和openGauss中一致，所以创建成功不代表它就能正确执行。MogDB通过对sqlcode进行映射，让这个代码也无需进行任何修改，同时兼容Oracle和MogDB</p>
+<h3 id="enable_global_plsql_cacheplsql_global_cache_">11.enable_global_plsql_cache/plsql_global_cache_*</h3>
+<p>在原生PG/OG中，存在一个隐含的非常严重问题的设计，注定无法支持拥有非常多存储过程代码高并发，即它们的plsql代码的编译结果，都是只存在于会话中，这样就会导致会话第一次执行某个存储过程时必须先编译一次再执行，性能下降非常严重。除此之外，我们还验证了典型的一百万行存储过程，如果在一个会话中全部编译(或者说每个package都被调用了一次)，这个会话中的PLSQL上下文能占到5GB，如果有一百个会话并发，每个会话都占5GB，总共就是500GB！这意味着空闲状态下，内存里有500GB不能用于干其他活!<br/>
+因此MogDB新增了global plsql cache功能，让plsql对象的编译结果能被共享，大大提高复杂存储过程的执行效率，并减少高并发时plsql对象的内存占用。<br/>
+由于global plsql cache这个功能对于重度使用存储过程的应用软件非常之重要，所以后面会再写一篇文章专门介绍一下这个功能。</p>
+<h3 id="其他">12.其他</h3>
+<p>还剩下几个参数，与ORACLE兼容性本身关系不大，本篇暂不展开。</p>
+<h2 id="三、behavior_compat_options">三、behavior_compat_options</h2>
+<p>behavior_compat_options是一个有非常多兼容性选项的集合参数，MogDB5.2除了有直接新增一些独立的guc参数之外，在behavior_compat_options里也增加了一些选项。MogDB以真实的大型ORACLE应用进行了长时间的业务测试，得到了以下的组合。</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>值</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>compat_sort_group_column</td>
+<td>支持order by /group by 常量</td>
+</tr>
+<tr>
+<td>select_into_return_null_ora</td>
+<td>控制在sql语句中查询自定义函数，自定义函数里的select into 没有数据是否会报错</td>
+</tr>
+<tr>
+<td>aformat_regexp_match</td>
+<td>正则函数兼容ORACLE行为</td>
+</tr>
+<tr>
+<td>bpchar_coerce_compat</td>
+<td>char类型字段使用text类型的表达式也可以走索引</td>
+</tr>
+<tr>
+<td>convert_string_digit_to_numeric</td>
+<td>字符类型字段和整型数值比较时，将字符类型字段转换成numeric类型，而不是默认的整型</td>
+</tr>
+<tr>
+<td>char_coerce_compat</td>
+<td>控制char类型向其他文本类型转换时是否保留空格</td>
+</tr>
+<tr>
+<td>proc_outparam_override</td>
+<td>支持仅出参不同的存储过程重载</td>
+</tr>
+<tr>
+<td>proc_implicit_for_loop_variable</td>
+<td>支持声明的变量和隐式游标重名</td>
+</tr>
+<tr>
+<td>allow_procedure_compile_check</td>
+<td>创建存储过程和编译存储过程时，编译存储过程过程内的所有sql语句，可以检查出sql语法错误或者对象缺失的问题</td>
+</tr>
+<tr>
+<td>plstmt_implicit_savepoint</td>
+<td>在plsql里支持自动添加savepoint，让plsql里单条语句出错时不再全部回滚</td>
+</tr>
+<tr>
+<td>compat_cursor</td>
+<td>支持sqlcode/sqlerrm跨存储过程的传递</td>
+</tr>
+<tr>
+<td>aformat_null_test</td>
+<td>控制rowtype类型判空逻辑,设置此项时，对于rowtype is not null判断，当一行数据有一列不为空的时候返回ture</td>
+</tr>
+<tr>
+<td>plsql_security_definer</td>
+<td>创建的plsql对象，授权给其他用户执行权限后，无需再把存储过程内部引用到的对象再授权给其他用户</td>
+</tr>
+<tr>
+<td>skip_insert_gs_source</td>
+<td>创建或删除pslql对象时，不处理gs_source表(这个表是openGauss一个并不完善的功能用到的)</td>
+</tr>
+<tr>
+<td>truncate_numeric_tail_zero</td>
+<td>查询numeric类型时，舍去小数点后末尾的0</td>
+</tr>
+<tr>
+<td>compat_volatile_func_to_non_deterministic</td>
+<td>支持使用部分stable/volatile函数创建函数索引</td>
+</tr>
+</tbody>
+</table>
+</div><p>注意上面大部分选项是原本openGauss就有的，但是默认并未打开，而且MogDB还对部分选项进行了完善，以更加符合ORACLE的表现。</p>
+<h2 id="四、plsql_compile_check_options">四、plsql_compile_check_options</h2>
+<p>这个参数和<code>behavior_compat_options</code>类似，也是可以配置多个选项，在MogDB 5.2中新增了<code>bind_procedure_public_searchpath</code>这个选项，让存储过程执行时，存储过程内部的search_path设置为该存储过程当前的schema加上public。原本不设置时，存储过程内部的search_path只会有存储过程当前的schema，没有public，这样就找不到public下的同义词</p>
+<h2 id="五、数据字典">五、数据字典</h2>
+<p>对比MogDB5.2和MogDB5.0.6的pg_class/pg_attribute表，可以发现有以下表、视图、字段的新增，从中也可以窥见一些功能</p>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>新增的表或字段</th>
+<th>简单说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gs_dependencies</td>
+<td>plsql编译依赖</td>
+</tr>
+<tr>
+<td>gs_dependencies_obj</td>
+<td>plsql编译依赖</td>
+</tr>
+<tr>
+<td>gs_object</td>
+<td>object-type视图，其实是查询gs_package</td>
+</tr>
+<tr>
+<td>gs_package.isobject</td>
+<td>由于object-type和package结构类似，因此共用一个元数据表</td>
+</tr>
+<tr>
+<td>pg_constraint.conenabled</td>
+<td>约束是否已启用（这意味着已经支持生效失效约束了）</td>
+</tr>
+<tr>
+<td>pg_object.valid</td>
+<td>对象是否有效（目前仅限于package/procedure/function有价值）</td>
+</tr>
+<tr>
+<td>pg_proc.objecttypeoid</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_proc.methodtype</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_proc.isfinal</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_proc.instantiable</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_proc.overriding</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_proc.inherited</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_rewrite.read_only</td>
+<td>是否只读，pg_rewrite记录了视图的定义，因此这是新增了只读视图的功能</td>
+</tr>
+<tr>
+<td>pg_stat_activity.internal_query</td>
+<td>内部SQL，即可以在活动会话中查看大当前正在运行的存储过程内部正在执行的SQL</td>
+</tr>
+<tr>
+<td>pg_stat_activity.query_plan</td>
+<td>执行计划，可以查看当前SQL的执行计划</td>
+</tr>
+<tr>
+<td>pg_type.methods</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_type.supertypeoid</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_type.localattributes</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_type.localmethods</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_type.isfinal</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>pg_type.instantiable</td>
+<td>object-type相关字段</td>
+</tr>
+<tr>
+<td>statement_history.parent_query_id</td>
+<td>父查询id，通过此字段能查到存储过程嵌套调用的父子关系</td>
+</tr>
+</tbody>
+</table>
+</div><p>另外，在对比字段差异时，还可以发现发现MogDB5.2版本中，所有的表都有了rowid这个字段，也就是说MogDB从5.2版本起开始支持rowid了，至于支持到了什么程度，后面再另外介绍。</p>
+<h2 id="六、总结">六、总结</h2>
+<p>本篇仅通过进行参数对比和数据字典对比，就能看到MogDB5.2版本大量的ORACLE兼容性增强点。既然是要加参数的，那就说明这并非简单的语法兼容，而是真正在内核层面上去解决ORACLE和PG/OG的行为冲突，对于两边表现不一致的，使用参数开关来进行切换，这样才能确保不仅仅是创建成功，还可以确保执行成功以及结果的正确性。</p>
+<p>（MogDB 5.2版本介质下载请咨询客服，或在MES系统中提单申请<a href="https://support.enmotech.com/">https://support.enmotech.com/</a>）</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

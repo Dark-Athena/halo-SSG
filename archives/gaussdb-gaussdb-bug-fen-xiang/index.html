@@ -149,11 +149,1096 @@
         
         <span>2025-07-15</span>
         
-        <span>237 阅读</span>
+        <span>238 阅读</span>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【GaussDB】GaussDB bug 记录</p>
+<h2 id="前言">前言</h2>
+<p>本次分享均基于GaussDB集中式内核506.0版本</p>
+<blockquote>
+<p>gaussdb (GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release</p>
+</blockquote>
+<h2 id="一左关联条件中使用decode触发报错">一、左关联条件中使用decode触发报错</h2>
+<p>两个表使用(+)进行关联，同时把decode函数放在between表达式的左边 ，会触发一个报错</p>
+<pre><code class="language-sql">drop table if exists t1;
+drop table if exists t2;
+create table t1(id number,name varchar2(20));
+create table t2(id number,name varchar2(20));
+insert into t1 values(1,'x1'),(2,'x2'),(3,'x3');
+insert into t2 values(1,'x1'),(2,'x2');
+
+select * from t1,t2
+where t1.id=t2.id(+)
+and decode(t1.name,'x1',1,10) between 1 and 3;
+
+ERROR: Unrecognized node type: 303.
+</code></pre>
+<pre><code class="language-sql">gaussdb=# create table t1(id number,name varchar2(20));
+CREATE TABLE
+gaussdb=# create table t2(id number,name varchar2(20));
+CREATE TABLE
+gaussdb=# insert into t1 values(1,'x1'),(2,'x2'),(3,'x3');
+INSERT 0 3
+gaussdb=# insert into t2 values(1,'x1'),(2,'x2');
+INSERT 0 2
+gaussdb=# select * from t1,t2
+gaussdb-# where t1.id=t2.id(+)
+gaussdb-# and decode(t1.name,'x1',1,10) between 1 and 3;
+ERROR:  Unrecognized node type: 303.
+gaussdb=# SET explain_perf_mode=normal;
+SET
+gaussdb=# explain select * from t1,t2
+gaussdb-# where t1.id=t2.id(+)
+gaussdb-# and decode(t1.name,'x1',1,10) between 1 and 3;
+ERROR:  Unrecognized node type: 303.
+</code></pre>
+<p>尝试改写SQL来分析这个问题</p>
+<pre><code class="language-sql">--decode 改 case when
+gaussdb=# explain  select * from t1,t2
+where t1.id=t2.id(+)
+and case t1.name when'x1' then 1 else 10 end between 1 and 3;
+                                                                             QUERY PLAN
+
+------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------
+ Hash Right Join  (cost=23.66..43.12 rows=10 width=180)
+   Hash Cond: (t2.id = t1.id), (Expression Flatten Optimized)
+   -&gt;  Seq Scan on t2  (cost=0.00..16.81 rows=681 width=90)
+   -&gt;  Hash  (cost=23.62..23.62 rows=3 width=90)
+         -&gt;  Seq Scan on t1  (cost=0.00..23.62 rows=3 width=90)
+               Filter: ((CASE name WHEN 'x1'::text THEN 1 ELSE 10 END &gt;= 1) AND (CASE name WHEN 'x1'::text THEN 1 ELSE 1
+0 END &lt;= 3)), (Expression Flatten Optimized)
+(6 rows)
+
+--between and 改 &gt;= and &lt;=
+gaussdb=# explain select * from t1,t2
+gaussdb-# where t1.id=t2.id(+)
+gaussdb-# and decode(t1.name,'x1',1,10) &gt;= 1 and decode(t1.name,'x1',1,10)&lt;= 3;
+                                                                                         QUERY PLAN
+
+------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------
+ [Parameterized]
+ Hash Right Join  (cost=23.66..43.12 rows=10 width=180)
+   Hash Cond: (t2.id = t1.id), (Expression Flatten Optimized)
+   -&gt;  Seq Scan on t2  (cost=0.00..16.81 rows=681 width=90)
+   -&gt;  Hash  (cost=23.62..23.62 rows=3 width=90)
+         -&gt;  Seq Scan on t1  (cost=0.00..23.62 rows=3 width=90)
+               Filter: ((CASE WHEN ((name)::text = 'x1'::text) THEN 1 ELSE 10 END &gt;= 1) AND (CASE WHEN ((name)::text = '
+x1'::text) THEN 1 ELSE 10 END &lt;= 3)), (Expression Flatten Optimized)
+(7 rows)
+
+--(+) 改left join
+gaussdb=# explain SELECT * FROM t1 LEFT JOIN t2 ON  t1.id=t2.id
+gaussdb-# WHERE decode(t1.name,'x1',1,10) between 1 and 3;
+                                                                                         QUERY PLAN
+
+------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------
+ Hash Right Join  (cost=23.66..43.12 rows=10 width=180)
+   Hash Cond: (t2.id = t1.id), (Expression Flatten Optimized)
+   -&gt;  Seq Scan on t2  (cost=0.00..16.81 rows=681 width=90)
+   -&gt;  Hash  (cost=23.62..23.62 rows=3 width=90)
+         -&gt;  Seq Scan on t1  (cost=0.00..23.62 rows=3 width=90)
+               Filter: ((CASE WHEN ((name)::text = 'x1'::text) THEN 1 ELSE 10 END &gt;= 1) AND (CASE WHEN ((name)::text = '
+x1'::text) THEN 1 ELSE 10 END &lt;= 3)), (Expression Flatten Optimized)
+(6 rows)
+</code></pre>
+<p>从上面三个手动改写SQL的执行计划来看，原SQL至少存在三个关键的转换</p>
+<ol>
+<li>(+)转outer join</li>
+<li>decode 转case when</li>
+<li>between and 转 &gt;= and &lt;=</li>
+</ol>
+<p>由于叠加了这三种转换，后一个转换未考虑前一个转换已经使原语法节点发生变化，导致无法识别303这种节点类型。</p>
+<p>解决方式有三种</p>
+<ol>
+<li>(+)改成标准的left join</li>
+<li>decode 改成case when</li>
+<li>between and 改成 &gt;= and &lt;=</li>
+</ol>
+<p>单就这个用例里的SQL来说，这里的(+)其实是多余的，不过由于原始SQL比较复杂，(+)是不能简单去掉的，因此暂不把(+)去掉作为一种通用解决方式。</p>
+<p>该问题同样存在于openGauss 6.0 ,但是在MogDB 5.0.6及以上版本是不会报错且能正常返回的。</p>
+<h2 id="二一个sql中使用多个decodedecode的参数使用多次变量时结果不对">二、一个SQL中使用多个decode，decode的参数使用多次变量时结果不对</h2>
+<pre><code class="language-sql">drop table if exists t1;
+drop table if exists t2;
+
+create table t1(a number,b varchar2);
+insert into t1 values (1,'x');
+insert into t1 values (2,'x');
+select * from t1;
+
+create table t2(id number,a number,b varchar2);
+
+set a_format_dev_version='s6';
+set behavior_compat_options='';
+
+declare
+l_tid number:=1;
+i number:=2;
+begin
+    insert into t2
+    select a,decode(i,2,l_tid+1,l_tid) ,b||'-'||decode(i,2,l_tid+1,l_tid)  from t1;
+end;
+/
+
+select * from t2;
+</code></pre>
+<p>这个select中，两个decode函数的入参是完全一样的，因此除去第二个字段前面拼接的"x-",剩下的值应该是完全一样的，但是实际上却发生了变化，这意味着l_tid这个变量在一个普通的sql查询中出现了不同的值。</p>
+<p>如果在behavior_compat_options里增加enable_case_when_alias，或者decode的列手动加上别名，则无此问题。（由于3个以上入参的decode函数表达式实质上在优化器中是转换成了case when表达式，因此case when 在此处也存在相同的问题）</p>
+<pre><code class="language-sql">delete from t2;
+set behavior_compat_options='';
+declare
+l_tid number:=1;
+i number:=2;
+begin
+    insert into t2
+    select a,decode(i,2,l_tid+1,l_tid) a,b||'-'||decode(i,2,l_tid+1,l_tid) b from t1;
+end;
+/
+select * from t2;
+</code></pre>
+<pre><code class="language-sql">delete from t2;
+set behavior_compat_options='enable_case_when_alias';
+declare
+l_tid number:=1;
+i number:=2;
+begin
+    insert into t2
+    select a,decode(i,2,l_tid+1,l_tid) ,b||'-'||decode(i,2,l_tid+1,l_tid)  from t1;
+end;
+/
+select * from t2;
+</code></pre>
+<p>decode表达式不带别名时，decode返回的结果不正确，这个问题在历史版本中也存在。<br/>
+a_format_dev_version这个参数在506.0版本新装默认为s7,包含了enable_case_when_alias，掩盖了这个问题。但从旧版本升级到506时不是s7，仍然存在该问题。</p>
+<p>解决方法：<br/>
+1.使用decode时必须加别名（对于非select的字段加不了）<br/>
+2.a_format_dev_version设置为s7(其他兼容性行为会发生变化，影响范围不可控）<br/>
+3.behavior_compat_options里添加enable_case_when_alias（影响范围可控）</p>
+<p>openGauss 6.0.0 也存在此问题，MogDB 5.0.6以上版本无此问题。</p>
+<h2 id="三insert-allfirst目标表为全局临时表时可能报错">三、insert all/first目标表为全局临时表时可能报错</h2>
+<blockquote>
+<p>ERROR:  could not open file "base/16732/t34926_16773": No such file or directory</p>
+</blockquote>
+<pre><code class="language-sql">drop table if exists t1;
+drop table if exists tmp_t1;
+drop table if exists tmp_t2;
+create table t1(id number,name varchar2(30));
+create global temporary table tmp_t1(id number, name varchar2(30)) ON COMMIT PRESERVE ROWS;
+create global temporary table tmp_t2(id number, name varchar2(30)) ON COMMIT PRESERVE ROWS;
+
+insert into t1 values(1,'X1');
+insert into t1 values(5,'Y1');
+
+
+--在另外一个会话内执行下面语句会报错"ERROR:  could not open file "base/16732/t34926_16773": No such file or directory"
+INSERT FIRST
+  WHEN name like 'X%' THEN INTO tmp_t1(id,name)
+  WHEN name like 'Y%' THEN INTO tmp_t2(id,name)
+SELECT id,name FROM t1;
+</code></pre>
+<p>在GaussDB（含openGauss系）数据库中，全局临时表在每个会话中，数据是放在不同文件中的，文件名规则为<code>"t序号_oid"</code>,一般这个文件会在会话第一次插入这个表时生成，但是GaussDB新增的<code>insert first</code>语法，对于后面的表，漏了初始化全局临时表文件这个步骤。</p>
+<p>从执行计划可以看出，计划中只有第一个要插入的表，疑似初始化文件是比较早的，并不会在执行器里再去判断是否需要创建文件（猜测）。</p>
+<pre><code class="language-sql">set explain_perf_mode=normal;
+explain 
+INSERT FIRST
+WHEN name like 'X%' THEN INTO tmp_t1(id,name)
+WHEN name like 'Y%' THEN INTO tmp_t2(id,name)
+SELECT id,name FROM t1;
+
+QUERY PLAN                                                 |
+-----------------------------------------------------------+
+Insert on tmp_t1  (cost=0.00..15.83 rows=583 width=110)    |
+  -&gt;  Seq Scan on t1  (cost=0.00..15.83 rows=583 width=110)|
+  
+</code></pre>
+<p>这个文件是第二个全局临时表的文件，因此如果要避免报错，需要先往第二个表插入一行数据，然后删掉，再来执行这个<code>insert first</code>语句。但现实上客户不可能会同意这么改，所以推荐的方式就是不要使用<code>insert first</code>了，而是改用游标循环，用if去判断应该插入哪个表。</p>
+<p>在mogdb 5.0.1中，也会报相同的错，但报错的是第一个表的文件未找到。MogDB和GaussDB对这个<code>insert first</code>语法的研发人员对同一个功能的实现出现了类似的BUG。</p>
+<p>这个问题在MogDB 5.2版本中是已经修复了的，但5.0分支截止到5.0.11还仍然存在（因为并无现网客户需要，优先级较低）。</p>
+<h2 id="四开启回收站后可能会导致package无法删除">四、开启回收站后，可能会导致package无法删除</h2>
+<pre><code class="language-sh">gs_guc reload -I all -N all -c "enable_recyclebin=on"
+gs_guc reload -I all -N all -c "ddl_invalid_mode='invalid'"
+gs_guc reload -I all -N all -c "enable_force_create_obj=on"
+cm_ctl stop
+cm_ctl start
+</code></pre>
+<pre><code class="language-sql">drop table if exists  t1;
+drop package if exists test_pkg;
+
+create table t1 (a number);
+create or replace package test_pkg is
+procedure p;
+end;
+/
+create or replace package body test_pkg is 
+procedure p is
+o_cur sys_refcursor;
+begin
+open o_cur for select * from t1;
+end;
+end;
+/
+drop table t1;
+drop package test_pkg;
+ERROR:  Recycle bin objects cannot be accessed.
+</code></pre>
+<p>问题发生在开启"一次性入库、失效重编译"功能，且开启了回收站时，如果存储过程中编译的游标类型依赖于某张表，而这张表又被删除，此时删除存储过程会报错 不能访问回收站里的对象。</p>
+<p>原因是，创建存储过程时，这个存储过程内open 的游标，在开启了 <code>behavior_compat_options=allow_procedure_compile_check</code>时(s7包含)，其游标结构也会被记录到元数据（内存）里,并且会在package的依赖关系中记录这个表对应的类型。然后手动drop其依赖的表，由于此时回收站开启，实质上这张表并未真正删除，因此这个游标的元数据并不会触发什么操作。但删除package时，由于某种原因（官方只说是删除时会编译，但未具体解释为何需要编译），去查了其依赖的表的类型，而表在回收站里，表的类型自然也在回收站里，就触发了这个报错。</p>
+<pre><code class="language-sql">select object_name from pg_catalog.adm_recyclebin where original_name='t1';
+select * from "BIN$415C233897AC$15233DFC8==$0";
+ ERROR: Recycle bin objects cannot be accessed.
+</code></pre>
+<p>这个问题是506.0版本中引入的，在之前的505.2中版本中并不存在</p>
+<p>如果已经出现了这个报错，package删不掉，可以清空回收站后再drop，或者重新执行一次create or replace package后再drop</p>
+<pre><code class="language-sql">purge recyclebin;
+drop package test_pkg;
+</code></pre>
+<p>注意，重新用删除的表名来创建一张新表，也仍然还是不能drop掉这个package的，因为游标的依赖关系记录的是oid，而非名称。当然，也可以选择从回收站还原这张表，然后再drop package.</p>
+<h2 id="五存储过程参数使用时不能紧接其他符号比如紧接注释或者负数">五、存储过程参数使用"=&gt;"时，不能紧接其他符号，比如紧接注释，或者负数</h2>
+<pre><code class="language-sql">create or replace procedure up_test(i_var1 in varchar2, i_var2 in varchar2, i_var3 in number)
+as 
+begin 
+null;
+end;
+/
+
+call up_test(i_var1 =&gt;--注释1
+                       'shanghai',
+               i_var2 =&gt;/*注释2*/
+                       'beijing',
+               i_var3 =&gt;-1);
+               
+ ERROR: Column "i_var1" does not exist.
+</code></pre>
+<p>这是因为词法解析器中，对于多字符符号处理时，把连续的多个符号视为了一个token,比如 <code>=&gt;-</code>，由此产生分词错误，从而导致后续的语法语义解析都错了，在此用例中表现为，把参数名称视为了字段名</p>
+<p>解决方案： 加空格来切分不应该放一起的符号</p>
+<pre><code class="language-sql">call up_test(i_var1 =&gt; --注释1
+                       'shanghai',
+               i_var2 =&gt; /*注释2*/
+                       'beijing',
+               i_var3 =&gt; -1);
+</code></pre>
+<p>此类问题其实可以衍生出其他场景，比如 <code>! =</code> (不等于和阶乘等于的歧义),<code>&lt; =</code> (多字符操作符中间加空格导致token被误切)，这类问题在MogDB 5.2.0中都是已经解决了的。</p>
+<h2 id="六带出参的函数在if中使用会报错">六、带出参的函数在if中使用会报错</h2>
+<pre><code class="language-sql">ERROR:Function f1 with out parameters cannot be called by an expression
+例如：
+create or replace package pkg_test is 
+  function uf_test
+  (i_var in number,
+   o_var out number)
+  return number;
+end;
+/
+create or replace package body pkg_test is
+  function uf_test
+  (i_var in number,
+   o_var out number)
+  return number is 
+  begin
+    o_var := i_var;
+    return o_var;
+  end;
+end;
+/
+declare
+o_var number;
+begin
+  if pkg_test.uf_test(10,o_var) = 10 then
+    raise notice 'aaa';
+  end if;
+end;
+/
+</code></pre>
+<p>这是因为在 if语句中，后面的 pkg_test.uf_test(10,o_var) 被视为一个表达式，表达式意味着只能return一个某个类型的值（可以理解为能在select列表中出现的一个值），这个函数本身已经有return值作为表达式的返回，还额外有一个out参数，违反了作为表达式使用的规则。</p>
+<p>解决方案：</p>
+<pre><code class="language-sql">先使用变量接收函数的返回值，然后在表达式里面使用这个变量
+declare
+  o1 number;
+  o_var number;
+begin
+  o1 := pkg_test.uf_test(10,o_var);
+  if  o1 = 10 then
+    raise notice 'aaa';
+  end if;
+end;
+</code></pre>
+<h2 id="七date接字面量的用法报错">七、date接字面量的用法报错</h2>
+<p>506.0版本开始出现，可能是对新特性datea类型的调研设计或者测试场景覆盖的问题。如果是需求设计上的失误，则严格上来说也不算BUG</p>
+<pre><code class="language-sql">select date'2025-03-31' from dual;
+set nls_date_format='YYYY-MM-DD';
+select date'2025-03-31' from dual;
+</code></pre>
+<p>ORACLE文档<br/>
+<a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Literals.html#GUID-8F4B3F82-8821-4071-84D6-FBBA21C05AC1">https://docs.oracle.com/en/database/oracle/oracle-database/21/sqlrf/Literals.html#GUID-8F4B3F82-8821-4071-84D6-FBBA21C05AC1</a></p>
+<blockquote>
+<p>To specify a DATE value as a literal, you must use the Gregorian calendar. You can specify an ANSI literal, as shown in this example:<br/>
+指定一个 DATE 值作为字面量，您必须使用公历。您可以使用 ANSI 字面量，如本示例所示：</p>
+<pre><code>DATE '1998-12-25'
+</code></pre>
+<p>The ANSI date literal contains no time portion, and must be specified in the format 'YYYY-MM-DD'. Alternatively you can specify an Oracle date value, as in the following example:<br/>
+ANSI 日期文字不包含时间部分，必须以格式' YYYY-MM-DD '指定。或者，您可以指定 Oracle 日期值，如下例所示：</p>
+<pre><code>TO_DATE('98-DEC-25 17:30','YY-MON-DD HH24:MI')
+</code></pre>
+<p>The default date format for an Oracle DATE value is specified by the initialization parameter NLS_DATE_FORMAT. This example date format includes a two-digit number for the day of the month, an abbreviation of the month name, the last two digits of the year, and a 24-hour time designation.<br/>
+Oracle DATE 的默认日期格式由初始化参数 NLS_DATE_FORMAT 指定。此示例日期格式包括两位数的月份日期、月份名称的缩写、年份的最后</p>
+</blockquote>
+<p>GaussDB 文档<br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/compatibility-description/gaussdb-39-0004.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/compatibility-description/gaussdb-39-0004.html</a></p>
+<blockquote>
+<p>支持字面量定义DATEA类型，如“SELECT datea '2024-10-01' ;”，与Oracle存在差异，GaussDB中的字面量字符串受nls_date_format校验，若不符合nls_date_format值则会报错或输出错误数据，而Oracle中字面量格式校验则是受到固定格式YYYY-MM-DD的校验</p>
+</blockquote>
+<p>ORACLE 的date字面量用法和to_date使用的是两种不同规则的格式，而PG/GAUSS系都是相同规则，而GaussDB严格按照ORACLE实现了to_date，忽视了date字面量这种用法的差异，但由于文档上明确说了这个差异，则不算BUG。但相较于之前的版本使用的timestamp(0)能支持<code>date'2024-01-01'</code>，新版本的datea违反了向下兼容性。</p>
+<h2 id="八preferquerymodesimple时调用带非字符串类型出参的存储过程会报错">八、preferQueryMode=simple时，调用带非字符串类型出参的存储过程会报错</h2>
+<p><a href="https://gitcode.com/opengauss/openGauss-connector-jdbc/issues/624">https://gitcode.com/opengauss/openGauss-connector-jdbc/issues/624</a></p>
+<h2 id="九内存不足时调用带非文本出参的存储过程超过5次后可能会触发报错null不能转换成numeric">九、内存不足时，调用带非文本出参的存储过程超过5次后可能会触发报错，"null"不能转换成numeric</h2>
+<p>内存不足时，enable_memory_limit、enable_threads_memory_reserve 线程内存隔离功能会关闭，调用存储过程prepare 5次后不再发送prepare到内核，仅执行bind和execute，此时出参的数据类型处理不正确</p>
+<p>复现步骤<br/>
+先模拟内存不足导致enable_memory_limit关掉的情况</p>
+<pre><code>gs_guc reload -I all -N all -c "enable_memory_limit=off"
+cm_ctl stop &amp;&amp; cm_ctl start
+</code></pre>
+<p>运行JAVA代码循环调用存储过程</p>
+<pre><code>import java.sql.*;
+public class callProcedure {
+public static void main(String[] args) throws SQLException {
+    String url = "jdbc:gaussdb://192.168.163.131:7456/postgres";
+    String user = "ogadmin";
+    String password = "Gaussdb@123";
+    Connection conn = DriverManager.getConnection(url, user, password);
+    conn.setAutoCommit(false);
+    // 查询并打印数据库参数
+    String[] params = {"enable_threads_memory_reserve", "enable_memory_limit",
+                       "behavior_compat_options","a_format_dev_version"};
+    Statement paramStmt = conn.createStatement();
+    for (String param : params) {
+        ResultSet rs = paramStmt.executeQuery("show " + param);
+        if (rs.next()) {
+            System.out.println(param + ": " + rs.getString(1));
+        }
+        rs.close();
+    }
+    paramStmt.close();
+    // 创建存储过程
+    Statement stmt = conn.createStatement();
+    stmt.execute("create or replace procedure test_pro_a(o out numeric) is begin null;end;");
+    conn.commit();
+    stmt.close(); 
+    // 执行存储过程
+    String sql2 ;
+    sql2 = "{call test_pro_a(?)}";
+    for (int i = 0; i &lt; 7; i++) {
+        CallableStatement pstmt = conn.prepareCall(sql2);
+        pstmt.registerOutParameter(1, Types.NUMERIC);
+        pstmt.execute();
+        System.out.println(pstmt.getBigDecimal(1));
+        conn.commit();
+        pstmt.close();
+    }
+    conn.close();
+  }
+}
+</code></pre>
+<p>输出</p>
+<pre><code>enable_threads_memory_reserve: off
+enable_memory_limit: off
+behavior_compat_options: bind_procedure_searchpath,truncate_numeric_tail_zero,plsql_security_definer,proc_outparam_override,aformat_null_test,rownum_type_compat,allow_procedure_compile_check,proc_implicit_for_loop_variable,plstmt_implicit_savepoint,end_month_calculate,plpgsql_dependency,display_leading_zero,correct_to_number,unbind_divide_bound,convert_string_digit_to_numeric,aformat_regexp_match,compat_cursor,tableof_elem_constraints,show_full_error_lineno,sys_function_without_brackets 
+a_format_dev_version: s6
+null
+null
+null
+null
+null
+Exception in thread "main" com.huawei.gaussdb.jdbc.util.PSQLException: [10.8.0.2:30409/192.168.163.131:7456] ERROR: invalid input syntax for type numeric: "null"
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:5273)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:4490)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:1322)
+        at com.huawei.gaussdb.jdbc.core.v3.TracedQueryExecutorImpl.execute(TracedQueryExecutorImpl.java:92)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.runQueryExecutor(PgStatement.java:737)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.executeInternal(PgStatement.java:690)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.execute(PgStatement.java:497)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:209)
+        at com.huawei.gaussdb.jdbc.jdbc.PgCallableStatement.executeWithFlags(PgCallableStatement.java:191)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.execute(PgPreparedStatement.java:186)
+        at callProcedure.main(callProcedure.java:32)
+Caused by: ErrorCode : 12519, Position : 0, Sql = select * from test_pro_a(?) as result, Error Msg = invalid input syntax for type numeric: "null"
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:5283)
+        ... 10 more
+</code></pre>
+<p>可以观察到第6次就报错了。看到第5次或者第6次，从直觉上感觉就与prepare 5次后缓存语句和计划有关，实测如果在连接串里加上"prepareThreshold=1"，那么第二次调用就会报错，也证实了猜想.<br/>
+通过网络抓包对比开关enable_memory_limit情况下的表现，发现JDBC发的包都是一样的，也就是说这是在数据库服务端处理出了问题。<br/>
+在这个测试代码中加上查询pg_prepared_statements表并打印里面的数据，可以发现内核记录的参数类型是正确的。</p>
+<p>当 max_plancache_memory_ratio&gt;0 时， 会进行计划缓存的淘汰，此时如果enable_memory_limit为 off ，则必定淘汰计划缓存，当一个预编译语句的缓存被淘汰，执行时会需要重建计划，但GaussDB此时遗漏了出入参的处理。<br/>
+这个问题，在enable_memory_limit为on的情况下，只要触发了计划缓存的淘汰，调用带出参的存储过程，且出参不是字符串类型时，就必然会出现。<br/>
+计划缓存淘汰是506.0版本引入的新特性，想要避免这个问题，建议设置max_plancache_memory_ratio=0，即不进行计划缓存的淘汰</p>
+<h2 id="十使用firstlast函数报错">十、使用first/last函数报错</h2>
+<p>这是因为在GAUSSDB中已经删除了FIRST/LAST函数，严格意义上来说不算BUG，但丢失了前向兼容性。<br/>
+原本在ORACLE中的max keep语法迁移到不支持max keep语法的openGauss系数据库中，可以改用FIRST函数，但再迁移到GaussDB较新版本中，又得改回max keep语法</p>
+<h2 id="十一plsql异常堆栈未传入自治事务">十一、PLSQL异常堆栈未传入自治事务</h2>
+<p>严格来说也不算BUG，因为文档中并未明确说明是否支持跨自治事务，但是这样会导致在异常发生时，原本的代码无法捕获到异常原因</p>
+<pre><code class="language-sql">PROCEDURE up_Error
+  (
+    i_varSPName  IN t_operationlog.spname%TYPE
+   ,i_varLogDesc IN VARCHAR2
+  ) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  BEGIN
+    up_InsertLog(pkgs_CONSTANTS.C_LOG_ERROR
+                ,i_varSPName
+                ,CASE nvl(sqlcode,'00000') WHEN '00000' THEN i_varLogDesc || CHR(10) || DBE_Utility.FORMAT_CALL_STACK ELSE
+                 i_varLogDesc || CHR(10) || DBE_Utility.FORMAT_Error_BACKTRACE end);
+  EXCEPTION
+    WHEN OTHERS THEN
+      NULL;
+  END;
+</code></pre>
+<h2 id="十二在forall场景下sqlrowcount-结果与oracle不一致">十二、在forall场景下，SQL%ROWCOUNT 结果与Oracle不一致</h2>
+<p>不算BUG，文档中并未说明sql%rowcount和ORACLE保持完全一致</p>
+<pre><code class="language-sql">drop table t1;
+drop table t2;
+create table t1(id number, name varchar2(30));
+create table t2(id number, name varchar2(30));
+insert into t1 values(1,'x1');
+insert into t1 values(2,'x2');
+insert into t1 values(3,'x3');
+insert into t2 values(1,'y1');
+insert into t2 values(2,'y2');
+commit;
+select * from t1;
+select * from t2;
+
+
+declare
+  cursor l_cur is select id,name from t1 order by id;
+  type l_tab_type is table of t1%rowtype;
+  l_tab l_tab_type;
+begin
+  open l_cur ; 
+  loop     
+    exit when l_cur%NOTFOUND;
+    fetch l_cur bulk collect into l_tab;
+    forall i in 1 .. l_tab.count
+      update t2 set name=l_tab(i).name where id=l_tab(i).id;
+      raise notice 'the forall rowcount is : %', sql%rowcount;
+      commit;
+  end loop;
+  close l_cur;
+exception
+  when others then
+  rollback;
+  raise notice 'the error is %', sqlerrm;
+end;
+
+</code></pre>
+<p>这个问题本质上是forall实现的问题，在oracle中的forall是比for loop 性能要好的，但是在GaussDB中的forall其实是转换成了for loop去执行，并没有实现批量，因此rowcount是循环中最后一次影响的行数。在MogDB和openGauss目前所有版本中均仍然存在这个问题。</p>
+<h2 id="十三游标定义中某个字段是record类型时如果没有带-符号需要进行类型转换否则会报错">十三、游标定义中某个字段是record类型时，如果没有带=&gt; 符号，需要进行类型转换，否则会报错</h2>
+<pre><code class="language-sql">（创建存储过程时报错，如果匿名块调用这部分反而没有报错）
+WARNING:  column "l_ty_test" has pseudo-type record
+例如：
+drop table t1;
+create table t1(id number,name varchar2(30),addr varchar2(30));
+create type ty_test as (id number,name varchar2(30));
+
+insert into t1 values(1,'x1','shanghai');
+insert into t1 values(2,'x2','beijing');
+
+create or replace procedure up_test is 
+  l_ty_test ty_test := ty_test();
+  cursor cur is 
+   select addr,
+          ty_test(t1.id, t1.name) l_ty_test
+      from t1;
+  row_cur cur%rowtype;
+begin
+  for row_cur in cur loop
+    dbe_output.print_line(row_cur.addr ||'-----'||row_cur.l_ty_test.name);
+  end loop;
+end;
+/
+
+解决方案：
+create or replace procedure up_test is 
+  l_ty_test ty_test := ty_test();
+  cursor cur is 
+   select addr,
+          ty_test(t1.id, t1.name)::ty_test l_ty_test
+      from t1;
+  row_cur cur%rowtype;
+begin
+  for row_cur in cur loop
+    dbe_output.print_line(row_cur.addr ||'-----'||row_cur.l_ty_test.name);
+  end loop;
+end;
+/
+</code></pre>
+<h2 id="十四一个sql里面select多个table-of类型的变量into报错">十四、一个SQL里面select多个table of类型的变量into报错</h2>
+<pre><code class="language-sql">drop table t_city;
+drop type tyt_city;
+drop type ty_city ;
+create type ty_city as (cityid number,cityname varchar2(30));
+create type tyt_city as table of ty_city;
+create table t_city(cityid number, cityname varchar2(30));
+insert into t_city values(1,'shanghai'),(2,'beijing');
+declare 
+  l_tyt_city1 tyt_city := tyt_city();
+  l_tyt_city2 tyt_city := tyt_city();
+begin
+  select tyt_city(ty_city(cityid,cityname))
+        ,tyt_city(ty_city(cityid,cityname))
+         into
+         l_tyt_city1
+         ,l_tyt_city2
+   from t_city where rownum &lt; 2;
+end;
+/
+
+ error near table name! 
+ 
+</code></pre>
+<p>此处如果只有一个table of的变量，则不会报错。由于此处的报错并非明确的语法不支持或功能不支持，而是一个并非对此SQL的描述（疑似优化器改写发生异常），因此可以视为一个BUG。</p>
+<p>解决方案一（不能保持事务一致性）：</p>
+<pre><code class="language-sql">declare 
+  l_tyt_city1 tyt_city := tyt_city();
+  l_tyt_city2 tyt_city := tyt_city();
+begin
+  select tyt_city(ty_city(cityid,cityname))
+         into
+         l_tyt_city1
+   from t_city where rownum &lt; 2;
+  
+   select  tyt_city(ty_city(cityid,cityname))
+         into
+          l_tyt_city2
+   from t_city where rownum &lt; 2;
+end;
+/
+
+</code></pre>
+<p>解决方案二：</p>
+<pre><code class="language-sql">declare 
+  l_tyt_city1 tyt_city := tyt_city();
+  l_tyt_city2 tyt_city := tyt_city();
+begin
+for rec in (select tyt_city(ty_city(cityid,cityname))  t1
+                  ,tyt_city(ty_city(cityid,cityname)) t2
+            from t_city where rownum &lt; 2) 
+   loop
+     l_tyt_city1:=rec.t1;
+     l_tyt_city2:=rec.t2;
+   end loop;
+end;
+/
+</code></pre>
+<p>并且，改写成PG的语法，在原生PG9.3中，此处并不会报错,MogDB 5.2.0也不会报错。而在GaussDB506、MogDB 5.0及openGauss 6.0中用这个PG的语法也仍然是报相同的错</p>
+<pre><code class="language-sql">do
+$$
+declare 
+  l_tyt_city1 ty_city[];
+  l_tyt_city2 ty_city[];
+begin
+  select array[row(cityid,cityname)::ty_city]
+        ,array[row(cityid,cityname)::ty_city]
+         into
+         l_tyt_city1
+         ,l_tyt_city2
+   from t_city limit 1;
+end;
+$$ language plpgsql;
+</code></pre>
+<h2 id="十五select-into中同时包含复合类型构造变量和基本类型变量报错">十五、select into中同时包含复合类型构造变量和基本类型变量报错</h2>
+<pre><code class="language-sql">ERROR:  "l_ty_city1" is not a scalar variable
+例如：
+drop table t_city;
+drop type tyt_city;
+drop type ty_city ;
+create type ty_city as (cityid number,cityname varchar2(30));
+create type tyt_city as table of ty_city;
+create table t_city(cityid number, cityname varchar2(30));
+insert into t_city values(1,'shanghai'),(2,'beijing');
+
+declare 
+  l_cityid number;
+  l_ty_city1 ty_city := ty_city();
+begin
+  select cityid 
+        ,ty_city(cityid,cityname)::ty_city
+         into
+         l_cityid
+         ,l_ty_city1
+   from t_city where rownum &lt; 2;
+end;
+/
+
+
+ERROR:  "l_ty_city1" is not a scalar variable
+
+解决方案：
+需要拆成两个SQL
+declare 
+  l_cityid number;
+  l_ty_city1 ty_city := ty_city();
+begin
+  select cityid 
+         into
+         l_cityid
+   from t_city where rownum &lt; 2;
+   
+   select  
+        ty_city(cityid,cityname)::ty_city
+         into 
+         l_ty_city1
+   from t_city where rownum &lt; 2;
+end;
+/
+</code></pre>
+<h2 id="十六在有函数重载的时候不支持在procedure入参中使用复合类型构造">十六、在有函数重载的时候，不支持在procedure入参中使用复合类型构造</h2>
+<pre><code class="language-sql">create type ty_xxxx is (c1 varchar,c2 number);
+
+create or replace package PKGS_xxxx is
+procedure up_xxxx(i1 number,i2 varchar2,i3 varchar2);
+procedure up_xxxx(i1 ty_xxxx,i2 varchar2);
+end;
+/
+
+create or replace package body PKGS_xxxx is
+procedure up_xxxx(i1 number,i2 varchar2,i3 varchar2) is
+begin
+ null;
+end;
+procedure up_xxxx(i1 ty_xxxx,i2 varchar2) is
+begin
+ null;
+end;
+end;
+/
+
+
+begin
+PKGS_xxxx.up_xxxx(
+  ty_xxxx(c1 =&gt; 'aa',c2 =&gt; 1),
+  'xxxx');
+end;
+/
+
+ERROR: Function ty_xxxx(c1 := unknown, c2 := integer) does not exist.
+</code></pre>
+<p>如果没有重载，即没有同名函数的情况下，该用法不会报错。<br/>
+而当有重载时，需要获得每个实际传入的参数个数和类型来决定应该选择哪个函数去执行，参数可能是常量、变量、表达式，如果是表达式，则要计算该表达式的返回类型，但此时 <code>name(attr1=&gt;value,attr2=&gt;value)</code> 或 <code>name(value,value)</code> 这种形式的仅被解析成了函数调用，而实际上并不存在该函数，从而报错。</p>
+<p>解决方案：</p>
+<pre><code class="language-sql">begin
+PKGS_xxxx.up_xxxx(
+  row('aa',1)::ty_xxxx,
+  'xxxx');
+end;
+/
+</code></pre>
+<p>或</p>
+<pre><code class="language-sql">begin
+PKGS_xxxx.up_xxxx(
+  cast(row('aa', 1) as ty_xxxx),
+  'xxxx');
+end;
+/
+</code></pre>
+<p>或</p>
+<pre><code>declare
+l_ty_xxxx ty_xxxx;
+begin
+l_ty_xxxx:=ty_xxxx(c1 =&gt; 'aa',c2 =&gt; 1);
+PKGS_xxxx.up_xxxx(
+  l_ty_xxxx,
+  'xxxx');
+end;
+/
+</code></pre>
+<p>前两种方式缺点是行表达式构造的参数必须按顺序，但改动位置少；<br/>
+第三种方式缺点是需要新声明变量和增加赋值操作，改动位置较多，但支持变化复合类型的参数顺序。</p>
+<h2 id="十七在游标中使用复合类型构造出的字段不能传入以该复合类型作为入参的存储过程">十七、在游标中使用复合类型构造出的字段，不能传入以该复合类型作为入参的存储过程</h2>
+<pre><code class="language-sql">
+例如：
+create table t_poc (col1 number,col2 number);
+insert into t_poc values (1,2);
+create type ty_poc is (col1 number,col2 number);
+create or replace procedure up_test_record(i_ty1 in ty_poc) is 
+begin 
+  null;
+end;
+/
+DECLARE
+  l_poc  ty_poc; 
+BEGIN
+  FOR cur_test IN (SELECT ty_poc(col1, col2) as tt  FROM t_poc) LOOP 
+    up_test_record(cur_test.tt);
+  END LOOP;
+END;
+/
+
+cannot cast type record to ty_poc
+</code></pre>
+<p>这里本质上的问题是，用ty_poc(col1, col2)方式构造的值，是record类型，并非存储过程中指定的复合类型ty_poc。<br/>
+在GaussDB中可以通过以下几种方式来构造复合类型的值</p>
+<ul>
+<li><code>ty_poc(col1=&gt;col1, col2=&gt;col2)</code></li>
+<li><code>ty_poc(col1,col2)::ty_poc</code></li>
+<li><code>row(col1,col2)::ty_poc</code></li>
+<li><code>cast((col1,col2) as ty_poc)</code></li>
+<li><code>cast(row(col1,col2) as ty_poc)</code></li>
+<li><code>cast(ty_poc(col1,col2) as ty_poc)</code></li>
+</ul>
+<p>考虑到最好尽量使用ORACLE支持的语法，因此最好的解决办法为：</p>
+<pre><code class="language-sql">DECLARE
+  l_poc  ty_poc; 
+BEGIN
+  FOR cur_test IN (SELECT ty_poc(col1=&gt;col1, col2=&gt;col2) as tt  FROM t_poc) LOOP 
+    up_test_record(cur_test.tt);
+  END LOOP;
+END;
+</code></pre>
+<p>或者，声明一个新变量先接收cur_test.tt的值，再把新变量传到要调用的存储过程中</p>
+<pre><code class="language-sql">DECLARE
+  l_poc  ty_poc; 
+BEGIN
+  FOR cur_test IN (SELECT ty_poc(col1, col2) as tt  FROM t_poc) LOOP 
+ l_poc := cur_test.tt;
+    up_test_record(l_poc);
+  END LOOP;
+END;
+</code></pre>
+<p>如果是个inout，则需要注意下面是否还回引用此变量，需要赋值回去,因此建议该场景下还是使用第一种方式</p>
+<h2 id="十八在sql中使用集合类型变量成员的属性性能很差">十八、在SQL中使用集合类型变量成员的属性，性能很差</h2>
+<pre><code class="language-sql">例如：
+CREATE TYPE TYT_VARCHAR2  AS table of varchar2(2048);
+
+drop table t_bigtable;
+create table t_bigtable( 
+    col1 number, 
+    col2 varchar2(30),
+    col3 varchar2(30),
+    col4 varchar2(30),
+    col5 varchar2(30),
+    col6 varchar2(30),
+    col7 varchar2(30),
+    col8 varchar2(30),
+    col9 varchar2(30),
+    col10 varchar2(30)
+    );
+
+insert into t_bigtable 
+select id,
+rpad(id,30,'xx'), 
+rpad(id,30,'yy'),
+rpad(id,30,'zz'),
+rpad(id,30,'aa'),
+rpad(id,30,'bb'),
+rpad(id,30,'cc'),
+rpad(id,30,'dd'),
+rpad(id,30,'ee'),
+rpad(id,30,'gg')
+ from (select generate_series(1,200000) as id ) t;
+
+--业务代码demo
+--可以将SQL的执行计划打印出来
+set enable_auto_explain=true;
+set auto_explain_level=notice;
+
+declare
+    l_tyt_str   TYT_VARCHAR2 := TYT_VARCHAR2();
+    l_var_col  text;
+    debug_time timestamp;
+begin
+    l_tyt_str.extend();
+ l_tyt_str(1) := '100xxxxxxxxxxxxxxxxxxxxxxxxxxx';
+ debug_time := clock_timestamp();
+ raise notice '************the step1 time is %,duration is % **********',clock_timestamp(),clock_timestamp()-debug_time;
+    FOR i IN 1 .. l_tyt_str.COUNT loop
+        raise notice '************the step2 time is %,duration is % **********',clock_timestamp(),clock_timestamp()-debug_time;
+        select max(col4)
+            into l_var_col
+            from t_bigtable t
+        where t.col2 = l_tyt_str(i);
+        raise notice '************the step3 time is %,duration is % **********',clock_timestamp(),clock_timestamp()-debug_time;   
+    END LOOP;
+    raise notice '************the step3 time is %,duration is % **********',clock_timestamp(),clock_timestamp()-debug_time;
+end;
+</code></pre>
+<p>该表达式明明是稳定不可变的，但对于表中的每一行都计算了一次该表达式<br/>
+解决方式为，新声明一个变量，把条件值先赋给变量，然后在条件中使用这个变量。<br/>
+506.0 版本已经解决 table of基本类型的性能问题，但是没有解决table of复合类型的性能问题</p>
+<h2 id="十九通过jdbc调用带出参的存储过程报错函数找不到">十九、通过JDBC调用带出参的存储过程，报错函数找不到</h2>
+<p>原因是JDBC驱动会根据即包含了behavior_compat_options里是否包含proc_outparam_override，来决定调用存储过程时是否要输入出参，虽然当前版本tpops默认会给实例配置上a_format_dev_version=s7,即包含了behavior_compat_options=proc_outparam_override,但behavior_compat_options这个参数本身却并没有显式的增加proc_outparam_override，导致了JDBC没有找到proc_outparam_override，所以JDBC生成的调用SQL中不包含出参，内核就找不到具有相应参数的这个函数，从而触发了报错。<br/>
+规避方式为，不要依赖s7，behavior_compat_options里该配置的都还是都配置进去。</p>
+<h2 id="二十有嵌套子查询的union-all语句如果有null列可能会导致该线程进入死循环且无法kill">二十、有嵌套子查询的union all语句，如果有null列，可能会导致该线程进入死循环，且无法kill</h2>
+<pre><code class="language-sql">select 1 from dual --任意查询
+union all  --带union 
+select null from --套子查询,查询字段任意
+ (select a from --第二次引用null的字段
+   (select a from  --第一次引用null的字段
+     (select null a from dual  --最里层有null
+     )
+   )
+ );
+</code></pre>
+<p>死循环的线程会让一个cpu核心占用达到100%</p>
+<p>原始代码是一个上万行的create package语句，执行了超过两天没有执行完，用pg_terminate_backend 和pg_terminate_session均无法结束这个会话。通过解压符号表进行gdb堆栈跟踪，发现这个线程正在编译一条SQL语句，线程一直在动，似乎进入了死循环逻辑。</p>
+<p>因为开启了allow_procedure_compile_check，因此会对游标中的select进行编译，可以理解为对这个select执行了explian，来确认数据集的字段定义，然后由于有null这个未定义类型的字段，因此进入了union的unknown类型识别逻辑，简单来说就是根据SQL的上下文来判断这个null应该是什么类型。</p>
+<p>该问题是506.0版本引入，原本是为了解决null union numeric报错的问题，但意外引入了一个BUG</p>
+<h2 id="二十一重载函数的选择错误">二十一、重载函数的选择错误</h2>
+<p>当两个函数名称相同，入参个数相同但入参类型不同，一个为varchar,一个为numeric，当绑定类型为text的变量作为入参时，会调用到numeric入参的参数而导致报错。</p>
+<pre><code class="language-sql">create package test_override is
+procedure p(i number);
+procedure p(i varchar2);
+end;
+/
+create package body test_override is
+procedure p(i number) is
+begin
+ null;
+end;
+procedure p(i varchar2) is
+begin
+ null;
+end;
+end;
+/
+
+declare
+ a varchar2(20):='abc';
+begin
+ test_override.p(trim(a));
+end;
+/
+</code></pre>
+<blockquote>
+<p>ERROR: invalid input syntax for type numeric: "abc"<br/>
+在位置：SQL statement "CALL test_override.p(trim(a))"<br/>
+PL/pgSQL function inline_code_block line 4 at PERFORM</p>
+</blockquote>
+<p>这里虽然a是varchar类型，但是由于使用trim函数处理了，导致实际传入存储过程的是text类型，由于并不存在一个text类型入参的重载函数，程序优先选择了numeric类型入参的函数，结果导致在入参类型校验时就报错了。</p>
+<p>规避方式为，在调用有重载的函数时，强制指定各个参数的数据类型，比如</p>
+<pre><code class="language-sql">test_override.p(trim(a)::varchar);
+</code></pre>
+<p>或者创建存储过程时，对于文本类型的入参，都改用text类型。</p>
+<h2 id="二十二包头包体存储过程的出入参方向不一样创建不报错但编译报错">二十二、包头包体存储过程的出入参方向不一样，创建不报错但编译报错</h2>
+<pre><code class="language-sql">create package pkg_test_4 is
+procedure p1(i1 in varchar2,
+             i2 out varchar2,
+             i3 out varchar2);
+end;  
+/
+create package body pkg_test_4 is
+procedure p1(i1 in varchar2,
+             i2 in varchar2,
+             i3 out varchar2) is
+             begin
+                 null;
+             end;
+end;  
+/
+alter package pkg_test_4 compile;
+</code></pre>
+<blockquote>
+<p>ERROR: Failed to query the 323 type in the cache.</p>
+</blockquote>
+<p>光从这个报错信息完全看不出原因，而且也没有写错误的行号，在一个有很多function和procedure的package里，要定位出这个问题非常麻烦。当时找华为研发也没有直接定位到，最后还是用傻办法一段一段删找到的。<br/>
+这种场景应该要在创建的时候就输出warning，并且把这个package置为无效状态。</p>
+<h2 id="二十三exception时用户权限异常切换">二十三、exception时用户权限异常切换</h2>
+<p>复现SQL:</p>
+<pre><code class="language-sql">gsql -r
+create user user_g password 'Gaussdb@123';
+\q
+gsql -r -Uuser_g -WGaussdb@123
+create table test_a (a int);
+create unique index i_test_a on test_a( a);
+alter index i_test_a unusable;
+insert into test_a values (1),(1);
+\q
+gsql -r 
+begin
+alter index user_g.i_test_a rebuild;
+exception when others then 
+raise notice '%',sqlerrm;
+end;
+/
+select user;
+</code></pre>
+<p>这里使用系统管理员执行这个匿名块，匿名块里去重建索引，肯定是会报错的，因为数据不唯一。但是问题是，在使用了exeption捕获以后，当前会话的current_user被切换成了user_g，而不是登录进来的系统管理员用户，也就是说此时如果执行别的SQL，会是以错误的用户来执行，这样可能导致执行报错无权限或者通过search_path找到了错误的对象。</p>
+<p>执行效果：</p>
+<pre><code class="language-sql">gaussdb=# create user user_g password 'Gaussdb@123';
+CREATE ROLE
+gaussdb=# \q
+
+[gaussdb506@ky10-sp3 ~]$ gsql -r -Uuser_g -WGaussdb@123
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=&gt; create table test_a (a int);
+CREATE TABLE
+gaussdb=&gt; create unique index i_test_a on test_a( a);
+CREATE INDEX
+gaussdb=&gt; alter index i_test_a unusable;
+ALTER INDEX
+gaussdb=&gt; insert into test_a values (1),(1);
+INSERT 0 2
+gaussdb=&gt; \q
+
+[gaussdb506@ky10-sp3 ~]$ gsql -r
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=# select current_user,rolsystemadmin from pg_authid where rolname=current_user; --当前用户是系统管理员gaussdb506，此时还能查pg_authid表
+ current_user | rolsystemadmin
+--------------+----------------
+ gaussdb506   | t
+(1 row)
+
+gaussdb=# begin
+gaussdb$# alter index user_g.i_test_a rebuild;
+gaussdb$# exception when others then
+gaussdb$# raise notice '%',sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  Failed to create a unique index "i_test_a".
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# select user; --当前用户被切走且未还原
+ current_user
+--------------
+ user_g
+(1 row)
+
+gaussdb=# select * from pg_authid limit 1; --pg_authid表的查询权限没了
+ERROR:  The operation permission on relation pg_authid is denied.
+DETAIL:  N/A.
+gaussdb=# create table test_b(b int);
+CREATE TABLE
+gaussdb=# \dS+ test_b  --新建的表也放到了错误的schema下
+                        Table "user_g.test_b"
+ Column |  Type   | Modifiers | Storage | Stats target | Description
+--------+---------+-----------+---------+--------------+-------------
+ b      | integer |           | plain   |              |
+Has OIDs: no
+Options: orientation=row, compression=no, storage_type=USTORE, segment=off
+
+gaussdb=#
+</code></pre>
+<p>这个问题与behavior_compat_options中的plsql_rollback_keep_user有关，官方文档是这么描述的</p>
+<blockquote>
+<p>控制在PL/SQL中rollback和rollback to savepoint是否修改当前用户。当开启此参数时，PL/SQL中rollback将不会修改当前用户。</p>
+</blockquote>
+<p>可以这么理解，对于<code>alter index</code>,如果操作的不是当前用户的索引，就会先切换当前用户到索引的属主用户，然后在去真正执行alter index的操作，</p>
+<ul>
+<li>如果执行成功，则会把当前用户切换回来</li>
+<li>如果执行不成功，就会执行rollback，在之前版本中默认安装参数情况下，plsql上下文中的rollback会把current_user切换回去，不会有此问题。</li>
+</ul>
+<p>因为存在exception，因此这个匿名块有子事务，匿名块内部报错被exception捕获，匿名块本身正常执行，所以匿名块执行完退出不会发生当前用户的变化。如果不使用exception则会报错，且正常切回用户，但这样这个匿名块就没法继续执行后续的代码了。</p>
+<p>在506.0版本默认开启s7的情况下，是包含了plsql_rollback_keep_user的，如果要规避，需要调整到s6，并且behavior_compat_options中不能包含plsql_rollback_keep_user。</p>
+<h2 id="二十四部分查询sql无法使用explain-performance生成执行计划但是可以查询">二十四、部分查询SQL无法使用explain performance生成执行计划，但是可以查询</h2>
+<pre><code class="language-sql">gaussdb=# explain performance select * from information_schema.parameters p where specific_name = '' ;
+ERROR:  failed to find plan for subquery ss
+gaussdb=# select * from information_schema.parameters p where specific_name = '' ;
+ specific_catalog | specific_schema | specific_name | ordinal_position | parameter_mode | is_result | as_locator | p
+arameter_name | data_type | character_maximum_length | character_octet_length | character_set_catalog | character_se
+t_schema | character_set_name | collation_catalog | collation_schema | collation_name | numeric_precision | numeric_
+precision_radix | numeric_scale | datetime_precision | interval_type | interval_precision | udt_catalog | udt_schema
+ | udt_name | scope_catalog | scope_schema | scope_name | maximum_cardinality | dtd_identifier
+------------------+-----------------+---------------+------------------+----------------+-----------+------------+--
+--------------+-----------+--------------------------+------------------------+-----------------------+-------------
+---------+--------------------+-------------------+------------------+----------------+-------------------+---------
+----------------+---------------+--------------------+---------------+--------------------+-------------+-----------
+-+----------+---------------+--------------+------------+---------------------+----------------
+(0 rows)
+
+gaussdb=#
+</code></pre>
+<p>该问题在openGauss系数据库都存在。</p>
+<h2 id="二十五跨用户调用带出参游标的存储过程获取游标数据时可能会报错权限不足">二十五、跨用户调用带出参游标的存储过程，获取游标数据时可能会报错权限不足</h2>
+<pre><code class="language-sql">--检查参数，behavior_compat_options包含plsql_security_definer
+show behavior_compat_options;
+
+--创建两个用户
+create user user_a password 'Gaussdb@123';
+create user user_b password 'Gaussdb@123';
+
+--切换到user_a
+gsql -r -d postgres -Uuser_a -WGaussdb@123
+
+CREATE TABLE t_test_xx (
+    id integer NOT null primary key,
+    name text
+);
+
+insert into t_test_xx select i,i from generate_series(1,1000) i;
+
+CREATE OR REPLACE PACKAGE user_a.pkg_test_2 IS 
+function f(i int) return int;
+end pkg_test_2;
+/
+CREATE OR REPLACE PACKAGE BODY user_a.pkg_test_2 IS 
+function f(i int) return int is
+begin
+return i;
+end;
+end pkg_test_2;
+/
+CREATE OR REPLACE PACKAGE user_a.pkg_test_1 IS 
+procedure p(i int,o out sys_refcursor);
+end pkg_test_1;
+/
+CREATE OR REPLACE PACKAGE BODY user_a.pkg_test_1 IS 
+procedure p(i int,o out sys_refcursor) is
+begin
+open o for 
+select t1.id,pkg_test_2.f(t1.id) c,name from t_test_xx t1
+where t1.id= 2 and ( i is null 
+or t1.id in (select id from t_test_xx where name = '2') );
+end;
+end pkg_test_1;
+/
+grant usage on schema user_a to user_b;
+grant execute on package user_a.pkg_test_1  to user_b;
+
+\q
+--切换到user_b
+gsql -r -d postgres -Uuser_b -WGaussdb@123
+
+--第一个参数传空，报错
+begin;
+call user_a.pkg_test_1.p('',null);
+fetch all "&lt;unnamed portal 1&gt;"; 
+end;
+--第一个参数传非空，不报错
+begin;
+call user_a.pkg_test_1.p('2',null);
+fetch all "&lt;unnamed portal 2&gt;"; 
+end;
+--再次测第一个参数传空，又不报错了（cache相关）
+begin;
+call user_a.pkg_test_1.p('',null);
+fetch all "&lt;unnamed portal 3&gt;"; 
+end;
+</code></pre>
+<p>这里涉及到是否执行表达式展平，以及权限校验的位置。<br/>
+当有报错时，游标内SQL的自定义函数未执行表达式展平，然后在fetch游标时，当前连接用户需要从头开始调用这个SQL，需要额外的函数权限校验，由于当前连接用户并无这个函数的执行权限，因此报错；<br/>
+当没有报错时，open游标时已经将自定义函数展平，展平就不需要从头开始调用函数了，已经校验完了，后续fetch游标就直接取数据了。<br/>
+表达式是否展平，官方文档中有一些规则：</p>
+<blockquote>
+<p>• 不支持向量化引擎。<br/>
+• 不支持和Codegen框架一起使用。<br/>
+• 不支持M-compatibility框架。<br/>
+• 原有SRF不支持展平执行，仅支持SRF增强功能（需设置enable_srf_enhanced = on）。<br/>
+• IndexScan，IndexOnlyScan扫描结果预估行数低于1000行时，不支持展平执行。</p>
+</blockquote>
+<p>此案例就是触发了最后一条，索引扫描预估行数低于1000，尝试加hint指定预估大于1000,可以强制展平，从而规避报错。但要从数百万行存储过程里，找到会有问题的游标，并找到要对哪段加hint，也不是容易的事。</p>
+<p>由于游标本身并不能跨会话访问，因此如果一个用户通过自己调用存储过程获取到了一个游标指针，那么他应该可以无条件的去访问这个游标的内容，考虑到权限问题，由于游标portal上是有标明该portal的用户是谁的，所以内核完全可以在fetch游标时临时切换一下用户，执行完fetch命令后再切换回来，这样就不会存在权限问题了。但目前版本的GaussDB并没有做这种处理。</p>
+<h2 id="总结">总结</h2>
+<p>本次分享目的不是为了贬低一款数据库，数据库不可能没有BUG的，连ORACLE也有不少恶性的BUG。本次主要是期望通过以开发DBA视角来对数据库使用过程中遇到的问题来进行分析，快速定位问题，找到规避方案，并且在此过程中，对数据库内核的处理流程有个更深的了解。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

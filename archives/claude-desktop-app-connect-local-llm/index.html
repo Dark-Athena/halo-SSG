@@ -155,7 +155,376 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+<h1 id="claude-desktop-app-连接本地-llm-完整配置指南">Claude Desktop App 连接本地 LLM 完整配置指南</h1>
+<blockquote>
+<p>环境：macOS (Apple Silicon)、Claude Desktop App、LM Studio、Claude Code Router (ccr)</p>
+<p>最后更新：2026-04-26</p>
+</blockquote>
+<h2 id="1-架构概览">1. 架构概览</h2>
+<pre><code>Claude Desktop App
+    │
+    ▼ HTTP (127.0.0.1:3457)
+ccr-compat-proxy (补充 /v1/models 端点 + 剥离 attribution header)
+    │
+    ▼ HTTP (127.0.0.1:3456)
+Claude Code Router (ccr) — 协议转换 + 路由
+    │
+    ▼ HTTP (192.168.31.127:1234/v1/chat/completions)
+LM Studio (本地 LLM 推理服务)
+</code></pre>
+<p><strong>为什么需要三层？</strong></p>
+<table><thead><tr><th>组件</th><th>作用</th><th>为什么不能省</th></tr></thead><tbody><tr><td>ccr</td><td>将 Anthropic Messages API 格式转换为 OpenAI Chat Completions 格式</td><td>Claude Desktop 只发送 <code>/v1/messages</code> 格式，本地模型只接受 <code>/v1/chat/completions</code></td></tr><tr><td>ccr-compat-proxy</td><td>补充 <code>/v1/models</code> 端点 + 剥离 <code>x-anthropic-billing-header</code></td><td>Claude Desktop 启动时会请求 <code>/v1/models</code>，ccr 没有这个端点会返回 404</td></tr><tr><td>LM Studio</td><td>运行本地模型，提供 OpenAI 兼容 API</td><td>实际的 LLM 推理引擎</td></tr></tbody></table>
+<h2 id="2-前置条件">2. 前置条件</h2>
+<ul>
+<li><a href="https://lmstudio.ai/">LM Studio</a> 已安装并在远程/本机运行，开启了 Server 模式</li>
+<li>Node.js (v18+) 已安装</li>
+<li>Claude Desktop App 已安装</li>
+</ul>
+<h2 id="3-安装-claude-code-router-ccr">3. 安装 Claude Code Router (ccr)</h2>
+<h3 id="31-独立安装推荐">3.1 独立安装（推荐）</h3>
+<p>将 ccr 安装到用户目录，避免被其他应用升级覆盖：</p>
+<pre><code class="language-bash"># 安装到 ~/.npm-global/
+npm install -g @musistudio/claude-code-router --prefix ~/.npm-global
+
+# 添加到 PATH（加到 ~/.zshrc）
+echo 'export PATH="$HOME/.npm-global/bin:$PATH"' &gt;&gt; ~/.zshrc
+source ~/.zshrc
+
+# 验证安装
+ccr --version
+</code></pre>
+<h3 id="32-创建启动脚本">3.2 创建启动脚本</h3>
+<pre><code class="language-bash">mkdir -p ~/.local/bin
+cat &gt; ~/.local/bin/ccr &lt;&lt; 'EOF'
+#!/bin/bash
+exec /opt/homebrew/bin/node ~/.npm-global/lib/node_modules/@musistudio/claude-code-router/dist/cli.js "$@"
+EOF
+chmod +x ~/.local/bin/ccr
+</code></pre>
+<h2 id="4-配置-ccr">4. 配置 ccr</h2>
+<h3 id="41-创建配置文件">4.1 创建配置文件</h3>
+<pre><code class="language-bash">mkdir -p ~/.claude-code-router
+</code></pre>
+<p>编辑 <code>~/.claude-code-router/config.json</code>：</p>
+<pre><code class="language-json">{
+  "LOG": true,
+  "LOG_LEVEL": "info",
+  "API_TIMEOUT_MS": 600000,
+  "Providers": [
+    {
+      "name": "lmstudio",
+      "api_base_url": "http://192.168.31.127:1234/v1/chat/completions",
+      "api_key": "your-lmstudio-api-key",
+      "models": ["qwen/qwen3.6-35b-a3b"]
+    }
+  ],
+  "Router": {
+    "default": "lmstudio,qwen/qwen3.6-35b-a3b"
+  }
+}
+</code></pre>
+<p><strong>字段说明：</strong></p>
+<table><thead><tr><th>字段</th><th>说明</th></tr></thead><tbody><tr><td><code>Providers[].api_base_url</code></td><td>LM Studio 的 OpenAI 兼容 API 地址</td></tr><tr><td><code>Providers[].api_key</code></td><td>LM Studio 的 Bearer Token（可在 LM Studio Server 设置中配置）</td></tr><tr><td><code>Providers[].models</code></td><td>LM Studio 中已加载的模型名称（必须与 LM Studio 显示的完全一致）</td></tr><tr><td><code>Router.default</code></td><td>格式为 <code>provider名,模型名</code>，指定默认使用的模型</td></tr><tr><td><code>API_TIMEOUT_MS</code></td><td>上游请求超时时间（毫秒），建议 600000（10 分钟）</td></tr></tbody></table>
+<blockquote>
+<p><strong>切换模型</strong>：修改 <code>Providers[].models</code> 和 <code>Router.default</code> 中的模型名，然后重启 ccr。</p>
+</blockquote>
+<h2 id="5-创建-ccr-compat-proxy">5. 创建 ccr-compat-proxy</h2>
+<p>Claude Desktop App 启动时会请求 <code>GET /v1/models</code>，ccr 没有这个端点。同时 Claude Code 客户端会在请求 body 中注入 <code>x-anthropic-billing-header</code>，需要剥离。</p>
+<h3 id="51-安装依赖">5.1 安装依赖</h3>
+<pre><code class="language-bash">cd ~/.claude-code-router
+npm init -y
+npm install http-proxy
+</code></pre>
+<h3 id="52-创建代理脚本">5.2 创建代理脚本</h3>
+<p>创建 <code>~/.claude-code-router/ccr-compat-proxy.js</code>：</p>
+<pre><code class="language-javascript">#!/usr/bin/env node
+const http = require('http');
+
+const CONFIG_PATH = process.env.HOME + '/.claude-code-router/config.json';
+const PROXY_PORT = 3457;
+const CCR_PORT = 3456;
+
+function loadModels() {
+  try {
+    const config = JSON.parse(require('fs').readFileSync(CONFIG_PATH, 'utf-8'));
+    const models = [];
+    for (const provider of (config.Providers || [])) {
+      for (const model of (provider.models || [])) {
+        models.push({ id: model, object: 'model', created: Date.now(), owned_by: provider.name });
+      }
+    }
+    return models;
+  } catch (e) {
+    return [];
+  }
+}
+
+function stripAttributionHeader(bodyStr) {
+  try {
+    const body = JSON.parse(bodyStr);
+    let modified = false;
+
+    if (Array.isArray(body.system)) {
+      body.system = body.system.filter(block =&gt; {
+        if (block.type === 'text' &amp;&amp; block.text &amp;&amp; block.text.startsWith('x-anthropic-billing-header:')) {
+          modified = true;
+          return false;
+        }
+        return true;
+      });
+    }
+
+    if (Array.isArray(body.messages)) {
+      for (const msg of body.messages) {
+        if (Array.isArray(msg.content)) {
+          const before = msg.content.length;
+          msg.content = msg.content.filter(block =&gt; {
+            if (block.type === 'text' &amp;&amp; block.text &amp;&amp; block.text.startsWith('x-anthropic-billing-header:')) {
+              return false;
+            }
+            return true;
+          });
+          if (msg.content.length !== before) modified = true;
+        }
+      }
+    }
+
+    return modified ? JSON.stringify(body) : bodyStr;
+  } catch (e) {
+    return bodyStr;
+  }
+}
+
+const server = http.createServer((req, res) =&gt; {
+  if (req.method === 'GET' &amp;&amp; req.url.match(/^\/v1\/models/)) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ object: 'list', data: loadModels() }));
+    return;
+  }
+
+  let bodyChunks = [];
+  req.on('data', chunk =&gt; bodyChunks.push(chunk));
+  req.on('end', () =&gt; {
+    const cleaned = stripAttributionHeader(Buffer.concat(bodyChunks).toString('utf-8'));
+    const buf = Buffer.from(cleaned);
+
+    const headers = { ...req.headers, 'content-length': buf.length };
+    delete headers['transfer-encoding'];
+
+    const ccrReq = http.request({
+      hostname: '127.0.0.1', port: CCR_PORT, path: req.url, method: req.method, headers
+    }, (ccrRes) =&gt; {
+      res.writeHead(ccrRes.statusCode, ccrRes.headers);
+      ccrRes.pipe(res);
+    });
+
+    ccrReq.on('error', (err) =&gt; {
+      if (!res.headersSent) res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'CCR upstream error: ' + err.message } }));
+    });
+
+    res.on('close', () =&gt; ccrReq.destroy());
+    ccrReq.write(buf);
+    ccrReq.end();
+  });
+});
+
+server.listen(PROXY_PORT, '127.0.0.1', () =&gt; {
+  console.log(`CCR compat proxy listening on http://127.0.0.1:${PROXY_PORT}`);
+  console.log(`Stripping x-anthropic-billing-header from POST bodies`);
+});
+</code></pre>
+<h2 id="6-配置开机自启动-launchd">6. 配置开机自启动 (launchd)</h2>
+<h3 id="61-ccr-服务">6.1 ccr 服务</h3>
+<p>创建 <code>~/Library/LaunchAgents/com.user.ccr.plist</code>：</p>
+<pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;/key&gt;
+    &lt;string&gt;com.user.ccr&lt;/string&gt;
+    &lt;key&gt;ProgramArguments&lt;/key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/opt/homebrew/bin/node&lt;/string&gt;
+        &lt;string&gt;/Users/mac/.npm-global/lib/node_modules/@musistudio/claude-code-router/dist/cli.js&lt;/string&gt;
+    &lt;/array&gt;
+    &lt;key&gt;WorkingDirectory&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router&lt;/string&gt;
+    &lt;key&gt;RunAtLoad&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;KeepAlive&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;StandardOutPath&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router/logs/ccr-stdout.log&lt;/string&gt;
+    &lt;key&gt;StandardErrorPath&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router/logs/ccr-stderr.log&lt;/string&gt;
+    &lt;key&gt;EnvironmentVariables&lt;/key&gt;
+    &lt;dict&gt;
+        &lt;key&gt;PATH&lt;/key&gt;
+        &lt;string&gt;/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin&lt;/string&gt;
+        &lt;key&gt;HOME&lt;/key&gt;
+        &lt;string&gt;/Users/mac&lt;/string&gt;
+    &lt;/dict&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
+</code></pre>
+<h3 id="62-ccr-compat-proxy-服务">6.2 ccr-compat-proxy 服务</h3>
+<p>创建 <code>~/Library/LaunchAgents/com.user.ccr-proxy.plist</code>：</p>
+<pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;/key&gt;
+    &lt;string&gt;com.user.ccr-proxy&lt;/string&gt;
+    &lt;key&gt;ProgramArguments&lt;/key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/opt/homebrew/bin/node&lt;/string&gt;
+        &lt;string&gt;/Users/mac/.claude-code-router/ccr-compat-proxy.js&lt;/string&gt;
+    &lt;/array&gt;
+    &lt;key&gt;WorkingDirectory&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router&lt;/string&gt;
+    &lt;key&gt;RunAtLoad&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;KeepAlive&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;StandardOutPath&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router/logs/proxy-stdout.log&lt;/string&gt;
+    &lt;key&gt;StandardErrorPath&lt;/key&gt;
+    &lt;string&gt;/Users/mac/.claude-code-router/logs/proxy-stderr.log&lt;/string&gt;
+    &lt;key&gt;EnvironmentVariables&lt;/key&gt;
+    &lt;dict&gt;
+        &lt;key&gt;PATH&lt;/key&gt;
+        &lt;string&gt;/opt/homebrew/bin:/Users/mac/.npm-global/bin:/usr/local/bin:/usr/bin:/bin&lt;/string&gt;
+        &lt;key&gt;HOME&lt;/key&gt;
+        &lt;string&gt;/Users/mac&lt;/string&gt;
+    &lt;/dict&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
+</code></pre>
+<h3 id="63-启动服务">6.3 启动服务</h3>
+<pre><code class="language-bash"># 创建日志目录
+mkdir -p ~/.claude-code-router/logs
+
+# 加载服务
+launchctl load ~/Library/LaunchAgents/com.user.ccr.plist
+launchctl load ~/Library/LaunchAgents/com.user.ccr-proxy.plist
+
+# 验证
+lsof -i :3456  # ccr 应该在监听
+lsof -i :3457  # proxy 应该在监听
+</code></pre>
+<h2 id="7-配置-claude-desktop-app">7. 配置 Claude Desktop App</h2>
+<p>编辑 <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>：</p>
+<pre><code class="language-json">{
+  "preferences": {
+    "coworkWebSearchEnabled": true
+  }
+}
+</code></pre>
+<p>在 Claude Desktop App 中：</p>
+<ol>
+<li>打开设置 (Settings)</li>
+<li>找到 <strong>API Provider</strong> 或 <strong>Custom API</strong> 部分</li>
+<li>设置 <strong>API Base URL</strong> 为 <code>http://127.0.0.1:3457</code></li>
+<li>输入 LM Studio 的 API Key（如果有的话）</li>
+</ol>
+<blockquote>
+<p><strong>注意</strong>：Claude Desktop App 要求 API 地址必须使用 <code>https</code> 或 <code>http://127.0.0.1</code>，不能使用其他 IP 地址。这就是为什么需要 ccr-compat-proxy 在 <code>127.0.0.1:3457</code> 监听 — LM Studio 如果运行在远程 IP（如 <code>192.168.31.127</code>），不能直接被 Claude Desktop App 引用。</p>
+</blockquote>
+<h2 id="8-环境变量配置">8. 环境变量配置</h2>
+<p>在 <code>~/.claude/settings.json</code> 中配置（对 Claude Desktop App 和 CLI 都生效）：</p>
+<pre><code class="language-json">{
+  "permissions": {
+    "dangerouslySkipPermissions": true
+  },
+  "env": {
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  }
+}
+</code></pre>
+<table><thead><tr><th>环境变量</th><th>作用</th></tr></thead><tbody><tr><td><code>CLAUDE_CODE_ATTRIBUTION_HEADER</code></td><td>设为 <code>0</code> 尝试关闭 HTTP 层的 attribution header（body 中的需要 proxy 剥离）</td></tr><tr><td><code>CLAUDE_CODE_ENABLE_TELEMETRY</code></td><td>设为 <code>0</code> 禁用遥测数据上报</td></tr><tr><td><code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code></td><td>设为 <code>1</code> 禁用非必要的网络请求</td></tr></tbody></table>
+<h2 id="9-patch延长上游请求超时">9. Patch：延长上游请求超时</h2>
+<p>ccr 使用 Node.js 内置的 undici 作为 HTTP 客户端，<code>bodyTimeout</code> 硬编码为 <code>3e5</code>（5 分钟）。如果本地模型推理较慢，需要 patch 延长超时。</p>
+<h3 id="91-手动-patch">9.1 手动 patch</h3>
+<p>编辑 <code>~/.npm-global/lib/node_modules/@musistudio/claude-code-router/dist/cli.js</code>，搜索并替换：</p>
+<pre><code># 将 bodyTimeout 从 5 分钟改为 10 分钟
+qe??3e5  →  qe??6e5
+</code></pre>
+<h3 id="92-自动-patch-脚本">9.2 自动 patch 脚本</h3>
+<p>已提供脚本 <code>~/.claude-code-router/patch-body-timeout.sh</code>：</p>
+<pre><code class="language-bash"># 默认 patch 到 600s (10 分钟)
+bash ~/.claude-code-router/patch-body-timeout.sh
+
+# 自定义超时
+bash ~/.claude-code-router/patch-body-timeout.sh 1200
+</code></pre>
+<p>脚本会自动备份原文件、执行替换、重启 ccr。</p>
+<blockquote>
+<p><strong>注意</strong>：ccr 版本更新（<code>npm update</code>）后此 patch 会丢失，需要重新运行脚本。</p>
+</blockquote>
+<h2 id="10-目录结构总览">10. 目录结构总览</h2>
+<pre><code>~/.claude-code-router/
+├── config.json                  # ccr 配置（模型、API 地址等）
+├── ccr-compat-proxy.js          # Claude Desktop 兼容代理
+├── patch-body-timeout.sh        # bodyTimeout 自动 patch 脚本
+├── node_modules/
+│   └── http-proxy/              # proxy 依赖
+└── logs/
+    ├── ccr-stdout.log           # ccr 标准输出
+    ├── ccr-stderr.log           # ccr 错误输出
+    ├── ccr-*.log                # ccr 运行日志（含请求详情）
+    ├── proxy-stdout.log         # proxy 标准输出
+    └── proxy-stderr.log         # proxy 错误输出
+
+~/.npm-global/lib/node_modules/@musistudio/claude-code-router/
+└── dist/cli.js                  # ccr 主程序（已 patch bodyTimeout）
+
+~/.local/bin/
+└── ccr                          # ccr 启动脚本
+
+~/Library/LaunchAgents/
+├── com.user.ccr.plist           # ccr 开机自启动配置
+└── com.user.ccr-proxy.plist     # proxy 开机自启动配置
+
+~/.claude/
+├── settings.json                # Claude Code 通用设置（含环境变量）
+└── claude.json                  # Claude Code 本地缓存（feature flags 等）
+</code></pre>
+<h2 id="11-常见问题排查">11. 常见问题排查</h2>
+<h3 id="请求发不出去">请求发不出去</h3>
+<pre><code class="language-bash"># 检查服务是否运行
+lsof -i :3456  # ccr
+lsof -i :3457  # proxy
+
+# 查看日志
+tail -50 ~/.claude-code-router/logs/ccr-*.log
+tail -50 ~/.claude-code-router/logs/proxy-stderr.log
+</code></pre>
+<h3 id="ccr-日志显示-err_stream_premature_close">ccr 日志显示 ERR_STREAM_PREMATURE_CLOSE</h3>
+<p>proxy 的 stream 处理有问题，确保 <code>ccr-compat-proxy.js</code> 中删除了 <code>transfer-encoding</code> header 并使用 <code>content-length</code>。</p>
+<h3 id="切换模型后请求的模型名没变">切换模型后请求的模型名没变</h3>
+<p>ccr 缓存了旧配置，需要重启：</p>
+<pre><code class="language-bash">launchctl unload ~/Library/LaunchAgents/com.user.ccr.plist
+launchctl load ~/Library/LaunchAgents/com.user.ccr.plist
+</code></pre>
+<h3 id="5-分钟超时">5 分钟超时</h3>
+<p>undici 的 <code>bodyTimeout</code> 硬编码为 5 分钟，需要 patch cli.js（参见第 9 节）。</p>
+<h3 id="x-anthropic-billing-header-仍然出现在请求中">x-anthropic-billing-header 仍然出现在请求中</h3>
+<ol>
+<li>确认 ccr-compat-proxy 正在运行（<code>lsof -i :3457</code>）</li>
+<li>确认 Claude Desktop 连接的是 <code>127.0.0.1:3457</code>（proxy）而不是 <code>3456</code>（ccr）</li>
+<li>只有经过 proxy 的请求才会剥离 attribution header</li>
+</ol>
+<h3 id="lm-studio-报错-connection-refused">LM Studio 报错 connection refused</h3>
+<p>确认 LM Studio 的 Server 模式已开启，且 API 地址和端口配置正确：</p>
+<pre><code class="language-bash">curl http://192.168.31.127:1234/v1/models
+</code></pre>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

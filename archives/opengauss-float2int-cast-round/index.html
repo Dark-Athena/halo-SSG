@@ -150,13 +150,209 @@
         
         <span>2024-10-19</span>
         
-        <span>198 阅读</span>
+        <span>199 阅读</span>
         
         <a href="/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h2 id="一-问题背景">一、问题背景</h2>
+<p>在一次测试中，发现下面这条sql在oracle和POSTGRESQL/OPENGAUSS中的查询结果不一致</p>
+<pre><code class="language-sql">select  cast(cast(0.5 as float) as integer);
+</code></pre>
+<p>在oracle中返回1，在openGauss中返回0，咋一看好像是openGauss中使用了截断的方式,但是如果执行</p>
+<pre><code class="language-sql">select  cast(cast(1.5 as float) as integer);
+</code></pre>
+<p>则会发现oracle和openGauss中同样返回了2，这个时候就会猜想是不是这个float类型在两个数据库中实现并不一样导致的，因为ORACLE的float是按number格式存储的，不是标准定义中的浮点类型，而是一种精确类型；而openGauss中的float符合标准定义的浮点类型，是一种非精确类型。<br/>
+但我们并不能妄下这种判断，多测几组数据:</p>
+<pre><code class="language-sql">select 
+ cast(cast(0.5 as float) as integer) c1 ,
+ cast(cast(0.6 as float) as integer) c2 ,
+ cast(cast(1.5 as float) as integer) c3,
+ cast(cast(2.5 as float) as integer) c4,
+ cast(cast(3.5 as float) as integer) c5, 
+ cast(cast(4.5 as float) as integer) c6
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>c1</th>
+<th>c2</th>
+<th>c3</th>
+<th>c4</th>
+<th>c5</th>
+<th>c6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>2</td>
+<td>2</td>
+<td>4</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p>从这组数据中发现一个规律，当小数尾数为5进行舍入时，前一位总是偶数，这自然联想到了另一种四舍五入算法，即银行家算法，对应ORACLE12C新增的一个函数round_ties_to_even。</p>
+<p>openGauss数据库是开源的，我们完全可以通过查看源码来验证我们的猜想。</p>
+<h2 id="二-分析">二、分析</h2>
+<p>接下来开始就是说明如何通过这种问题来找到对应的源码逻辑。</p>
+<p>首先要知道一些openGauss的元数据基础知识。<br/>
+openGauss的元数据基本继承postgresql，所以这个知识可以复用。<br/>
+在postgresql中，几乎所有的类型、函数、操作符、规则等，都可以在元数据表中查到。对于类型转换，即cast，也有一张对应的表，即pg_cast,下面这个SQL就是查询从float8到int8是否存在直接的类型转换规则</p>
+<pre><code class="language-sql">select * from pg_cast h 
+where h.castsource ='float8'::regtype 
+and h.casttarget ='int8'::regtype;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>castsource</th>
+<th>casttarget</th>
+<th>castfunc</th>
+<th>castcontext</th>
+<th>castmethod</th>
+<th>castowner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>701</td>
+<td>20</td>
+<td>483</td>
+<td>i</td>
+<td>f</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>查到了是有的，这里castmethod为f，表示这个转换是使用某个函数进行转换的，一般是二进制存储结构有变更才会需要使用到函数。然后castfunc即为这个转换函数的oid,接下来我们去查这是用的哪个函数</p>
+<pre><code class="language-sql">select proname,prosrc from pg_proc where oid=483;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>proname</th>
+<th>prosrc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>int8</td>
+<td>dtoi8</td>
+</tr>
+</tbody>
+</table>
+<p>可以看到使用的是int8函数，然后int8的函数源码是dtoi8,此时我们就可以去openGauss源码中搜索dtoi8了，<br/>
+找到了<br/>
+.\openGauss-server\src\common\backend\utils\adt\int8.cpp</p>
+<pre><code class="language-c">/* dtoi8()
+ * Convert float8 to 8-byte integer.
+ */
+Datum dtoi8(PG_FUNCTION_ARGS)
+{
+    float8 num = PG_GETARG_FLOAT8(0);
+
+    /*
+     * Get rid of any fractional part in the input.  This is so we don't fail
+     * on just-out-of-range values that would round into range.  Note
+     * assumption that rint() will pass through a NaN or Inf unchanged.
+     */
+    num = rint(num);
+
+    /*
+     * Range check.  We must be careful here that the boundary values are
+     * expressed exactly in the float domain.  We expect PG_INT64_MIN  to be an
+     * exact power of 2, so it will be represented exactly; but PG_INT64_MAX
+     * isn't, and might get rounded off, so avoid using it.
+     */
+    if (num &lt; (float8)PG_INT64_MIN || num &gt;= -((float8)PG_INT64_MIN) || isnan(num)) {
+        if (fcinfo-&gt;can_ignore &amp;&amp; !isnan(num)) {
+            ereport(WARNING, (errmsg("bigint out of range")));
+            PG_RETURN_INT64(num &lt; (float8)PG_INT64_MIN ? LONG_MIN : LONG_MAX);
+        }
+        ereport(ERROR, (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE), errmsg("bigint out of range")));
+    }
+
+    PG_RETURN_INT64((int64)num);
+}
+</code></pre>
+<p>这段代码注释加警告比实际逻辑还多，但真正要看的只有 <code>num = rint(num);</code>这一行，这里又引用到了rint函数，点进去</p>
+<pre><code class="language-c">double rint(double x)
+{
+    return (x &gt;= 0.0) ? floor(x + 0.5) : ceil(x - 0.5);
+}
+</code></pre>
+<p>如果不是开发人员，对这种计算看不懂，可以借助AI</p>
+<blockquote>
+<p>这段代码定义了一个名为 rint 的函数，用于将一个双精度浮点数 x 四舍五入到最接近的整数。具体来说：<br/>
+如果 x 大于或等于 0.0，则返回 floor(x + 0.5)，即将 x 加上 0.5 后向下取整。<br/>
+如果 x 小于 0.0，则返回 ceil(x - 0.5)，即将 x 减去 0.5 后向上取整。<br/>
+这样可以实现对正数和负数的四舍五入。</p>
+</blockquote>
+<p>这里是按照常规的算法进行四舍五入的，但结果竟然和银行家算法一样。</p>
+<p>看到这里我一下犯了迷糊，理所当然的认为一定会走到这个rint，但后来根据openGauss社区专家的指点，实际上这里调用的是 <code>std::rint(float)</code>，c++内置的一个标准函数，而这个函数就是使用的银行家算法！</p>
+<p><img alt="85bb206f2d90efee4de5638cff15d12.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/85bb206f2d90efee4de5638cff15d12.png" srcset="/upload/85bb206f2d90efee4de5638cff15d12.png?width=1200 1200w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=400 400w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=1600 1600w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=800 800w"/></p>
+<h2 id="三-扩展">三、扩展</h2>
+<p>既然已经定位到了原理，于是我们回到ORACLE看看，不精确的浮点类型在ORACLE的表现是怎样的？其实ORACLE也有这种浮点类型，叫binary_float和binary_double，这两个类型不能在sql中使用，只能在plsql中使用，我们写个简单的例子在ORACLE进行测试</p>
+<pre><code class="language-sql">declare
+x binary_integer;
+begin
+select  cast(0.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(0.6 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(1.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(2.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(3.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+end;
+</code></pre>
+<blockquote>
+<p>0<br/>
+0<br/>
+1<br/>
+2<br/>
+3</p>
+</blockquote>
+<p>竟然出现了第三种结果，即全部都是按trunc</p>
+<p>再把binary_integer改成integer，再在ORACLE中测试</p>
+<pre><code class="language-sql">declare
+x integer;
+begin
+select  cast(0.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(0.6 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(1.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(2.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+select  cast(3.5 as binary_double) into x from dual;
+dbms_output.put_line(x);
+end;
+</code></pre>
+<blockquote>
+<p>.5<br/>
+.59999999999999998<br/>
+1.5<br/>
+2.5<br/>
+3.5</p>
+</blockquote>
+<p>出现了第四种结果！ORACLE的integer竟然能显示出小数！</p>
+<p>我们理解不同的数据类型可以有不同的表现行为，也知道oracle中的integer其实是按number类型进行的实现，但是这明晃晃的声明了integer类型竟然还能打印出小数，这对于应用开发者来说如何能够接受？<br/>
+当然，我们可以认为这个用例的用法是不合理的，正常情况下小数转换成整数应该使用函数来处理，而不是通过类型转换。也可能之前从来没有人这么用过，所以ORACLE一直没发现存在这个问题。</p>
+<p>于是回到最开始的问题上，openGauss/postgresql和ORACLE表现不一致，究竟谁是对的，或许我们永远都无法找到准确答案，这只能算是一种行为差异，并且都可以解释得通。但在看到ORACLE换个方式出现了第三种结果，甚至还出现了整数类型显示小数这种奇葩BUG时，ORACLE的权威性陡然下降。</p>
+<p>为了避免这种问题，建议无论在用什么数据库时，对于类型转换，还是慎重一些为好</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

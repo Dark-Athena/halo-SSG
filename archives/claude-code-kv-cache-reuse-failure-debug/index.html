@@ -149,13 +149,228 @@
         
         <span>2026-05-05</span>
         
-        <span>58 阅读</span>
+        <span>60 阅读</span>
         
         <a href="/categories/ai">AI</a>
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="claude-code--本地-llm-的-kv-cache-复用失效问题排查全记录">Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录</h1>
+<blockquote>
+<p><strong>环境信息</strong></p>
+<ul>
+<li><strong>Claude Code</strong>: v2.1.114 (macos)</li>
+<li><strong>LLM 后端</strong>: LM Studio (v0.4.12) / llama.cpp (8853)</li>
+<li><strong>模型</strong>: Qwen3-Coder-Next-Q4_K_M.gguf（Hybrid 注意力架构，含 SWA 层）</li>
+<li><strong>硬件</strong>: AMD AI MAX 395（128GB vRAM ）</li>
+<li><strong>操作系统</strong>: Windows 11</li>
+<li><strong>上下文窗口</strong>: 262144 tokens</li>
+</ul>
+</blockquote>
+<hr/>
+<h2 id="一问题现象">一、问题现象</h2>
+<p>在使用 Claude Code 连接本地 LLM 后端进行日常开发时，发现每次对话轮次都存在严重的性能问题：</p>
+<p><strong>正常预期</strong>：Claude Code 采用增量对话模式，每一轮仅向 prompt 末尾追加几十到几百个 token。LLM 服务端应复用上一轮已计算的 KV Cache，仅对新增 token 进行 prompt evaluation，耗时应在亚秒级。</p>
+<p><strong>实际表现</strong>：每一次请求都触发了<strong>完整的 prompt 重新处理</strong>，约 24K tokens 的 prompt evaluation 耗时长达 <strong>55 秒</strong>，而新增 token 仅 30-50 个。这意味着 KV Cache 完全未被复用，每轮对话都在白白浪费算力。</p>
+<p>llama.cpp 服务端日志中的关键报错：</p>
+<pre><code>slot 0 :KV cache reuse failed. Forcing full prompt re-processing.
+n_past = 21, n_checkpoint = 8191
+reason: no matching checkpoint found. common_prefix = 0
+</code></pre>
+<p>这表明尽管前后请求的 prompt 有极高的前缀重叠（理论上 &gt;99%），但缓存复用机制完全失效。</p>
+<hr/>
+<h2 id="二初步分析理解-kv-cache-与-prompt-cache-复用机制">二、初步分析：理解 KV Cache 与 Prompt Cache 复用机制</h2>
+<p>在深入排查之前，先梳理 LLM 推理中的关键概念：</p>
+<h3 id="21-kv-cache">2.1 KV Cache</h3>
+<p>Transformer 模型在推理时，每一层的 Key 和 Value 矩阵可以被缓存。当新请求的 prompt 前缀与之前请求相同时，已缓存的 KV 状态可以直接复用，无需重新计算。</p>
+<h3 id="22-lcp-longest-common-prefix-相似度匹配">2.2 LCP (Longest Common Prefix) 相似度匹配</h3>
+<p>llama.cpp 使用 LCP 相似度算法来决定是否复用某个 slot 的缓存：</p>
+<ul>
+<li><strong>sim</strong>：两个 prompt 的最长公共前缀占比（0~1），阈值默认为 <strong>0.1</strong></li>
+<li><strong>f_keep</strong>：可保留的缓存 fraction（考虑 checkpoint 位置）</li>
+<li>当 <code>sim &gt;= 0.1</code> 且 <code>f_keep &gt; 0</code> 时，才会尝试复用缓存</li>
+</ul>
+<h3 id="23-context-checkpoint">2.3 Context Checkpoint</h3>
+<p>KV Cache 在特定 token 位置建立检查点（snapshot），默认每 <strong>8192 tokens</strong> 一个。复用时只能从最近的检查点位置开始，检查点之前的部分可以完整复用，之后的需要重新计算。</p>
+<h3 id="24-slot-管理">2.4 Slot 管理</h3>
+<p>llama.cpp 默认分配多个 slot（通常 4 个）以支持并行请求。Slot 选择策略有：</p>
+<ul>
+<li><strong>LRU (Least Recently Used)</strong>：选择最久未使用的 slot</li>
+<li><strong>LCP Similarity</strong>：选择与当前请求前缀最相似的 slot</li>
+</ul>
+<hr/>
+<h2 id="三故障诊断缩小排查范围">三、故障诊断：缩小排查范围</h2>
+<h3 id="31-初步使用的模型qwen36-35b-a3b">3.1 初步使用的模型——Qwen3.6-35B-A3B</h3>
+<p>排查初期，我们首先使用的模型是 <strong>Qwen3.6-35B-A3B</strong>（MoE 架构）。LM Studio 日志中出现了一条令人困惑的信息：</p>
+<pre><code>cache reuse is not supported - ignoring n_cache_reuse = 256
+</code></pre>
+<p>初看这条日志，很容易得出"该模型不支持 KV Cache 复用"的结论。但<strong>后续验证</strong>表明<strong>这是一个误导</strong>。</p>
+<p><strong>实际验证</strong>：在对话达到 91 条消息（~50K+ tokens）时，prompt processing 从 0% 到 100% 仍在 <strong>&lt;1 秒</strong>内完成，完全不可能是全量重处理。日志也确认 LCP slot 选择正常命中（<code>sim_best = 0.999, f_keep = 1.000</code>），连续多轮请求都是如此。</p>
+<blockquote>
+<p><strong><code>cache reuse is not supported</code> 的真实含义</strong>：这条日志指的是不支持 llama.cpp 的 <strong><code>n_cache_reuse</code></strong> 批量化 KV 复用机制（一种更激进的跨批次缓存复用优化），而非不支持 KV Cache 本身。LM Studio 内部的 <strong>checkpoint-based KV state 恢复</strong>仍然生效——只要 LCP 选中同一个 slot 且 <code>f_keep = 1.000</code>，KV 状态就会从上一个 checkpoint 位置直接恢复，跳过已处理部分。</p>
+</blockquote>
+<p><strong>教训</strong>：日志中 <code>cache reuse is not supported</code> 不等于"完全不能用 cache"。需要结合实际 prompt processing 耗时和 <code>sim_best</code>/<code>f_keep</code> 指标综合判断。</p>
+<h3 id="32-第二步观察-llamacpp-日志">3.2 第二步：观察 llama.cpp 日志</h3>
+<p>切换到 llama.cpp 后端运行，日志显示：</p>
+<pre><code>slot 0: evaluating [  0, 8191) ... done.
+slot 0: checkpoint at 8191
+slot 0: evaluating [  8191, 16383) ... done.
+slot 0: checkpoint at 16383
+slot 0: evaluating [ 16383, 24510) ... done.
+slot 0: checkpoint at 24510
+
+-- 下一轮请求 --
+slot 0: KV cache reuse failed. n_past = 21
+</code></pre>
+<p>关键发现：</p>
+<ol>
+<li>检查点分别在 8191、16383、24510 位置，但 <code>n_past</code> 仅为 <strong>21</strong>（这意味着只有 21 个 token 被认为可复用）</li>
+<li><code>common_prefix = 0</code>，说明前缀匹配完全失败</li>
+<li>日志中提到 "SWA/hybrid memory" 作为原因</li>
+</ol>
+<h3 id="33-第三步怀疑-claude-code-的-attribution-header">3.3 第三步：怀疑 Claude Code 的 Attribution Header</h3>
+<p>Claude Code ≥2.1.36 版本会在每次请求的 prompt 前端注入一个 <strong>Attribution Header</strong>，包含时间戳等信息：</p>
+<pre><code>[Antropic] Claude Code v2.1.114 (2026-04-20T14:30:00+08:00)
+</code></pre>
+<p>由于时间戳每秒变化，这会导致 prompt 的<strong>最前面几个 token 就不同</strong>，直接破坏前缀匹配。</p>
+<h3 id="34-第四步资料检索发现社区已知问题">3.4 第四步：资料检索——发现社区已知问题</h3>
+<p>通过 Web 搜索，找到了关键参考：</p>
+<ul>
+<li><strong>syoyo（zenn.dev）的文章</strong>：<a href="https://zenn.dev/syoyo/articles/188508eb6ab389">Claude Codeにおけるllama.cppのQwen3.5 KVキャッシュ無効化問題と対策</a> — 详细描述了 Claude Code + llama.cpp 的 KV Cache 失效问题，并给出了 <code>--checkpoint-every-n-tokens</code> 参数的解决方案</li>
+<li><strong>llama.cpp 官方 Discussion</strong>：<a href="https://github.com/ggml-org/llama.cpp/discussions/13606">Tutorial: KV cache reuse with llama-server</a> — llama.cpp KV Cache 复用机制官方教程</li>
+<li><strong>Unsloth 中文指南</strong>：<a href="https://unsloth.ai/docs/zh/ji-chu/claude-code">如何使用 Claude Code 运行本地 LLM</a> — 首次大规模披露了 Claude Code Attribution Header 导致 KV Cache 失效的问题</li>
+<li><strong>Hacker News 讨论</strong>：<a href="https://news.ycombinator.com/item?id=47327870">Claude Code makes local LLMs 90% slower</a> — 社区广泛讨论，确认了 <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code> 的修复方案</li>
+<li><strong>Claude Code Tools 集成文档</strong>：<a href="https://pchalasani.github.io/claude-code-tools/integrations/local-llms/">Local LLMs | claude-code-tools</a> — 详细解释了 Attribution Header 的机制和影响</li>
+</ul>
+<p>syoyo 的文章提到使用 <code>--checkpoint-every-nb 3</code> 参数（注意：这个参数名后来被证明是过时的）。</p>
+<hr/>
+<h2 id="四测试验证逐步定位有效参数">四、测试验证：逐步定位有效参数</h2>
+<h3 id="41-第一次尝试--checkpoint-every-nb-3失败">4.1 第一次尝试：<code>--checkpoint-every-nb 3</code>（失败）</h3>
+<pre><code class="language-powershell">.\llama-server.exe `
+  -m "Qwen3-Coder-Next-Q4_K_M.gguf" `
+  --port 1234 --host 0.0.0.0 `
+  --no-context-shift --swa-full `
+  -c 262144 -ngl 99 `
+  --parallel 1 `
+  --checkpoint-every-nb 3
+</code></pre>
+<p>结果：<strong>报错</strong> <code>error: invalid argument: --checkpoint-every-nb</code></p>
+<blockquote>
+<p><strong>教训</strong>：社区文章中的参数名可能已过时。通过 <code>llama-server.exe --help | findstr checkpoint</code> 查到正确参数名为 <code>--checkpoint-every-n-tokens</code>。</p>
+</blockquote>
+<h3 id="42-第二次尝试完整参数组合成功">4.2 第二次尝试：完整参数组合（成功）</h3>
+<pre><code class="language-powershell">.\llama-server.exe `
+  -m "Qwen3-Coder-Next-Q4_K_M.gguf" `
+  --port 1234 --host 0.0.0.0 `
+  --no-context-shift --swa-full `
+  -c 262144 -ngl 99 `
+  --parallel 1 `
+  --checkpoint-every-n-tokens 3
+</code></pre>
+<p>结果：<strong>Cache 复用成功！</strong></p>
+<pre><code>slot 0: sim_best = 1.000, f_keep = 1.000
+slot 0: n_past = 23881, new tokens = 124
+prompt eval: 786ms  (之前: 55s)
+</code></pre>
+<p>Prompt evaluation 从 55 秒骤降至 786 毫秒，验证了 KV Cache 正常工作。</p>
+<hr/>
+<h2 id="五参数必要性分析哪些是真正需要的">五、参数必要性分析：哪些是真正需要的？</h2>
+<p>问题解决后，回头审视——我们调整了很多东西（切换后端、改并发度、加参数），<strong>真的都需要吗？</strong></p>
+<h3 id="51-逐个分析">5.1 逐个分析</h3>
+<table><thead><tr><th>参数</th><th>作用</th><th>对 Cache 复用的贡献</th></tr></thead><tbody><tr><td><code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code></td><td>禁用 Claude Code 注入的时间戳 header</td><td>✅ <strong>唯一关键配置</strong>。消除 prompt 前缀变化，解决根因</td></tr><tr><td><code>--parallel 1</code></td><td>单 slot 运行</td><td>❌ 不需要。llama.cpp 新版本已内置 LCP 相似度 slot 选择，能自动路由到缓存命中的 slot</td></tr><tr><td><code>--checkpoint-every-n-tokens 3</code></td><td>缩小检查点间隔至 3 tokens</td><td>❌ 不需要。默认 8192 间隔配合 LCP 匹配已足够（<code>f_keep = 1.000</code>）</td></tr><tr><td><code>--no-context-shift</code></td><td>禁止上下文滚动</td><td>❌ 无关。25K/262K 远未触达上下文限制</td></tr><tr><td><code>--swa-full</code></td><td>SWA 层使用完整上下文</td><td>❌ 影响模型质量，不影响缓存机制</td></tr><tr><td>从 LM Studio 切换到 llama.cpp</td><td>调试需要</td><td>❌ 两者都仅需 <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code></td></tr></tbody></table>
+<h3 id="52-回到-lm-studio-的验证">5.2 回到 LM Studio 的验证</h3>
+<p>切回 LM Studio 后端，开启 <strong>4 个并行 slot</strong>，<strong>仅配置</strong> <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>。</p>
+<pre><code>sim_best = 0.997, f_keep = 1.000
+prompt eval: 786ms, 124 tokens (之前: 53s, 23881 tokens)
+</code></pre>
+<p><strong>结论：Cache 复用完美工作。</strong></p>
+<h3 id="53-回到-llamacpp-的验证">5.3 回到 llama.cpp 的验证</h3>
+<p>切回 llama.cpp 后端，去掉所有额外启动参数，使用最简配置，<strong>仅配置</strong> <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>：</p>
+<pre><code class="language-powershell">.\llama-server.exe `
+  -m "Qwen3-Coder-Next-Q4_K_M.gguf" `
+  --port 1234 --host 0.0.0.0 `
+  -c 262144 -ngl 99
+</code></pre>
+<pre><code># 第一轮（冷启动）
+prompt eval time = 55531 ms / 24479 tokens    ← 全量处理
+
+# 第二轮起
+task 44:  prompt eval =  994 ms /  34 tokens  ← sim_best=0.999, f_keep=1.000
+task 70:  prompt eval =  278 ms /  25 tokens  ← sim_best=0.999, f_keep=1.000
+task 117: prompt eval =  456 ms /  59 tokens  ← sim_best=0.998, f_keep=1.000
+task 176: prompt eval =  466 ms /  59 tokens  ← sim_best=0.998, f_keep=1.000
+</code></pre>
+<p><strong>结论：同样完美工作！</strong> llama.cpp 新版本已内置 LCP 相似度 slot 选择和 prompt cache 机制（启动时可见 <code>prompt cache is enabled</code>），无需手动 <code>--parallel 1</code> 或调小 checkpoint 间隔。</p>
+<h3 id="54-最终确认">5.4 最终确认</h3>
+<p><strong>无论 LM Studio 还是 llama.cpp，无论 4 并行 slot 还是默认配置，KV Cache 复用的唯一必要条件就是 <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>。</strong></p>
+<hr/>
+<h2 id="六最终结论">六、最终结论</h2>
+<h3 id="61-根因">6.1 根因</h3>
+<p><strong>Claude Code v2.1.36+ 默认在每次请求中注入包含时间戳的 Attribution Header，导致 prompt 前缀逐次变化，LCP 相似度降至 0.086（远低于 0.1 阈值），KV Cache 复用完全失效。</strong></p>
+<h3 id="62-修复方案">6.2 修复方案</h3>
+<p><strong>仅需一个配置</strong>：(macos)在 <code>~/.zshrc</code> 中添加：</p>
+<pre><code class="language-json">export CLAUDE_CODE_ATTRIBUTION_HEADER=0
+</code></pre>
+<h3 id="63-性能提升">6.3 性能提升</h3>
+<table><thead><tr><th>指标</th><th>修复前</th><th>修复后</th><th>提升</th></tr></thead><tbody><tr><td>Prompt Eval 时间</td><td>~55s (23881 tokens)</td><td>~786ms (124 tokens)</td><td><strong>70x</strong></td></tr><tr><td>每轮对话响应延迟</td><td>&gt;60s</td><td>&lt;5s</td><td><strong>12x+</strong></td></tr><tr><td>GPU 利用率</td><td>低效（重复计算）</td><td>高效（增量计算）</td><td>—</td></tr></tbody></table>
+<hr/>
+<h2 id="七踩坑经验总结">七、踩坑经验总结</h2>
+<ol>
+<li><strong><code>cache reuse is not supported</code> 不等于完全不能用 cache</strong>：Qwen3.6-35B-A3B 日志中输出 <code>cache reuse is not supported - ignoring n_cache_reuse = 256</code>，但实际上 checkpoint-based KV state 恢复仍然生效，配置 <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code> 后 prompt processing &lt;1s 完成。这条日志仅表示不支持 <code>n_cache_reuse</code> 批量化优化，需结合实际耗时和 <code>sim_best</code>/<code>f_keep</code> 指标综合判断</li>
+<li><strong>社区文章的参数名可能过时</strong>：<code>--checkpoint-every-nb</code> → <code>--checkpoint-every-n-tokens</code>，永远以 <code>--help</code> 输出为准。社区方案中建议的 <code>--parallel 1</code> 和 <code>--checkpoint-every-n-tokens 3</code> 在 llama.cpp 新版本中也已不再必要</li>
+<li><strong>不要过度工程化</strong>：调试时一次性加了 5 个参数，最后发现只需 1 个环境变量。解决问题后必须做减法验证每个参数的必要性</li>
+<li><strong>llama.cpp 新版本已内置 LCP slot 选择和 prompt cache</strong>：启动时可见 <code>prompt cache is enabled</code>，slot 选择日志显示 <code>selected slot by LCP similarity</code>，无需手动 <code>--parallel 1</code></li>
+<li><strong>Claude Code 的 Attribution Header 是个隐蔽的坑</strong>：它只改变了 prompt 最前面几个 token，但足以让整个缓存机制瘫痪（sim 从 0.999 降至 0.086）</li>
+</ol>
+<hr/>
+<h2 id="附录关键日志对比">附录：关键日志对比</h2>
+<h3 id="修复前cache-失效">修复前（Cache 失效）</h3>
+<pre><code>slot 0: KV cache reuse failed. Forcing full prompt re-processing.
+n_past = 21, n_checkpoint = 8191
+reason: no matching checkpoint found. common_prefix = 0
+slot 0: evaluating [  0,  8191) ... done.     ← 重新处理全部
+slot 0: evaluating [  8191,  16383) ... done.
+slot 0: evaluating [ 16383,  24510) ... done.
+prompt eval time: 55.123s
+</code></pre>
+<h3 id="修复后---llamacpp最简配置cache-命中">修复后 - llama.cpp（最简配置，Cache 命中）</h3>
+<pre><code># 冷启动
+prompt eval time = 55531 ms / 24479 tokens
+
+# 后续轮次
+slot 1: selected slot by LCP similarity, sim_best = 0.999, f_keep = 1.000
+slot 1: n_tokens = 24564, new_tokens = 25
+prompt eval time = 278 ms / 25 tokens      ← 仅处理新增部分
+</code></pre>
+<h3 id="修复后---lm-studiocache-命中">修复后 - LM Studio（Cache 命中）</h3>
+<pre><code>slot 3: sim_best = 0.997, f_keep = 1.000
+prompt eval: 786ms, 124 tokens (之前: 53s, 23881 tokens)
+</code></pre>
+<hr/>
+<p><em>本文基于 2026-04-20 的实际调试过程整理，Claude Code v2.1.114，模型 Qwen3-Coder-Next-Q4_K_M.gguf。</em></p>
+<h2 id="笔者补充">笔者补充：</h2>
+<p>本文是真实的AI对故障进行排查诊断的记录，且文章完全由AI自行整理完成。<br/>
+笔者后续查了相关资料，claude code接非官方api，最好配上这三个环境变量</p>
+<pre><code class="language-bash">export CLAUDE_CODE_ATTRIBUTION_HEADER=0 #关闭计费头
+export CLAUDE_CODE_ENABLE_TELEMETRY=0 #关闭使用情况统计
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 #停止后台ping
+</code></pre>
+<p>如果未生效，则在<code>.claude/settings.json</code>里配置</p>
+<pre><code class="language-json">{...
+
+"env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER" : "0"
+},
+...}
+</code></pre>
+<p>这个问题如果一开始AI就去网上搜索去找相关资料，而不是质疑环境问题或者模型问题，很快就能定位根因。AI折腾半天，自以为是的各种改，而且中间得到了很多错误结论，是靠笔者通过实际测试来确认中间很多修改都是无用功，浪费了很多时间。好在还是有所收获，对kv cache的认知更清楚了一点。</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">

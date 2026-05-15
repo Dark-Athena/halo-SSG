@@ -155,7 +155,30 @@
         
     </div>
     <div class="post-body">
-        
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p><a href="https://gitee.com/opengauss/community/issues/I4OFH7?from=project-issue">https://gitee.com/opengauss/community/issues/I4OFH7?from=project-issue</a><br/>
+【需求背景】<br/>
+之前在oracle上写代码时，经常使用plsql developer，但使用openGauss时发现有一些设计不符合操作直觉，所以以下几个需求以plsql developer中的类似功能点对标，提出对data studio的改进建议<br/>
+【需求描述】</p>
+<p>输入函数名称后，敲一个左括号，能像PLSQL DEVELOPER一样显示对应的参数清单，而不是目前显示的是所有关键字清单<br/>
+<img alt="PLSQL DEVELOPER" src="https://img-blog.csdnimg.cn/65d360f45a254c5fad4371e8191be3f3.png"/></p>
+<p><img alt="输入图片说明" src="https://img-blog.csdnimg.cn/91bd3457e80841e1a794b81044c2a084.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_15,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p>在1的基础上，选择参数清单中的“ALL”，回车，自动填充所有的参数<br/>
+<img alt="输入图片说明" src="https://img-blog.csdnimg.cn/a673448a8cf34d06b6a8804c45d69dc4.png"/></p>
+<p><img alt="输入图片说明" src="https://img-blog.csdnimg.cn/4b28270aac8848a1b43c9c46bb1a7279.png"/></p>
+<p>3.在表名后面输入左括号,能多显示一个all的选项，方便按字段顺序自动填充所有的字段名称，因为有时候表字段太多，一个一个字段添加操作太繁琐<br/>
+<img alt="输入图片说明" src="https://img-blog.csdnimg.cn/67c2192645eb4c11abed6e136dfa4add.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_15,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p><img alt="输入图片说明" src="https://img-blog.csdnimg.cn/a63c30b65a2c4ae1ac3b4e9dd4fad81a.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_11,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p>希望在终端界面里，选择字符串中的任意对象名称，鼠标右键能弹出对该对象的快捷操作，比如是表的话，右键菜单里会有查询表数据；如果是函数或者过程时，右键菜单里会有测试；等等；并且所有类型的对象应该都有查看对象属性以及删除的快捷操作<br/>
+<img alt="输入图片说明" src="https://img-blog.csdnimg.cn/461239e328a749119d77b03e4292f10b.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_9,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p><img alt="输入图片说明" src="https://img-blog.csdnimg.cn/a25014c21fbf4eeabf467a31994628ca.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_10,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p><img alt="输入图片说明" src="https://img-blog.csdnimg.cn/3919b233da934a7a8f8bcb7183aa6206.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBARGFya0F0aGVuYQ==,size_12,color_FFFFFF,t_70,g_se,x_16"/></p>
+<p>【其他说明】<br/>
+短时间内暂时只发现了这几个明显影响使用效率的问题，希望能站在开发者的角度以plsql developer的各个功能点及细节对标，完善data studio</p>
+</div>
+</article>
     </div>
     
     <div style="margin-top: 2em;">
