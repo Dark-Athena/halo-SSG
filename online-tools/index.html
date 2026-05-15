@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>常用在线工具网址聚合 - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<article>
+    <h1>常用在线工具网址聚合</h1>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="singlePage-inner">
+
+<h2 id="--本页面收录本人常用的在线工具">-&lt; 本页面收录本人常用的在线工具&gt;</h2>
+<table><thead><tr><th><strong>分类</strong></th><th><strong>工具名称</strong></th><th><strong>链接</strong></th><th><strong>说明</strong></th></tr></thead><tbody><tr><td><strong>开发工具</strong></td><td>正则测试</td><td><a href="https://regex101.com/">https://regex101.com/</a></td><td>支持多种开发语言的正则风格，支持查找、替换等多种模式，能解释正则表达式中每个字符的含义，支持导出对应开发语言的代码，支持分享测试用例</td></tr><tr><td></td><td>字符串差异比较</td><td><a href="https://www.diffchecker.com/text-compare/">https://www.diffchecker.com/text-compare/</a></td><td></td></tr><tr><td></td><td>中文字符集编码转换</td><td><a href="https://www.qqxiuzi.cn/bianma/zifuji.php">https://www.qqxiuzi.cn/bianma/zifuji.php</a></td><td>支持编码和字符的转换</td></tr><tr><td></td><td>多种数据库SQL测试</td><td><a href="https://dbfiddle.uk/">https://dbfiddle.uk/</a></td><td>支持多种版本的ORACLE/POSTGRESQL/MYSQL/SQLSERVER等数据库的在线SQL执行，可以保存链接分享</td></tr><tr><td></td><td>PLSQL解密</td><td><a href="https://www.modb.pro/unwrap">https://www.modb.pro/unwrap</a></td><td></td></tr><tr><td></td><td>JSON解析格式化工具</td><td><a href="https://tool.chinaz.com/Tools/jsonformat.aspx">https://tool.chinaz.com/Tools/jsonformat.aspx</a></td><td></td></tr><tr><td></td><td>语法代码在线渲染铁路图</td><td><a href="https://www.bottlecaps.de/rr/ui">https://www.bottlecaps.de/rr/ui</a></td><td></td></tr><tr><td><strong>站长工具</strong></td><td>ip归属地查询</td><td><a href="https://ip.hao86.com/">https://ip.hao86.com/</a></td><td></td></tr><tr><td></td><td>ip黑名单查询</td><td><a href="https://whatismyipaddress.com/blacklist-check">https://whatismyipaddress.com/blacklist-check</a></td><td></td></tr><tr><td></td><td>PNG转SVG</td><td><a href="https://www.freeconvert.com/zh/png-to-svg">https://www.freeconvert.com/zh/png-to-svg</a></td><td>能转换PNG图片到可缩放的矢量图形</td></tr><tr><td><strong>文章工具</strong></td><td>markdown编辑器</td><td><a href="https://stackedit.io/app#">https://stackedit.io/app#</a></td><td></td></tr><tr><td></td><td>markdown转微信公众号文章</td><td><a href="https://md.openwrite.cn/">https://md.openwrite.cn/</a></td><td></td></tr><tr><td><strong>其他工具</strong></td><td>大文件分享</td><td><a href="https://www.transfernow.net">https://www.transfernow.net</a>/</td><td></td></tr><tr><td></td><td>网速测试</td><td><a href="https://test.ustc.edu.cn/">https://test.ustc.edu.cn/</a></td><td>中科大提供</td></tr><tr><td></td><td>github加速</td><td><a href="https://github.akams.cn/">https://github.akams.cn/</a></td><td>支持GitHub （Git Clone、Releases、Archive、Gist、Raw） 文件加速访问</td></tr><tr><td></td><td>毫秒docker镜像加速</td><td><a href="https://1ms.run/">https://1ms.run/</a></td><td>可以配置docker.1ms.run到registry-mirrors</td></tr><tr><td></td><td>渡渡鸟docker镜像</td><td><a href="https://docker.aityp.com/">https://docker.aityp.com/</a></td><td>查找国内源地址</td></tr><tr><td></td><td>PDF转扫描件</td><td><a href="https://lookscanned.io/zh/">https://lookscanned.io/zh/</a></td><td>对待打印签字扫描且不支持电子签章的恶心要求。这是个纯前端的网页，没有后端服务，打开后断网也能用。担心资料泄露的可以自行下载源码部署到离线环境<a href="https://github.com/lookscanned/lookscanned.io">https://github.com/lookscanned/lookscanned.io</a></td></tr><tr><td></td><td>PDF发票合并器</td><td><a href="https://mergeinvoice-pdf.darkathena.top/">https://mergeinvoice-pdf.darkathena.top/</a></td><td>合并多张PDF发票为一页pdf，节省打印纸张。这个是纯前端的网页，文件不会上传到服务器，源码在此<a href="https://gitee.com/darkathena/MergeInvoice-PDF">https://gitee.com/darkathena/MergeInvoice-PDF</a></td></tr></tbody></table>
+</div>
+</article>
+    </div>
+</article>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

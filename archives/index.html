@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章归档 - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<div class="page-header">
+    <h1>文章归档</h1>
+    <p>共 235 篇文章</p>
+</div>
+
+<h2>2026 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">05-14</span>
+        
+        <a class="title" href="/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB">【GaussDB】讨论下for update游标加锁的设计</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-14</span>
+        
+        <a class="title" href="/archives/AI-Coding-Plans-Subscription-Models-Market-Landscape-20260512">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-06</span>
+        
+        <a class="title" href="/archives/copilot-cli-local">告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-06</span>
+        
+        <a class="title" href="/archives/ssk-a-command-ssh-connect-without-password">告别重复输入密码：SSK — 一行命令搞定 SSH 免密登录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-06</span>
+        
+        <a class="title" href="/archives/claude-desktop-app-connect-local-llm">Claude Desktop App 连接本地 LLM 完整配置指南</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-05</span>
+        
+        <a class="title" href="/archives/claude-code-local-model-cc-connect-feishu-guide">将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-05</span>
+        
+        <a class="title" href="/archives/claude-code-kv-cache-reuse-failure-debug">Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-05</span>
+        
+        <a class="title" href="/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation">【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-05</span>
+        
+        <a class="title" href="/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-04</span>
+        
+        <a class="title" href="/archives/binomial-option-pricing-7-languages-program-report">美式期权二叉树算法 — 七语言实现与交叉验证报告</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-28</span>
+        
+        <a class="title" href="/archives/halo-for-yashandb">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-28</span>
+        
+        <a class="title" href="/archives/yashandb-r2dbc-driver-dev">【YaShanDB】给YaShanDB开发R2DBC驱动</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-14</span>
+        
+        <a class="title" href="/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery">【ESXI】断电重启后NFS存储无法识别的修复方案</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-08</span>
+        
+        <a class="title" href="/archives/gaussdb-ide-developer-tool-test">GaussDB图形化开发工具深度评测</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-08</span>
+        
+        <a class="title" href="/archives/analyze-gaussdb-arm64-python-driver-psycopg3-coredump">【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-02</span>
+        
+        <a class="title" href="/archives/China-s-Relational-Database-Eco-In-Depth-Analysis">万字长文-国产关系型数据库生态深度分析</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-02</span>
+        
+        <a class="title" href="/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7">【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-02</span>
+        
+        <a class="title" href="/archives/install-test-gaussdb-python-driver-based-on-psycopg3">【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-02</span>
+        
+        <a class="title" href="/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7">【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-03</span>
+        
+        <a class="title" href="/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI">【GaussDB】用AI解析UGO中的SQL审核模块的实现</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-02</span>
+        
+        <a class="title" href="/archives/gaussdb-index-skip-scan-wrong-result">【GaussDB】排查创建索引后查询数据行数发生变化的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-30</span>
+        
+        <a class="title" href="/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting">大表数据高效切片：基于主键的无排序Where条件生成算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-30</span>
+        
+        <a class="title" href="/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow">【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-25</span>
+        
+        <a class="title" href="/archives/gaussdb-506-date-type-oracle">【GaussDB】GaussDB506版本A模式中的date类型</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-25</span>
+        
+        <a class="title" href="/archives/gaussdb-about-cve-2025-1094">【GaussDB】合入原生PG的PR来修复CVE-2025-1094漏洞后产生的严重隐患</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-21</span>
+        
+        <a class="title" href="/archives/gaussdb-union-result-order-seek">【GaussDB】UNION结果顺序探索</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-21</span>
+        
+        <a class="title" href="/archives/gaussdb-row_number-rewrite-performance-optimization">【GaussDB】分析函数性能优化案例-row_number改写</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-14</span>
+        
+        <a class="title" href="/archives/gaussdb-analyze-hotpatch">【GaussDB】解析GaussDB热补丁机制</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-10</span>
+        
+        <a class="title" href="/archives/oracle-What-Happens-When-Data-Skew-Occurs-in-Partitioned-Tables">【ORACLE】分区表数据倾斜会发生什么</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-10</span>
+        
+        <a class="title" href="/archives/Errors-on-the-6th-Run-of-the-Same-SQL-or-Stored-Procedure-in-GaussDB">【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-04</span>
+        
+        <a class="title" href="/archives/oracle-drop-global-template-table-error">【ORACLE】分析一个全局临时表drop报错不合理的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-03</span>
+        
+        <a class="title" href="/archives/fix-an-opengauss-bug-with-qoder">【openGauss】用Qoder修复openGauss的一处BUG</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-03</span>
+        
+        <a class="title" href="/archives/gaussdb-nested-function-call-other-user-permission-denied">【GaussDB】跨用户调用已授权的存储过程，可能会在存储过程内SQL的自定义函数表达式里报错没有权限</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-02</span>
+        
+        <a class="title" href="/archives/duckdb-postgresql-diff-unnest">【DuckDB】duckdb和postgresql对于unnest函数的区别</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-02</span>
+        
+        <a class="title" href="/archives/DuckDB-Function-Chaining-via-the-Dot-Operator">【DuckDB】探索函数调用新范式：点操作符链式调用</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-01</span>
+        
+        <a class="title" href="/archives/docker-compose-oracle-adg">【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-01</span>
+        
+        <a class="title" href="/archives/From-sqlplus-to-gsql-Migrating-and-Adapting-the-Shell-Script-for-Executing-SQL-Files">【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造</a>
+    </li>
+    
+</ul>
+
+<h2>2025 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">12-04</span>
+        
+        <a class="title" href="/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug">【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-30</span>
+        
+        <a class="title" href="/archives/oracle-gaussdb-mogdb-union-privilege-query">【Oracle/GaussDB/MogDB】统一权限查询</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-30</span>
+        
+        <a class="title" href="/archives/oracle-hint-confusing"> 【Oracle】两个关于Hint的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-25</span>
+        
+        <a class="title" href="/archives/yashandb-ymp-install-test">【YashanDB】数据迁移工具YMP安装测试</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-25</span>
+        
+        <a class="title" href="/archives/yashandb-oracle-sql-compat-test">【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-24</span>
+        
+        <a class="title" href="/archives/duckdb-marco-some-case">【DuckDB】活用marco以兼容GaussDB的SQL执行</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-24</span>
+        
+        <a class="title" href="/archives/how-sql-audit-tool">测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-27</span>
+        
+        <a class="title" href="/archives/query-gaussdb-with-duckdb">【GaussDB】在duckdb中查询GaussDB的数据</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-27</span>
+        
+        <a class="title" href="/archives/docker-build-kylinv10sp3-image-includ-gaussdb-runtime">【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-26</span>
+        
+        <a class="title" href="/archives/yashandb-upgrade-simple">【YashanDB】单机版数据库升级测试</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-26</span>
+        
+        <a class="title" href="/archives/install-yashandb-unconventionally-and-1cmd-install-online">【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-31</span>
+        
+        <a class="title" href="/archives/A-High-Efficiency-Solution-for-Data-Consistency-Verification-Between-Oracle-and-openGauss-GaussDB">【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-31</span>
+        
+        <a class="title" href="/archives/gaussdb-autonomoustransaction-create-timeout-hang">【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-30</span>
+        
+        <a class="title" href="/archives/GaussDB-Filtering-Out-Specified-User-s-Transactions-in-Logical-Replication">【GaussDB】在逻辑复制中剔除指定用户的事务</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-30</span>
+        
+        <a class="title" href="/archives/kylin-v11-mogdb-install">【MogDB】在刚发布的银河麒麟v11上安装MogDB</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-23</span>
+        
+        <a class="title" href="/archives/deepwiki2docsify">将deepwiki生成的源代码分析文档转换到你自己的静态站点</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-23</span>
+        
+        <a class="title" href="/archives/Connecting-to-GaussDB-M-Compatibility-Mode-via-MySQL-Client">【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-22</span>
+        
+        <a class="title" href="/archives/GaussDB-s-Fully-Encrypted-Technology-Encrypted-Equality-Queries-and-Technical-Overview">【GaussDB】全密态等值查询功能测试及全密态技术介绍</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-22</span>
+        
+        <a class="title" href="/archives/AI-Generated-Technical-Assessment-HTAP-Implementation-Differences-Between-GaussDB-and-openGauss">AI生成技术报告：GaussDB与openGauss的HTAP功能全面对比</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-21</span>
+        
+        <a class="title" href="/archives/1-Minute-Guide-Profiling-CPU-Utilization-of-Active-Sessions-in-openGauss">【openGauss】1分钟掌握：openGauss活动会话CPU占用率获取</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-21</span>
+        
+        <a class="title" href="/archives/Debugging-GaussDB-Locating-Package-Compilation-Errors-with-GDB">【GaussDB】使用gdb定位GaussDB编译package报错</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-20</span>
+        
+        <a class="title" href="/archives/Say-123-wooden-man-to-ORACLE-will-it-run">【ORACLE】对ORACLE说"123木头人",它会run么？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-20</span>
+        
+        <a class="title" href="/archives/plsqlrewrite4gaussdb-1.0.1-beta-release">个人使用AI开发的《PlSqlRewrite4GaussDB(PLSQL自动转换工具)1.0.1 BETA》发布</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-28</span>
+        
+        <a class="title" href="/archives/GaussDB-Memory-Crisis-Diagnosing-Temporarily-Unavailable-Failures">【GaussDB】内存资源告急：深度诊断一起"memory temporarily unavailable"故障</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-26</span>
+        
+        <a class="title" href="/archives/GaussDB-A-Deep-Dive-into-Troubleshooting-Slow-Insert-Select-Operations">【GaussDB】深入剖析Insert Select慢的定位全过程</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-26</span>
+        
+        <a class="title" href="/archives/kvm-over-usb">试试造一个KVM OVER USB</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-26</span>
+        
+        <a class="title" href="/archives/build-a-docker-image-for-gaussdb">【GaussDB】构建一个GaussDB的docker镜像</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-26</span>
+        
+        <a class="title" href="/archives/GaussDB-How-to-Extract-Kernel-Binaries-from-the-Release-Package">【GaussDB】如何从GaussDB发布包中提取出内核二进制文件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-15</span>
+        
+        <a class="title" href="/archives/gaussdb-gaussdb-bug-fen-xiang">【GaussDB】GaussDB506.0-BUG记录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-12</span>
+        
+        <a class="title" href="/archives/mogdb-ctid-split-parallel-query-analyze">【MogDB】一种基于ctid分片并发查询以提升大表查询性能的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-12</span>
+        
+        <a class="title" href="/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters">【openGauss】一个可能被忽视的功能--关于自定义参数的奇技淫巧</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-01</span>
+        
+        <a class="title" href="/archives/gaussdb-Troubleshooting-an-Unkillable-Process-During-Stored-Procedure-Creation">【GaussDB】深度解析：创建存储过程卡死且无法Kill会话的疑难排查</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-26</span>
+        
+        <a class="title" href="/archives/oceanbase-test-install-standalone">【oceanbase】oceanbase企业单机版安装测试</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-20</span>
+        
+        <a class="title" href="/archives/oracle-operator-plus-is-not-allowd-with-or-together">【ORACLE】你以为的真的是你以为的么？--ERROR: Operator "(+)" is not allowed used with "OR" together</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-20</span>
+        
+        <a class="title" href="/archives/mogdb-ubuntu-server-22.04-lts-install">【MogDB】测试 ubuntu server 22.04 LTS 安装mogdb 5.0.11</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-20</span>
+        
+        <a class="title" href="/archives/gaussdb-connect-to-oracle-by-dblink">【GaussDB】使用DBLINK连接到ORACLE</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-21</span>
+        
+        <a class="title" href="/archives/oracle-merge-into-some-bug">【ORACLE】记录一些ORACLE的merge into语句的BUG</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-21</span>
+        
+        <a class="title" href="/archives/oracle-ora38104-merge-into-update-on-refernced-columns">【ORACLE】你以为的真的是你以为的么?--ORA-38104: Columns referenced in the ON Clause cannot be updated</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-04</span>
+        
+        <a class="title" href="/archives/oracle-char-sql-optimization-error-result">【ORACLE】char类型和sql优化器发生的“错误”反应</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-04</span>
+        
+        <a class="title" href="/archives/oracle-19c-bug-24761824">【ORACLE】ORACLE19C在19.13版本前的一个严重BUG-24761824</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-08</span>
+        
+        <a class="title" href="/archives/syntax-traps-of-the-case-when-statement">【ORACLE】case when语句的语法陷阱</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-08</span>
+        
+        <a class="title" href="/archives/oracle-null-0-len-string-diff-to_char-ask-deepseek">【ORACLE】这个''和null不等价的场景，deepseek你怎么看？</a>
+    </li>
+    
+</ul>
+
+<h2>2024 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">12-29</span>
+        
+        <a class="title" href="/archives/antlr4-part3-dev-with-java"> 基于语法树的SQL自动改写工具开发系列（3）-使用JAVA进行简单SQL改写的开发实战</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-28</span>
+        
+        <a class="title" href="/archives/regexp-diff-with-repetition-count-between-opengauss-and-oracle">【openGauss】正则表达式次数符号"{}"在ORACLE和openGauss中的差异</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-22</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-plsql-nested-subprogram">【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-16</span>
+        
+        <a class="title" href="/archives/A-Scenario-of-Syntactic-Ambiguity-Caused-by-Allowing-Keywords-as-Aliases">【ORACLE】一个允许关键字作为别名所引起的语法歧义场景</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-15</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-plsql-global-cache">【MogDB】MogDB5.2.0重磅发布第八篇-支持PLSQL编译全局缓存</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-10</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-plsql-dependencies">【MogDB】MogDB5.2.0重磅发布第七篇-支持PLSQL编译依赖</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-06</span>
+        
+        <a class="title" href="/archives/System-Metadata-Design-of-MogDB-openGauss-PostgreSQL-Starting-from-pg_depend-and-pg_class">从pg_depend和pg_class开始了解MogDB/openGauss/postgresql的系统元数据设计</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-04</span>
+        
+        <a class="title" href="/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-04</span>
+        
+        <a class="title" href="/archives/antlr4-part1-install-offline">基于语法树的SQL自动改写工具开发系列（1）-离线安装语法树解析工具antlr4</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-01</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-enhanced-sql-tolerance">【MogDB】MogDB5.2.0重磅发布第九篇-SQL宽容性提升</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-28</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-object-type">【MogDB】MogDB5.2.0重磅发布第六篇-支持自定义复杂对象类型</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-27</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-oracle-sql-hint">【MogDB】MogDB5.2.0重磅发布第五篇-支持部分ORACLE的HINT</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-19</span>
+        
+        <a class="title" href="/archives/opengauss-float2int-cast-round">【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-18</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-17</span>
+        
+        <a class="title" href="/archives/mogeaver-step-by-step-tutorial">【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-14</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-rowid">【MogDB】MogDB5.2.0重磅发布第三篇-支持astore下的rowid</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-08</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-how-to-download">【MogDB】MogDB5.2.0重磅发布第二篇-发布了哪些介质，如何获取？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-07</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-some-new-feature-from-guc-parameter-and-catalog">【MogDB】MogDB5.2.0重磅发布第一篇-从参数和数据字典的变化来看引入了哪些新特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-14</span>
+        
+        <a class="title" href="/archives/mogdb-opengauss-error-syntax-error-at-or-near-wellformed">【MogDB】分析一条行列转换SQL的报错 ERROR: syntax error at or near "wellformed"</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-20</span>
+        
+        <a class="title" href="/archives/mogdb-murmurhash3-c-function">【MogDB】在MogDB中引入murmurhash3算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-14</span>
+        
+        <a class="title" href="/archives/oracle-cityhash-murmurhash3-function-c-language">【ORACLE】在ORACLE中使用自定义C语言函数引入cityhash和murmurhash3算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-21</span>
+        
+        <a class="title" href="/archives/oracle-table-index-same-name">【Oracle】Oracle中的表和索引为什么可以重名？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-21</span>
+        
+        <a class="title" href="/archives/opengauss-or-postgresql-to-oracle-crucial-compatibility">【openGauss】OG/PG系数据库兼容ORACLE时最需要关注的几个问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-18</span>
+        
+        <a class="title" href="/archives/opengauss-mogdb-sqlcode-datatype">【openGauss/MogDB】SQLCODE竟然不是数值类型？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-13</span>
+        
+        <a class="title" href="/archives/opengauss-mogdb-set-dbparam-list">【openGauss/MogDB】一种对数据库的列表型参数进行设置的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-21</span>
+        
+        <a class="title" href="/archives/oracle_char_type">【ORACLE】对Oracle中char类型的研究分析</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-13</span>
+        
+        <a class="title" href="/archives/mogdb-oracle-procedure-out-cursor-data">【MogDB】在ORACLE和MogDB中查看存储过程出参游标数据的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-31</span>
+        
+        <a class="title" href="/archives/mogdb506-release-compatible-update">【MogDB】解读MogDB5.0.6版本中有关兼容性的一些更新</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-06</span>
+        
+        <a class="title" href="/archives/mogdb-halo160">【MogDB】实战MogDB数据库适配Halo博客系统1.6版本（基于springframework+hibernate+HikariPool）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-21</span>
+        
+        <a class="title" href="/archives/halo-mogdb">【MogDB】将流行的博客系统Halo后端的数据库设置为MogDB</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-27</span>
+        
+        <a class="title" href="/archives/kylin-v10-add-epel">银河麒麟v10添加epol(epel)仓库</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-12</span>
+        
+        <a class="title" href="/archives/longtian-yan-encoding-gbk-gb18030">恼人的"龙天"(䶮)--谈谈从GBK转到GB18030的特殊情况</a>
+    </li>
+    
+</ul>
+
+<h2>2023 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">11-11</span>
+        
+        <a class="title" href="/archives/opengauss-pgtrigger-tgtype-decode">【openGauss】如何通过pg_trigger.tgtype获取触发器的各种触发条件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-16</span>
+        
+        <a class="title" href="/archives/mogdb-os-depend-test">【MogDB】操作系统依赖动态库解耦测试(MogDB 5.0.1)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-25</span>
+        
+        <a class="title" href="/archives/opengauss-procoutparamoverride-test">【openGauss】带有out参数的存储过程及自定义函数的重载测试</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-22</span>
+        
+        <a class="title" href="/archives/opengauss500-download-url">【openGauss】openGauss5.0.0下载地址备用（侵删）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-11</span>
+        
+        <a class="title" href="/archives/opengauss-functionsinindexexpressionmustbemarkedimmutable">【openGauss】从"functions in index expression must be marked IMMUTABLE"谈起</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">06-03</span>
+        
+        <a class="title" href="/archives/a-delete-statement-with-an-indeterminate-result">【ORACLE】一条看不出会删哪个表的delete语句</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-21</span>
+        
+        <a class="title" href="/archives/opengauss-complextype-java-classopengauss">【openGauss】如何将数据库中的自定义复合类型绑定到java的class中</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-05</span>
+        
+        <a class="title" href="/archives/oracle23c-free-docker-run">【ORACLE】极速通关Oracle23c开发者免费版连接</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-25</span>
+        
+        <a class="title" href="/archives/centos7-mount-iscis">centos7挂载iscis存储操作记录</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-01</span>
+        
+        <a class="title" href="/archives/about-opengauss-client-encoding">【openGauss】把应用开发中的设置客户端字符编码往细了说</a>
+    </li>
+    
+</ul>
+
+<h2>2022 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">12-25</span>
+        
+        <a class="title" href="/archives/one-key-build-opengauss-and-dolphin">【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-22</span>
+        
+        <a class="title" href="/archives/opengauss310-mysql-compat">【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-14</span>
+        
+        <a class="title" href="/archives/uos-mogeaver-signed-deb">【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-18</span>
+        
+        <a class="title" href="/archives/opengauss-wps-excel-realtime-report-sha256">【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-06</span>
+        
+        <a class="title" href="/archives/windows-terminal-ssh-save-password">【工具技巧】在windows terminal中保存SSH连接密码（明文）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-06</span>
+        
+        <a class="title" href="/archives/2way-write-file-with-procedure-in-opengauss">【openGauss】两种在openGauss中使用存储过程生成文本文件的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-31</span>
+        
+        <a class="title" href="/archives/opengauss-type-body-constructor-member-function">【openGauss】如何在openGauss中实现类似Oracle中constructor  function、member function的功能</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-22</span>
+        
+        <a class="title" href="/archives/about-nvarchar2-and-national-charset">【ORACLE】谈一谈NVARCHAR2、NCHAR、NCLOB等数据类型和国家字符集</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-21</span>
+        
+        <a class="title" href="/archives/gsql-sqlplus-export-same-format-file">【openGauss】让gsql和sqlplus输出包含有SQL及数据的完全一致的文本文件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-15</span>
+        
+        <a class="title" href="/archives/transport-data-from-oracle-to-opengauss-faster">【openGauss】一种可能是目前最快的从ORACLE同步数据到MogDB(openGauss)的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-07</span>
+        
+        <a class="title" href="/archives/mogeaver-on-docker">【openGauss】在windows中使用容器化的mogeaver</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-25</span>
+        
+        <a class="title" href="/archives/announcement-20220825">【公告】本站云服务器将于2022年9月26号到期，正在寻找新的服务器，期间可能会无法访问</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-01</span>
+        
+        <a class="title" href="/archives/left-join-rownum-equ0-less0-diff">【ORACLE】什么时候ROWNUM等于0和ROWNUM小于0，两个条件不等价？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-28</span>
+        
+        <a class="title" href="/archives/opengauss%E5%9C%A8%E4%B8%8D%E4%BF%AE%E6%94%B9%E6%95%B0%E6%8D%AE%E5%BA%93%E6%BA%90%E7%A0%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E5%A6%82%E4%BD%95%E6%8F%90%E9%AB%98%E5%AF%B9oracle%E7%9A%84%E5%85%BC%E5%AE%B9%E6%80%A7">【openGauss】在不修改数据库源码的情况下，如何提高对Oracle的兼容性？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">06-16</span>
+        
+        <a class="title" href="/archives/oracle-time-data-type-is-exists">【ORACLE】Oracle里有“time”数据类型吗？--关于对Oracle数据类型的一点研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-18</span>
+        
+        <a class="title" href="/archives/mogdb-primary-standby-install">【openGauss】使用Oracle VM VirtualBOX安装openEuler操作系统并手动安装MogDB主备</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-14</span>
+        
+        <a class="title" href="/archives/about-opengauss-lob-type">【openGauss】谈一谈openGauss对Oracle中lob类型的兼容情况</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-13</span>
+        
+        <a class="title" href="/archives/think-about-opengauss-datatype">【openGauss】记录一次关于对openGauss(postgresql)数据类型的摸索经过及感想</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-09</span>
+        
+        <a class="title" href="/archives/opengauss-datastudio300">【openGauss】尝鲜openGauss官方客户端工具DataStudio3.0.0</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-09</span>
+        
+        <a class="title" href="/archives/oracle-postgresql-charset-matching">【openGauss】Oracle到postgresql的字符集名称映射表</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">05-08</span>
+        
+        <a class="title" href="/archives/about-plsqldev-debug">【ORACLE】谈一谈PLSQL DEVELOPER的调试（debug）功能</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">04-27</span>
+        
+        <a class="title" href="/archives/sha256-opengauss">【openGauss】用plpgsql实现sha256算法(踩坑填坑实录)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-23</span>
+        
+        <a class="title" href="/archives/about-analytic-functions">【ORACLE】谈一谈分析函数（窗口函数）的前世今生-那些可能不为人知的事</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-15</span>
+        
+        <a class="title" href="/archives/about-utl-encode-and-emulate-cal">【ORACLE】详解oracle数据库UTL_ENCODE包各个函数的模拟算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">03-07</span>
+        
+        <a class="title" href="/archives/jsdelivr-byebye">【站长工具】jsdelivr挂了后,我是如何拯救我的个人网站的(halo)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-10</span>
+        
+        <a class="title" href="/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-06</span>
+        
+        <a class="title" href="/archives/about-opengauss-raw-type">【openGauss】谈谈openGauss中的raw类型</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-02</span>
+        
+        <a class="title" href="/archives/opengauss-utl-url-pkg">【openGauss】我用plsql给openGauss手搓了一个UTL_URL包</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">02-01</span>
+        
+        <a class="title" href="/archives/sql-draw-chinese-fu-2">【ORACLE】墨天轮SQL祝福大赛后续的一点研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-22</span>
+        
+        <a class="title" href="/archives/about-oracle-charset">【ORACLE】谈一谈Oracle数据库使用的字符集,不仅仅是乱码</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-18</span>
+        
+        <a class="title" href="/archives/about-opengauss-package">【openGauss】谈一谈PostgreSQL及openGauss中的package</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-17</span>
+        
+        <a class="title" href="/archives/connect-to-oracle-cloud-adb">【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-12</span>
+        
+        <a class="title" href="/archives/opengauss-docker-compat-oracle">【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-10</span>
+        
+        <a class="title" href="/archives/binaryclob-to-blob">【ORACLE】对二进制字符串的存储空间占用进行压缩的研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-10</span>
+        
+        <a class="title" href="/archives/invisible-character-replace">【ORACLE】字符串处理小技巧之字符串不可见字符的识别与处理</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-04</span>
+        
+        <a class="title" href="/archives/oracle-mos-for-free">【ORACLE】教你怎么自主免费开通ORACLE的MOS权限</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-03</span>
+        
+        <a class="title" href="/archives/opengauss-compat-oracle-package">【openGauss】openGauss补完计划二之ORACLE兼容PACKAGE</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">01-02</span>
+        
+        <a class="title" href="/archives/skew-kurt-sql-excel">【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算</a>
+    </li>
+    
+</ul>
+
+<h2>2021 年</h2>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">12-28</span>
+        
+        <a class="title" href="/archives/opengauss-compat-oracle-function">【openGauss】openGauss补完计划一之ORACLE兼容函数</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-28</span>
+        
+        <a class="title" href="/archives/opengauss-datastudio-suggest-part1">【openGauss】对DATA STUDIO的一些功能建议Part1</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-25</span>
+        
+        <a class="title" href="/archives/oraclepivot-ext-pkg-20211225">【ORACLE】个人开发PIVOT增强包-解决原生PIVOT在不使用XML时无法in子查询的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-22</span>
+        
+        <a class="title" href="/archives/talk-about-q-and-a-with-db">【杂谈】从墨天轮及CSDN关于问答板块现状中对国产数据库进行的一些思考</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-22</span>
+        
+        <a class="title" href="/archives/navicat-2-sqlserver2019-error">【SQLSERVER】如何解决Navicat Premium连接sqlserver2019报错的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-10</span>
+        
+        <a class="title" href="/archives/sql2csv-xslt">【ORACLE】任意sql查询结果利用xslt模板转换成csv文件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-10</span>
+        
+        <a class="title" href="/archives/-za-tan--ge-ren-wei-xin-gong-zhong-hao-yi-kai-tong--yan-jiu-ce-shi-zhong">【杂谈】个人微信公众号已开通,研究测试中</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-07</span>
+        
+        <a class="title" href="/archives/dbmscloufix20211207">【ORACLE】骚操作，个人修改oracle官方dbms_cloud包来支持本地数据库导出数据到云存储</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-02</span>
+        
+        <a class="title" href="/archives/plsql-echarts-html">【ORACLE】在plsql中通过几条简单的命令生成运维可视化图表html页面</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-01</span>
+        
+        <a class="title" href="/archives/dbms-mle-ext-pkg">【ORACLE】自定义dbms_mle扩展包，支持导入外部js模块</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">12-01</span>
+        
+        <a class="title" href="/archives/os-file-mgr-pkg">【ORACLE】在数据库中对操作系统上的文件进行读写操作（解决18c软链接目录的问题）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-29</span>
+        
+        <a class="title" href="/archives/18c-symlink-forbid">【ORACLE】有关18c的一个很多文章都没提到的安全方面的变更-禁止软链接</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-24</span>
+        
+        <a class="title" href="/archives/21c-for-loop">【ORACLE】21c版本新特性之for...loop循环的增强</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-23</span>
+        
+        <a class="title" href="/archives/18c-21c-qualified-expressions">【ORACLE】18c版本的限定表达式及其在21c版本的增强</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-23</span>
+        
+        <a class="title" href="/archives/-za-tan--zhuan-yi-pian-timhook-de-lao-sao-wen-lian-jie">【杂谈】转一篇Tim Hall的牢骚文链接</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-22</span>
+        
+        <a class="title" href="/archives/modc-21c-train">墨天轮在线实训环境已上线oracle21cXE版本，可在线验证21c版本新特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-22</span>
+        
+        <a class="title" href="/archives/21c-analytic-functions">【ORACLE】21c版本中分析函数的加强（window、exclude、groups）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-19</span>
+        
+        <a class="title" href="/archives/function-result-cache">【ORACLE】21c版本新特性之增强的函数结果缓存功能</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-19</span>
+        
+        <a class="title" href="/archives/enhanced-sql-set-operators">【ORACLE】21c版本新特性之增强的sql集运算符"MINUS ALL"、"EXCEPT ALL"、"INTERSECT ALL"</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-18</span>
+        
+        <a class="title" href="/archives/about-21c-sql-macros">【ORACLE】21版本新特性之SQL宏(SQL MACROS)的分析</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-18</span>
+        
+        <a class="title" href="/archives/oracle-new-features-article-list">【ORACLE】ORACLE数据库新特性相关文章汇总(18C-21C)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-16</span>
+        
+        <a class="title" href="/archives/dockeroracle21coml4py">【docker】大小仅3GB的Oracle21c的docker镜像，含apex和oml4py</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-14</span>
+        
+        <a class="title" href="/archives/about-oml4py-part2">【ORACLE】关于21c版本中机器学习OML4PY功能嵌入式python代码执行的研究整理</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-12</span>
+        
+        <a class="title" href="/archives/about-immutable">【ORACLE】关于ORACLE19.11后的新特性immutable不可变表的一些研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-12</span>
+        
+        <a class="title" href="/archives/about-make-some-video">【杂谈】考虑要不要做一些ORACLE数据库的一些技巧及特性的视频演示</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-10</span>
+        
+        <a class="title" href="/archives/aboutaddcolonline">【ORACLE】记录一次关于在线对大表新增字段的讨论</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-08</span>
+        
+        <a class="title" href="/archives/create-ol8-21-docker">【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-04</span>
+        
+        <a class="title" href="/archives/about-dbmsmle">【ORACLE】关于21c版本新增plsql包DBMS_MLE的研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-03</span>
+        
+        <a class="title" href="/archives/about-open-cdn">【杂谈】本站点今日起已开启全球CDN加速</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-02</span>
+        
+        <a class="title" href="/archives/inlineexternaltables-dbmscloud">【oracle】oracle18c特性内联外部表与19c特性dbms_cloud结合使用</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-02</span>
+        
+        <a class="title" href="/archives/modb-ol-db-trail-test">有华为技术加持的墨天轮在线数据库在线实训平台实测</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-01</span>
+        
+        <a class="title" href="/archives/pl4py-20211101">【ORACLE】pl4py更新，支持linux环境（在Oracle中调用python函数并获得返回值）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">11-01</span>
+        
+        <a class="title" href="/archives/oracle-linux-sh2">【ORACLE】在oracle中执行操作系统命令（二）（linux）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-29</span>
+        
+        <a class="title" href="/archives/dbmsclouduserpwd">【ORACLE】dbms_cloud包使用的各大云厂商对象存储的username及password位置</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-28</span>
+        
+        <a class="title" href="/archives/oraclesqltohtmlxlst">【ORACLE】在数据库中使用xml和xslt来实现sql查询转换成HTML表格</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-25</span>
+        
+        <a class="title" href="/archives/about-fanletter-qa">【杂谈】关于建立新专栏《粉丝来信》和《经典问答》</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-24</span>
+        
+        <a class="title" href="/archives/dbmscloudjdcloudoss">【ORACLE】使用DBMS_CLOUD包对京东云对象存储服务OSS进行操作及创建外部表</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-20</span>
+        
+        <a class="title" href="/archives/win-oracle-193-to-1912">【ORACLE】记录一次windows环境ORACLE19.3打补丁升到19.12版本</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-19</span>
+        
+        <a class="title" href="/archives/dbmscloudrelated">【ORACLE】关于dbms_cloud包机制的一些研究</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-18</span>
+        
+        <a class="title" href="/archives/microsoft-clarity">【站长工具】推荐一个来自微软的网站页面访问分析工具Clarity（支持记录用户行为）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-18</span>
+        
+        <a class="title" href="/archives/oracle-linux-sh">【ORACLE】有时候看看oracle官方安装包的代码也能有一些百度上找不到的收获（数据库执行linux命令）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-18</span>
+        
+        <a class="title" href="/archives/ora-rem-people-name">【杂谈】看oracle代码注释中的人名有感</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-16</span>
+        
+        <a class="title" href="/archives/pl4py">【ORACLE】在oracle10g以上版本启用数据库plsql对python函数的支持（pl4py）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-11</span>
+        
+        <a class="title" href="/archives/oml4py-server-setup">【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-10</span>
+        
+        <a class="title" href="/archives/antlr4-sql-tablename">【python】使用Antlr4实现识别sql中的表或视图名</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-08</span>
+        
+        <a class="title" href="/archives/my-first-miniprogram">【杂谈】我的第一个微信小程序发布了</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-07</span>
+        
+        <a class="title" href="/archives/oracle-sql-part5">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part5</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">10-05</span>
+        
+        <a class="title" href="/archives/halo-to-csdn">【python】将halo博客文章批量同步到csdn</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-30</span>
+        
+        <a class="title" href="/archives/oracle-sql-part4">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part4</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-29</span>
+        
+        <a class="title" href="/archives/%E8%BE%9E%E8%81%8C%E5%90%8E2%E4%B8%AA%E6%9C%88%E7%9A%84%E7%94%9F%E6%B4%BB">【杂谈】一文说明辞职后2个月我在干啥（流水账）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-26</span>
+        
+        <a class="title" href="/archives/unicode-unistr-oracle-plus">【ORACLE】关于ORACLE数据库中UNISTR函数转换UNICODE编码字符串为中文的思考</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-25</span>
+        
+        <a class="title" href="/archives/github-host">【python】自动更换本地HOSTS中github.com的ip指向为最低延迟ip</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-23</span>
+        
+        <a class="title" href="/archives/oracle-ptf-%E5%A4%9A%E6%80%81%E8%A1%A8">【ORACLE】关于多态表函数PTF（Polymorphic Table Functions）的使用</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-21</span>
+        
+        <a class="title" href="/archives/oracle-sql-part3">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-21</span>
+        
+        <a class="title" href="/archives/oracle-wallet">【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-21</span>
+        
+        <a class="title" href="/archives/oracle-acl">【ORACLE】简单谈谈ORACLE数据库中的ACL配置</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-20</span>
+        
+        <a class="title" href="/archives/oracle-sql-part2">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part2</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-19</span>
+        
+        <a class="title" href="/archives/oracle-sql-part1">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part1</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">09-15</span>
+        
+        <a class="title" href="/archives/py-qyweixinrobot">【python】使用python封装企业微信群机器人api</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-26</span>
+        
+        <a class="title" href="/archives/%E8%B0%88%E8%B0%88%E5%85%B3%E4%BA%8E5w2h%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B">【杂谈】谈谈关于5W2H的那些事</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-20</span>
+        
+        <a class="title" href="/archives/cmd%E5%AF%BC%E5%87%BA%E5%A4%9Aoracle%E5%BA%93%E5%A4%9A%E6%95%B0%E6%8D%AE">【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-19</span>
+        
+        <a class="title" href="/archives/s3-cos-oss-cmd">【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-12</span>
+        
+        <a class="title" href="/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-10</span>
+        
+        <a class="title" href="/archives/sqltojson%E6%95%88%E7%8E%87%E4%BC%98%E5%8C%96">【ORACLE】关于pljson_util_pkg.sql_to_json转换大量数据的效率优化方案</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-09</span>
+        
+        <a class="title" href="/archives/sqltojson%E4%B8%AD%E7%9A%84%E6%95%B0%E5%AD%97%E6%A0%BC%E5%BC%8F%E8%BD%AC%E6%8D%A2%E9%97%AE%E9%A2%98">【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-08</span>
+        
+        <a class="title" href="/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-04</span>
+        
+        <a class="title" href="/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">08-01</span>
+        
+        <a class="title" href="/archives/%E5%BA%93%E5%AD%98%E6%88%90%E6%9C%AC%E8%AE%A1%E7%AE%97%E7%9A%84%E5%87%A0%E7%A7%8D%E6%96%B9%E5%BC%8F">【零售知识】商品库存成本计算的几种方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-31</span>
+        
+        <a class="title" href="/archives/%E9%9B%B6%E5%94%AE%E7%9F%A5%E8%AF%86%E4%BE%9B%E5%BA%94%E5%95%86%E7%BB%93%E7%AE%97">【零售知识】供应商结算</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-28</span>
+        
+        <a class="title" href="/archives/ssl-email">【AIO】使用ORACLE数据库存储过程发送加密email（SSL）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-20</span>
+        
+        <a class="title" href="/archives/%E5%9B%9E%E5%BF%86%E5%BD%95-%E6%88%91%E7%BB%8F%E5%8E%86%E7%9A%84%E6%A8%A1%E6%8B%9F%E5%99%A8%E5%92%8Cromhack%E6%97%B6%E4%BB%A3">【个人回忆录】我经历的模拟器和romhack时代</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-15</span>
+        
+        <a class="title" href="/archives/%E5%85%B3%E4%BA%8E%E6%88%91%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%8F%91%E8%B5%B7aio%E9%A1%B9%E7%9B%AE">【杂谈】关于我为什么要发起AIO(ALL IN ORACLE)项目</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-15</span>
+        
+        <a class="title" href="/archives/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E7%BE%A4%E6%9C%BA%E5%99%A8%E4%BA%BA">【AIO】使用ORACLE数据库存储过程发送企业微信群机器人消息</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-10</span>
+        
+        <a class="title" href="/archives/%E5%8F%91%E9%80%81email">【AIO】使用ORACLE数据库存储过程发送email（不含SSL）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-09</span>
+        
+        <a class="title" href="/archives/%E5%85%B3%E4%BA%8E%E6%88%91%E7%9A%84%E7%BD%91%E5%90%8D%E7%9A%84%E6%9D%A5%E6%BA%90">【个人回忆录】关于我的网名来源</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">07-09</span>
+        
+        <a class="title" href="/archives/%E6%88%91%E5%BC%80%E5%8D%9A%E4%BA%86">我建站了</a>
+    </li>
+    
+</ul>
+
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

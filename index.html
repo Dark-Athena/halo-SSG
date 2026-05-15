@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<div class="page-header">
+    <h1>最新文章</h1>
+    <p>共 235 篇文章</p>
+</div>
+<ul class="post-list">
+    
+    <li>
+        <a class="title" href="/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB">【GaussDB】讨论下for update游标加锁的设计</a>
+        
+        <span class="date">2026-05-14</span>
+        
+        
+        <div class="excerpt">【GaussDB】讨论下for update游标加锁的设计 背景 在 Oracle 中有一种常见用法：通过存储过程有条件地更新一张或多张表的数据。由于存储过程可能被并发调用，需要加锁防止并发执行。做法是定义一个游标，在查询语句末尾加上 FO...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/AI-Coding-Plans-Subscription-Models-Market-Landscape-20260512">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12）</a>
+        
+        <span class="date">2026-05-14</span>
+        
+        
+        <div class="excerpt">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） 数据截至 2026 年 5 月 12 日，基于公开信息整理。各厂商最新旗舰模型见文末附录。 一、海外模型/对话厂商 1. OpenAI（ChatGPT） Ope...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/copilot-cli-local">告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型</a>
+        
+        <span class="date">2026-05-06</span>
+        
+        
+        <div class="excerpt">告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型 你是否遇到过这样的困境：想用 GitHub Copilot CLI，却被官方模型限制、网络环境卡脖子、或者 API 额度不够用？现在...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/ssk-a-command-ssh-connect-without-password">告别重复输入密码：SSK — 一行命令搞定 SSH 免密登录</a>
+        
+        <span class="date">2026-05-06</span>
+        
+        
+        <div class="excerpt">告别重复输入密码：SSK — 一行命令搞定 SSH 免密登录 前言 你是否也有这样的烦恼？ 作为开发者或运维工程师，每天要通过 SSH 连接大量远程服务器。每次连接都要输入密码，不仅繁琐，还严重影响效率。更让人头疼的是： Windows 用...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/claude-desktop-app-connect-local-llm">Claude Desktop App 连接本地 LLM 完整配置指南</a>
+        
+        <span class="date">2026-05-06</span>
+        
+        
+        <div class="excerpt">Claude Desktop App 连接本地 LLM 完整配置指南 环境：macOS (Apple Silicon)、Claude Desktop App、LM Studio、Claude Code Router (ccr) 最后更新：2...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/claude-code-local-model-cc-connect-feishu-guide">将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录</a>
+        
+        <span class="date">2026-05-05</span>
+        
+        
+        <div class="excerpt">将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录 背景 Claude Code 是 Anthropic 推出的终端 AI 编程助手，能力很强，但只能通过本地终端使用（Remote Control和Cha...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/claude-code-kv-cache-reuse-failure-debug">Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录</a>
+        
+        <span class="date">2026-05-05</span>
+        
+        
+        <div class="excerpt">Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录 环境信息 Claude Code: v2.1.114 (macos) LLM 后端: LM Studio (v0.4.12) / llama.cpp (...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation">【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估</a>
+        
+        <span class="date">2026-05-05</span>
+        
+        
+        <div class="excerpt">【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估 背景 在ORACLE数据库里进行业务逻辑开发时，使用自治事务来记录日志是一种非常常见的用法，但这种用法原样迁移到GaussDB时，性能会下降得非常严重，尤其是在循环...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a>
+        
+        <span class="date">2026-05-05</span>
+        
+        
+        <div class="excerpt">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑 先看一个比较有意思的问题：在 GaussDB 里，如果一个视图依赖了一个包里的函数，我把这个包删了，然后原样重建回来，视图还能正常查询吗？ 在 Oracle 里，删掉被依...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/binomial-option-pricing-7-languages-program-report">美式期权二叉树算法 — 七语言实现与交叉验证报告</a>
+        
+        <span class="date">2026-05-04</span>
+        
+        
+        <div class="excerpt">背景：最近帮忙给客户优化了一个算法，经过了解，是期货行业的一个标准算法，叫“美式期权二叉树算法”，由于是标准算法，因此本文并不提供客户的原始实现和在其基础上的优化版本，而是完全由AI自主进行分析、测试、编写报告、推送到github。 本次使...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/halo-for-yashandb">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</a>
+        
+        <span class="date">2026-03-28</span>
+        
+        
+        <div class="excerpt">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 【YaShanDB】给YaShanDB开发R2DBC驱动 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了 AI Coding 这次我...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/yashandb-r2dbc-driver-dev">【YaShanDB】给YaShanDB开发R2DBC驱动</a>
+        
+        <span class="date">2026-03-28</span>
+        
+        
+        <div class="excerpt">【YaShanDB】使用AI给YaShanDB开发R2DBC驱动 背景 崖山数据库作为一款发布没多少年的纯自研数据库，在内核设计上非常亮眼，而且也通过了国测，但是周边的应用生态还有不少欠缺。最近打算让HALO博客的后台支持崖山数据库，但是却...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery">【ESXI】断电重启后NFS存储无法识别的修复方案</a>
+        
+        <span class="date">2026-03-14</span>
+        
+        
+        <div class="excerpt">【ESXI】处理一次断电恢复后，ESXI无法识别NFS存储的问题 问题描述 环境版本：ESXI 7.0.3 当ESXI主机配置了外置NFS存储时，如果发生断电后恢复，可能会出现以下问题： ESXI先于NFS存储启动，导致ESXI无法识别NF...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/gaussdb-ide-developer-tool-test">GaussDB图形化开发工具深度评测</a>
+        
+        <span class="date">2026-03-08</span>
+        
+        
+        <div class="excerpt">GaussDB图形化开发工具深度评测 背景与目的 随着华为云GaussDB的广泛应用，寻找合适的图形化开发工具成为数据库开发人员的重要需求。本文将对三款主流工具（Navicat On-Prem Server、Navicat 17 Premi...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/analyze-gaussdb-arm64-python-driver-psycopg3-coredump">【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题</a>
+        
+        <span class="date">2026-03-08</span>
+        
+        
+        <div class="excerpt">【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题 没想到这个系列还会有第五篇。 背景 通过前几篇的操作，我已经完全打通了airflow->sqlalchemy->GaussDB...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/China-s-Relational-Database-Eco-In-Depth-Analysis">万字长文-国产关系型数据库生态深度分析</a>
+        
+        <span class="date">2026-03-02</span>
+        
+        
+        <div class="excerpt">国产关系型数据库生态深度分析 本文完成于2026年3月3号。 有很多人问过我："国产数据库该怎么选？" 前几年我刚入棋局，确实看不太清，但亲身经历了这几年国产数据库在各个战场上的厮杀后，我逐渐有了一些自己的思考。这篇文章，算是我对国产数据库...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7">【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow</a>
+        
+        <span class="date">2026-03-02</span>
+        
+        
+        <div class="excerpt">【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow 上一篇(【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动)弄清楚了gaussdb(psycopg3)的...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/install-test-gaussdb-python-driver-based-on-psycopg3">【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</a>
+        
+        <span class="date">2026-03-02</span>
+        
+        
+        <div class="excerpt">【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动 前言 前面几篇提过了这个驱动，这个psycopg3是比psycopg2更符合规范的驱动，但是上一篇最后提到了直接pip install gaussdb用起来...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7">【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7</a>
+        
+        <span class="date">2026-03-02</span>
+        
+        
+        <div class="excerpt">【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7 上一篇通过修改openGauss的psycopg2驱动并编译，适配了airflow2.9.2版本，【GaussDB】手动编译不同pyt...</div>
+        
+    </li>
+    
+    <li>
+        <a class="title" href="/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI">【GaussDB】用AI解析UGO中的SQL审核模块的实现</a>
+        
+        <span class="date">2026-02-03</span>
+        
+        
+        <div class="excerpt">【GaussDB】用AI解析UGO中的SQL审核模块的实现 背景 目前GaussDB没有公开自己的语法树规则，那么第三方工具如果想基于GaussDB的SQL去做一些解析来实现特定的一些功能，就可能比较麻烦，所以我就想到UGO里有SQL审核模...</div>
+        
+    </li>
+    
+</ul>
+
+<p style="margin-top: 1em;"><a href="/archives/">查看全部文章 &rarr;</a></p>
+
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

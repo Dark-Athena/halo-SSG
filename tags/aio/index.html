@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIO - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/tags/">&larr; 返回标签</a>
+<div class="page-header">
+    <h1>AIO</h1>
+    <p>19 篇文章</p>
+</div>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">2021-12-25</span>
+        
+        <a class="title" href="/archives/oraclepivot-ext-pkg-20211225">【ORACLE】个人开发PIVOT增强包-解决原生PIVOT在不使用XML时无法in子查询的问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-12-10</span>
+        
+        <a class="title" href="/archives/sql2csv-xslt">【ORACLE】任意sql查询结果利用xslt模板转换成csv文件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-12-02</span>
+        
+        <a class="title" href="/archives/plsql-echarts-html">【ORACLE】在plsql中通过几条简单的命令生成运维可视化图表html页面</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-12-01</span>
+        
+        <a class="title" href="/archives/os-file-mgr-pkg">【ORACLE】在数据库中对操作系统上的文件进行读写操作（解决18c软链接目录的问题）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-11-12</span>
+        
+        <a class="title" href="/archives/about-make-some-video">【杂谈】考虑要不要做一些ORACLE数据库的一些技巧及特性的视频演示</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-11-01</span>
+        
+        <a class="title" href="/archives/pl4py-20211101">【ORACLE】pl4py更新，支持linux环境（在Oracle中调用python函数并获得返回值）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-11-01</span>
+        
+        <a class="title" href="/archives/oracle-linux-sh2">【ORACLE】在oracle中执行操作系统命令（二）（linux）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-10-28</span>
+        
+        <a class="title" href="/archives/oraclesqltohtmlxlst">【ORACLE】在数据库中使用xml和xslt来实现sql查询转换成HTML表格</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-10-16</span>
+        
+        <a class="title" href="/archives/pl4py">【ORACLE】在oracle10g以上版本启用数据库plsql对python函数的支持（pl4py）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-10-10</span>
+        
+        <a class="title" href="/archives/antlr4-sql-tablename">【python】使用Antlr4实现识别sql中的表或视图名</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-08-12</span>
+        
+        <a class="title" href="/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-08-10</span>
+        
+        <a class="title" href="/archives/sqltojson%E6%95%88%E7%8E%87%E4%BC%98%E5%8C%96">【ORACLE】关于pljson_util_pkg.sql_to_json转换大量数据的效率优化方案</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-08-09</span>
+        
+        <a class="title" href="/archives/sqltojson%E4%B8%AD%E7%9A%84%E6%95%B0%E5%AD%97%E6%A0%BC%E5%BC%8F%E8%BD%AC%E6%8D%A2%E9%97%AE%E9%A2%98">【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-08-08</span>
+        
+        <a class="title" href="/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-08-04</span>
+        
+        <a class="title" href="/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-07-28</span>
+        
+        <a class="title" href="/archives/ssl-email">【AIO】使用ORACLE数据库存储过程发送加密email（SSL）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-07-15</span>
+        
+        <a class="title" href="/archives/%E5%85%B3%E4%BA%8E%E6%88%91%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%8F%91%E8%B5%B7aio%E9%A1%B9%E7%9B%AE">【杂谈】关于我为什么要发起AIO(ALL IN ORACLE)项目</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-07-15</span>
+        
+        <a class="title" href="/archives/%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E7%BE%A4%E6%9C%BA%E5%99%A8%E4%BA%BA">【AIO】使用ORACLE数据库存储过程发送企业微信群机器人消息</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-07-10</span>
+        
+        <a class="title" href="/archives/%E5%8F%91%E9%80%81email">【AIO】使用ORACLE数据库存储过程发送email（不含SSL）</a>
+    </li>
+    
+</ul>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

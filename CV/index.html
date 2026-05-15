@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我 - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<article>
+    <h1>关于我</h1>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="singlePage-inner">
+
+<h2 id="简介">简介</h2>
+<p>1991年生，长沙人，网名DarkAthena。</p>
+<p>2011年开始在零售行业从事数据库相关工作，拥有十余年PLSQL设计开发经验，维护过数百套ORACLE应用数据库，工作内容从业务需求分析到应用功能设计、数据库对象开发、应用系统维护均有覆盖。</p>
+<p>2021年起开始投入国产数据库建设，参与过多个数据库相关开源项目的开发，擅长分析诊断数据库国产化改造中遇到的各类兼容性问题。</p>
+<h2 id="任职经历">任职经历</h2>
+<ul>
+<li><strong>2011-07~2013-08</strong> 某上市公司门店信息经理，负责门店内的信息软硬件维护、报表制作</li>
+<li><strong>2013-08~2021-07</strong> 升任同一家上市公司总部主业务系统经理，负责主业务系统的需求分析、设计、开发、运维、优化</li>
+<li><strong>2021-07~2022-04</strong> 独立顾问，提供数据库应用开发方面的解决方案</li>
+<li><strong>2022-04~2024</strong> Enmotech技术支持、Data-Principals数据库产品RAT leader，负责数据库二线支持，以及数据库内核及工具的需求价值分析、版本计划</li>
+<li><strong>2024~至今</strong> Enmotech技术顾问，负责数据库二线支持</li>
+</ul>
+<h2 id="证书">证书</h2>
+<ul>
+<li>GaussDB-HCIE</li>
+<li>MGCA</li>
+<li>OGCA</li>
+<li>YCP</li>
+<li>IITC 信息技术应用创新数据库运维工程师-Gauss高级</li>
+<li>开源之夏2022导师</li>
+</ul>
+<p>本人不太care认证，考证大多是项目需要</p>
+<h2 id="社会时期获奖">社会时期获奖</h2>
+<p>这里只记录从第一家公司离职后的奖</p>
+<ul>
+<li>
+<p>公司内部</p>
+<ul>
+<li>2022年 10月 公司内部 2022 Q3季度之星</li>
+<li>2023年 1月 公司内部 2022年度之星</li>
+<li>2023年 1月 公司内部 非凡团队</li>
+<li>2024年 1月 公司内部 2023年度之星</li>
+<li>2024年 1月 公司内部 非凡团队</li>
+<li>2024年 1月 公司内部 2023 Q4季度之星</li>
+<li>2025年 1月 公司内部 2024 Q4季度之星</li>
+</ul>
+</li>
+<li>
+<p>外部奖励</p>
+<ul>
+<li>2022年 CSDN 问答冲榜37期到52期 ，几乎都是 前2~前10 <a href="https://ask.csdn.net/reward?per=51">https://ask.csdn.net/reward?per=51</a></li>
+<li>2022年 8月 CSDN领军人物-授人以渔 <a href="https://blog.csdn.net/m0_52480991/article/details/125503941">https://blog.csdn.net/m0_52480991/article/details/125503941</a></li>
+<li>2022年 2月 墨天轮  2022年1月 月度墨力之星 <a href="https://www.modb.pro/db/246897">https://www.modb.pro/db/246897</a></li>
+<li>2022年 9月 MogDB首届征文 三等奖 <a href="https://www.modb.pro/db/489377">https://www.modb.pro/db/489377</a></li>
+<li>2022年12月 墨天轮第一届SQL挑战赛 最佳SQL <a href="https://www.modb.pro/db/585509">https://www.modb.pro/db/585509</a></li>
+<li>2022年1月 墨天轮SQL祝福大赛 最佳创意奖 <a href="https://www.modb.pro/db/241365">https://www.modb.pro/db/241365</a></li>
+<li>2022年6月 墨天轮5月优秀译文 <a href="https://www.modb.pro/db/410766">https://www.modb.pro/db/410766</a></li>
+<li>2022年7月 墨天轮6月优秀文章 <a href="https://www.modb.pro/db/427665">https://www.modb.pro/db/427665</a></li>
+<li>2022年9月 墨天轮8月优秀文章 <a href="https://www.modb.pro/db/477736">https://www.modb.pro/db/477736</a></li>
+<li>2023年7月 墨天轮6月优秀文章 <a href="https://www.modb.pro/db/656096">https://www.modb.pro/db/656096</a></li>
+<li>2024年2月 墨天轮1月优秀文章 <a href="https://www.modb.pro/db/1754761762578714624">https://www.modb.pro/db/1754761762578714624</a></li>
+<li>2024年9月 墨天轮第二届SQL挑战赛 优秀奖 <a href="https://www.modb.pro/db/1834785446736441344">https://www.modb.pro/db/1834785446736441344</a></li>
+<li>2026年1月 墨天轮 2025年度潜力作者 <a href="https://www.modb.pro/db/2013457563807997952">https://www.modb.pro/db/2013457563807997952</a></li>
+<li>2026年2月 墨天轮1月优秀文章 <a href="https://www.modb.pro/db/2019625024827777024">https://www.modb.pro/db/2019625024827777024</a></li>
+<li>2026年4月 墨天轮3月优秀文章 <a href="https://www.modb.pro/db/2041725099851194368">https://www.modb.pro/db/2041725099851194368</a></li>
+<li>2026年5月 YashanDB AI应用大赛一等奖 <a href="https://mp.weixin.qq.com/s/HvmlJWOoVpa_w-oKyA8OHQ">https://mp.weixin.qq.com/s/HvmlJWOoVpa_w-oKyA8OHQ</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="学生时期获奖">学生时期获奖</h2>
+<p>小学和初中时期的已经记不起来了，这里只记录高中之后的（因为参加了2009年的五校联合自主招生，有存档）</p>
+<ul>
+<li>
+<p>校外</p>
+<ul>
+<li>2007年 长沙市 中学组男子四驱车现场拼装竞速 二等奖</li>
+<li>2008年 第二十五届全国高中物理竞赛长沙赛区 一等奖</li>
+<li>2008年 长沙市 中小学生创新作文大赛复赛 二等奖</li>
+<li>2008年 长沙市 中学男子组 “海鸥”自由飞模型飞机单项 一等奖</li>
+<li>2008年 长沙市 “海鸥”自由飞模型飞机团体 二等奖</li>
+<li>2008年 长沙市 青少年科技创新大赛论文作品 二等奖</li>
+<li>2009年 长沙市 第二十届中小学生模型竞赛 飞侠电动伞翼飞机竞时赛 二等奖</li>
+<li>2009年 长沙市 第二十届中小学生模型竞赛 1/32遥控漂移车竞时赛 二等奖</li>
+<li>2009年 长沙市 第七届运动会模型比赛 中学组四驱车现场升级改造轨道竞速 第二名</li>
+<li>2009年 湖南省青少年模型竞赛 中学组四驱车现场升级改造竞速 一等奖</li>
+</ul>
+</li>
+<li>
+<p>校内</p>
+<ul>
+<li>2008年 优秀书法作品 （忘了，可能是水性笔写的一页行楷？）</li>
+<li>2008年 第十三届科技节航模比赛 一等奖 （获得了市奖送的）</li>
+<li>2008年 第十三届科技节网页制作比赛 一等奖 （忘了）</li>
+<li>2008年 第十三届科技节电子报刊比赛 二等奖 （忘了,可能是当时我编的暗黑雅典娜创刊号，收录了一些科技文章，其实是解包了网上的一个电子杂志自己重新打包制作了封面）</li>
+<li>2008年 第十三届科技节科技创新比赛 三等奖 （忘了）</li>
+<li>2008年 第十三届科技节创新作文比赛 一等奖 （忘了，可能是获得了市奖送的）</li>
+<li>2009年 优秀三小作品（忘了，可能是桥梁模型？）</li>
+<li>2009年 第十四届科技节航模比赛 一等奖 （获得了市奖送的）</li>
+<li>2009年 第十四届科技节“爱尔杯”创新作文 优胜奖 （忘了）</li>
+<li>其他一堆称号和虚名就不写了</li>
+</ul>
+</li>
+</ul>
+<h2 id="学生时期社会实践">学生时期社会实践</h2>
+<ul>
+<li>2008年 EGCG（FGCH/FCHT/EGHT）论坛版主 （论坛已倒闭，关联 "格斗中国"、"KOF"、"HACK"、"模拟器"）</li>
+</ul>
+<h2 id="软件著作权">软件著作权</h2>
+<ul>
+<li>2025SR2128053 PlsqlRewriter4GaussDB-web</li>
+</ul>
+<p>以前开发的大多是小工具，或者无图形界面的PLSQL/BAT的通用功能组件，从来没想过去了解一下著作权，大家喜欢用就行。唯一申请的这个也是尝试一下申请流程，另外，这款软件也的确在某种程度上解决了某大厂官方工具可能永远无法解决的痛点，于是弄个证证明一下。</p>
+<h2 id="登记漏洞">登记漏洞</h2>
+<ul>
+<li>HWSA25-084897515 普通用户非法提权漏洞 （官方不允许公开细节）</li>
+</ul>
+<p>项目中曾发现过很多漏洞，当时都是直接反馈给原厂，没想着去登记。唯一登记的这个漏洞是自己通过其他问题联想分析出来的，和项目无直接关系。</p>
+<h2 id="开源仓">开源仓</h2>
+<ul>
+<li>gitee: <a href="https://gitee.com/darkathena">https://gitee.com/darkathena</a></li>
+<li>gitcode: <a href="https://gitcode.com/darkathena">https://gitcode.com/darkathena</a></li>
+<li>github: <a href="https://github.com/Dark-Athena">https://github.com/Dark-Athena</a></li>
+</ul>
+<p>这些仓未完全同步</p>
+<h2 id="个人博客">个人博客</h2>
+<ul>
+<li><strong>主站</strong>：<a href="https://www.darkathena.top">https://www.darkathena.top</a>-</li>
+<li><strong>静态镜像站</strong>：<a href="https://dark-athena.github.io/halo-SSG/">https://dark-athena.github.io/halo-SSG/</a></li>
+<li>墨天轮: <a href="https://www.modb.pro/u/445229">https://www.modb.pro/u/445229</a></li>
+<li>CSDN: <a href="https://darkathena.blog.csdn.net">https://darkathena.blog.csdn.net</a></li>
+<li>博客园: <a href="https://www.cnblogs.com/DarkAthena">https://www.cnblogs.com/DarkAthena</a></li>
+<li>开源中国: <a href="https://my.oschina.net/DarkAthena">https://my.oschina.net/DarkAthena</a>  (已停同步)</li>
+<li>LINKEDIN: <a href="https://www.linkedin.com/in/darkathena/">https://www.linkedin.com/in/darkathena/</a> (国内无法访问，未同步文章)</li>
+</ul>
+<h2 id="爱好">爱好</h2>
+<ul>
+<li><strong>篮球</strong>：小学时投的第一个三分球是背对着球框倒马桶，进了，心情甚好；初中时期曾是本地的镇代表队员，穿和樱木花道一样的10号球衣；由于在冬天经常穿着蓝色连衣帽外套戴着帽子在野球场打球，人送外号"忍者"(忍者乱太郎)；高中班赛保持100%三分命中率（其实就是一投一中）；工作之后几乎再没碰过篮球，虽然曾试着去参加了当时工作地周边的一个篮球社团，但是没上过场。</li>
+<li><strong>音乐</strong>：初中起开始玩口琴，高中起开始玩陶笛，能发1234567的乐器都能来两手，纯粹的野路子，听到好听的歌能自己扒简谱。五线谱能看懂（废话，初中音乐课上就会学五线谱识谱），但无法对着演奏，因为不习惯C调以外的计算，也学不来双手同时演奏不同的音轨。</li>
+<li><strong>写作</strong>：诗词散文小说都搞过，但现今看来，纯粹是青春期的一些文字游戏罢了，当时产出量很大，工作之后不再写了。</li>
+<li><strong>动漫</strong>：废话，那个时代过来的谁还没有几部喜欢的动漫作品。</li>
+<li><strong>电子游戏</strong>：QQ飞车、剑灵（已停服）、QQ炫斗（已停服），这几款网络游戏是我曾投入过比较多的时间的，后来工作忙都没玩了；单机游戏里主要是仙剑一、反三国志、GTA罪恶都市、极品飞车5保时捷之旅、NBA LIVE 06，可以看出基本上都是在2006年及之前，后面也不再玩了；至于那拥有数万个游戏的主机、街机、掌机游戏里，只有KOF是终身所爱，其他均只为收藏（1M小水管挂BT下载MAMEP全ROM基本不玩，只为点亮所有列表）。</li>
+<li><strong>计算机</strong>：小霸王时代开始接触BASIC，文曲星时代接触GV-BASIC，初高中时期搞过MUGEN和EMU，出过HACKROM，搞过软件破解，杀过威金。软路由、机顶盒、NAS各种刷。2011年在第一家公司里自学Delphi和数据库，独自开发的报表软件被使用者们自发推广到全国数百家门店使用。2015年仅用ORACLE里的PL/SQL就开发出了面向几百个数据库的管理软件，可分发指令，可自动采集运维和业务数据，可多渠道多格式推送（甚至能自动对报表进行格式化并截图推送企业微信你敢信），支持故障自愈。修过PLJSON这一著名的第三方plsql组件的BUG；在ORACLE原厂发布21C支持库内调用python程序之前就独自开发出了具有类似功能的PLSQL程序；编写了PLSQL包弥补了ORACLE 21C调用js代码的不足，思路和后续ORACLE发布的23C相当雷同。近些年在数据库软件及数据库服务的行业里，数据库内核及周边工具的开发都小小地搞了一搞。这些都是爱好使然，并非直接的工作任务。</li>
+</ul>
+<p>回头再看，和工作结合后，剩下的爱好也只有计算机了。</p>
+<h2 id="座右铭">座右铭</h2>
+<ul>
+<li>学生时期：<strong>为中华之崛起而读书</strong>（几乎所有的老师都会和学生们说：“你们读书不是为了父母不是为了别人而是为了自己啊！” 我在课堂上直接反对，我就不是为了自己，我是为了中华之崛起）</li>
+<li>第一份工作早期：<strong>把爱好和工作结合起来，去做对社会有用的事</strong>（切身实践，部门再好公司再好，在大环境下就永远没有单纯的技术，商业必然会有竞争，竞争就是会有各种无耻手段）</li>
+<li>第一份工作中期至今：<strong>5W2H、PDCA</strong> （受某任领导影响，这两个方法论已经烙印在我脑海里了，我认为5W2H和PDCA是绝大多数人一辈子都没能意识到的、能轻松触手可得的宝藏，不过在现今的AI时代，AI已经能补全这个能力了，当AI能和自己一样进行有条不紊的思考和规划时，我第一次对自己真正的能力优势有了危机感）</li>
+</ul>
+</div>
+</article>
+    </div>
+</article>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

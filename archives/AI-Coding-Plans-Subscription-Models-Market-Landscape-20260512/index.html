@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） - DA-技术分享-静态站</title>
+    <meta name="description" content="AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） 数据截至 2026 年 5 月 12 日，基于公开信息整理。各厂商最新旗舰模型见文末附录。 一、海外模型/对话厂商 1. OpenAI（ChatGPT） OpenAI 的订阅体系经历了从"免费 + 单一付费"到"多层分级">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<article>
+    <h1>AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12）</h1>
+    <div class="meta">
+        
+        <span>2026-05-14</span>
+        
+        <span>7 阅读</span>
+        
+        <a href="/categories/ai">AI</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="ai-订阅策略调研报告各大厂商的定价体系及其变化趋势2026-05-12">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12）</h1>
+<blockquote>
+<p>数据截至 2026 年 5 月 12 日，基于公开信息整理。各厂商最新旗舰模型见文末附录。</p>
+</blockquote>
+<hr/>
+<h2 id="一海外模型对话厂商">一、海外模型/对话厂商</h2>
+<h3 id="1-openaichatgpt">1. OpenAI（ChatGPT）</h3>
+<p>OpenAI 的订阅体系经历了从"免费 + 单一付费"到"多层分级 + 广告 + 按量计费混合"的显著演变。</p>
+<p><strong>当前订阅层级（2026 年 5 月）：</strong></p>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th><th>变化方向</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>GPT-5.5 Instant 基础访问，<strong>含广告</strong></td><td>广告已于 2026.2 在澳/新/加测试，5 月扩展至英/墨/巴/日/韩</td></tr><tr><td><strong>Go</strong></td><td>~$16（地区差异）</td><td>GPT-5.5 标准，<strong>含广告</strong></td><td>2025.8 印度首发，定位"经济型付费"，面向价格敏感用户</td></tr><tr><td><strong>Plus</strong></td><td>$20/月</td><td>GPT-5.5 Pro 无广告，更深推理</td><td>自 2023.2 推出后<strong>价格未变</strong>，但模型持续升级（GPT-4 → o1 → GPT-5 → GPT-5.5）</td></tr><tr><td><strong>Pro</strong></td><td>$200/月</td><td>无限 GPT-5 访问，4x 上下文，Coding 工具</td><td>2024.12 推出，面向重度用户</td></tr><tr><td><strong>Business</strong></td><td>~$25/用户/月</td><td>团队管理 + Codex 按量席位可选</td><td>2026.4 新增 Codex-only 按量计费席位，无固定费用</td></tr><tr><td><strong>Enterprise</strong></td><td>定制价</td><td>完整管理控制、SSO、合规</td><td>未公开价格</td></tr></tbody></table>
+<p><strong>关键变化趋势：</strong></p>
+<ul>
+<li><strong>引入广告层</strong>：2026 年 2 月起，Free 和 Go 计划开始在多国投放广告，OpenAI 同时上线自助广告管理器（Ads Manager），这是 AI 对话产品首次大规模引入广告变现</li>
+<li><strong>向下扩展付费漏斗</strong>：Go 计划（$16/月，含广告）试图在免费与 Plus 之间架桥，OpenAI 自己预计部分 Plus 用户会<strong>降级</strong>至 Go</li>
+<li><strong>向上推出按量计费</strong>：Business 新增 Codex 席席采用即用即付模式，标志着 OpenAI 开始在团队场景试验按量计费</li>
+</ul>
+<h3 id="2-anthropicclaude">2. Anthropic（Claude）</h3>
+<p>Anthropic 的订阅策略变化最为频繁，且近期因"隐性涨价"引发大量争议。</p>
+<p><strong>当前订阅层级：</strong></p>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th><th>变化方向</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>Claude 基础模型访问</td><td>免费版持续存在，但模型能力受限</td></tr><tr><td><strong>Pro</strong></td><td>$20/月</td><td>Claude 全模型（含 Opus 4.7），5x 额度</td><td>2026.4 Claude Code 一度被<strong>暗中移除</strong>后又改回，引发信任危机</td></tr><tr><td><strong>Max 5x</strong></td><td>$100/月</td><td>Pro 额度的 5 倍</td><td>2025.10 推出</td></tr><tr><td><strong>Max 20x</strong></td><td>$200/月</td><td>Pro 额度的 20 倍</td><td>面向企业重度用户</td></tr><tr><td><strong>Team</strong></td><td>~$25/用户/月</td><td>团队协作 + 管理功能</td><td>企业级</td></tr><tr><td><strong>API</strong></td><td>即用即付</td><td>按实际使用量计费</td><td>独立于订阅体系</td></tr></tbody></table>
+<p><strong>关键变化趋势：</strong></p>
+<ul>
+<li><strong>阶梯加密</strong>：从单一 Pro 扩展为 Pro → Max 5x → Max 20x 三档，在 $20-200 之间做更精细的梯度切割</li>
+<li><strong>权益收缩</strong>：2026 年 4 月 Anthropic 将 Claude Code 从 Pro 套餐页面短暂移除（后又恢复），暴露出其对 Pro $20 用户使用高算力功能的不满，被视为推动用户升级至 Max 的策略性操作</li>
+<li><strong>企业套餐涨价争议</strong>：企业用户反映 $200/月的企业套餐权益被不断缩减，被称为"被包装成升级的涨价陷阱"</li>
+<li><strong>Claude Mythos 限制发布</strong>：2026.4.7 发布 Mythos Preview（全球首个攻破企业网络的 AI 模型），因网络安全风险采取限制发布策略，引发行业对 AI 安全边界的讨论</li>
+</ul>
+<h3 id="3-googlegemini">3. Google（Gemini）</h3>
+<p>Google 的 AI 订阅策略与其"全家桶"生态深度绑定。</p>
+<p><strong>当前订阅层级（2026 年 4 月后）：</strong></p>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>Gemini 基础模型</td></tr><tr><td><strong>AI Plus</strong></td><td>~$9.99/月</td><td>更高配额 + 基础高级功能</td></tr><tr><td><strong>AI Pro</strong></td><td>~$19.99/月</td><td>Gemini 3.1 Pro 深度思考、Google 全家桶 AI 功能整合</td></tr><tr><td><strong>AI Ultra</strong></td><td>$249.99/月</td><td>Deep Think 模式、Veo 3 视频生成、Flow 视频编辑等顶级功能</td></tr></tbody></table>
+<p><strong>关键变化趋势：</strong></p>
+<ul>
+<li><strong>层级扩展</strong>：Google One AI Premium 更名为 Google AI Pro，同时新增入门级 AI Plus 和旗舰级 AI Ultra，从原来的 3 层扩展为 4 层</li>
+<li><strong>天价旗舰档</strong>：$249.99/月的 Ultra 创下 AI 消费级订阅最高单价</li>
+<li><strong>生态捆绑</strong>：Gemini 已深度嵌入 Android 系统（$19.99/月的系统级管家体验），AI Pro/Ultra 与 Google Workspace（Gmail/Docs/Sheets）AI 功能捆绑销售</li>
+<li><strong>模型快速迭代</strong>：Gemini 2.0 Flash/Flash-Lite 于 2026.6.1 停服，主推 Gemini 2.5 Pro/Flash 及 Gemini 3.1 Pro（2026.2.19 发布）系列</li>
+</ul>
+<hr/>
+<h2 id="二海外-ai-编程工具厂商">二、海外 AI 编程工具厂商</h2>
+<h3 id="4-microsoftcopilot">4. Microsoft（Copilot）</h3>
+<h4 id="m365-copilot">M365 Copilot</h4>
+<table><thead><tr><th>产品</th><th>定价模式</th><th>关键变化</th></tr></thead><tbody><tr><td><strong>M365 Copilot Business</strong></td><td>$30/用户/月（捆绑 M365）</td><td>与 M365 商业版/高级版绑定，2026.6.30 前有折扣</td></tr><tr><td><strong>Copilot Pro（个人）</strong></td><td>$20/月</td><td>整合进 Word/Excel/PowerPoint/Outlook</td></tr></tbody></table>
+<p>M365 Copilot 付费席位已超 2000 万，本季度净新增同比增长 250%。</p>
+<h4 id="github-copilot">GitHub Copilot</h4>
+<p><strong>2026 年 4 月 28 日</strong>，GitHub 宣布 Copilot 将于 <strong>6 月 1 日起全面转向按量计费（AI Credits）</strong>，这是 AI 行业从"订阅制"转向"用多少付多少"的标志性事件。</p>
+<p><strong>当前订阅层级（按量计费生效前 → 6 月 1 日后）：</strong></p>
+<table><thead><tr><th>层级</th><th>月费</th><th>6.1 后 AI Credits 额度</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>有限免费额度</td><td>代码补全 + 有限 Premium Requests</td></tr><tr><td><strong>Pro</strong></td><td>$10/月</td><td>$10 AI Credits/月</td><td>代码补全 + Chat/CLI/Code Review/Extensions/Spaces；<strong>代码补全不消耗 Credits</strong></td></tr><tr><td><strong>Pro+</strong></td><td>$39/月</td><td>$39 AI Credits/月</td><td>Pro 全部 + 更高额度；适合重度个人开发者</td></tr><tr><td><strong>Student</strong></td><td>$0</td><td>与 Pro 等值</td><td>验证学生免费享受 Pro 级权益</td></tr><tr><td><strong>Business</strong></td><td>$19/用户/月</td><td>$19 AI Credits/用户/月</td><td>组织级 + 全组织共享额度池（轻量用户余额可抵消重度用户消耗）</td></tr><tr><td><strong>Enterprise</strong></td><td>$39/用户/月</td><td>$39 AI Credits/用户/月</td><td>最高管理控制 + SSO + 合规 + 共享额度池</td></tr></tbody></table>
+<p><strong>按量计费核心机制：</strong></p>
+<ul>
+<li><strong>计量方式</strong>：按 Token 消耗计算（输入 + 输出 + 缓存 Token），费率按各模型公开 API 定价执行</li>
+<li><strong>代码补全（Code Completions）和 Next Edit</strong>：<strong>仍包含在各订阅计划内，不消耗 AI Credits</strong></li>
+<li><strong>模型乘数</strong>：高级推理模型消耗 5x 甚至 20x 标准费率</li>
+<li><strong>超额购买</strong>：付费用户可在额度耗尽后额外购买 Credits</li>
+<li><strong>年度用户过渡</strong>：已有年度 Pro/Pro+ 用户维持原有条款至期满，到期后自动转为 Free 模式（可升级或折算 Credits）</li>
+<li><strong>促销缓冲</strong>：6-8 月 Business 额外获得 <span class="math math-inline">30/月 Credits，Enterprise 额外获得 </span>70/月 Credits</li>
+<li><strong>预算控制</strong>：管理员可按企业/成本中心/用户级别设预算限额，选择允许或阻止超额使用</li>
+</ul>
+<p><strong>其他近期变化：</strong></p>
+<ul>
+<li><strong>Pro 不再提供 Opus 模型</strong>（4 月调整，需 Pro+ 或更高才能使用高级推理模型）</li>
+<li><strong>学生套餐缩水</strong>：无法手动选择高级 AI 模型</li>
+<li><strong>PR 广告事件</strong>：Copilot 曾在开发者拉取请求中插入广告，引发众怒后紧急撤回</li>
+<li><strong>数据训练争议</strong>：4 月 24 日起默认使用 Copilot 用户数据训练 AI 模型</li>
+</ul>
+<h3 id="5-cursor">5. Cursor</h3>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Hobby</strong></td><td>$0</td><td>每月 2000 次 Completion</td></tr><tr><td><strong>Pro</strong></td><td>$20/月</td><td>500 次 Premium 请求 + Claude/GPT 模型切换</td></tr><tr><td><strong>Business</strong></td><td>$40/月</td><td>Pro 权益 + 团队管理</td></tr><tr><td><strong>超额费用</strong></td><td>按量</td><td>有用户报告周账单达 <span class="math math-inline">350，月费用高达 </span>1400</td></tr></tbody></table>
+<p><strong>关键变化：</strong> Cursor 的"隐藏成本"问题突出——$20 的基础月费在实际重度使用中可能膨胀数倍至数十倍，本质上是<strong>订阅底座 + 按量叠加</strong>的混合模式。SpaceX 以 600 亿美元收购 Cursor 的选择权，若不执行则需支付 100 亿美元合作费。</p>
+<h3 id="6-windsurf">6. Windsurf</h3>
+<p>2026 年 3 月进行重大定价方案调整，从积分制转向新模式，引发 Reddit 社区用户强烈反弹。曾被视为 Cursor 的主要竞争者，但定价策略的频繁变动影响了用户信任。</p>
+<h3 id="7-vercelv0">7. Vercel（v0）</h3>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>基础 AI UI 生成，有限 Credits</td></tr><tr><td><strong>Premium</strong></td><td>$20/月</td><td>更多 Credits + 高级功能</td></tr><tr><td><strong>Business</strong></td><td>更高价格</td><td>团队级功能</td></tr></tbody></table>
+<p>v0 是 Vercel 推出的 AI 生成式 UI 系统，专注前端代码生成。采用 Credits 体系，用完需额外购买。原有的 Ultra 高级计划已被取消。</p>
+<h3 id="8-stackblitzboltnew">8. StackBlitz（Bolt.new）</h3>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>$0</td><td>300K tokens/天，1M tokens/月，公开项目</td></tr><tr><td><strong>Pro</strong></td><td>$25/月</td><td>10M tokens/月起，无每日限制，自定义域名，SEO</td></tr><tr><td><strong>Teams</strong></td><td>$30/成员/月</td><td>Pro 全部 + 团队管理、私有 NPM、设计系统知识</td></tr><tr><td><strong>Enterprise</strong></td><td>定制</td><td>安全合规、SSO、专属支持</td></tr></tbody></table>
+<p>Bolt.new 是基于 WebContainers 的 AI 全栈 Web 开发平台。Pro 的未用 tokens 可滚存至下月。</p>
+<h3 id="9-replit">9. Replit</h3>
+<table><thead><tr><th>层级</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Starter</strong></td><td>$0</td><td>免费 Agent credits，发布 1 个应用</td></tr><tr><td><strong>Core</strong></td><td><span class="math math-inline">20/月（年付 </span>18）</td><td>$20 Credits/月，最多 5 位协作者，自主长构建</td></tr><tr><td><strong>Teams</strong></td><td>更高</td><td>团队协作 + 管理功能</td></tr></tbody></table>
+<p>Replit 是云端 IDE + AI 编程平台，主打"浏览器内完成一切"。</p>
+<hr/>
+<h2 id="三国内-coding-plan--token-plan-厂商">三、国内 Coding Plan / Token Plan 厂商</h2>
+<p>这是 2026 年 AI 行业竞争最激烈的细分赛道。Coding Plan 是国内各大云厂商与模型厂商针对 AI 编程场景推出的专属订阅套餐，核心特点是整合多厂商顶级编程模型、支持一键切换。</p>
+<h3 id="10-智谱-glm">10. 智谱 GLM</h3>
+<p>国内最早推 Coding Plan 的厂商之一，也是<strong>涨价最狠的</strong>。</p>
+<table><thead><tr><th>套餐</th><th>国内（bigmodel.cn）</th><th>海外（Z.ai）</th></tr></thead><tbody><tr><td><strong>Lite</strong></td><td>¥49/月</td><td>$18/月（≈¥144）</td></tr><tr><td><strong>Pro</strong></td><td>¥149/月</td><td>$72/月（≈¥576）</td></tr><tr><td><strong>Max</strong></td><td>¥469/月</td><td>$160/月（≈¥1,280）</td></tr></tbody></table>
+<p><strong>变化轨迹：</strong> 2026 年 2 月一轮涨价 ≥30% 并取消首购优惠，3 月中旬 API 价格再上调 20%，4 月发布 GLM-5.1 的同时再提约 10%。国内 Max 档每天仅开放约 20% 额度，10:00 刷新，经常秒售罄。海外版不限购但价格约为国内 2-3 倍。GLM-5.1 为当前开源模型综合第一（SWE-bench Pro 58.4），全球模型综合第三。</p>
+<h3 id="11-kimi月之暗面">11. Kimi（月之暗面）</h3>
+<table><thead><tr><th>套餐</th><th>国内连续包月</th><th>海外月付</th></tr></thead><tbody><tr><td><strong>Andante</strong></td><td>¥39</td><td>-</td></tr><tr><td><strong>Moderato</strong></td><td>¥79</td><td>$19</td></tr><tr><td><strong>Allegretto</strong></td><td>¥159</td><td>$39</td></tr><tr><td><strong>Allegro</strong></td><td>¥559</td><td>$99</td></tr><tr><td><strong>Vivace</strong></td><td>-</td><td>$199</td></tr></tbody></table>
+<p>Kimi 的独特定位是**"AI 全家桶"**——Agent、PPT、深度研究、编程额度全部打通共享。¥39 的 Andante 就能享受 Agent 10 次/月 + PPT 10 次/月 + 编程额度。K2.6 于 2026.4.20 发布并开源，SWE-bench Verified 80.2%（接近 Claude Opus 4.7 的 80.8%），开源代码能力第一。</p>
+<h3 id="12-minimax">12. MiniMax</h3>
+<table><thead><tr><th>套餐</th><th>国内月费</th><th>海外月费</th><th>国内请求/5h</th><th>海外请求/5h</th></tr></thead><tbody><tr><td><strong>Starter</strong></td><td>¥29</td><td>$10</td><td>600</td><td>1,500</td></tr><tr><td><strong>Plus</strong></td><td>¥49</td><td>$20</td><td>1,500</td><td>4,500</td></tr><tr><td><strong>Max</strong></td><td>¥119</td><td>$50</td><td>4,500</td><td>15,000</td></tr></tbody></table>
+<p>另有<strong>极速版</strong>（M2.7-Highspeed）：Plus ¥98、Max ¥199、Ultra ¥899。</p>
+<p>MiniMax 是全场最低价入场（¥29），且最独特的是<strong>全模态打包</strong>——图片、语音、音乐、视频都在同一个 Plan 里，不需额外付费。海外版额度是国内版的 2.5 倍但价格也更高。M2.7 于 2026.4.17 开源发布，与 Hermes Agent 深度合作。</p>
+<h3 id="13-阿里百炼">13. 阿里百炼</h3>
+<table><thead><tr><th>套餐</th><th>国内</th><th>海外</th><th>请求/5h</th><th>请求/月</th></tr></thead><tbody><tr><td><strong>Lite</strong></td><td><del>¥40</del>（已停售）</td><td>-</td><td>1,200</td><td>18,000</td></tr><tr><td><strong>Pro</strong></td><td>¥200</td><td>$50</td><td>6,000</td><td>90,000</td></tr></tbody></table>
+<p><strong>重要变化：</strong> Lite ¥40（首月 ¥7.9）曾是学生和新手首选，但 2026 年 3 月 20 日停止新购，4 月 13 日连已有用户续费和升级都停了。现在新用户只能买 Pro ¥200/月。</p>
+<p>百炼的独特定位是**"模型超市"**：一个套餐里能用 qwen3-coder-next、Qwen3.6-Max-Preview、Kimi-K2.6、GLM-5.1、MiniMax-M2.7，等于开一张卡多个模型随便切。需要注意必须使用专用 Coding Plan Key（sk-sp-...），用普通 API Key 不计入套餐。</p>
+<h3 id="14-火山引擎字节跳动">14. 火山引擎（字节跳动）</h3>
+<table><thead><tr><th>套餐</th><th>国内月费</th><th>海外（BytePlus）</th><th>请求/5h</th><th>请求/月</th></tr></thead><tbody><tr><td><strong>Lite</strong></td><td>¥40</td><td>$10</td><td>1,200</td><td>18,000</td></tr><tr><td><strong>Pro</strong></td><td>¥200</td><td>$50</td><td>6,000</td><td>90,000</td></tr></tbody></table>
+<p>与百炼定位类似，火山引擎方舟是<strong>多模型聚合平台</strong>，多了字节自家豆包系列和 ArkClaw 生态。模型阵容包括豆包 Seed 2.0 Code、DeepSeek-V3.2、GLM-4.7、Kimi-K2.5、MiniMax-M2.5。曾经的 Lite ¥9.9、Pro ¥49.9 首购优惠，从 3 月 13 日起改成每天 10:30 限量抢。Pro 订阅附赠 ArkClaw 轻量版。</p>
+<h3 id="15-小米-mimo">15. 小米 MiMo</h3>
+<table><thead><tr><th>套餐</th><th>国内月费</th><th>首购 88 折</th><th>Credits</th></tr></thead><tbody><tr><td><strong>Lite</strong></td><td>¥39</td><td>¥34.32</td><td>6,000 万</td></tr><tr><td><strong>Standard</strong></td><td>¥99</td><td>¥87.12</td><td>2 亿</td></tr><tr><td><strong>Pro</strong></td><td>¥329</td><td>¥289.52</td><td>7 亿</td></tr><tr><td><strong>Max</strong></td><td>¥659</td><td>¥579.92</td><td>16 亿</td></tr></tbody></table>
+<p>2026 年 4 月 3 日最晚入场。<strong>最大差异化：没有 5 小时窗口限制</strong>，采用统一 Credits 体系（6,000 万 Credits 想一次花完就一次花完）。MiMo-V2.5-Pro（2026.4.23 公测，4.28 MIT 开源）为当前旗舰，强调 Agent 能力和长上下文。V2.5 系列另含 MiMo-V2.5-TTS Series（语音合成）、V2.5-ASR（语音识别）及全模态基座 MiMo-V2-Omni（3.19 发布）。没有单独的海外定价，全球价格一致。</p>
+<h3 id="16-阶跃星辰-stepfun">16. 阶跃星辰 StepFun</h3>
+<table><thead><tr><th>套餐</th><th>国内月费</th><th>海外（stepfun.ai）</th><th>Prompts/5h</th></tr></thead><tbody><tr><td><strong>Flash Mini</strong></td><td>¥49</td><td>$6.99</td><td>~100</td></tr><tr><td><strong>Flash Plus</strong></td><td>¥99</td><td>$9.99</td><td>~400</td></tr><tr><td><strong>Flash Pro</strong></td><td>¥199</td><td>$29</td><td>~1,500</td></tr><tr><td><strong>Flash Max</strong></td><td>¥699</td><td>$99</td><td>~5,000</td></tr></tbody></table>
+<p><strong>反直觉发现：</strong> 海外版 Flash Plus $9.99（≈¥80）比国内 ¥99 还便宜。Step 3.5 Flash 仅 196B 总参数（激活 11B），SWE-bench Verified 拿了 74.4%，"小模型大能力"。当前价格标注为"推广期价格"，未承诺长期保持。</p>
+<h3 id="17-讯飞星辰科大讯飞">17. 讯飞星辰（科大讯飞）</h3>
+<table><thead><tr><th>套餐</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Coding Plan</strong></td><td>¥3.9 起</td><td>"不限量"调用（实际有速率和并发限制）</td></tr></tbody></table>
+<p>讯飞星辰 MaaS 平台以**极低价"不限量"**策略掀起行业震动，被称为"掀了 AI 编程的桌子，按 Token 计费的时代终结了"。¥3.9 的价格更多是获客手段，但确实打破了行业定价底线。</p>
+<h3 id="18-通义灵码阿里云-ide-插件">18. 通义灵码（阿里云 IDE 插件）</h3>
+<table><thead><tr><th>套餐</th><th>月费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>个人基础版</strong></td><td>免费</td><td>代码补全、智能问答（代码生成次数受限）</td></tr><tr><td><strong>个人专业版</strong></td><td><del>¥59</del> → 限免中</td><td>全部基础功能 + AI 程序员（Beta）</td></tr><tr><td><strong>企业标准版</strong></td><td>¥79/人/月（10 人起购）</td><td>全部功能 + 企业管理</td></tr><tr><td><strong>企业专属版</strong></td><td>¥159/人/月（100 人起购）</td><td>含专属 VPC 部署、IP 白名单</td></tr></tbody></table>
+<p>通义灵码的定位是 IDE 插件（VS Code / JetBrains），而非 Coding Plan，但个人专业版原价 ¥59/月（当前限免）也是国内 AI 编程订阅的一部分。企业版走的是传统 SaaS 席位制。</p>
+<h3 id="19-腾讯-codebuddy--workbuddy">19. 腾讯 CodeBuddy / WorkBuddy</h3>
+<table><thead><tr><th>产品</th><th>变化</th></tr></thead><tbody><tr><td><strong>CodeBuddy</strong></td><td>腾讯云 2026.4.28 发布计费方案调整公告，企业旗舰版更名为"SaaS 企业版"，价格由 ¥78 调整；2026.5.15 起执行新方案</td></tr><tr><td><strong>WorkBuddy</strong></td><td>同步调整计费方案</td></tr></tbody></table>
+<p>腾讯的 AI 编程产品线曾一度下架 Coding Plan，后重新调整后推出。具体的最新定价方案仍在变动中。</p>
+<h3 id="20-百度秒哒">20. 百度秒哒</h3>
+<p>百度推出的 AI 建站 / 编程产品，通过百度千帆平台提供服务。目前以免费体验 + 企业定制为主，C 端尚未形成明确的订阅层级。百度在 AI 编程领域的策略更侧重 B 端，千帆平台以 Agent 为核心提供企业级服务。</p>
+<hr/>
+<h2 id="四国内-c-端-ai-对话助手厂商">四、国内 C 端 AI 对话/助手厂商</h2>
+<h3 id="21-豆包字节跳动">21. 豆包（字节跳动）</h3>
+<p><strong>2026 年 5 月 4 日</strong>，豆包在 App Store 更新订阅服务声明，成为国内首个大规模推行 C 端订阅付费的 AI 应用。</p>
+<table><thead><tr><th>层级</th><th>月费（连续包月）</th><th>年费</th><th>核心权益</th></tr></thead><tbody><tr><td><strong>Free</strong></td><td>¥0</td><td>-</td><td>日常基础对话</td></tr><tr><td><strong>标准版</strong></td><td>¥68</td><td>¥688</td><td>PPT 生成、数据分析等</td></tr><tr><td><strong>加强版</strong></td><td>¥200</td><td>¥2048</td><td>更高算力复杂任务</td></tr><tr><td><strong>专业版</strong></td><td>¥500</td><td>¥5088</td><td>影视制作等高算力任务</td></tr></tbody></table>
+<p><strong>市场反馈：</strong> 月活 3.45 亿，但新京报调研 25 位用户中 20 位表示不愿付费。"豆包笨，还收费"一度上热搜。豆包官方回应称免费基础服务保留，付费增值服务仍在测试阶段。</p>
+<h3 id="22-其他国内-c-端厂商">22. 其他国内 C 端厂商</h3>
+<table><thead><tr><th>厂商</th><th>当前策略</th><th>备注</th></tr></thead><tbody><tr><td><strong>Kimi（月之暗面）</strong></td><td>Andante ¥39 起</td><td>已有完整的四档付费体系，正在完成新一轮 20 亿美元融资</td></tr><tr><td><strong>百度文心一言</strong></td><td>会员约 ¥59/月</td><td>早期就尝试付费，近期有退费争议</td></tr><tr><td><strong>智谱清言</strong></td><td>有会员体系，价格较低</td><td>被评价为"国内价格比国外低很多"</td></tr><tr><td><strong>DeepSeek</strong></td><td><strong>完全免费</strong>（C 端）</td><td>以"极致性价比 + 开源"为核心定位，API 按量付费，无 C 端付费会员。2026.4.24 发布 DeepSeek-V4-Pro 和 V4-Flash 并开源</td></tr><tr><td><strong>阿里通义千问</strong></td><td><strong>免费</strong></td><td>2025.11 宣布普通人可随时免费使用，不考虑收费；淘宝已与千问全面打通</td></tr><tr><td><strong>腾讯元宝</strong></td><td><strong>免费</strong></td><td>与千问同为豆包付费的"受益者"</td></tr></tbody></table>
+<hr/>
+<h2 id="五运营商入场">五、运营商入场</h2>
+<h3 id="23-中国移动-token-套餐">23. 中国移动 Token 套餐</h3>
+<p>2026 年 4 月 21 日，中国移动北京公司面向个人用户推出算力 Token 套餐：</p>
+<table><thead><tr><th>套餐</th><th>月费</th><th>内容</th></tr></thead><tbody><tr><td><strong>算力次包</strong></td><td>¥5.99</td><td>一次性 Token 包</td></tr><tr><td><strong>月包</strong></td><td>¥24.99/月</td><td>含 1000 万 Token</td></tr></tbody></table>
+<p>多地运营商（移动、联通）相继上线 Token 套餐，标志着<strong>运营商正式进入 AI 算力消费市场</strong>。类比手机流量套餐，"Agent + Token 套餐"正成为 AI 时代运营商的"新收入模式"。</p>
+<hr/>
+<h2 id="六ai-原生-ide--agent-工具海外">六、AI 原生 IDE / Agent 工具（海外）</h2>
+<h3 id="24-openai-codex">24. OpenAI Codex</h3>
+<p>OpenAI 推出的独立 AI 编程应用（区别于 GitHub Copilot 的 ChatGPT 套餐内 Codex 功能）。</p>
+<ul>
+<li>ChatGPT Business 与 Enterprise 用户可添加 Codex-only 席位，<strong>按用量计费，无固定席位费用</strong></li>
+<li>免费版和 Go 计划限时包含 Codex 访问（2 倍速率额度）</li>
+<li>被部分开发者评价为"还没背刺用户的套餐"</li>
+</ul>
+<h3 id="25-claude-code">25. Claude Code</h3>
+<p>Anthropic 推出的终端 AI 编程 Agent，随 Claude 订阅提供：</p>
+<ul>
+<li><strong>Claude Pro（$20/月）</strong> 可使用，但有使用量限制</li>
+<li><strong>Claude Max（<span class="math math-inline">100/</span>200/月）</strong> 享受更高额度</li>
+<li><strong>API 按量付费</strong>：独立于订阅，按实际 Token 消耗计费</li>
+<li>2026.4 一度从 Pro 页面移除又恢复，引发开发者强烈反应</li>
+</ul>
+<h3 id="26-devincognition-ai">26. Devin（Cognition AI）</h3>
+<p>全球首个"自主 AI 软件工程师"，2024.3 由 Cognition AI 发布。</p>
+<ul>
+<li>采用<strong>按任务/按小时计费</strong>模式，非传统订阅制</li>
+<li>定位为企业级 AI 编程 Agent，可自主完成全栈开发</li>
+<li>定价较高，主要面向企业客户</li>
+</ul>
+<hr/>
+<h2 id="七关键趋势总结">七、关键趋势总结</h2>
+<h3 id="趋势-1从单一订阅到多层分级--混合计费">趋势 1：从"单一订阅"到"多层分级 + 混合计费"</h3>
+<p>几乎所有头部厂商都在扩展订阅层级。OpenAI 从 2 层扩展为 6 层，Anthropic 从 2 层扩展为 5 层，Google 从 3 层扩展为 4 层。国内 Coding Plan 更是从 ¥29 到 ¥899 做了超细梯度切割。</p>
+<h3 id="趋势-2广告成为新的变现支柱">趋势 2：广告成为新的变现支柱</h3>
+<p>OpenAI 率先在 AI 对话产品中引入广告，Free 和 Go 计划用户开始看到广告，且 OpenAI 已推出自助广告管理器，表明广告不仅是实验，而是核心商业化路径之一。</p>
+<h3 id="趋势-3从固定订阅向按量计费渗透">趋势 3：从"固定订阅"向"按量计费"渗透</h3>
+<p>GitHub Copilot 2026 年 6 月全面转向按量计费，OpenAI Codex 席位采用即用即付，Cursor 的隐藏超额费用——这些信号表明<strong>按量计费正在侵蚀固定订阅的领地</strong>。其底层逻辑是：AI 推理的边际成本不趋近于零，"无限使用"的订阅承诺在财务上不可持续。</p>
+<h3 id="趋势-4coding-plan--token-plan-成为国内最卷赛道">趋势 4：Coding Plan / Token Plan 成为国内最卷赛道</h3>
+<p>国内 7+ 家厂商推出 Coding Plan，价格从 MiniMax 的 ¥29 到智谱 Max 的 ¥469，跨度 16 倍。模式演变类似于手机流量套餐：2024-2025 年"补贴圈用户" → 2025 下半年收紧（限购/涨价/停售低档） → 2026 年"精细分层"。<strong>Lite 档消失、首购变抢购、推广期定价</strong>等信号表明低价时代正在终结。</p>
+<h3 id="趋势-5运营商入局ai-算力消费水电化">趋势 5：运营商入局，AI 算力消费"水电化"</h3>
+<p>中国移动等运营商推出 Token 套餐，标志着 AI 算力消费正在从互联网产品走向基础设施消费。类比手机流量套餐的演变路径，Agent + Token 套餐可能成为运营商的长期收入模式。</p>
+<h3 id="趋势-6海外版-vs-国内版价格割裂">趋势 6：海外版 vs 国内版价格割裂</h3>
+<p>几乎所有国内厂商的海外定价都远高于国内：智谱 Max 国内 ¥469 vs 海外 <span class="math math-inline">160（≈¥1,280），Kimi Moderato 国内 ¥79 vs 海外 </span>19（≈¥152）。例外是阶跃星辰海外反而更便宜。国内价格优势源于激烈竞争，但这个优势不会永远持续。</p>
+<h3 id="趋势-7订阅疲劳与用户反弹">趋势 7："订阅疲劳"与用户反弹</h3>
+<p>多档订阅 + 按量叠加 + 广告的混合模式正在引发用户反弹。Cursor 用户报告 <span class="math math-inline">20 月费膨胀至 </span>1400，Anthropic 因暗中调整 Pro 权益遭遇信任危机，豆包付费话题冲上热搜——这些都表明<strong>用户对 AI 产品的付费容忍度正在被反复试探</strong>。</p>
+<h3 id="趋势-8模型迭代加速旗舰保质期越来越短">趋势 8：模型迭代加速，"旗舰保质期"越来越短</h3>
+<p>2026 年各厂商模型发布节奏明显加快：OpenAI 两个月内从 GPT-5.3 升级到 GPT-5.5，Anthropic 在一个月内先后发布 Opus 4.7 和 Mythos，Google Gemini 从 2.5 快速推进到 3.1 Pro。国内厂商同样密集更新——DeepSeek V4 发布、GLM-5.1 开源、Kimi K2.6 开源、千问 3.6 发布、豆包 Seed 2.0 Lite 全模态升级。<strong>旗舰模型的"保质期"已从半年缩短到一两个月</strong>，用户为"最强模型"支付的高档订阅，可能在数周内就被新版本稀释。</p>
+<hr/>
+<h2 id="八定价对比总览">八、定价对比总览</h2>
+<h3 id="海外模型对话厂商个人用户月费">海外模型/对话厂商（个人用户，月费）</h3>
+<table><thead><tr><th>厂商</th><th>免费版</th><th>入门付费</th><th>中端</th><th>高端</th><th>按量叠加</th></tr></thead><tbody><tr><td><strong>OpenAI</strong></td><td>Free（含广告）</td><td>Go ~$16（含广告）</td><td>Plus $20</td><td>Pro $200</td><td>Codex 按量</td></tr><tr><td><strong>Anthropic</strong></td><td>Free</td><td>Pro $20</td><td>Max 5x $100</td><td>Max 20x $200</td><td>API 按量</td></tr><tr><td><strong>Google</strong></td><td>Free</td><td>AI Plus ~$10</td><td>AI Pro ~$20</td><td>AI Ultra $250</td><td>-</td></tr></tbody></table>
+<h3 id="海外-ai-编程工具月费">海外 AI 编程工具（月费）</h3>
+<table><thead><tr><th>厂商</th><th>免费版</th><th>入门付费</th><th>中端</th><th>高端/团队</th></tr></thead><tbody><tr><td><strong>GitHub Copilot</strong></td><td>Free</td><td>Pro $10</td><td>Pro+ $39</td><td><strong>6月起按量计费（AI Credits）</strong></td></tr><tr><td><strong>Cursor</strong></td><td>Hobby $0</td><td>Pro $20</td><td>Business $40</td><td>超额按量</td></tr><tr><td><strong>v0</strong></td><td>Free</td><td>Premium ~$20</td><td>Business</td><td>-</td></tr><tr><td><strong>Bolt.new</strong></td><td>Free</td><td>Pro $25</td><td>Teams $30/成员</td><td>Enterprise 定制</td></tr><tr><td><strong>Replit</strong></td><td>Starter $0</td><td>Core $20</td><td>Teams</td><td>-</td></tr><tr><td><strong>Windsurf</strong></td><td>有免费额度</td><td>Pro ~$15</td><td>-</td><td>-</td></tr></tbody></table>
+<h3 id="国内-coding-plan--token-plan月费">国内 Coding Plan / Token Plan（月费）</h3>
+<table><thead><tr><th>厂商</th><th>最低入门</th><th>中端</th><th>高端</th><th>海外最低</th></tr></thead><tbody><tr><td><strong>MiniMax</strong></td><td>¥29</td><td>¥49</td><td>¥119（极速 ¥899）</td><td>$10</td></tr><tr><td><strong>Kimi</strong></td><td>¥39</td><td>¥79</td><td>¥559</td><td>$19</td></tr><tr><td><strong>小米 MiMo</strong></td><td>¥39</td><td>¥99</td><td>¥659</td><td>同价</td></tr><tr><td><strong>火山引擎</strong></td><td><del>¥40</del>（抢购）</td><td>¥200</td><td>-</td><td>$10</td></tr><tr><td><strong>智谱 GLM</strong></td><td>¥49（抢购）</td><td>¥149</td><td>¥469</td><td>$18</td></tr><tr><td><strong>阶跃星辰</strong></td><td>¥49</td><td>¥99</td><td>¥699</td><td>$6.99</td></tr><tr><td><strong>讯飞星辰</strong></td><td>¥3.9</td><td>-</td><td>-</td><td>-</td></tr><tr><td><strong>阿里百炼</strong></td><td><del>¥40</del>（已停售）</td><td>¥200</td><td>-</td><td>$50</td></tr></tbody></table>
+<h3 id="国内-c-端-ai-对话月费">国内 C 端 AI 对话（月费）</h3>
+<table><thead><tr><th>厂商</th><th>免费版</th><th>最低付费</th><th>中端</th><th>高端</th></tr></thead><tbody><tr><td><strong>豆包</strong></td><td>Free</td><td>¥68</td><td>¥200</td><td>¥500</td></tr><tr><td><strong>Kimi</strong></td><td>Free</td><td>¥39</td><td>¥79</td><td>¥559</td></tr><tr><td><strong>文心一言</strong></td><td>Free</td><td>~¥59</td><td>-</td><td>-</td></tr><tr><td><strong>智谱清言</strong></td><td>Free</td><td>有低价会员</td><td>-</td><td>-</td></tr><tr><td><strong>DeepSeek</strong></td><td>Free</td><td>-</td><td>-</td><td>-</td></tr><tr><td><strong>通义千问</strong></td><td>Free</td><td>-</td><td>-</td><td>-</td></tr><tr><td><strong>腾讯元宝</strong></td><td>Free</td><td>-</td><td>-</td><td>-</td></tr></tbody></table>
+<blockquote>
+<p>注：价格为公开信息整理，部分可能有地区/汇率差异，且变动频繁；企业级定价另议。</p>
+</blockquote>
+<hr/>
+<h2 id="附录各厂商最新旗舰模型2026-年-5-月">附录：各厂商最新旗舰模型（2026 年 5 月）</h2>
+<table><thead><tr><th>厂商</th><th>最新旗舰模型</th><th>发布时间</th><th>备注</th></tr></thead><tbody><tr><td><strong>OpenAI</strong></td><td>GPT-5.5（Instant / Pro / Thinking）</td><td>2026.4.24 发布，5.5 Instant 成为 ChatGPT 默认模型</td><td>GPT-5.3 已退役</td></tr><tr><td><strong>Anthropic</strong></td><td>Claude Opus 4.7</td><td>2026.4.16</td><td>3.75 兆像素视觉，取代 Opus 4.6；另有 Mythos Preview（4.7 限制发布）</td></tr><tr><td><strong>Anthropic</strong></td><td>Claude Sonnet 4.6</td><td>2026.2</td><td>中端型号</td></tr><tr><td><strong>Google</strong></td><td>Gemini 3.1 Pro（Preview）</td><td>2026.2.19</td><td>Gemini 2.0 Flash/Flash-Lite 于 2026.6.1 停服</td></tr><tr><td><strong>Google</strong></td><td>Gemini 2.5 Pro / Flash</td><td>2025 Q4 - 2026 Q1</td><td>当前主力生产版本</td></tr><tr><td><strong>DeepSeek</strong></td><td>DeepSeek V4-Pro / V4-Flash</td><td>2026.4.24</td><td>开源发布，上下文 128K；华为昇腾量化版同步上线</td></tr><tr><td><strong>智谱 GLM</strong></td><td>GLM-5.1</td><td>2026.4.8</td><td>开源，754B MoE，全球开源模型综合第一</td></tr><tr><td><strong>Kimi（月之暗面）</strong></td><td>Kimi K2.6</td><td>2026.4.20</td><td>开源，SWE-bench Verified 80.2%，开源代码能力第一</td></tr><tr><td><strong>MiniMax</strong></td><td>MiniMax M2.7</td><td>2026.4.17</td><td>开源，全模态，与 Hermes Agent 深度合作</td></tr><tr><td><strong>阿里千问</strong></td><td>Qwen3.6-Max-Preview</td><td>2026.4.20</td><td>旗舰预览版，Artificial Analysis 评测国产最佳；另有 qwen3-coder-next</td></tr><tr><td><strong>豆包（字节）</strong></td><td>Doubao Seed 2.0 Lite</td><td>2026.5.6</td><td>首款全模态理解模型；另有 Seed 2.0 Code（ICPC 五金）</td></tr><tr><td><strong>阶跃星辰</strong></td><td>Step 3.5 Flash</td><td>2026.3.23</td><td>196B MoE（激活 11B），SWE-bench Verified 74.4%</td></tr><tr><td><strong>小米</strong></td><td>MiMo-V2.5-Pro</td><td>2026.4.23（4.28 开源）</td><td>MIT 协议全量开源；V2.5 系列含 TTS、ASR；另有全模态 MiMo-V2-Omni（3.19）</td></tr><tr><td><strong>讯飞</strong></td><td>星火系列 + 第三方聚合</td><td>-</td><td>讯飞星辰 MaaS 平台聚合 DeepSeek-V3.2、Qwen 等多模型</td></tr></tbody></table>
+<hr/>
+<h2 id="参考信源">参考信源</h2>
+<h3 id="一海外模型对话厂商-1">一、海外模型/对话厂商</h3>
+<p><strong>OpenAI（ChatGPT）</strong></p>
+<ol>
+<li>OpenAI 官方定价页（Business/Enterprise）：<a href="https://openai.com/business/chatgpt-pricing/">https://openai.com/business/chatgpt-pricing/</a></li>
+<li>OpenAI API 定价页：<a href="https://openai.com/api/pricing/">https://openai.com/api/pricing/</a></li>
+<li>ChatGPT Pro 说明：<a href="https://help.openai.com/en/articles/9793128-what-is-chatgpt-pro">https://help.openai.com/en/articles/9793128-what-is-chatgpt-pro</a></li>
+<li>ChatGPT Go 全球发布：<a href="https://openai.com/introducing-chatgpt-go/">https://openai.com/introducing-chatgpt-go/</a></li>
+<li>ChatGPT 广告测试：<a href="https://openai.com/testing-ads-in-chatgpt/">https://openai.com/testing-ads-in-chatgpt/</a></li>
+<li>OpenAI Ads Manager 上线（2026.5.5）：<a href="https://openai.com/news/product-releases/">https://openai.com/news/product-releases/</a></li>
+<li>ChatGPT Go 百度百科：<a href="https://baike.baidu.com/item/ChatGPT%20Go/66304310">https://baike.baidu.com/item/ChatGPT%20Go/66304310</a></li>
+<li>ChatGPT 不同档位性价比（2026.5）：<a href="http://k.sina.com.cn/article_7857201856_1d5acf3c4019055rv8.html">http://k.sina.com.cn/article_7857201856_1d5acf3c4019055rv8.html</a></li>
+<li>OpenAI 含广告便宜套餐用户降级预期（2026.4.29）：<a href="https://business.sohu.com/a/1016025202_121885030">https://business.sohu.com/a/1016025202_121885030</a></li>
+<li>GPT-5.5 发布：<a href="https://baijiahao.baidu.com/s?id=1863351992396163397">https://baijiahao.baidu.com/s?id=1863351992396163397</a></li>
+<li>GPT-5.5 Instant 成为默认模型（2026.5.5）：<a href="https://baijiahao.baidu.com/s?id=1864393022509116451">https://baijiahao.baidu.com/s?id=1864393022509116451</a></li>
+</ol>
+<p><strong>Anthropic（Claude）</strong></p>
+<ol start="12">
+<li>Anthropic 官方定价页：<a href="https://www.anthropic.com/pricing">https://www.anthropic.com/pricing</a></li>
+<li>Max Plan 发布公告（2025.10.31）：<a href="https://www.anthropic.com/news/max-plan">https://www.anthropic.com/news/max-plan</a></li>
+<li>Claude Code 从 Pro 移除事件（2026.4.22）：<a href="https://www.163.com/dy/article/KR4MR7PQ0511A6N9.html">https://www.163.com/dy/article/KR4MR7PQ0511A6N9.html</a></li>
+<li>Anthropic 企业套餐涨价争议（2026.4.17）：<a href="https://www.163.com/dy/article/KQMKIL6P05561FZK.html">https://www.163.com/dy/article/KQMKIL6P05561FZK.html</a></li>
+<li>Claude Pro 2026 额度详解（2026.4.21）：<a href="https://t.cj.sina.com.cn/articles/view/7879848900/1d5acf3c401902xhk6">https://t.cj.sina.com.cn/articles/view/7879848900/1d5acf3c401902xhk6</a></li>
+<li>Claude Pro 五折购买教程（2026.5.3）：<a href="https://zhuanlan.zhihu.com/p/2034416056094175549">https://zhuanlan.zhihu.com/p/2034416056094175549</a></li>
+<li>Claude Opus 4.7 发布（2026.4.16）：<a href="https://baijiahao.baidu.com/s?id=1862685257010983004">https://baijiahao.baidu.com/s?id=1862685257010983004</a></li>
+<li>Claude Mythos 发布与网络安全争议（2026.4.7）：<a href="https://baijiahao.baidu.com/s?id=1862445707780099052">https://baijiahao.baidu.com/s?id=1862445707780099052</a></li>
+<li>Claude Mythos 百度百科：<a href="https://baike.baidu.com/item/Mythos/67588688">https://baike.baidu.com/item/Mythos/67588688</a></li>
+<li>Anthropic 估值 9000 亿美元（2026.5.12）：<a href="https://new.qq.com/rain/a/20260512A05S8I00">https://new.qq.com/rain/a/20260512A05S8I00</a></li>
+<li>Anthropic "刀法"分析（2026.4.27）：<a href="https://baijiahao.baidu.com/s?id=1863613096282097423">https://baijiahao.baidu.com/s?id=1863613096282097423</a></li>
+</ol>
+<p><strong>Google（Gemini）</strong></p>
+<ol start="23">
+<li>Gemini 会员档位解析（2026.4）：<a href="https://blog.csdn.net/eastyuxiao/article/details/160699868">https://blog.csdn.net/eastyuxiao/article/details/160699868</a></li>
+<li>2026 年 3 月 Google AI Plus/Pro/Ultra 解析：<a href="https://weibo.com/ttarticle/p/show?id=2310475277957592842544">https://weibo.com/ttarticle/p/show?id=2310475277957592842544</a></li>
+<li>Google AI Ultra $249.99 报道（2025.5.21）：<a href="https://www.163.com/dy/article/K03FO9J00519QIKK.html">https://www.163.com/dy/article/K03FO9J00519QIKK.html</a></li>
+<li>Gemini 3.1 百度百科：<a href="https://baike.baidu.com/item/Gemini%203.1/67530594">https://baike.baidu.com/item/Gemini%203.1/67530594</a></li>
+<li>Firebase AI Logic 支持模型列表（含 Gemini 3.1 Pro/3 Flash）：<a href="https://firebase.google.cn/docs/vertex-ai/models">https://firebase.google.cn/docs/vertex-ai/models</a></li>
+</ol>
+<h3 id="二海外-ai-编程工具">二、海外 AI 编程工具</h3>
+<p><strong>Microsoft / GitHub Copilot</strong></p>
+<ol start="28">
+<li>GitHub Copilot 官方许可证文档：<a href="https://docs.github.com/en/billing/concepts/product-billing/github-copilot-licenses">https://docs.github.com/en/billing/concepts/product-billing/github-copilot-licenses</a></li>
+<li>GitHub Copilot Premium Requests 文档：<a href="https://docs.github.com/en/billing/concepts/product-billing/github-copilot-premium-requests">https://docs.github.com/en/billing/concepts/product-billing/github-copilot-premium-requests</a></li>
+<li>IT之家：Copilot 转向按量计费（2026.4.28）：<a href="https://www.ithome.com/0/944/205.htm">https://www.ithome.com/0/944/205.htm</a></li>
+<li>Microsoft 365 Copilot 个人定价：<a href="https://www.microsoft.com/en-us/microsoft-365-copilot/pricing/individuals">https://www.microsoft.com/en-us/microsoft-365-copilot/pricing/individuals</a></li>
+<li>Microsoft 365 Copilot 商业定价：<a href="https://www.microsoft.com/en-us/microsoft-365-copilot/pricing">https://www.microsoft.com/en-us/microsoft-365-copilot/pricing</a></li>
+<li>GitHub Copilot PR 广告事件：<a href="https://www.ithome.com/0/934/673.htm">https://www.ithome.com/0/934/673.htm</a></li>
+<li>GitHub Copilot 学生套餐缩水：<a href="https://www.ithome.com/0/928/628.htm">https://www.ithome.com/0/928/628.htm</a></li>
+<li>GitHub Copilot Pro 不再提供 Opus（2026.4）：<a href="https://www.ithome.com/0/941/436.htm">https://www.ithome.com/0/941/436.htm</a></li>
+</ol>
+<p><strong>Cursor</strong></p>
+<ol start="36">
+<li>Cursor AI Pricing 2026：<a href="https://www.photonpay.com/hk/blog/article/cursor-ai-pricing">https://www.photonpay.com/hk/blog/article/cursor-ai-pricing</a></li>
+<li>Cursor 和 Windsurf 超额账单（2026.5.11）：<a href="https://www.163.com/dy/article/KSKLKD0M05561FZV.html">https://www.163.com/dy/article/KSKLKD0M05561FZV.html</a></li>
+<li>SpaceX 收购 Cursor 选择权（2026.4.22）：<a href="https://baijiahao.baidu.com/s?id=1863162242329008022">https://baijiahao.baidu.com/s?id=1863162242329008022</a></li>
+</ol>
+<p><strong>Windsurf</strong></p>
+<ol start="39">
+<li>Windsurf 定价模式大改（2026.3.19）：<a href="https://www.163.com/dy/article/KOCP636205561FZY.html">https://www.163.com/dy/article/KOCP636205561FZY.html</a></li>
+</ol>
+<p><strong>Bolt.new</strong></p>
+<ol start="40">
+<li>Bolt.new 官方定价页（2026.5.12 实际访问）：<a href="https://bolt.new/pricing">https://bolt.new/pricing</a></li>
+</ol>
+<p><strong>Replit</strong></p>
+<ol start="41">
+<li>Replit 官方定价页：<a href="https://replit.com/pricing">https://replit.com/pricing</a></li>
+</ol>
+<h3 id="三国内-coding-plan--token-plan">三、国内 Coding Plan / Token Plan</h3>
+<p><strong>综合横评</strong></p>
+<ol start="42">
+<li>腾讯新闻 7 家 Coding Plan 横评（2026.4.22，日耗 10 亿 Token 工程师视角）：<a href="https://news.qq.com/rain/a/20260422A0485K00">https://news.qq.com/rain/a/20260422A0485K00</a></li>
+<li>最全 AI Coding Plan 和 Token 购买攻略（2026.4.19）：<a href="https://new.qq.com/rain/a/20260419A05QA500">https://new.qq.com/rain/a/20260419A05QA500</a></li>
+<li>2026 年 4 月 Coding Plan 购买指南：<a href="https://zhuanlan.zhihu.com/p/2025569498338435852">https://zhuanlan.zhihu.com/p/2025569498338435852</a></li>
+<li>2026.5 国内 AI Coding Plan 防背刺指南：<a href="https://blog.csdn.net/qq_42320804/article/details/160788116">https://blog.csdn.net/qq_42320804/article/details/160788116</a></li>
+<li>Kimi / GLM / MiniMax / 百炼 Coding Plan 对比（2026.3）：<a href="https://blog.csdn.net/kuyu05/article/details/159479479">https://blog.csdn.net/kuyu05/article/details/159479479</a></li>
+</ol>
+<p><strong>智谱 GLM</strong></p>
+<ol start="47">
+<li>智谱 GLM-5.1 登顶全球开源模型第一（2026.5.6）：<a href="https://finance.sina.cn/2026-05-06/detail-inhwyixy8269063.d.html">https://finance.sina.cn/2026-05-06/detail-inhwyixy8269063.d.html</a></li>
+<li>智谱海外版涨价（2026.4.14）：<a href="https://baijiahao.baidu.com/s?id=1862416246991016881">https://baijiahao.baidu.com/s?id=1862416246991016881</a></li>
+<li>火山方舟上线 GLM-5.1（2026.4.24）：<a href="https://baijiahao.baidu.com/s?id=1863325754258983397">https://baijiahao.baidu.com/s?id=1863325754258983397</a></li>
+</ol>
+<p><strong>Kimi（月之暗面）</strong></p>
+<ol start="50">
+<li>Kimi K2.6 发布并开源（2026.4.20）：多篇报道交叉验证，参见横评文章 [42]</li>
+</ol>
+<p><strong>MiniMax</strong></p>
+<ol start="51">
+<li>MiniMax M2.7 开源发布（2026.4.17）：<a href="https://baijiahao.baidu.com/s?id=1862952427265383266">https://baijiahao.baidu.com/s?id=1862952427265383266</a></li>
+</ol>
+<p><strong>阿里百炼</strong></p>
+<ol start="52">
+<li>阿里云百炼 Coding Plan 官方文档：<a href="https://help.aliyun.com/zh/model-studio/coding-plan">https://help.aliyun.com/zh/model-studio/coding-plan</a></li>
+<li>千问 Coder 模型文档（首选推荐 qwen3-coder-next）：<a href="https://help.aliyun.com/zh/model-studio/qwen-coder">https://help.aliyun.com/zh/model-studio/qwen-coder</a></li>
+<li>qwen3-coder-next 开源介绍（2026.2.5）：<a href="https://developer.aliyun.com/article/1710703">https://developer.aliyun.com/article/1710703</a></li>
+<li>千问 3.6 系列百度百科：<a href="https://baike.baidu.com/item/%E5%8D%83%E9%97%AE3.6/67582881">https://baike.baidu.com/item/千问3.6/67582881</a></li>
+<li>Qwen3.6-Max-Preview 百度百科：<a href="https://baike.baidu.com/item/Qwen3.6-Max-Preview/67650577">https://baike.baidu.com/item/Qwen3.6-Max-Preview/67650577</a></li>
+</ol>
+<p><strong>火山引擎</strong></p>
+<ol start="57">
+<li>火山引擎方舟 Coding Plan 信息（散见于横评文章 [42]）</li>
+</ol>
+<p><strong>小米 MiMo</strong></p>
+<ol start="58">
+<li>MiMo 大模型百度百科：<a href="https://baike.baidu.com/item/MiMo%E5%A4%A7%E6%A8%A1%E5%9E%8B/67480694">https://baike.baidu.com/item/MiMo大模型/67480694</a></li>
+<li>Xiaomi MiMo-V2.5 百度百科：<a href="https://baike.baidu.com/item/Xiaomi%20MiMo-V2.5/67674546">https://baike.baidu.com/item/Xiaomi%20MiMo-V2.5/67674546</a></li>
+<li>小米 MiMo 官网（展示 V2.5 系列）：<a href="https://mimo.xiaomi.com/">https://mimo.xiaomi.com/</a></li>
+</ol>
+<p><strong>阶跃星辰 StepFun</strong></p>
+<ol start="61">
+<li>StepFun 定价信息见横评文章 [42]</li>
+</ol>
+<p><strong>讯飞星辰</strong></p>
+<ol start="62">
+<li>讯飞星辰 Coding Plan 3.9 元不限量（2026.4.15）：<a href="https://www.163.com/dy/article/KQIVFE030556BJF1.html">https://www.163.com/dy/article/KQIVFE030556BJF1.html</a></li>
+<li>讯飞星辰 Coding Plan 升级实测：<a href="http://finance.sina.com.cn/wm/2026-04-20/doc-inhvcewk6911910.shtml">http://finance.sina.com.cn/wm/2026-04-20/doc-inhvcewk6911910.shtml</a></li>
+</ol>
+<p><strong>通义灵码</strong></p>
+<ol start="64">
+<li>通义灵码官方定价页（2026.5.9 实际访问）：<a href="https://lingma.aliyun.com/lingma/pricing">https://lingma.aliyun.com/lingma/pricing</a></li>
+</ol>
+<p><strong>腾讯 CodeBuddy / WorkBuddy</strong></p>
+<ol start="65">
+<li>腾讯云 CodeBuddy/WorkBuddy 计费调整公告（2026.4.28）：<a href="https://baijiahao.baidu.com/s?id=1863695253696281367">https://baijiahao.baidu.com/s?id=1863695253696281367</a></li>
+</ol>
+<p><strong>DeepSeek</strong></p>
+<ol start="66">
+<li>DeepSeek V4 发布（2026.4.24）：<a href="https://baijiahao.baidu.com/s?id=1863808369633771491">https://baijiahao.baidu.com/s?id=1863808369633771491</a></li>
+<li>DeepSeek V4 发布后降价（2026.4.28）：<a href="https://baijiahao.baidu.com/s?id=1863777513167312535">https://baijiahao.baidu.com/s?id=1863777513167312535</a></li>
+<li>DeepSeek 融资与估值（2026.5.11）：<a href="https://baijiahao.baidu.com/s?id=1864859427455032431">https://baijiahao.baidu.com/s?id=1864859427455032431</a></li>
+</ol>
+<p><strong>百度秒哒</strong></p>
+<ol start="69">
+<li>百度秒哒文档：<a href="https://cloud.baidu.com/doc/MIAODA/index.html">https://cloud.baidu.com/doc/MIAODA/index.html</a></li>
+</ol>
+<h3 id="四国内-c-端-ai-对话">四、国内 C 端 AI 对话</h3>
+<p><strong>豆包</strong></p>
+<ol start="70">
+<li>豆包付费订阅公布（2026.5.4）：<a href="https://baijiahao.baidu.com/s?id=1864252144758713820">https://baijiahao.baidu.com/s?id=1864252144758713820</a></li>
+<li>豆包分层付费方案详细（2026.5.9）：<a href="https://baijiahao.baidu.com/s?id=1864703898816822697">https://baijiahao.baidu.com/s?id=1864703898816822697</a></li>
+<li>字节/Kimi/文心同时启动付费分析（2026.5.7）：<a href="https://www.thepaper.cn/newsDetail_forward_33101613">https://www.thepaper.cn/newsDetail_forward_33101613</a></li>
+<li>豆包终究要回归免费（2026.5.11）：<a href="https://www.thepaper.cn/newsDetail_forward_33142523">https://www.thepaper.cn/newsDetail_forward_33142523</a></li>
+<li>买即梦送豆包分析（2026.5.11）：<a href="https://baijiahao.baidu.com/s?id=1864862443000783326">https://baijiahao.baidu.com/s?id=1864862443000783326</a></li>
+</ol>
+<p><strong>其他 C 端厂商</strong></p>
+<ol start="75">
+<li>豆包推出收费：纯免费的大模型越来越少（含 DeepSeek、千问免费信息）：<a href="http://www.myzaker.com/article/6a0163c0b15ec028697c3b68">http://www.myzaker.com/article/6a0163c0b15ec028697c3b68</a></li>
+<li>国内 AI 助手商业化加速（2026.5.11）：<a href="https://baijiahao.baidu.com/s?id=1864889644878052657">https://baijiahao.baidu.com/s?id=1864889644878052657</a></li>
+<li>淘宝打通千问（2026.5.11）：<a href="http://finance.sina.com.cn/chanjing/2026-05-12/doc-inhxpxwx1758997.shtml">http://finance.sina.com.cn/chanjing/2026-05-12/doc-inhxpxwx1758997.shtml</a></li>
+</ol>
+<h3 id="五运营商">五、运营商</h3>
+<ol start="78">
+<li>中国移动推出 Token 套餐（2026.4.24）：<a href="https://www.donews.com/news/detail/4/6527403.html">https://www.donews.com/news/detail/4/6527403.html</a></li>
+<li>Token 套餐上线运营商分析（2026.4.22）：<a href="https://baijiahao.baidu.com/s?id=1863173206667613407">https://baijiahao.baidu.com/s?id=1863173206667613407</a></li>
+</ol>
+<h3 id="六ai-原生-ide--agent">六、AI 原生 IDE / Agent</h3>
+<p><strong>OpenAI Codex</strong></p>
+<ol start="80">
+<li>OpenAI Codex 应用发布：<a href="https://openai.com/introducing-the-codex-app/">https://openai.com/introducing-the-codex-app/</a></li>
+<li>Codex 按量计费团队席位：<a href="https://openai.com/codex-flexible-pricing-for-teams/">https://openai.com/codex-flexible-pricing-for-teams/</a></li>
+</ol>
+<p><strong>Claude Code</strong></p>
+<ol start="82">
+<li>Claude Code 订阅选择指南（2026.4.22）：<a href="https://zhuanlan.zhihu.com/p/2030308934381257617">https://zhuanlan.zhihu.com/p/2030308934381257617</a></li>
+</ol>
+<p><strong>Devin</strong></p>
+<ol start="83">
+<li>Devin 百度百科：<a href="https://baike.baidu.com/item/Devin/64159118">https://baike.baidu.com/item/Devin/64159118</a></li>
+<li>Devin AI 分析（2026.4.13）：<a href="https://developer.cloud.tencent.com/article/2654183">https://developer.cloud.tencent.com/article/2654183</a></li>
+</ol>
+<p><strong>Qoder（阿里）</strong></p>
+<ol start="85">
+<li>Qoder 正式推出付费订阅（2025.9.16）：<a href="https://baijiahao.baidu.com/s?id=1843380266079711823">https://baijiahao.baidu.com/s?id=1843380266079711823</a></li>
+<li>Qoder Teams 版定价调整（2026.4.30）：<a href="https://market.aliyun.com/detail/cmgj00072560.html">https://market.aliyun.com/detail/cmgj00072560.html</a></li>
+</ol>
+<h3 id="七趋势与分析">七、趋势与分析</h3>
+<ol start="87">
+<li>"AI 次贷危机"与 Copilot 按量计费分析（2026.4.29）：<a href="https://baijiahao.baidu.com/s?id=1863795908582093776">https://baijiahao.baidu.com/s?id=1863795908582093776</a></li>
+<li>AI 价格倒挂终结（2026.4.17）：<a href="https://baijiahao.baidu.com/s?id=1862713869594688440">https://baijiahao.baidu.com/s?id=1862713869594688440</a></li>
+<li>2026 年 AI 预测（2025.12.27）：<a href="https://hub.baai.ac.cn/view/51480">https://hub.baai.ac.cn/view/51480</a></li>
+<li>500 名付费用户深度调研（2026.2.13）：<a href="https://hub.baai.ac.cn/view/52521">https://hub.baai.ac.cn/view/52521</a></li>
+<li>斯坦福 2026 人工智能指数报告（2026.4.13）：<a href="https://fddi.fudan.edu.cn/_t251/d9/1b/c18965a776475/page.htm">https://fddi.fudan.edu.cn/_t251/d9/1b/c18965a776475/page.htm</a></li>
+</ol>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="/tags/ai">AI</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB">&larr; 【GaussDB】讨论下for update游标加锁的设计</a>
+    
+    
+    <a href="/archives/copilot-cli-local">告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

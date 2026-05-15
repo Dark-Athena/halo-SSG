@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>opengauss - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/tags/">&larr; 返回标签</a>
+<div class="page-header">
+    <h1>opengauss</h1>
+    <p>56 篇文章</p>
+</div>
+<ul class="post-list">
+    
+    <li>
+        
+        <span class="date">2026-01-03</span>
+        
+        <a class="title" href="/archives/fix-an-opengauss-bug-with-qoder">【openGauss】用Qoder修复openGauss的一处BUG</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-08-31</span>
+        
+        <a class="title" href="/archives/A-High-Efficiency-Solution-for-Data-Consistency-Verification-Between-Oracle-and-openGauss-GaussDB">【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-08-30</span>
+        
+        <a class="title" href="/archives/kylin-v11-mogdb-install">【MogDB】在刚发布的银河麒麟v11上安装MogDB</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-08-22</span>
+        
+        <a class="title" href="/archives/AI-Generated-Technical-Assessment-HTAP-Implementation-Differences-Between-GaussDB-and-openGauss">AI生成技术报告：GaussDB与openGauss的HTAP功能全面对比</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-08-21</span>
+        
+        <a class="title" href="/archives/1-Minute-Guide-Profiling-CPU-Utilization-of-Active-Sessions-in-openGauss">【openGauss】1分钟掌握：openGauss活动会话CPU占用率获取</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-07-26</span>
+        
+        <a class="title" href="/archives/GaussDB-A-Deep-Dive-into-Troubleshooting-Slow-Insert-Select-Operations">【GaussDB】深入剖析Insert Select慢的定位全过程</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-07-12</span>
+        
+        <a class="title" href="/archives/mogdb-ctid-split-parallel-query-analyze">【MogDB】一种基于ctid分片并发查询以提升大表查询性能的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-07-12</span>
+        
+        <a class="title" href="/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters">【openGauss】一个可能被忽视的功能--关于自定义参数的奇技淫巧</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2025-05-20</span>
+        
+        <a class="title" href="/archives/oracle-operator-plus-is-not-allowd-with-or-together">【ORACLE】你以为的真的是你以为的么？--ERROR: Operator "(+)" is not allowed used with "OR" together</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-12-28</span>
+        
+        <a class="title" href="/archives/regexp-diff-with-repetition-count-between-opengauss-and-oracle">【openGauss】正则表达式次数符号"{}"在ORACLE和openGauss中的差异</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-12-22</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-plsql-nested-subprogram">【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-11-10</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-plsql-dependencies">【MogDB】MogDB5.2.0重磅发布第七篇-支持PLSQL编译依赖</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-11-06</span>
+        
+        <a class="title" href="/archives/System-Metadata-Design-of-MogDB-openGauss-PostgreSQL-Starting-from-pg_depend-and-pg_class">从pg_depend和pg_class开始了解MogDB/openGauss/postgresql的系统元数据设计</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-11-01</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-enhanced-sql-tolerance">【MogDB】MogDB5.2.0重磅发布第九篇-SQL宽容性提升</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-19</span>
+        
+        <a class="title" href="/archives/opengauss-float2int-cast-round">【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-18</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-17</span>
+        
+        <a class="title" href="/archives/mogeaver-step-by-step-tutorial">【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-14</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-support-rowid">【MogDB】MogDB5.2.0重磅发布第三篇-支持astore下的rowid</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-08</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-how-to-download">【MogDB】MogDB5.2.0重磅发布第二篇-发布了哪些介质，如何获取？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-10-07</span>
+        
+        <a class="title" href="/archives/mogdb-5.2.0-some-new-feature-from-guc-parameter-and-catalog">【MogDB】MogDB5.2.0重磅发布第一篇-从参数和数据字典的变化来看引入了哪些新特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-09-14</span>
+        
+        <a class="title" href="/archives/mogdb-opengauss-error-syntax-error-at-or-near-wellformed">【MogDB】分析一条行列转换SQL的报错 ERROR: syntax error at or near "wellformed"</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-08-20</span>
+        
+        <a class="title" href="/archives/mogdb-murmurhash3-c-function">【MogDB】在MogDB中引入murmurhash3算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-07-21</span>
+        
+        <a class="title" href="/archives/opengauss-or-postgresql-to-oracle-crucial-compatibility">【openGauss】OG/PG系数据库兼容ORACLE时最需要关注的几个问题</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-07-18</span>
+        
+        <a class="title" href="/archives/opengauss-mogdb-sqlcode-datatype">【openGauss/MogDB】SQLCODE竟然不是数值类型？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-07-13</span>
+        
+        <a class="title" href="/archives/opengauss-mogdb-set-dbparam-list">【openGauss/MogDB】一种对数据库的列表型参数进行设置的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-04-13</span>
+        
+        <a class="title" href="/archives/mogdb-oracle-procedure-out-cursor-data">【MogDB】在ORACLE和MogDB中查看存储过程出参游标数据的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2024-02-21</span>
+        
+        <a class="title" href="/archives/halo-mogdb">【MogDB】将流行的博客系统Halo后端的数据库设置为MogDB</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2023-11-11</span>
+        
+        <a class="title" href="/archives/opengauss-pgtrigger-tgtype-decode">【openGauss】如何通过pg_trigger.tgtype获取触发器的各种触发条件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2023-08-16</span>
+        
+        <a class="title" href="/archives/mogdb-os-depend-test">【MogDB】操作系统依赖动态库解耦测试(MogDB 5.0.1)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2023-07-25</span>
+        
+        <a class="title" href="/archives/opengauss-procoutparamoverride-test">【openGauss】带有out参数的存储过程及自定义函数的重载测试</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2023-07-22</span>
+        
+        <a class="title" href="/archives/opengauss500-download-url">【openGauss】openGauss5.0.0下载地址备用（侵删）</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2023-07-11</span>
+        
+        <a class="title" href="/archives/opengauss-functionsinindexexpressionmustbemarkedimmutable">【openGauss】从"functions in index expression must be marked IMMUTABLE"谈起</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-12-25</span>
+        
+        <a class="title" href="/archives/one-key-build-opengauss-and-dolphin">【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-12-22</span>
+        
+        <a class="title" href="/archives/opengauss310-mysql-compat">【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-12-14</span>
+        
+        <a class="title" href="/archives/uos-mogeaver-signed-deb">【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-11-18</span>
+        
+        <a class="title" href="/archives/opengauss-wps-excel-realtime-report-sha256">【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-11-06</span>
+        
+        <a class="title" href="/archives/2way-write-file-with-procedure-in-opengauss">【openGauss】两种在openGauss中使用存储过程生成文本文件的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-10-31</span>
+        
+        <a class="title" href="/archives/opengauss-type-body-constructor-member-function">【openGauss】如何在openGauss中实现类似Oracle中constructor  function、member function的功能</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-10-21</span>
+        
+        <a class="title" href="/archives/gsql-sqlplus-export-same-format-file">【openGauss】让gsql和sqlplus输出包含有SQL及数据的完全一致的文本文件</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-09-15</span>
+        
+        <a class="title" href="/archives/transport-data-from-oracle-to-opengauss-faster">【openGauss】一种可能是目前最快的从ORACLE同步数据到MogDB(openGauss)的方式</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-09-07</span>
+        
+        <a class="title" href="/archives/mogeaver-on-docker">【openGauss】在windows中使用容器化的mogeaver</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-07-28</span>
+        
+        <a class="title" href="/archives/opengauss%E5%9C%A8%E4%B8%8D%E4%BF%AE%E6%94%B9%E6%95%B0%E6%8D%AE%E5%BA%93%E6%BA%90%E7%A0%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E5%A6%82%E4%BD%95%E6%8F%90%E9%AB%98%E5%AF%B9oracle%E7%9A%84%E5%85%BC%E5%AE%B9%E6%80%A7">【openGauss】在不修改数据库源码的情况下，如何提高对Oracle的兼容性？</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-05-18</span>
+        
+        <a class="title" href="/archives/mogdb-primary-standby-install">【openGauss】使用Oracle VM VirtualBOX安装openEuler操作系统并手动安装MogDB主备</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-05-14</span>
+        
+        <a class="title" href="/archives/about-opengauss-lob-type">【openGauss】谈一谈openGauss对Oracle中lob类型的兼容情况</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-05-13</span>
+        
+        <a class="title" href="/archives/think-about-opengauss-datatype">【openGauss】记录一次关于对openGauss(postgresql)数据类型的摸索经过及感想</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-05-09</span>
+        
+        <a class="title" href="/archives/opengauss-datastudio300">【openGauss】尝鲜openGauss官方客户端工具DataStudio3.0.0</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-05-09</span>
+        
+        <a class="title" href="/archives/oracle-postgresql-charset-matching">【openGauss】Oracle到postgresql的字符集名称映射表</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-04-27</span>
+        
+        <a class="title" href="/archives/sha256-opengauss">【openGauss】用plpgsql实现sha256算法(踩坑填坑实录)</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-02-10</span>
+        
+        <a class="title" href="/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-02-06</span>
+        
+        <a class="title" href="/archives/about-opengauss-raw-type">【openGauss】谈谈openGauss中的raw类型</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-02-02</span>
+        
+        <a class="title" href="/archives/opengauss-utl-url-pkg">【openGauss】我用plsql给openGauss手搓了一个UTL_URL包</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-01-18</span>
+        
+        <a class="title" href="/archives/about-opengauss-package">【openGauss】谈一谈PostgreSQL及openGauss中的package</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-01-12</span>
+        
+        <a class="title" href="/archives/opengauss-docker-compat-oracle">【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2022-01-02</span>
+        
+        <a class="title" href="/archives/skew-kurt-sql-excel">【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-12-28</span>
+        
+        <a class="title" href="/archives/opengauss-compat-oracle-function">【openGauss】openGauss补完计划一之ORACLE兼容函数</a>
+    </li>
+    
+    <li>
+        
+        <span class="date">2021-12-28</span>
+        
+        <a class="title" href="/archives/opengauss-datastudio-suggest-part1">【openGauss】对DATA STUDIO的一些功能建议Part1</a>
+    </li>
+    
+</ul>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

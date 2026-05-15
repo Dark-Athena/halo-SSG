@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记事本 - DA-技术分享-静态站</title>
+    <meta name="description" content="">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/archives/">文章归档</a>
+                <a href="/tags/">标签</a>
+                <a href="/moments/">记事本</a>
+                <a href="/online-tools/">在线工具</a>
+                <a href="/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<div class="page-header">
+    <h1>记事本</h1>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/05/04 20:24:44</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">本站于今日起新增全静态版本 https://dark-athena.github.io/halo-SSG/</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/04/10 11:05:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">r.jina.ai ,一键将网页转化为适合LLM读取的格式（部分复杂网页无法读取或读取不完整）</p><p style="">https://r.jina.ai/https://www.darkathena.top </p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/04/09 11:12:26</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">微软账号有些场景下登录必须依赖电脑硬件，比如在foxmail中登录就会弹出指纹、面部识别，但是电脑上可能没有相应的硬件，就无法登录（没有切换其他认证方式的机会）。此时，可以关联已存在的github账号和微软账号，通过github账号来登录微软账号。操作方式是，先在github中添加微软登录账号的邮箱，然后再去微软里使用github账号登录，注意弹出的信息应该是已存在相同的账号，而不是新建一个账号，后续正常操作授权和认证即可完成账号绑定操作。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/04/09 10:25:26</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">azure 删除所有资源、取消所有订阅、移除所有付款方式后，仍然可能每月收到扣费，此时在成本管理计费等页面里是查不到任何记录的，而且请求支持也无法找到可以退费的入口，因为当前账号上已经没有任何东西了。在取消订阅的时候，一定要注意这样一封邮件</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GFzG.png" srcset="/upload/image-GFzG.png?width=1200 1200w, /upload/image-GFzG.png?width=400 400w, /upload/image-GFzG.png?width=1600 1600w, /upload/image-GFzG.png?width=800 800w" width="979px"/></figure><p style="">这表示我之前曾经有预留3年的一个虚拟机，由于已经删除了所有计划，所以就移动到了共享计划里，后续可以绑定其他新的订阅里享受优惠，但如果我不做任何操作，我就需要持续每月付费，浪费了这个折扣。</p><p style="">取消这个的方式，在azure里搜索 "预留" ，应该能看到有一个名称就叫"预留"的服务，里面就可以看到这个预留条目，</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-BbjB.png" srcset="/upload/image-BbjB.png?width=1200 1200w, /upload/image-BbjB.png?width=400 400w, /upload/image-BbjB.png?width=1600 1600w, /upload/image-BbjB.png?width=800 800w" width="1863px"/></figure><p style="">点进去，然后点"退回",就可以取消这个预留了，状态先会变成如图所示的挂起，后台处理完成后就会变成已取消。当然历史已经扣了的就不会再返还了，不过当期的还能退一部分，未来的就全不会扣了。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/03/30 09:40:13</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-MSpH.png" srcset="/upload/image-MSpH.png?width=1200 1200w, /upload/image-MSpH.png?width=400 400w, /upload/image-MSpH.png?width=1600 1600w, /upload/image-MSpH.png?width=800 800w" width="897px"/></figure><p style="">原来在MACOS 的世界里，</p><p style="">复制不是 <code>ctrl+c</code> ,</p><p style="">切换中英文是 <code>win+space</code></p><p style=""><code>delete</code> 是 <code>backspace</code>,</p><p style="">没有一个键<code>delete</code>.</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/03/25 12:09:47</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">仓库owner, 修改pr的目标分支</p><pre><code>gh pr edit &lt;pr编号&gt; --base &lt;分支名称&gt; --repo &lt;仓库&gt;
+gh pr edit 1 --base for-yashandb --repo Dark-Athena/halo</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/03/24 14:48:22</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iyNz.png" srcset="/upload/image-iyNz.png?width=1200 1200w, /upload/image-iyNz.png?width=400 400w, /upload/image-iyNz.png?width=1600 1600w, /upload/image-iyNz.png?width=800 800w" width="228px"/></figure><p style="">DBeaver 里，对于三批国测名单，只剩海量、虚谷、神通三家没支持了，当然海量用GaussDB的也能连。另外，有原生支持连接的只有DM/GAUSSDB/GBASE8S/KINGBASE/OCEANBASE/TIDB/YASHANDB ,YASHANDB 这个PR还没合进去，我从pr的fork仓里自己构建的，实测和连ORACLE的感觉一样。注意这里oceanbase只能连接mysql租户</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/03/03 08:50:06</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">最近有fans私信我:</p><blockquote><p style="">我是数据开发工程师，精通sql语句和pandas。对于如今的ai，尤其是2026年，应该是开始高峰期了，我挺茫然的，我感觉它对我帮助也不是很大，但是又知道它一定是风口，我可以怎么去利用它来做数据开发和分析？</p></blockquote><p style="">现阶段，具备agent能力的AI可以说是无所不能，说帮助不大很可能是还局限于web-chat的聊天方式或者使用了免费模型。<br/>我当时这么回的：</p><blockquote><ol><li><p style="">数据标注<br/>现在AI要用好数据库里的数据，必须让数据库里的数据有良好的标注，比如准确详细的注释和关联关系</p></li><li><p style="">探索数据相关性<br/>以往靠人去发现数据之间的相关性，很耗时间，现在用AI agent可以让它自己去找规律，发现业务待改善点</p></li><li><p style="">改造原有分析流程<br/>原本可能是固化的数据放进固定规则的软件中来生成报告，现在可以借助AI，改进分析流程。分析仍然是分多个维度或者板块，但每一个部分都可以去调用ai的api去生成分析结果，最后形成一份相较于之前更生动的报告</p></li><li><p style="">更多可能性，其实可以去问AI自己</p></li></ol></blockquote><p style="">当我回复完，我突然想到一家公司 Palantir，这家公司借助AI可谓是出尽了风头。可以从下面这篇文章来了解一下这家公司究竟把AI用在了哪些方面</p><p style=""><a href="https://mp.weixin.qq.com/s/bx3HAzcVJujuxR0GfJyFOg">https://mp.weixin.qq.com/s/bx3HAzcVJujuxR0GfJyFOg</a></p><p style="">后续有时间再展开这个话题详细聊聊</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/03/02 00:15:17</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">服务器停电，网站关了两天，现已恢复</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/02/24 17:23:24</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">vscode copilot 聊天记录消失</p><p style=""><a href="https://github.com/microsoft/vscode-copilot-release/issues/3537">https://github.com/microsoft/vscode-copilot-release/issues/3537</a></p><ol><li><p style="">禁用启用copilot插件</p></li><li><p style="">卸载重装copilot插件</p></li><li><p style="">过滤器勾上read和archive （我就是这么干的，恢复了）</p></li></ol><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/02/07 16:58:21</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">移远RG501Q-EU 固件版本RG501QEUAAR12A06M4G_SAGM有无法收发短信的问题，更新到 RG501QEUAAR13A01M4G_04.200.04.200.zip即可。在openwrt里可以直接更新，操作方式</p><pre><code>qfirehose -f 模组固件解压后的目录/ -p </code></pre><p style="">注意期间不能断电不能终止 ,否则可能会变砖，最后显示 <code>Upgrade module successfully.</code> 就表示升级成功了</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/02/03 09:15:52</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">搞信创，应用开发两年测两年，刚上线，操作系统就进入扩展支持期了。。。</p>
+<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png" srcset="/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=1200 1200w, /upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=400 400w, /upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=1600 1600w, /upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=800 800w"/>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/01/30 16:37:57</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">GaussDB新推出了个k8s云化的版本 ，叫 CCE敏捷版(CCE Agile) ，本质上是用k8s管理很多容器，把这些容器当成主机放到tpops里纳管，但优势就是这些容器有一整套k8s的管理工具。不过看了下官方文档，安装起来似乎贼麻烦</p><p style=""><a href="https://support.huawei.com/enterprise/zh/doc/EDOC1100443649">https://support.huawei.com/enterprise/zh/doc/EDOC1100443649</a> </p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/01/19 09:31:07</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">配置vscode的java调试环境语言为英文，避免中文乱码:</p><p style="">打开设置，搜索`java.debug.settings.vmArgs`，配置值为`-Duser.language=en -Duser.country=US`   </p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/01/16 14:12:05</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">一个神奇的ORACLE BUG</p><pre><code>select d.dummy
+  from (select case when exists (select 1 from dual) then  '1'  end c1 from dual) v
+  left join dual d
+    on (d.dummy = v.c1 or d.dummy = '2');</code></pre><p style="">执行后，连接直接断开</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/01/10 19:50:53</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">停电几个小时，UPS的电都没了，本网站服务器不间断工作一年多，终于也重启了一回</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2026/01/09 15:23:46</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">oracle如果对分区表append insert,没提交，再次insert会报错</p><p style=""><code>ORA-12838: cannot read/modify an object after modifying it in parallel</code></p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/12/31 14:28:17</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">不知道有没有人写过，这里先记一下</p><p style="">oracle 可以使用savepoint，rollback能进行部分回滚，但是注意savepoint前后的事务id本身没有变化。观察v$transaction可以发现在savepoint后发生数据变更时,UBAREC的值会发生变化，UBA是undo block address的缩写，也就是说savepoint后改数据，会使用新的undo块地址，这样回滚时就能明确回滚到哪里截止</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/12/26 14:01:02</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">openGauss手动执行单个regress的sql文件并对比输出是否一致</p><pre><code>gs_guc reload -c "log_statement='all'"
+cd $CODE_BASE/src/test/regress
+gsql -q -a &lt;sql/sw_prepare.sql &gt;results/sw_prepare.out 2&gt;&amp;1
+diff expected/sw_prepare.out results/sw_prepare.out
+gsql -q -a &lt;sql/sw_basic.sql &gt;results/sw_basic.out 2&gt;&amp;1
+diff expected/sw_basic.out results/sw_basic.out
+gsql -q -a &lt;sql/sw_clearup.sql &gt;results/sw_clearup.out 2&gt;&amp;1
+diff expected/sw_clearup.out results/sw_clearup.out
+
+#注意初始化的字符序
+gs_initdb --nodename=primary --pwpasswd=Gauss@123 --encoding=UTF-8 --locale=C</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/26 20:20:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style=""><a href="https://qoder.com/referral?referral_code=zoaOJRCcnsKa1p1WlF2P3OI4UU9WS7YD"><span style="font-size: mediumpx; color: rgb(0, 0, 0)">https://qoder.com/referral?referral_code=zoaOJRCcnsKa1p1WlF2P3OI4UU9WS7YD</span></a></p><p style="">开始用qoder，点上面链接注册</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/26 17:01:10</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">esxi 页面上的状态有时候不对，就会导致很多操作无法进行，需要重启服务 <code>/etc/init.d/hostd restart</code>  这个可以避免重启整个esxi</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/26 10:47:08</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">vscode copilot被墙了，所有模型均无法选择</p><p style=""><a href="https://github.com/microsoft/vscode/issues/278925">https://github.com/microsoft/vscode/issues/278925</a></p><p style=""><img src="https://private-user-images.githubusercontent.com/25737761/517726396-c0994411-fd3c-4b1c-abf0-2b9e151323e9.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NjQxMjUyOTQsIm5iZiI6MTc2NDEyNDk5NCwicGF0aCI6Ii8yNTczNzc2MS81MTc3MjYzOTYtYzA5OTQ0MTEtZmQzYy00YjFjLWFiZjAtMmI5ZTE1MTMyM2U5LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTExMjYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUxMTI2VDAyNDMxNFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWQzYmU1NDc2ZTcyNmM0OThmZTM5MWNiMjVkOWUwMGNhYTQyZTk1OWE5OTY4ODcwOTgzNGJiMGZkZjljMjE2MWEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.KqakJNO49uB3kjB_wWkpRKVFhN0sItJDJYepEpFJvGI" style="display: inline-block"/></p><p style="">目前通过一些测试，我暂时认为是国内网络增加了限制，而非vscode做的限制</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/25 22:22:25</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">截止到20251125的ip黑名单</p><pre><code>1.180.141.166
+1.190.192.222
+2.57.121.247
+8.134.58.222
+14.198.6.42
+27.129.129.240
+27.185.31.75
+31.7.56.210
+31.7.62.234
+36.134.21.102
+36.137.195.72
+36.140.10.64
+36.140.10.145
+36.140.160.210
+36.140.161.139
+36.140.161.208
+36.212.233.36
+39.150.130.100
+42.177.94.52
+43.242.202.223
+43.249.193.47
+45.248.8.157
+46.19.142.242
+46.19.143.10
+46.19.143.50
+47.92.197.190
+49.0.196.81
+58.18.178.243
+58.22.243.42
+58.48.96.131
+58.53.128.39
+58.58.7.6
+58.211.255.186
+58.212.22.130
+58.212.22.131
+58.221.18.178
+58.221.60.78
+58.221.177.230
+60.205.217.172
+60.250.70.187
+60.250.70.189
+60.250.81.66
+79.124.40.94
+79.124.56.98
+79.124.56.186
+79.124.58.158
+79.124.58.218
+79.124.59.86
+82.147.85.152
+82.156.52.66
+83.222.190.78
+88.210.63.16
+88.210.63.18
+88.214.25.124
+91.238.181.92
+91.238.181.94
+93.123.109.71
+93.123.109.72
+93.123.109.98
+95.214.53.249
+95.214.53.251
+103.56.154.146
+103.85.168.18
+103.86.86.248
+103.148.58.155
+103.151.5.83
+103.186.108.229
+106.13.214.12
+106.54.0.196
+110.40.47.161
+111.10.223.2
+111.23.63.18
+111.53.63.134
+111.85.83.175
+111.225.194.184
+111.229.9.22
+112.2.55.181
+112.26.66.25
+112.27.125.137
+112.28.149.33
+112.51.96.142
+112.192.16.55
+112.237.143.195
+113.45.179.186
+113.46.159.125
+113.87.163.182
+113.106.0.239
+113.140.37.86
+113.201.37.18
+113.204.49.74
+114.219.214.47
+114.231.165.9
+115.182.240.35
+115.230.124.37
+115.239.160.246
+116.114.161.15
+116.237.41.143
+117.72.87.228
+117.82.91.243
+117.90.230.46
+117.135.195.2
+117.156.237.76
+117.158.153.125
+118.190.103.72
+120.41.185.163
+120.48.22.39
+120.70.15.109
+120.220.44.48
+121.12.149.101
+123.7.18.116
+123.139.119.80
+123.164.144.10
+123.182.152.114
+124.28.197.138
+124.65.97.230
+124.79.120.60
+124.117.230.190
+124.131.50.55
+124.165.238.153
+124.232.147.3
+124.232.147.204
+125.64.244.102
+128.14.98.144
+141.255.167.50
+150.138.72.54
+154.89.10.220
+175.6.40.66
+175.42.33.95
+175.153.161.124
+175.153.169.51
+178.22.24.42
+178.22.24.44
+180.76.54.9
+180.97.238.96
+180.143.174.169
+182.107.103.82
+182.200.3.68
+182.200.4.161
+182.200.5.77
+182.200.6.185
+182.200.7.4
+182.200.7.20
+183.230.200.5
+183.232.204.2
+183.239.210.213
+183.240.197.189
+183.241.138.37
+183.249.161.117
+183.250.134.17
+185.7.214.89
+185.42.12.98
+185.147.124.102
+185.147.124.202
+185.147.124.203
+185.156.73.71
+190.211.252.90
+192.72.189.195
+194.165.16.165
+195.3.220.79
+195.3.222.252
+195.3.222.253
+202.61.86.79
+202.101.188.54
+210.16.65.193
+210.45.79.219
+210.51.45.106
+210.71.163.253
+210.83.202.78
+211.141.173.254
+218.17.143.117
+218.27.79.202
+218.64.91.173
+218.76.62.187
+218.78.122.230
+218.85.116.202
+218.85.191.122
+218.89.66.58
+218.90.122.42
+218.95.37.198
+218.108.135.66
+218.201.74.254
+218.203.238.11
+220.78.179.70
+220.197.200.154
+221.122.121.236
+221.144.44.17
+221.237.154.89
+222.65.118.250
+222.75.100.74
+222.79.56.194
+222.173.131.58
+222.249.238.114
+223.13.122.170
+223.75.187.13
+223.83.10.222
+223.108.111.194
+223.108.111.238
+223.241.247.228</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/14 09:58:38</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">docker desktop 修改支持计划了，原本<span style="font-size: 14px; color: rgb(0, 0, 0)">4.49.0版本为最后一个支持win10的版本，现在改成了</span></p><blockquote><p style=""><span style="font-size: 16px; color: oklch(0.373 0.034 259.733)">Support for Windows 10 21H2 (19044) and 11 22H2 (22621) has ended. Installing Docker Desktop will require Windows 10 22H2 (19045) or Windows 11 23H2 (22631) in the next release.</span></p></blockquote><p style=""><span style="font-size: 16px; color: oklch(0.373 0.034 259.733)">Windows 10 21H2 (19044) 是开启了扩展安全更新的版本，微软会继续提供一年的安全更新支持</span></p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/11/05 15:10:14</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">centos7.9 假设光驱里有操作系统光盘，挂载本地yum源，并屏蔽其他所有源</p><pre><code class="language-bash">mkdir /media/cdrom
+mount /dev/cdrom /media/cdrom
+mv /etc/yum.repos.d /etc/yum.repos.d.bak
+mkdir /etc/yum.repos.d
+cp /etc/yum.repos.d.bak/CentOS-Media.repo /etc/yum.repos.d
+sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/CentOS-Media.repo
+yum clean all
+yum repolist all</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/10/31 08:48:11</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">docker desktop <span style="font-size: 14px; color: rgb(0, 0, 0)">4.49.0 (208700) 是最后一个支持win10的版本</span></p><ul><li><p style="">Support for Windows 10 and 11 22H2 (19045) has ended. Installing Docker Desktop will require Windows 11 23H2 in the next release.</p></li></ul><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/10/28 10:05:46</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">查询 duckdb当前运行平台当前版本的 官方插件下载地址</p><pre><code class="language-sql">  select t.extension_name,installed,
+  format('http://extensions.duckdb.org/{}/{}/{}.duckdb_extension.gz',
+         version(),
+         (SELECT platform FROM pragma_platform()),
+         t.extension_name) 
+  from  duckdb_extensions() t;</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/10/16 16:16:25</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style=""><strong>安全漏洞上报地址</strong></p><p style=""></p><p style="">国家信息安全漏洞共享平台(没奖金，有积分)：</p><p style="">https://www.cnvd.org.cn</p><p style=""></p><p style="">华为(有奖金)：</p><p style="">https://bugbounty.huawei.com/hbp/#/home</p><p style=""></p><p style="">腾讯(有奖金):</p><p style="">https://security.tencent.com/index.php</p><p style=""></p><p style="">阿里云(有奖金):</p><p style="">https://help.aliyun.com/zh/cst/product-overview/universal-software-vulnerability-collection-and-reward-program</p><p style=""></p><p style="">openGauss(有奖金)：</p><p style="">https://opengausssrc.vulbox.com/home</p><p style=""></p><p style="">oceanbase(有奖金):</p><p style="">https://www.oceanbase.com/legal/security</p><p style=""></p><p style="">yashan(没奖金):</p><p style="">https://www.yashandb.com/Vulnerability_Disclosure_Program</p><p style=""></p><p style="">kingbase(没奖金):</p><p style="">https://www.kingbase.com.cn/service/product_safety.html</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/10/10 11:06:53</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">docker load不仅仅支持导入tar,而且支持直接导入压缩镜像,支持的压缩格式有 <code>bzip2、xz、gzip</code></p><p style=""></p><pre><code>docker save 镜像名 | gzip &gt; 镜像名.tar.gz
+docker save 镜像名 | bzip2 &gt; 镜像名.tar.bz2
+docker save 镜像名 | xz &gt; 镜像名.tar.xz
+
+docker image rm 镜像名
+docker load -i 镜像名.tar.gz
+
+docker image rm 镜像名
+docker load -i 镜像名.tar.bz2
+
+docker image rm 镜像名
+docker load -i 镜像名.tar.xz</code></pre><p style="">大小比较</p><pre><code>[root@gaussdb-tpops xxx]# ll -h hce*
+-rw------- 1 root root 440M Oct 10 11:02 hce_gaussdb506.tar
+-rw-r--r-- 1 root root 217M Oct 10 10:51 hce_gaussdb506.tar.bz2
+-rw-r--r-- 1 root root 231M Oct 10 10:39 hce_gaussdb506.tar.gz
+-rw-r--r-- 1 root root 186M Oct 10 10:56 hce_gaussdb506.tar.xz</code></pre><p style="">xz虽然最小，和7z压缩后的大小差不多，但是压缩贼慢，比7z都慢多了。如果对导出的docker镜像有压缩需求，推荐还是gz或者bz2</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/29 22:50:05</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">铁威马 TOS 5 升级 TOS6 需要参考这个升级路径</p><p style=""><a href="https://forum.terra-master.com/cn/viewtopic.php?t=4655">https://forum.terra-master.com/cn/viewtopic.php?t=4655</a></p><p style="">全过程快一个小时了。建议下载最新版 TNAS PC ,因为 5.1升到6.0的时候ip会变，需要新版才能正确识别。</p><p style="">升级到6会删除所有系统设置，但应用都是保留的，docker容器都还在。</p><p style="">注意PLEX会无法启动，需要在共享文件夹里，修改Plex目录的权限，选择应用用户，把plex用户的读写权限勾上。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/22 15:25:24</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">Github Copilot对国内用户不支持 Claude了，炸了</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/19 21:02:52</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">在线安装yashandb ，已在 默认全新安装的 麒麟v11、麒麟v10、openEular 22.02 、ubuntu 24.02 ， ARM64/X86_64 平台测试通过，用root用户执行</p><pre><code>curl --proto '=https' --tlsv1.2 -sSf https://www.darkathena.top/sh/yas_install.sh | sh</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/18 09:50:27</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">root下以yashan用户身份启动yasql执行单条sql查询的两种方式，主要是处理视图中的`$`多次转义</p><pre><code>[root@kylinv10sp3-node1 ~]# su - yashan -c 'yasql / as sysdba -c "select status from v\$instance;"'
+
+STATUS
+
+-------------
+
+OPEN
+
+1 row fetched.
+
+[root@kylinv10sp3-node1 ~]# echo "select status from v\$instance;" | sudo -u yashan -i yasql / as sysdba
+
+YashanDB SQL Enterprise Edition Release 23.4.2.104 x86_64
+
+Connected to:
+
+YashanDB Server Enterprise Edition Release 23.4.2.104 x86_64 - Linux
+
+SQL&gt;
+
+STATUS
+
+-------------
+
+OPEN
+
+1 row fetched.
+
+SQL&gt;
+
+Disconnected from:
+
+YashanDB Server Enterprise Edition Release 23.4.2.104 x86_64 - Linux
+
+[root@kylinv10sp3-node1 ~]#
+
+</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/17 14:41:44</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">很多配置免密sudo的教程里都是先要让 "/etc/sudoers" 文件可写，然后直接修改这个文件，其实这样并不是推荐做法，而是应该直接使用"visudo"命令来编辑，这样可以避免需要额外授权可写导致权限放大的问题，还可以避免语法不正确的问题</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/09/09 11:10:21</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">查询ORACLE非系统用户通用SQL (11g/19c/23c)</p><pre><code class="language-sql"> select * from dba_users where created &gt;(
+ select max(created)/*+1/24*/ from dba_users
+  where default_tablespace in ('SYSAUX','SYSTEM','APEX') and account_status like '%LOCKED')
+  and nvl(password,'x') not in ('EXTERNAL')
+  AND  default_tablespace NOT in ('SYSAUX','SYSTEM','APEX');</code></pre><p style="">SCOTT算不算系统用户？HR算不算系统用户? 我暂时归类为不算，具体场景下再补充条件吧</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/08/20 20:29:48</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">不想再更新OSCHINA了</p><p style=""></p>
+<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2025-08-20 202839.png" srcset="/upload/屏幕截图 2025-08-20 202839.png?width=1200 1200w, /upload/屏幕截图 2025-08-20 202839.png?width=400 400w, /upload/屏幕截图 2025-08-20 202839.png?width=1600 1600w, /upload/屏幕截图 2025-08-20 202839.png?width=800 800w"/>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/31 15:16:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style=""><a href="https://plsqlrewrite.darkathena.top/">https://plsqlrewrite.darkathena.top/</a></p><p style="">ORACLE 存储过程转换成GaussDB,从今日（20250731）起限时试用1个月（免费申请了aliyun服务器部署的，硬件资源有限）</p><p style="">默认用户名密码admin/password</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/28 10:26:43</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">修改360极速浏览器的错误页面，不显示推广信息</p><p style=""><code>C:\Users\用户名\AppData\Local\360ChromeX\Chrome\Application\{版本号}\errpage.zip</code></p><p style="">先备份这个压缩包，然后修改这个压缩包里的 neterror.css 文件</p><p style="">把</p><pre><code>#errors_iframe {
+  width: 100%;
+  /* height: 800px; */
+  display: none;
+}</code></pre><p style="">修改成</p><pre><code>#errors_iframe {
+  width: 0%;
+  /* height: 800px; */
+  display: none;
+}</code></pre><p style="">把</p><pre><code>#btn-installSe{
+  width: 160px;
+}</code></pre><p style="">改成</p><pre><code>#btn-installSe{
+  width: 0px;
+}</code></pre><p style=""></p><p style="">把修改后的文件压回zip里，关闭浏览器，重新打开即可</p><p style=""></p><p style="">如果出现错误页面显示全部空白，就重头再来。这个软件似乎有校验机制，一旦空白就改不回去了，只能把原始的errpage.zip换回去</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/27 23:59:23</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">kiro没法自动执行测试和输出检查，而且免费额度用得非常快</p><p style="">vscode copilot 能检查命令的执行情况，但是对于执行时间稍长的，就不会等了，而且执行任何命令都需要手动确认</p><p style="">trae的solo还没玩上，普通模式不习惯，代码文件都不自动生成，代码都回到聊天记录里了</p><p style="">目前似乎只有cursor能打，其他的都是渣，可惜cursor锁区了</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/27 23:52:36</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">撤回最近一个commit,并强制推送本地代码到远程（即同时撤回远程的commit）</p><pre><code>git reset --hard HEAD^
+git push origin master -f</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/22 10:59:20</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">cursor的claude 4.0不能用了，现在kiro比较火，但是kiro.dev暂时不给下载，可以从kiro.help里下载 <a href="https://kiro.help/download" target="_blank">https://kiro.help/download</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/07/15 13:40:42</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style=""><a href="https://code.visualstudio.com/docs/remote/faq#_can-i-run-vs-code-server-on-older-linux-distributions">https://code.visualstudio.com/docs/remote/faq#_can-i-run-vs-code-server-on-older-linux-distributions</a></p><p style="">vscode 2025年3月 开始 ，1.99.x 版本，远程开发的服务器不能使用 kylin v10 sp3了，因为vscode要求</p><p style="">"<span style="font-size: 16px; color: rgb(51, 51, 51)">内核版本 &gt;= 4.18，glibc 版本 &gt;= 2.28，libstdc++ 版本 &gt;= 3.4.25，binutils 版本 &gt;= 2.29"</span></p><p style="">但 kylin v10 sp3 的libstdc++ 的版本最高是 3.4.24，就差了一点点，由此也导致了Cursor也无法远程开发了</p><p style=""></p><p style="">查看操作系统的libstdc++版本</p><pre><code>strings /usr/lib64/libstdc++.so.6 | grep GLIBC</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/06/10 14:04:39</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">抓tcp包</p><pre><code>tcpdump -i ens192 -n -s 0 -v 'host 192.168.1.1 and port 55432' -w output.pcap</code></pre><p style=""><strong>关键参数解析：</strong></p><ol><li><p style="">​<strong>​</strong><code>-i ens192</code><strong>​</strong>​<br/>指定监听网卡为 <code>ens192</code></p><p style=""></p></li><li><p style="">​<strong>​</strong><code>-n</code><strong>​</strong>​<br/>禁用反向域名解析，直接显示 IP 和端口（避免解析延迟）</p><p style=""></p></li><li><p style="">​<strong>​</strong><code>-s 0</code><strong>​</strong>​<br/>捕获完整数据包（默认截断为 68 字节）</p><p style=""></p></li><li><p style="">​<strong>​</strong><code>-v</code><strong>​</strong>​<br/>输出详细信息（如 TTL、协议类型等）</p><p style=""></p></li><li><p style="">​<strong>​过滤条件 </strong><code>host 192.168.163.227 and port 55432</code><strong>​</strong>​</p><ul><li><p style=""><code>host</code>：仅捕获与该 IP 相关的流量（源或目标地址）</p><p style=""></p></li><li><p style=""><code>port 55432</code>：限定端口为 <code>55432</code>（源或目标端口）</p><p style=""></p></li><li><p style="">​<strong>​组合逻辑​</strong>​：使用 <code>and</code> 连接条件，确保同时满足 IP 和端口要求</p><p style=""></p></li><li><p style="">​<strong>​引号包裹​</strong>​：避免 Shell 解析特殊字符（如 <code>()</code>）</p><p style=""></p></li></ul></li><li><p style="">​<strong>​</strong><code>-w output.pcap</code><strong>​</strong>​<br/>原始数据写入 <code>output.pcap</code>（<code>pcap</code> 格式，兼容 Wireshark）</p></li></ol><p style=""><strong>扩展场景：</strong></p><ul><li><p style="">​<strong>​仅抓源/目标端口​</strong>​：</p><p style=""></p><pre><code># 仅源端口 55432
+sudo tcpdump -i ens192 -n -s 0 'src port 55432 and host 192.168.163.227' -w output.cap
+
+# 仅目标端口 55432
+sudo tcpdump -i ens32 -n -s 0 'dst port 55432 and host 192.168.163.227' -w output.cap</code></pre></li><li><p style="">​<strong>​多端口组合​</strong>​（如同时监听 <code>55432</code> 和 <code>80</code>）：</p><p style=""></p><pre><code>sudo tcpdump -i ens192 -n -s 0 'host 192.168.163.227 and (port 55432 or port 80)' -w output.cap</code></pre></li></ul><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/05/29 14:20:48</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">一些基于正则的数据校验规则</p><p style=""></p><pre><code>不超过12个字符
+PYTHON   matches = re.finditer(r"^[\U00000000-\U0010ffff]{0,12}$", test_str, re.MULTILINE | re.UNICODE) 
+JAVA     pattern = Pattern.compile("^[\\p{L}]{0,12}$",  Pattern.MULTILINE | Pattern.UNICODE_CASE);
+JS       const regex = /^[\p{L}]{0,12}$/gmu;
+
+整数20位以内，小数4位以内
+^[+-]?\d{1,20}(\.\d{1,4})?$
+</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/05/22 10:53:29</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">## oceanbase企业单机版下载地址</p><p style=""><a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.aarch64.tar.gz" target="_self">https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.aarch64.tar.gz</a></p><p style=""><a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.x86_64.tar.gz" target="_self">https://file.oceanbase.com/download-center/opensource/ob-standalone/7/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el7.x86_64.tar.gz</a></p><p style=""><a href="https://file.oceanbase.com/download-center/opensource/ob-standalone/8/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86_64.tar.gz">https://file.oceanbase.com/download-center/opensource/ob-standalone/8/oceanbase-standalone-all-in-one-4.2.5.3-103000152025033110.el8.x86_64.tar.gz</a></p><p style=""></p><p style="">arm的el8没找到</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/05/20 13:34:20</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">linux统计各个进程打开的文件描述符数量，用lsof并不准确，因为lsof是按线程显示的，同一进程不同线程可以共享文件描述符，用lsof会造成重复统计。因此建议直接统计`/proc/{}/fd`目录<br/></p><pre><code>find /proc/[0-9]*/fd -type l 2&gt;/dev/null | awk -F'/' '{print $3}' | sort | uniq -c | 
+  while read count pid; do 
+    ps -o user:20,pid=,cmd -p $pid | awk -v cnt="$count" 'NR==2{print $1, $2, $3, cnt}'
+  done | sort -k4 -nr | head -n 10</code></pre><p style=""></p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/05/13 13:23:15</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">linux查看进程时显示进程运行的环境变量，按照help里所说，e就可以显示环境变量了，但实际上使用时，还得加上a和x，才能显示出完整的。由此可见，敏感信息（比如密码）放OS环境变量里也是不安全的。</p><pre><code>ps -axe</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/04/12 18:50:17</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">一种查看openGauss中的behavior_compat_options选项支持哪些值的方式:</p><p style="">数据库服务器的数据库运行用户下执行</p><pre><code>strings `which gaussdb` | awk '/ustore_unit_test/ {flag=1; next} /set_session_transaction/ {flag=0; exit} flag'</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/04/11 10:05:43</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">截止到20250410的ip黑名单</p><pre><code>31.7.62.234
+36.134.21.102
+36.137.195.72
+36.140.10.64
+36.140.10.145
+36.140.160.210
+36.140.161.139
+36.212.233.36
+39.150.130.100
+42.177.94.52
+43.249.193.47
+46.19.142.242
+47.92.197.190
+49.0.196.81
+58.48.96.131
+58.53.128.39
+58.212.22.130
+58.212.22.131
+58.221.18.178
+60.250.70.187
+60.250.70.189
+60.250.81.66
+79.124.40.94
+79.124.56.98
+79.124.56.186
+79.124.58.158
+79.124.58.218
+82.156.52.66
+83.222.190.78
+91.238.181.92
+93.123.109.98
+103.56.154.146
+103.85.168.18
+103.148.58.155
+103.186.108.229
+110.40.47.161
+111.10.223.2
+111.53.63.134
+111.85.83.175
+112.2.55.181
+112.27.125.137
+112.28.149.33
+112.51.96.142
+112.192.16.55
+112.237.143.195
+113.140.37.86
+114.219.214.47
+115.230.124.37
+115.239.160.246
+116.114.161.15
+117.82.91.243
+117.90.230.46
+117.156.237.76
+118.190.103.72
+120.41.185.163
+120.48.22.39
+120.220.44.48
+121.12.149.101
+123.7.18.116
+123.164.144.10
+123.182.152.114
+124.28.197.138
+124.65.97.230
+124.79.120.60
+124.131.50.55
+124.165.238.153
+124.232.147.3
+124.232.147.204
+128.14.98.144
+141.255.167.50
+150.138.72.54
+154.89.10.220
+175.6.40.66
+175.42.33.95
+175.153.161.124
+175.153.169.51
+180.143.174.169
+182.200.3.68
+182.200.4.161
+182.200.5.77
+182.200.6.185
+182.200.7.4
+182.200.7.20
+183.230.200.5
+183.239.210.213
+183.240.197.189
+183.241.138.37
+183.249.161.117
+183.250.134.17
+185.7.214.89
+185.42.12.98
+185.147.124.102
+185.147.124.202
+185.147.124.203
+192.72.189.195
+202.61.86.79
+202.101.188.54
+210.51.45.106
+211.141.173.254
+218.17.143.117
+218.76.62.187
+218.78.122.230
+218.85.116.202
+218.89.66.58
+218.90.122.42
+220.78.179.70
+220.197.200.154
+222.75.100.74
+222.79.56.194
+222.173.131.58
+222.249.238.114
+223.13.122.170
+223.75.187.13
+223.83.10.222
+223.108.111.194
+223.108.111.238</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/03/21 15:45:17</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">gaussdb用shell接收匿名块输出信息（出参）</p><pre><code>#!/bin/bash
+v=`gsql -r -d postgres -t -q &lt;&lt; EOF 2&gt;&amp;1
+begin
+dbe_output.put_line('aa');
+end;
+/
+\q
+EOF`
+echo v is $v</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/03/21 10:49:32</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">dba_triggers 相关</p><p style="">https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TRIGGER.html</p><p style="">https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TRIGGER-statement.html</p><p style=""><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/ALL_TRIGGERS.html">https://docs.oracle.com/en/database/oracle/oracle-database/23/refrn/ALL_TRIGGERS.html</a></p><p style="">https://docs.oracle.com/en/database/oracle/oracle-database/18/strms/advanced-apply-process-concepts.html#GUID-BAB09B51-C566-4AD3-BB60-74D69C1D309F</p><p style=""><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/sbydb/managing-oracle-data-guard-logical-standby-databases.html#GUID-3DA5C15C-C275-45D5-A6DA-75ED5878D7FB">https://docs.oracle.com/en/database/oracle/oracle-database/23/sbydb/managing-oracle-data-guard-logical-standby-databases.html#GUID-3DA5C15C-C275-45D5-A6DA-75ED5878D7FB</a></p><p style=""><a href="https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-triggers.html#GUID-9F06D45C-7C60-434E-A597-114A0C445671">https://docs.oracle.com/en/database/oracle/oracle-database/21/lnpls/plsql-triggers.html#GUID-9F06D45C-7C60-434E-A597-114A0C445671</a></p><p style=""></p><p style="">1.ORACLE的触发器body其实除了支持匿名块，也同样支持指定一个procedure，类似于PG的触发器</p><p style="">2.FIRE_ONCE和APPLY_SERVER_ONLY对于存在逻辑备库时能扩展一些使用场景，比如数据脱敏</p><p style="">3.column_name是只有instead of嵌套表的情况下才会有值，常规的触发字段只能从DESCRIPTION这个字符串里解析</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/02/21 09:36:47</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">截止到2025-02-20 02:58:19，攻击总算暂时消停了，期间又新增了几个ip在攻击</p><pre><code>150.138.72.54
+182.200.5.77
+182.200.7.20</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/02/18 17:35:26</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">今天网络被持续攻击，攻击频率之高令人发指</p><pre><code>79.124.40.94  #国外IP，疑似主IP，下面二十几IP都是国内的，疑似肉鸡
+123.7.18.116
+36.140.10.64
+223.108.111.194
+112.51.96.142
+218.78.122.230
+111.10.223.2
+115.239.160.246
+154.89.10.220
+218.17.143.117
+175.42.33.95
+112.2.55.181
+124.28.197.138
+223.108.111.238
+124.232.147.204
+218.85.116.202
+222.79.56.194
+223.75.187.13
+222.75.100.74
+112.27.125.137
+124.65.97.230
+121.12.149.101</code></pre><p style=""></p><p style="">历史黑IP</p><pre><code>79.124.56.186
+141.255.167.50
+46.19.142.242
+83.222.190.78
+31.7.62.234
+185.147.124.102
+103.186.108.229
+175.6.40.66</code></pre><p style=""></p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/02/05 10:52:39</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">在windows terminal里支持上传下载文件</p><p style="">windows terminal</p><pre><code>winget install trzsz</code></pre><p style=""></p><p style="">linux server</p><pre><code>echo '[trzsz]
+name=Trzsz Repo
+baseurl=https://yum.fury.io/trzsz/
+enabled=1
+gpgcheck=0' | sudo tee /etc/yum.repos.d/trzsz.repo
+
+sudo yum install trzsz</code></pre><p style=""></p><p style="">使用</p><pre><code># 连接（-d开启支持拖拽进去，ssh 可以换成其他ssh工具，比如支持自动保存密码的ssx）
+trzsz -d ssh root@192.168.1.1
+# 从服务器里下载文件到本地
+tsz filename
+# 上传文件到服务器
+trz</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/01/28 20:35:53</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">2025年微软第一坑：</p><p style="">更新WIN10 的 KB5049981 以及 <span style="font-size: 16px; color: rgb(66, 66, 66)">WIN11 的 KB5050009这两个补丁之一 ,会导致部分USB设备无法启动，比如摄像头和耳机。我的视频采集卡在USB3.0协议下就出现了这个问题，设备管理器里显示无法启动，错误代码 10。可笑的是，搜索微软官方解决方案，建议的是更新最新驱动，可是这个问题正是开启了系统更新而导致的。目前的解决方案只能是卸载2025年的这第一个安全补丁。</span></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2025/01/02 17:11:02</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">字符转数字,如果存在非数字导致报错,根据上下文不同,可能会触发两种不同的报错： </p><ol><li><p style="">在SQL上下文中,触发 INVALID_NUMBER，</p></li><li><p style="">而在PL/SQL上下文中，触发 VALUE_ERROR 异常</p></li></ol><p style="">而数值精度溢出的报错,无论在SQL还是PLSQL中,触发都是value_error。</p><p style="">但value_error还包含非常多异常情况,比如字符串超长,非法日期格式等。</p><p style="">这两种错误在Gauss中并不能一一对应。</p><p style="">因此gauss上兼容这两个异常，比较通用的方式是,INVALID_NUMBER和VALUE_ERROR都改写成data_exception</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/12/04 10:29:12</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">发现一个9年前的坑至今未填，今天撞上了</p><p style=""><a href="https://github.com/porcelli/plsql-parser/">https://github.com/porcelli/plsql-parser/</a> 这个项目合并到antlr4里去的时候，把`case when`里一个判断改成了todo,导致无法识别该case when是sql语句中的还是plsql语句中的，关键就是end case中的case是否应该作为别名</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/11/14 14:26:29</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">一些特殊场景下的gsql连接方式</p><pre><code>gsql -r "postgresql://system:oracle@127.0.0.1:26200/testdb"
+gsql -r "postgresql://127.0.0.1:26200,127.0.0.2:26200/testdb?user=system&amp;password=orac
+le"
+gsql -r "host=127.0.0.1,127.0.0.2 port=26200 user=system dbname=testdb password=oracle
+ target_session_attrs=primary"
+gsql -r "host=127.0.0.1 port=26200 user=system dbname=testdb password=oracle application_name=shell"</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/10/28 09:25:03</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">本站后台数据库已从h2切换成MogDB 5.2.0版本-20241028</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/10/10 21:45:03</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">又被一个IP攻击了</p><blockquote><p style="">79.124.56.186</p></blockquote><p style="">https://otx.alienvault.com/indicator/ip/79.124.56.186</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/09/26 13:28:43</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">winscp删除文件目录时，在SFTP和FTP协议的情况下，会对每个文件单独发送删除命令，如果该目录文件数特别多，删除就会很慢，此时有两种方式</p><p style="">一、打开终端，在终端里用命令删</p><p style="">二、给winscp添加自定义命令</p><p style=""><strong>Deleting on Background</strong></p><p style="">Use the following command to delete a large directory structure in a separate process:</p><pre><code>cmd /C start "" cmd /C ""%WINSCP_PATH%\WinSCP.com" /command "open !E" "cd !/" "rm !&amp;" "exit" &amp; "%WINSCP_PATH%\WinSCP.exe" "!E" /refresh "!/""</code></pre><p style=""></p><p style="">Check custom command options <em>Local command</em>, <em>Apply to directories</em> and <em>Use remote files</em>.</p><p style="">注意勾上 本地命令、应用到目录、使用远端文件</p><p style="">之后删除的时候，选择目录，然后鼠标右键，文件自定义命令，点刚刚加好的名称即可</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/09/23 15:39:24</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">在oracle19c中，有个函数getlong，可以在查询sql中将long类型的字段返回成varchar2类型，用法如下</p><pre><code>select getlong(1,rowid),t.* from VIEW$ t;</code></pre><p style="">但是需要注意，这个函数只能查两个表里的long类型,内部实现如下</p><pre><code> if (opcode = 1) then
+        tablename := 'SYS.VIEW$';
+        colname   := 'TEXT';
+      elsif (opcode = 2) then
+        tablename := 'SYS.CDEF$';
+        colname   := 'CONDITION';
+      else
+        return NULL;
+      end if;
+
+      stmt := 'SELECT ' || colname || ' FROM ' || tablename ||
+              ' WHERE ROWID = :1';
+      CDBView_internal.long2varchar2_i(stmt, p_rowid, retval);
+      return retval;</code></pre><p style="">如果需要支持查其他表的，需要再自行封装，调用CDBView_internal.long2varchar2_i</p><p style="">从rowid里，理论上是可以解析出来对应的表的，感觉ORACLE这里的实现其实有点草台班子了。至于字段名，也可以传个字段名的字符串进去</p><p style=""></p><p style="">其实ORACLE的处理思路和aktom的一个帖子比较像 <a href="https://asktom.oracle.com/ords/f?p=100:11:0::::P11_QUESTION_ID:839298816582">https://asktom.oracle.com/ords/f?p=100:11:0::::P11_QUESTION_ID:839298816582</a></p><p style=""></p><p style="">成品</p><pre><code>create or replace function long2varchar(p_colname in varchar2, p_rowid in rowid)
+  return varchar2 as
+  tablename   dbms_id;
+  stmt        varchar2(400);
+  retval      varchar2(4000);
+  PROCEDURE long2varchar2_i(stmt   IN VARCHAR2,
+                            rowid  IN ROWID,
+                            rowval IN OUT VARCHAR2) IS
+    EXTERNAL NAME "kpdbLong2Varchar2"
+    LANGUAGE C
+    LIBRARY DBMS_PDB_LIB
+    PARAMETERS(stmt   OCIString,
+               stmt   indicator sb4,
+               rowid  OCIString,
+               rowid  indicator sb4,
+               rowval OCIString,
+               rowval indicator sb4,
+               rowval length sb4,
+               rowval maxlen sb4);
+begin
+  select owner || '.' || object_name
+    into tablename
+    from dba_objects t
+   where t.data_object_id = dbms_rowid.rowid_object(p_rowid);
+  stmt := 'SELECT ' || p_colname || ' FROM ' || tablename ||
+          ' WHERE ROWID = :1';
+  long2varchar2_i(stmt, p_rowid, retval);
+  return retval;
+end;
+</code></pre><pre><code>select long2varchar('TEXT',rowid),t.* from VIEW$ t;</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/09/19 09:30:59</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">anylink最新客户端(win/mac/linux sourcecode)</p><p style=""><a href="https://github.com/Dark-Athena/anylink-client/releases/tag/continuous">https://github.com/Dark-Athena/anylink-client/releases/tag/continuous</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/08/15 00:05:05</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">git合并提交</p><pre><code># 先看最近的几个提交
+git log --oneline
+
+# 如果想合并最近的3个提交变成1个
+git rebase -i HEAD~3
+
+# 输入 i ，进入编辑模式，原本是三行pick，把第二行和第三行的 pick 改成 s ,按 esc键退出编辑模式，再按 :wq! 保存
+
+# 强制推送到远程
+git push -f</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/08/07 13:09:02</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">ORACLE里有个OWA_OPT_LOCK.checksum函数可以输入字符串计算返回一个数值（65525以内），可以用于数据校验，该代码未加密，可仿照移植</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/07/28 00:38:01</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">在win10/11上安装openssh服务器和vim</p><p style=""><a href="https://github.com/PowerShell/Win32-OpenSSH/releases/download/v9.5.0.0p1-Beta/OpenSSH-Win64-v9.5.0.0.msi" target="_self">https://github.com/PowerShell/Win32-OpenSSH/releases/download/v9.5.0.0p1-Beta/OpenSSH-Win64-v9.5.0.0.msi</a></p><p style=""><a href="https://github.com/vim/vim-win32-installer/releases/download/v9.1.0/gvim_9.1.0_x64_signed.exe" target="_self">https://github.com/vim/vim-win32-installer/releases/download/v9.1.0/gvim_9.1.0_x64_signed.exe</a></p><p style="">vim默认没有加到PATH环境变量中，需要手动加</p><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/07/18 15:45:38</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">在线安装mogdb的命令-无脑版</p><pre><code class="language-shell"># for ubuntu
+hostnamectl set-hostname dbnode1 ## 机器名不能为localhost
+curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+source /root/.bashrc
+ptk template --local &gt; config.yaml
+rm -rf root_fix*.sh
+ptk checkos -f config.yaml
+source `find . -name 'root_fix*.sh'`
+ptk install -f config.yaml -y</code></pre><p style=""></p><p style=""></p><pre><code class="language-shell"># for centos
+hostnamectl set-hostname dbnode1 ## 机器名不能为localhost
+curl --proto '=https' --tlsv1.2 -sSf https://cdn-mogdb.enmotech.com/ptk/install.sh | sh
+source /root/.bash_profile
+ptk template --local &gt; config.yaml
+rm -rf root_fix*.sh
+ptk checkos -f config.yaml
+source `find . -name 'root_fix*.sh'`
+ptk install -f config.yaml -y</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/07/16 16:45:41</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style=""></p><pre><code>
+最后一次失败的登录： 二 7月 16 14:53:43 CST 2024 从 64.226.127.106 ssh:notty 上
+最后一次成功登录后有 2979 次失败的登录尝试。</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/07/13 23:53:08</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">给linux 的cpu增加负载</p><pre><code>yes &gt; /dev/null &amp;</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/07/13 16:16:45</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">oschina封掉了我的博客账号，而且没有方法进行申述，页面上留的反馈QQ群实际上禁止加入</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/06/14 11:39:49</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">kylinsp3的docker镜像</p><pre><code>docker pull xudingjun3131/kylinv10:sp3-20230324</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/04/20 19:04:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">windows上的一个本地端口转发GUI，实际是调用了netsh命令，比较小巧，方便使用,有时候虚拟机的端口映射不出去，桥接网卡也无法进来，虚拟机自带的NAT转发也不成功，就可以先通过这个工具把端口映射到宿主机，然后再从路由器上端口转发</p><p style=""><a href="https://github.com/zmjack/PortProxyGUI/releases" rel="noopener noreferrer nofollow" target="_blank">[https://github.com/zmjack/PortProxyGUI/releases)](https://github.com/zmjack/PortProxyGUI/releases)</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/04/14 21:39:29</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">发现最近有一堆ip在攻击我的个人服务器,尝试用什么caiwu/his/ADMIN/ADMINISTRATOR之类的账号套密码，一看就是国内的黑客，真没必要</p><pre><code>185.11.61.146
+78.128.114.22
+78.128.114.18
+2.57.149.132
+46.19.142.242
+141.255.167.50
+31.7.62.234
+87.246.7.78
+185.122.204.51
+179.43.183.114</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/03/06 23:06:18</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">已经有很多篇文章没往OSCHINA同步了，原因是各种无法过审</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/03/03 18:13:43</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">docker desktop for win 最近的版本有内存泄露问题，表现为 com.docker.backend.exe 进程的内存会持续增大，我的版本是4.27.0，该进程的内存已经占了10GB了。该问题已经在4.27.2版本修复，建议升级到4.28.0或以上版本</p><p style="">相关issue链接 </p><p style="">[<a class="js-issue-title css-truncate css-truncate-target Link--primary width-fit markdown-title js-smoothscroll-anchor" href="https://github.com/docker/for-win/issues/13589#top" rel="noopener noreferrer nofollow" target="_blank"><strong><u>com.docker.backend.exe consumes a lot of RAM</u></strong></a>](<a href="https://github.com/docker/for-win/issues/13589#issuecomment-1937824118" rel="noopener noreferrer nofollow" target="_blank">https://github.com/docker/for-win/issues/13589#issuecomment-1937824118</a>)</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/03/02 14:14:34</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">ipv6各种常见访问方式</p><pre><code>1.http
+http://[xxx:xxx:xxx:xxx:xxx:xxx]:80
+
+2.smb
+\\xxx-xxx-xxx-xxx-xxx-xxx.ipv6-literal.net
+
+3.ssh
+ssh -6 xxx:xxx:xxx:xxx:xxx:xxx -p 22
+
+4.ftp
+ftp://[xxx:xxx:xxx:xxx:xxx:xxx]:21
+ftp xxx:xxx:xxx:xxx:xxx:xxx
+</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/01/30 20:45:38</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">移动硬盘经常会出现被占用无法弹出的情况，关闭所有可能的程序仍然还是被占用，其实通过任务管理器里资源监视器可以跟踪到实际上是system在占用，这就不可能通过关闭程序来解除占用，找到一篇文章 <a href="https://blog.kuretru.com/posts/57aea0ec/" rel="noopener noreferrer nofollow" target="_blank">https://blog.kuretru.com/posts/57aea0ec/</a></p><p style="">其中的这个方案是的确可以解决这个问题的</p><ol><li><p style="">使用以管理员身份运行 cmd</p></li><li><p style=""><code>diskpart</code></p></li><li><p style=""><code>list disk</code> 找到移动硬盘的编号 <code>X</code>，一般是最后一个</p></li><li><p style=""><code>select disk X</code></p></li><li><p style=""><code>offline disk</code></p></li><li><p style=""><code>online disk</code></p></li><li><p style="">再次弹出移动硬盘</p></li></ol><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/01/14 16:15:10</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<pre><code># 克隆
+git clone http://xxxx/xxxx/xxxx.git
+# 指定分支克隆
+git clone -b yyyy http://xxxx/xxxx/xxxx.git
+# 重新拉取
+git pull --rebase
+# 强切 commit id
+git reset --hard 1617fd98</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2024/01/04 18:48:52</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">linux vi十六进制切换</p><pre><code>:%!xxd
+
+:%!xxd -r</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/12/10 23:39:07</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">编译调用odbc的程序</p><pre><code>D:/mingw64/bin/gcc.exe test.c -lodbc64 -otest</code></pre><p style=""></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/11/12 01:36:33</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>本站近期将会更会服务器，可能会偶发连不上</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/11/12 00:36:16</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>华为云ecs到期了，本站从今天起迁移到阿里云---20231112</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/10/07 23:23:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>现在的win10/11，如果装在有TPM芯片的机器上，可能会默认开启设备加密，bitlocker看上去没启用，但磁盘管理器上都会显示bitlocker已加密。如果要关闭，可以在设置里搜索"设备加密"，点击"关闭"<br/>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/10/image.png" srcset="/upload/2023/10/image.png?width=1200 1200w, /upload/2023/10/image.png?width=400 400w, /upload/2023/10/image.png?width=1600 1600w, /upload/2023/10/image.png?width=800 800w"/></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/09/29 21:05:56</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>docker desktop 容器的配置文件目录</p>
+<pre><code>\\wsl.localhost\docker-desktop-data\version-pack-data\community\docker\containers
+</code></pre>
+<p>已测试可以修改容器内存储的挂载目录，注意要先停掉docker服务再改</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/09/15 13:05:13</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>anylink-client 在某种情况下，会出现软件打开后，程序界面出不来的情况，普通的卸载重载也是一样的问题。今天用三方卸载工具，找到了它的配置文件，把配置文件重命名后，再打开软件，界面就能正常显示了。<br/>
+对比配置文件差异，发现配置里有程序最后的坐标位置，于是恍然大悟，因为之前是双屏，我把程序界面拖到了副屏上，坐标位置就不在主屏上了。所以解决这个问题不是必须彻底卸载，只要手动改下配置文件里的坐标就行</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/08/20 21:15:39</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<pre><code class="language-sql">--一种偏门的方式获取操作系统路径下的文件列表,必须使用sys用户执行
+  declare
+  a varchar2(4000):='/u01/app/oracle/product/21.0.0/dbhome_1/';
+  b varchar2(4000);
+  begin
+    dbms_backup_restore.searchfiles (a, ns =&gt; b);
+  exception
+    when others then
+    dbms_backup_restore.searchfiles (a, ns =&gt; b);
+  end;
+  
+ select fname_krbmsft
+  from x$krbmsft
+  order by 1;
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/08/07 00:34:01</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>用azure cli查看和启动azure虚拟机</p>
+<pre><code class="language-bash">az vm list --output table
+az vm start --name nb --resource-group NB_GROUP_04031313
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/07/21 00:09:57</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>最近稍稍整了一下LINUX的用户环境变量<br/>
+su user  会加载~/.bashrc<br/>
+su - user 会加载 ~/.bash_profile ,而此文件中会默认带上 ~/.bashrc</p>
+<p>也就是说，可以通过将环境变量配置在不同文件中，来达到不同的登录效果</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/06/24 23:52:37</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>遇到了一个newbing的bug,他打死都不承认这段代码输出的结果不对</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main() {
+  char *str = "(1,\"Al,i\"\"ce\",95.5)";
+  int id;
+  char *name = malloc(20);
+  double score;
+  sscanf(str, "(%d,\"%[^\"]\"\"%[^\"]\"%,%fl)", &amp;id, name, name + strlen(name), &amp;score);
+  printf("id = %d\n", id);
+  printf("name = %s\n", name);
+  printf("score = %.1f\n", score);
+  free(name);
+  return 0;
+}
+</code></pre>
+<p>我用各种方式编译执行，得到的结果为</p>
+<pre><code>id = 1
+name = ce
+score = 0.0
+</code></pre>
+<p>而newbing硬说是</p>
+<pre><code>id = 1
+name = Al,i"ce
+score = 95.5
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/05/29 00:56:58</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>快速装zabbix</p>
+<pre><code class="language-bash">git clone https://github.com/zabbix/zabbix-docker
+cd zabbix-docker
+docker-compose -f docker-compose_v3_alpine_pgsql_latest.yaml up -d
+</code></pre>
+<p>端口80，默认用户名密码Admin/zabbix</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/05/21 00:07:53</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>老版本的小蚁云台1080P，存储备份只能备份到小米路由器上，如果把小米路由器升级到小米AX7000，会出现在小蚁APP里识别不到路由盘，原因是小蚁只识别路由器ip下的名称为“XiaoMi-usb0”的共享文件夹，而AX7000的路由盘文件夹名称为“XiaoMi-USB(2d06) ”，规则不一样，所以识别不出来。</p>
+<p>解决方法是，先获取AX7000的ssh(方法见恩山无线)，然后修改“/var/etc/smb.conf”文件，将路由盘的名称改为“XiaoMi-usb0”即可，此时小蚁APP里就可以识别出来了。</p>
+<p>但是重启samba服务或者重启路由器，这个文件又会还原，这里就暂不提供方法了</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/05/02 17:10:13</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<h2 id="%E5%B8%A6%E8%BF%9B%E5%BA%A6%E6%9D%A1%E5%A4%8D%E5%88%B6%E6%96%87%E4%BB%B6" tabindex="-1">带进度条复制文件</h2>
+<p>普通的cp或者scp，在复制一个很大的文件夹时，过程中看不到任何响应，不知道复制是否还在正常进行，所以可以尝试用rsync这个工具来复制文件</p>
+<ol>
+<li>下面表示将 dir1 这个目录，复制到backup 下，即 /home/backup/dir1</li>
+</ol>
+<pre><code class="language-">rsync -avz --progress  /home/dir1  /home/backup
+</code></pre>
+<ol start="2">
+<li>远程ssh复制，非默认22端口</li>
+</ol>
+<pre><code class="language-">rsync -avz --progress  /opt  root@10.0.0.31:~/disk-tmp -e 'ssh -p 222'
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/05/01 14:11:58</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>今天把站点搬到华为云了，不过CDN还是腾讯云的</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/04/29 16:51:04</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p><img alt="image-1682757960311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1682757960311.png" srcset="/upload/2023/04/image-1682757960311.png?width=1200 1200w, /upload/2023/04/image-1682757960311.png?width=400 400w, /upload/2023/04/image-1682757960311.png?width=1600 1600w, /upload/2023/04/image-1682757960311.png?width=800 800w"/><br/>
+TOS固件重大更新，取消了第三方内存限制，可以尝试增加内存了</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/04/16 16:32:32</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>kylin v10 服务器版，可能会出现这样的情况</p>
+<pre><code>locale -a
+C
+C.utf8
+POSIX
+en_US.utf8
+zh_CN.utf8
+</code></pre>
+<p>直接搜kylin v10服务器怎么增加GBK的支持，找不到正确答案，在把多篇文章放在我脑海中联想后，我觉得这玩意与glibc有关，服务器上已经有这个东西了，肯定不需要重装，应该是少了一些与"locale"和"lang"相关的包，于是yum search glibc ，找到两个疑似有关的</p>
+<pre><code>yum -y install glibc-locale-source glibc-all-langpacks
+</code></pre>
+<p>安装后，果然有了</p>
+<pre><code>locale -a |grep zh_CN
+zh_CN
+zh_CN.gb18030
+zh_CN.gb2312
+zh_CN.gbk
+zh_CN.utf8
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/04/09 21:53:57</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>查看git代码贡献行数<br/>
+先进入到本地仓库主目录，然后执行下面的代码</p>
+<pre><code class="language-bash">git ls-files -z | xargs -0n1 git blame -w | perl -n -e '/^.*?\((.*?)\s+[\d]{4}/; print $1,"\n"' | sort -f | uniq -c | sort -n
+</code></pre>
+<p>如果是在windows上，则先打开</p>
+<pre><code>C:\Program Files\Git\git-bash.exe
+</code></pre>
+<p>然后进入本地仓库主目录，再执行前面的代码</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/04/01 22:59:37</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>安装了多个jdk环境时，可以通过命令来切换需要的版本</p>
+<pre><code>update-alternatives --config java
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/03/28 13:58:18</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>网页上的终端</p>
+<pre><code class="language-">pip install webssh
+wssh --fbidhttp=False
+</code></pre>
+<p>默认端口8888</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/03/26 23:38:14</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>控制台循环输出一条命令的执行结果</p>
+<pre><code># 每隔1秒执行一次date命令
+watch -n 1 date
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/03/26 13:59:54</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>nmcli未托管状态时，可以执行以下命令开启托管</p>
+<pre><code class="language-">nmcli n on
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/03/26 12:25:18</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>记录一次问题,mysql客户端启动报错，说找不到文件</p>
+<pre><code>[root@db_node1 etc]# mysql -P 3307 -u test_user -p openGauss123 -h 192.168.136.151 -D og_dolphin
+mysql: Can't read dir of '/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+mysql: [ERROR] Stopped processing the 'includedir' directive in file /etc/my.cnf at line 10.
+mysql: [ERROR] Fatal error in defaults handling. Program aborted!
+</code></pre>
+<p>但我卸载了客户端重新安装，但依旧如此，而另一台克隆出来的虚拟机上则没出现这个问题。<br/>
+于是网上相关问题，找到了这篇<br/>
+<a href="https://serverfault.com/questions/716374/cant-read-dir-of-etc-my-cnf-errcode-2">https://serverfault.com/questions/716374/cant-read-dir-of-etc-my-cnf-errcode-2</a></p>
+<p>果然有问题的机器上多了一个/etc/my.cnf文件，我估计是之前装mariadb客户端时生成的，而卸载的时候又没卸干净，于是手动删掉这个文件，客户端就可以正常启动了</p>
+<pre><code>rm -rf /etc/my.cnf
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/03/18 23:00:55</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>今天网站崩了下，原因是我的wsl挂了，docker全部卡死，使用wsl --shutdown命令也无法停止，在网上找了下，得到了这个方法<br/>
+<a href="https://stackoverflow.com/questions/70567543/cant-restart-wsl2-lxssmanager-hangs-in-stopping-state-how-to-restart">https://stackoverflow.com/questions/70567543/cant-restart-wsl2-lxssmanager-hangs-in-stopping-state-how-to-restart</a></p>
+<p>通过下面这个命令找到pid，然后去任务管理器找到它，结束进程树即可</p>
+<pre><code>tasklist /svc /fi "imagename eq svchost.exe" | findstr LxssManager
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/02/10 23:19:49</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>在linux上查看文件十六进制数据</p>
+<pre><code class="language-bash">od -t c filename
+od -t x1 filename
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/02/03 18:47:44</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>知道nmcli怎么用，但不想敲那一长串命令，太容易敲错了；也知道network-script内的ifcfg文件如何编辑，但是有时候就是没有ifcfg文件。nmtui同时解决了这两个问题，该命令系统自带，无需桌面环境也可以图形化操作</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/01/30 21:39:23</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>gsql/psql连接时的客户端字符集取值逻辑</p>
+<ol>
+<li>客户端字符集以连接环境的参数client_encoding 为准，可在数据库连接会话中通过以下命令查看<br/>
+show client_encoding;<br/>
+也可以在连接中临时修改客户端字符集<br/>
+set client_encoding to 'UTF8';<br/>
+但无法直接设置client_encoding的全局默认值，如果使用alter database进行修改，可以执行成功，但实际没有效果，直接设置到postgresql.conf文件里也是没有效果的</li>
+<li>client_encoding参数的值默认以OS环境变量PGCLIENTENCODING为准;</li>
+<li>当未设置PGCLIENTENCODING时,会获取OS环境变量LC_CTYPE的字符编码部分;</li>
+<li>当未设置LC_CTYPE时，会获取OS环境变量LANG的字符编码部分</li>
+</ol>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2023/01/16 22:21:12</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p><a href="https://next-terminal.typesafe.cn/" target="_blank">https://next-terminal.typesafe.cn/</a><br/>
+一个小巧的开源堡垒机，起两个容器就行了，默认数据库为sqlite</p>
+<pre><code class="language-sh">docker run --restart=always --name guacd -d \
+  -v ~/next-terminal/data:/usr/local/next-terminal/data \
+  dushixiang/guacd:latest
+
+docker run --restart=always --name next-terminal -d \
+  --link guacd \
+  -p 8088:8088 \
+  -p 8089:8089 \
+  -v ~/next-terminal/data:/usr/local/next-terminal/data \
+  -v /etc/localtime:/etc/localtime \
+  -e DB=sqlite \
+  -e GUACD_HOSTNAME=guacd \
+  -e GUACD_PORT=4822 \
+  dushixiang/next-terminal:latest \
+</code></pre>
+<p>8088是web端口<br/>
+8089是ssh端口<br/>
+默认用户名密码为admin/admin</p>
+<p>感觉上像是集成了gortal</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/12/15 00:58:57</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>最近一直在被这几个ip攻击</p>
+<pre><code>89.248.163.236
+123.151.211.130
+89.248.163.230
+89.248.163.225
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/12/14 01:07:03</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>统信UOS系统，开启root用户ssh登录步骤</p>
+<ol>
+<li>注册UOS账号</li>
+<li>操作系统里绑定UOS账号</li>
+<li>操作系统控制中心 进入开发者模式</li>
+<li>修改root密码 sudo passwd root</li>
+<li>编辑 /etc/ssh/sshd_config 添加 PermitRootLogin yes</li>
+<li>sudo systemctl enable ssh</li>
+<li>sudo systemctl start ssh</li>
+</ol>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/11/12 21:25:59</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>winscp集成windows terminal的一种方法,</p>
+<pre><code class="language-bash">%ProgramFiles%\WindowsApps\Microsoft.WindowsTerminal_1.15.2874.0_x64__8wekyb3d8bbwe\wt.exe docker run --rm -it ictu/sshpass -p !P ssh -o StrictHostKeyChecking=no !U@!@
+</code></pre>
+<p><img alt="image-1668259586318" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668259586318.png" srcset="/upload/2022/11/image-1668259586318.png?width=1200 1200w, /upload/2022/11/image-1668259586318.png?width=400 400w, /upload/2022/11/image-1668259586318.png?width=1600 1600w, /upload/2022/11/image-1668259586318.png?width=800 800w"/><br/>
+原理为 使用sshpass的docker容器<br/>
+前提是本机已经安装了docker desktop</p>
+<p>这个方案有2个小问题，</p>
+<ol>
+<li>一段时间不操作，连接会断开</li>
+<li>直接关闭窗口，容器一直卡在停止中，需要手动删一下。如果是exit退出则没有问题</li>
+</ol>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/10/24 23:12:44</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>微信小程序的云开发增加了每月最低消费套餐39元（2022年底前19.9），不再有免费配额了，所以我的小程序在10月31日得下线了（反正就是小程序开发的一个尝试，关了就关了，主要还是维护博客网站吧）</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/10/12 21:31:40</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>主域名访问已恢复，但仍然建议使用<a href="https://www.darkathena.top" target="_blank">https://www.darkathena.top</a>访问本站点</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/07/30 20:13:11</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>2008年注册的CSDN账号，但直到去年第四季度才开始在上面输出自己的知识，没想到成了第一批拥有这个实体化勋章的人。我获评这个勋章的原因是"领军人物/<br/>
+授人以渔"。这个采纳榜截图是今年4月份的，估计已经创下大数据板块单人最高被采纳数的历史了。而之后我由于已经开始正式工作，也没时间盯着问题去答了，但是之前所做的这些也算是给数据库这个圈子增加了不少的热度<br/>
+<img alt="2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg" srcset="/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1200 1200w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=400 400w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1600 1600w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=800 800w"/><br/>
+<img alt="a596ecf08ef766739d3eac57ba426339_talk_1659182155526" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png" srcset="/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1200 1200w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=400 400w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1600 1600w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=800 800w"/></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/07/29 23:36:15</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>今天打算录屏整点培训资料，想到win10自带录屏，在焦点放到某个软件窗口的时候，点击键盘的win+g，即可呼出录屏。<br/>
+但是发现有一些问题，</p>
+<ol>
+<li>如果桌面文字图标显示比例不是100%,那么录屏鼠标位置会有偏移</li>
+<li>无法录制右键菜单和软件子窗口，因为这个录屏只针对激活的那个frame，而不是屏幕的区域，所以就算把其他软件的界面覆盖上去，它录制的依旧只有激活它的那个窗口,甚至不会被覆盖影响</li>
+</ol>
+<p>所以上网搜了一把，发现wps的演示文稿里，竟然有个录屏功能，点击后，需要等几秒钟，因为首次需要在线下载。<br/>
+试了下，功能挺好用，界面也简洁。</p>
+<p>然后，我感觉这个东西不像个插件，而像是个独立的软件，于是通过任务管理器进程找到了这个录屏软件对应的目录</p>
+<blockquote>
+<p>C:\Users\DarkAthena\AppData\Roaming\kingsoft\wps\addons\pool\win-i386\kapower_2.2.0.7\kapowerapp\ApowerREC.exe</p>
+</blockquote>
+<p>然后上网一搜，推荐文章挺多，但貌似并不是商业免费软件，wps集成真没问题？</p>
+<p><a href="https://www.apowersoft.com/record-all-screen" target="_blank">https://www.apowersoft.com/record-all-screen</a><br/>
+下拉，找到了合作伙伴，里面就有wps，看来没毛病。</p>
+<p>然后我又找到了这个软件的中文网站<br/>
+<a href="https://www.apowersoft.cn/record-all-screen" target="_blank">https://www.apowersoft.cn/record-all-screen</a></p>
+<p>原来奥软就是它啊，之前看陈抱一直播的时候，就在说奥软的投屏很好用，原来不仅有投屏，还有录屏。然后再看这个公司的产品清单，貌似发现宝库了，挺多实用的小工具，推荐mark</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/05/26 16:09:24</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>Oracle常用诊断事件清单<br/>
+<a href="https://www.cnblogs.com/macleanoracle/archive/2013/03/19/2967244.html" target="_blank">https://www.cnblogs.com/macleanoracle/archive/2013/03/19/2967244.html</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/04/25 15:57:28</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>。。。20220424，我进了下一家公司。。。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/04/10 16:34:20</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>最近很少写文章,主要是花了比较多的时间去做解答了,</p>
+<p><img alt="屏幕截图 2022-04-10 135947" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/屏幕截图 2022-04-10 135947.png" srcset="/upload/2022/04/屏幕截图 2022-04-10 135947.png?width=1200 1200w, /upload/2022/04/屏幕截图 2022-04-10 135947.png?width=400 400w, /upload/2022/04/屏幕截图 2022-04-10 135947.png?width=1600 1600w, /upload/2022/04/屏幕截图 2022-04-10 135947.png?width=800 800w"/></p>
+<p>另外还在进行一些学习,也占用了不少时间。<br/>
+有些问答我已经搬到了《经典问答》板块<a href="https://www.darkathena.top/s/classicqa" target="_blank">https://www.darkathena.top/s/classicqa</a>,里面有些sql还是有点意思的</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/04/10 16:27:37</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>红珠实验 <a href="https://baike.baidu.com/item/%E7%BA%A2%E7%8F%A0%E5%AE%9E%E9%AA%8C" target="_blank">https://baike.baidu.com/item/%E7%BA%A2%E7%8F%A0%E5%AE%9E%E9%AA%8C</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/03/17 17:18:20</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>瞅到两篇关于CDB查PDB数据的文章，mark一下，这两篇内容结合起来，可玩性很高<br/>
+<a href="https://developer.aliyun.com/article/130253">https://developer.aliyun.com/article/130253</a><br/>
+<a href="https://developer.aliyun.com/article/772912">https://developer.aliyun.com/article/772912</a></p>
+<pre><code class="language-sql">--给CDB普通用户授权所有PDB的某个系统视图
+alter user c##test set container_data=ALL for v_$session container=current;
+--授权全部数据
+ALTER USER c##test SET CONTAINER_DATA=ALL CONTAINER=CURRENT;
+--在CDB内聚合所有PDB查询
+select * from Containers(v_$session)
+</code></pre>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/03/15 00:58:17</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>有哪家想做oracle内业务代码流程优化可以放心找我<br/>
+主要优化方式：</p>
+<ol>
+<li>通过sql代码的等价替换来提高程序运行效率</li>
+<li>发现流程（业务或程序）中的盲点或者bug，对流程进行优化，以使其逻辑更严密、更具扩展性</li>
+</ol>
+<p>更多的偏向业务逻辑经验，和DBA优化的方面还是有点区别的</p>
+<p>业务、开发、DBA这三者在进行沟通的时候，经常会出现鸡同鸭讲，无法正确理解对方想表达的意思，业务说啥开发就写啥，没有管业务逻辑是否有矛盾或者漏洞；开发只管也代码，也没管针对oracle数据库如何设计表结构及程序流程效率会更高。因此需要一个同时理解这三方的人来对其进行调理<br/>
+有个现象很常见，出了问题，前端说是后端问题，后端说是数据库问题，数据库说我没问题。很少有人能从全流程进行梳理，只能确保自己负责的部分没问题，这样就会一直扯皮但问题依旧无法解决。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/02/13 16:10:37</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>ORACLE数据库的utl_encode.uuencode函数,和标准的uuencode有区别,标准里规定每行60个字符,除最后一行外,应该都是大写字母"M"开头,但oracle中的是每行77个字符,以小写字母"l"开头,在mos上有记录BUG,<a href="https://support.oracle.com/epmos/faces/DocumentDisplay?_afrLoop=5058161925243&amp;parent=EXTERNAL_SEARCH&amp;sourceId=PROBLEM&amp;id=2197134.1&amp;_afrWindowMode=0&amp;_adf.ctrl-state=13sc0vrk13_4">UTL_ENCODE.UUENCODE Does Not Follow The Standard Uuencode Format (文档 ID 2197134.1)</a><br/>
+官方解决方案是</p>
+<blockquote>
+<p>Until Bug:6655881 is addressed, use a workaround or use a 3rd party external procedure based on the uuencode/uudecode standard</p>
+</blockquote>
+<p>简单来说就是这个bug已经收录,建议使用第三方外部过程,直到BUG修复</p>
+<p>但这个bug是2016年报告的呀,这都5年多了。。。不过utl_encode.uudecode倒是能解析各种各样的长度(但是oracle解析标准的uuencode编码会丢失数据)</p>
+<p>当然,uuencode这种编码已经被base64取代了,oracle不把这个bug当回事也情有可原,毕竟这个功能开发出来几十年了,也没多少人反馈有问题。<br/>
+但强迫症难忍啊</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2022/02/08 23:07:06</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>edb数据库适配oracle的包列表<br/>
+<a href="https://www.enterprisedb.com/docs/epas/latest/epas_compat_bip_guide/03_built-in_packages/">https://www.enterprisedb.com/docs/epas/latest/epas_compat_bip_guide/03_built-in_packages/</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/27 22:44:09</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>opengauss和mogdb对于其他数据库的语法兼容包<br/>
+<a href="https://gitee.com/enmotech/compat-tools">https://gitee.com/enmotech/compat-tools</a><br/>
+目前支持的数量还很少，我打算支持几个</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/24 14:57:00</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>今天有人问到了pivot和unpivot关于in子句中的子查询问题,这个我之前研究过,结论是创建过程拼接动态sql,但是必须创建一个视图或者表,再查它,改天写个用起来更舒服的函数</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/23 23:42:59</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>今天有人问到了如何用数据库以sql查询的方式查询xlsx文件，我想到了目前网上可以搜到的xyg那个包，这个包的确能解析excel的数据，但查询展示结果不太优雅，我突然想到或许可以借用18c私有临时表的特性，让这个功能更美观，改天抽空写写</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/23 15:56:09</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>想稍微分析一下ORACLE的PLSQL到openGause的通用转换方案</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/23 15:54:56</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>准备尝试一下,我之前写的一些plsql包在OceanBase上的兼容情况</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/12/07 17:22:27</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>windows docker 报错：Failed to set version to docker-desktop: exit code: -1 stdout: �S��v�[a�{|�W N/ec\Ջ�v�d\O0</p>
+<p>使用管理员身份执行 netsh winsock reset 即可<br/>
+方法来自<br/>
+<a href="https://www.lyile.cn/articles/2021/06/17/1623918094777.html">https://www.lyile.cn/articles/2021/06/17/1623918094777.html</a></p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/11/23 13:26:21</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>国产数据库的生态的确是个很严重的问题。记得在今年的1024程序员大会的十大数据库掌门人论坛时，有人也说了生态问题，然而却被人以iPhone为例而反驳。在我看来，国产数据库的生态和iPhone的生态完全不是一回事，iPhone自生产出来，就是一个可以被广大消费者使用的“完整产品”，而数据库，还需要应用软件去用它，才能发挥价值。举个例子，oracle旗下有款业务软件，叫Hyperion,所用的数据库是essbase，而终端用户只知道是海波龙系统，完全不会在乎它是用的什么数据库。所以更多的时候，数据库产品是作为软件服务一起被出售的，与此相关的甚至还有基于此软件的硬件、开发、运维等服务。国产数据库想要发展，绝对不可能独善其身，就像此文中说的，需要各个领域的国产公司及产品大家联合起来，共同为终端用户创造更好的产品</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/11/16 20:28:52</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>个人以为，国产数据库发展如果想要加速，可以尝试一下多和软件厂商合作，或者组建软件团队。<br/>
+目前ORACLE数据库如此重要的原因，除了它的完善和稳定性外，还有一点就是目前有大量使用ORACLE数据库的业务管理系统，尤其是Oracle官方的比如EBS/JDE/SIEBEL/BI/PEOPLESOFT/RETEK等，其中以EBS最为突出，像京东、华为这样的企业依然在使用EBS，也就必须使用oracle数据库。<br/>
+数据库，当它纯粹是个数据库时，没有什么感觉，它毕竟是在大多数用户看不到的地方，它的价值需要有优秀的软件使用它才能得以体现。<br/>
+而且真正有软件要使用数据库时，开发过程中也可以对数据库提出一些改进建议，这样能让数据库更完善。<br/>
+如果某天，国产的这些软件及数据库，能共同完成这些业务管理系统的无痛平移，相信国产数据库的影响力会变得更大。</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/11/04 16:06:56</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>oracle18c可以使用dbms_hadoop包在oracle数据库中创建基于hive的外部表</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/11/03 01:09:40</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>oracle 18c 支持内联外部表，无需创建外部表对象即可直接查询文件中的内容</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/10/28 23:50:43</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>和ORACLE长得像得数据库，除了“达梦”，还有阿里的 “PolarDB O引擎”，腾讯的“TDSQL-A“</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/10/28 23:26:42</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>去掉sql中奇形怪状的注释</p>
+<pre><code class="language-sql">declare
+  i varchar2(4000);
+  o varchar2(4000);
+begin
+  i := 'SELECT 11 C1 --/*  66  
+/*77*/ ,22 C2  /* ---55*/, 33 C3
+ /*  88
+*/ /*/*/ FROM dual';
+  DBMS_UTILITY.EXPAND_SQL_TEXT(input_sql_text =&gt; i, output_sql_text =&gt; o);
+  dbms_output.put_line(o);
+end;
+</code></pre>
+<p>这个过程会去掉sql中的所有注释，并且将*号列全部扩展、补全表的owner、给表名、字段名、表所有者都加上引号，而且还会把视图扩展成子查询。唯一的缺点是，它会在本数据库对sql的合法性进行校验，比如表名是否存在。</p>
+<p>但是可以通过动态sql调用远程dblink的此过程来处理（实测DBLINK不同用lob参数，残念）</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/10/26 15:49:41</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>发现我的文章被转载了，还被翻译成英语放到了国外的网站上<br/>
+<a href="https://programs.team/6164637e6d020.html">https://programs.team/6164637e6d020.html</a><br/>
+<a href="http://the7.net/news/show-32576.html#">http://the7.net/news/show-32576.html#</a>!</p>
+<p><a href="https://python.iitter.com/other/152199.html">https://python.iitter.com/other/152199.html</a><br/>
+<a href="https://programmer.help/blogs/python-batch-synchronize-halo-blog-articles-to-csdn.html">https://programmer.help/blogs/python-batch-synchronize-halo-blog-articles-to-csdn.html</a></p>
+<p><a href="http://www.kaotop.com/it/326216.html">http://www.kaotop.com/it/326216.html</a></p>
+<p><a href="http://m.zyiz.net/tech/detail-264271.html">http://m.zyiz.net/tech/detail-264271.html</a> 这个刚发就被转过去了</p>
+<p><a href="https://programming.vip/docs/oracle-enhancement-of-the-for-loop-loop-a-new-feature-in-version-21c.html">https://programming.vip/docs/oracle-enhancement-of-the-for-loop-loop-a-new-feature-in-version-21c.html</a>  这机翻太离谱了</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
+    <div class="meta">2021/10/25 20:44:04</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p>待办备忘：</p>
+<h2 id="技术类">技术类</h2>
+<ol>
+<li><del>dbms_cloud.export_data报错分析 完成,只有自治数据库可用,但可以修改程序以支持此功能</del>，aliyun不兼容S3 v4签名的解决方案,阿里已回复会进行升级,但几个月过去了没有动静</li>
+<li><del>halo同步到csdn，文末信息自动添加 20211209完成</del></li>
+<li>halo同步到csdn快捷操作</li>
+<li><del>pl4py优化，控制停止服务的新方案，schedulejob参数化兼容linux版本20211101已完成</del></li>
+<li><del>21c版本对for loop的增强 已完成</del></li>
+<li><del>根据TIM HALL的方案构建一个21c on ol8的docker，并且安装pl4py 20211116已完成</del></li>
+<li>使用antlr4的JAVA版或者C版，在ORACLE中进行简单集成（无需http服务），实现在数据库内解析sql，然后优化dblinksql</li>
+<li>建立微信公众号</li>
+<li>少见有用sql函数part6</li>
+<li><del>优化sql2html 2021-1028已完成</del></li>
+<li>达梦数据库部署及应用尝试（个人开发一个零售管理系统？）</li>
+<li>博客新专栏 粉丝来信 <del>经典问答</del></li>
+<li>TNSNAMES.ORA管理工具</li>
+<li>优化oracle执行操作系统命令的方式（LINUX版本已完成，windows版仍然需要文件）</li>
+</ol>
+<h2 id="零售业务类文章">零售业务类文章</h2>
+<ol>
+<li>零售基础档案信息</li>
+<li>商品编码与印刷条码</li>
+<li>差异（色码）商品、组合商品、分割商品</li>
+<li></li>
+</ol>
+<h2 id="retek类文章">retek类文章</h2>
+<ol>
+<li>rtlog效率问题</li>
+<li>界面商品建档，计算税时的多余处理</li>
+<li>无SA_TRAN_ITEM级别的销售成本</li>
+</ol>
+</div></div>
+</div>
+
+
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

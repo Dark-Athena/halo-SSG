@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>DA-技术分享-静态站</title>
+    <link>https://www.darkathena.top</link>
+    <description/>
+    <language>zh-CN</language>
+    <item>
+      <title>【GaussDB】讨论下for update游标加锁的设计</title>
+      <link>https://www.darkathena.top/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB</link>
+      <description>【GaussDB】讨论下for update游标加锁的设计 背景 在 Oracle 中有一种常见用法：通过存储过程有条件地更新一张或多张表的数据。由于存储过程可能被并发调用，需要加锁防止并发执行。做法是定义一个游标，在查询语句末尾加上 FOR UPDATE，然后 OPEN 这个游标即实现加锁。至于后</description>
+      <pubDate>Thu, 14 May 2026 13:14:50 +0000</pubDate>
+    </item>
+    <item>
+      <title>AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12）</title>
+      <link>https://www.darkathena.top/archives/AI-Coding-Plans-Subscription-Models-Market-Landscape-20260512</link>
+      <description>AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） 数据截至 2026 年 5 月 12 日，基于公开信息整理。各厂商最新旗舰模型见文末附录。 一、海外模型/对话厂商 1. OpenAI（ChatGPT） OpenAI 的订阅体系经历了从"免费 + 单一付费"到"多层分级</description>
+      <pubDate>Thu, 14 May 2026 13:14:17 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型</title>
+      <link>https://www.darkathena.top/archives/copilot-cli-local</link>
+      <description>告别束缚，自由飞翔：copilot-local 让 GitHub Copilot CLI 用上你自己的模型 你是否遇到过这样的困境：想用 GitHub Copilot CLI，却被官方模型限制、网络环境卡脖子、或者 API 额度不够用？现在，一个轻量级开源工具 copilot-local 彻底解决了</description>
+      <pubDate>Wed, 06 May 2026 13:53:04 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>告别重复输入密码：SSK — 一行命令搞定 SSH 免密登录</title>
+      <link>https://www.darkathena.top/archives/ssk-a-command-ssh-connect-without-password</link>
+      <description>告别重复输入密码：SSK — 一行命令搞定 SSH 免密登录 前言 你是否也有这样的烦恼？ 作为开发者或运维工程师，每天要通过 SSH 连接大量远程服务器。每次连接都要输入密码，不仅繁琐，还严重影响效率。更让人头疼的是： Windows 用户想要配置 SSH 免密登录，需要手动执行 ssh-keyg</description>
+      <pubDate>Wed, 06 May 2026 13:52:58 +0000</pubDate>
+      <category>批处理（bat/sh）</category>
+    </item>
+    <item>
+      <title>Claude Desktop App 连接本地 LLM 完整配置指南</title>
+      <link>https://www.darkathena.top/archives/claude-desktop-app-connect-local-llm</link>
+      <description>Claude Desktop App 连接本地 LLM 完整配置指南 环境：macOS (Apple Silicon)、Claude Desktop App、LM Studio、Claude Code Router (ccr) 最后更新：2026-04-26 1. 架构概览 Claude Deskt</description>
+      <pubDate>Wed, 06 May 2026 13:48:12 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录</title>
+      <link>https://www.darkathena.top/archives/claude-code-local-model-cc-connect-feishu-guide</link>
+      <description>将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录 背景 Claude Code 是 Anthropic 推出的终端 AI 编程助手，能力很强，但只能通过本地终端使用（Remote Control和Channels都需要订阅）。cc-connect 是一个开源工具</description>
+      <pubDate>Tue, 05 May 2026 17:00:51 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录</title>
+      <link>https://www.darkathena.top/archives/claude-code-kv-cache-reuse-failure-debug</link>
+      <description>Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录 环境信息 Claude Code: v2.1.114 (macos) LLM 后端: LM Studio (v0.4.12) / llama.cpp (8853) 模型: Qwen3-Coder-Next-Q4_</description>
+      <pubDate>Tue, 05 May 2026 17:00:37 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估</title>
+      <link>https://www.darkathena.top/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation</link>
+      <description>【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估 背景 在ORACLE数据库里进行业务逻辑开发时，使用自治事务来记录日志是一种非常常见的用法，但这种用法原样迁移到GaussDB时，性能会下降得非常严重，尤其是在循环次数非常多的情况下使用，这个时间差会变得非常大，需要考虑有没</description>
+      <pubDate>Tue, 05 May 2026 14:57:10 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</title>
+      <link>https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies</link>
+      <description>【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑 先看一个比较有意思的问题：在 GaussDB 里，如果一个视图依赖了一个包里的函数，我把这个包删了，然后原样重建回来，视图还能正常查询吗？ 在 Oracle 里，删掉被依赖的对象，视图会变成 INVALID，后续需要重新编译才能恢</description>
+      <pubDate>Tue, 05 May 2026 14:56:08 +0000</pubDate>
+    </item>
+    <item>
+      <title>美式期权二叉树算法 — 七语言实现与交叉验证报告</title>
+      <link>https://www.darkathena.top/archives/binomial-option-pricing-7-languages-program-report</link>
+      <description>背景：最近帮忙给客户优化了一个算法，经过了解，是期货行业的一个标准算法，叫“美式期权二叉树算法”，由于是标准算法，因此本文并不提供客户的原始实现和在其基础上的优化版本，而是完全由AI自主进行分析、测试、编写报告、推送到github。 本次使用的工具为运行在macos上的WPS灵犀CLAW，仅通过飞书</description>
+      <pubDate>Mon, 04 May 2026 13:03:04 +0000</pubDate>
+    </item>
+    <item>
+      <title>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</title>
+      <link>https://www.darkathena.top/archives/halo-for-yashandb</link>
+      <description>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 【YaShanDB】给YaShanDB开发R2DBC驱动 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了 AI Coding 这次我连编辑器都懒得打开了，直接github上找agent开干，中</description>
+      <pubDate>Sat, 28 Mar 2026 09:53:49 +0000</pubDate>
+    </item>
+    <item>
+      <title>【YaShanDB】给YaShanDB开发R2DBC驱动</title>
+      <link>https://www.darkathena.top/archives/yashandb-r2dbc-driver-dev</link>
+      <description>【YaShanDB】使用AI给YaShanDB开发R2DBC驱动 背景 崖山数据库作为一款发布没多少年的纯自研数据库，在内核设计上非常亮眼，而且也通过了国测，但是周边的应用生态还有不少欠缺。最近打算让HALO博客的后台支持崖山数据库，但是却发现崖山数据库官方竟然没有R2DBC驱动，就想着看能不能给崖</description>
+      <pubDate>Sat, 28 Mar 2026 09:53:45 +0000</pubDate>
+    </item>
+    <item>
+      <title>【ESXI】断电重启后NFS存储无法识别的修复方案</title>
+      <link>https://www.darkathena.top/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery</link>
+      <description>【ESXI】处理一次断电恢复后，ESXI无法识别NFS存储的问题 问题描述 环境版本：ESXI 7.0.3 当ESXI主机配置了外置NFS存储时，如果发生断电后恢复，可能会出现以下问题： ESXI先于NFS存储启动，导致ESXI无法识别NFS存储 NFS存储启动后，ESXI不会自动恢复连接 安装在N</description>
+      <pubDate>Sat, 14 Mar 2026 17:31:57 +0000</pubDate>
+    </item>
+    <item>
+      <title>GaussDB图形化开发工具深度评测</title>
+      <link>https://www.darkathena.top/archives/gaussdb-ide-developer-tool-test</link>
+      <description>GaussDB图形化开发工具深度评测 背景与目的 随着华为云GaussDB的广泛应用，寻找合适的图形化开发工具成为数据库开发人员的重要需求。本文将对三款主流工具（Navicat On-Prem Server、Navicat 17 Premium和DBeaver 25.2.0）进行不全面评测，重点关注</description>
+      <pubDate>Sun, 08 Mar 2026 14:33:43 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题</title>
+      <link>https://www.darkathena.top/archives/analyze-gaussdb-arm64-python-driver-psycopg3-coredump</link>
+      <description>【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题 没想到这个系列还会有第五篇。 背景 通过前几篇的操作，我已经完全打通了airflow-&gt;sqlalchemy-&gt;GaussDB-sqlalchemy-&gt;gaussdb(psycopg3)</description>
+      <pubDate>Sun, 08 Mar 2026 11:54:36 +0000</pubDate>
+    </item>
+    <item>
+      <title>万字长文-国产关系型数据库生态深度分析</title>
+      <link>https://www.darkathena.top/archives/China-s-Relational-Database-Eco-In-Depth-Analysis</link>
+      <description>国产关系型数据库生态深度分析 本文完成于2026年3月3号。 有很多人问过我："国产数据库该怎么选？" 前几年我刚入棋局，确实看不太清，但亲身经历了这几年国产数据库在各个战场上的厮杀后，我逐渐有了一些自己的思考。这篇文章，算是我对国产数据库生态的阶段性总结。 免责声明：本文仅代表个人观点，与任何公司</description>
+      <pubDate>Mon, 02 Mar 2026 17:24:00 +0000</pubDate>
+      <category>杂谈</category>
+    </item>
+    <item>
+      <title>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow</title>
+      <link>https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7</link>
+      <description>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow 上一篇(【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动)弄清楚了gaussdb(psycopg3)的安装方式，这一篇就开始整sqlalchemy的方言了 直接v</description>
+      <pubDate>Mon, 02 Mar 2026 01:51:51 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</title>
+      <link>https://www.darkathena.top/archives/install-test-gaussdb-python-driver-based-on-psycopg3</link>
+      <description>【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动 前言 前面几篇提过了这个驱动，这个psycopg3是比psycopg2更符合规范的驱动，但是上一篇最后提到了直接pip install gaussdb用起来可能会coredump，所以这篇来尝试基于源码来进行安装，并</description>
+      <pubDate>Mon, 02 Mar 2026 01:50:45 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7</title>
+      <link>https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7</link>
+      <description>【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7 上一篇通过修改openGauss的psycopg2驱动并编译，适配了airflow2.9.2版本，【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow ,但客</description>
+      <pubDate>Mon, 02 Mar 2026 01:49:53 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】用AI解析UGO中的SQL审核模块的实现</title>
+      <link>https://www.darkathena.top/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI</link>
+      <description>【GaussDB】用AI解析UGO中的SQL审核模块的实现 背景 目前GaussDB没有公开自己的语法树规则，那么第三方工具如果想基于GaussDB的SQL去做一些解析来实现特定的一些功能，就可能比较麻烦，所以我就想到UGO里有SQL审核模块，那么一定有做了语法树生成。 所以这篇尝试用AI来解析一下</description>
+      <pubDate>Tue, 03 Feb 2026 06:57:03 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】排查创建索引后查询数据行数发生变化的问题</title>
+      <link>https://www.darkathena.top/archives/gaussdb-index-skip-scan-wrong-result</link>
+      <description>【GaussDB】排查创建索引后查询数据行数发生变化的问题 背景 客户开发反馈，有个复杂的SQL，本来查询行数有几千行，针对其中一个表创建索引后，这个SQL查询行数只有一百多行了,重复多次执行都可以复现。 确认版本 GaussDB 内核为 506.0.0SPC0100， 已打修复跳扫BUG的热补丁（</description>
+      <pubDate>Mon, 02 Feb 2026 13:17:59 +0000</pubDate>
+    </item>
+    <item>
+      <title>大表数据高效切片：基于主键的无排序Where条件生成算法</title>
+      <link>https://www.darkathena.top/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting</link>
+      <description>大表数据高效切片：基于主键的无排序Where条件生成算法 背景 在异构数据库迁移的项目中，核对迁移前后的大表数据一致性始终是一个难题，我之前有写过一个在库内计算全表特征值的对比工具（【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案），但只适用于比对ORAC</description>
+      <pubDate>Fri, 30 Jan 2026 15:11:44 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow</title>
+      <link>https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow</link>
+      <description>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow 背景 现有很多python组件都有python运行版本的要求，linux操作系统里用yum install python3安装的python3，可能版本太低，不足以运行这些python组件，因此应用项目就只能选</description>
+      <pubDate>Fri, 30 Jan 2026 15:08:52 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】GaussDB506版本A模式中的date类型</title>
+      <link>https://www.darkathena.top/archives/gaussdb-506-date-type-oracle</link>
+      <description>【GaussDB】GaussDB506版本A模式中的date类型 GuassDB 在506.0版本中引入了一个新的数据类型，datea，用于兼容ORACLE的date类型。而在此版本前，GaussDB只是在ORACL兼容模式下，把位于数据类型位置的date，转换成了timestamp(0) with</description>
+      <pubDate>Sun, 25 Jan 2026 11:30:33 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】合入原生PG的PR来修复CVE-2025-1094漏洞后产生的严重隐患</title>
+      <link>https://www.darkathena.top/archives/gaussdb-about-cve-2025-1094</link>
+      <description>【GaussDB】合入原生PG的PR来修复CVE-2025-1094漏洞后产生的严重隐患 注意：本文篇幅很长,请预留好充足的阅读时间 背景 近期有应用开发人员发现，自己编写的C程序使用GaussDB 506.0SPC0100的libpq往GaussDB数据库插入数据时，原本有值，但是到了数据库里就变</description>
+      <pubDate>Sun, 25 Jan 2026 09:17:34 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】UNION结果顺序探索</title>
+      <link>https://www.darkathena.top/archives/gaussdb-union-result-order-seek</link>
+      <description>【GaussDB】UNION结果顺序探索 背景 在报表类SQL中，经常会用UNION来合并明细行和汇总行，一般来说应该要使用UNION ALL，但是由于部分开发人员未理解数据库中的UNION和UNION ALL的区别，很可能就用了UNION 而没有使用UNION ALL，然后恰巧数据中并没有重复，也</description>
+      <pubDate>Wed, 21 Jan 2026 13:56:44 +0000</pubDate>
+      <category>openGauss</category>
+    </item>
+    <item>
+      <title>【GaussDB】分析函数性能优化案例-row_number改写</title>
+      <link>https://www.darkathena.top/archives/gaussdb-row_number-rewrite-performance-optimization</link>
+      <description>【GaussDB】分析函数性能优化案例-row_number改写 背景 在应用查询SQL中，分组top-N查询是很常见的，因此分析函数row_number/rank/dense_rank经常会出现在ORACLE的SQL中，GaussDB同样也支持这些函数，因此将ORACLE中这样的SQL迁移到Gau</description>
+      <pubDate>Wed, 21 Jan 2026 13:46:08 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】解析GaussDB热补丁机制</title>
+      <link>https://www.darkathena.top/archives/gaussdb-analyze-hotpatch</link>
+      <description>【GaussDB】解析GaussDB热补丁机制 前言 热补丁（Hot Patching）是指在程序运行过程中，无需停止或重启程序，直接对其进行修补或更新的一种技术。 作为企业级数据库软件的GaussDB,也同样有热补丁的能力。 熟悉openGauss的可能比较好奇，openGauss绝大部分的内核代</description>
+      <pubDate>Wed, 14 Jan 2026 07:55:44 +0000</pubDate>
+    </item>
+    <item>
+      <title>【ORACLE】分区表数据倾斜会发生什么</title>
+      <link>https://www.darkathena.top/archives/oracle-What-Happens-When-Data-Skew-Occurs-in-Partitioned-Tables</link>
+      <description>【ORACLE】分区表数据倾斜会发生什么 背景 有经验的ORACLE DBA可能经常遇到,每当跨年和跨月的时候,有些应用系统1号早上一来就卡爆了,查数据库会话,一堆会话在执行几个相同的慢SQL,而且这个慢SQL里大概率有个分区表。 遇到这种场景的时候,做下最近的几个分区的统计信息收集或者全表的统计信</description>
+      <pubDate>Sat, 10 Jan 2026 12:37:33 +0000</pubDate>
+      <category>ORACLE</category>
+    </item>
+    <item>
+      <title>【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查</title>
+      <link>https://www.darkathena.top/archives/Errors-on-the-6th-Run-of-the-Same-SQL-or-Stored-Procedure-in-GaussDB</link>
+      <description>【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查 背景 最近有客户遇到了一个问题，原始反馈是 客户：“我在GaussDB里调用这个sp报错，相同sp在ORACLE里调用不报错” 我：“报什么错？” 客户：“invalid input syntax for type</description>
+      <pubDate>Sat, 10 Jan 2026 12:27:59 +0000</pubDate>
+    </item>
+    <item>
+      <title>【ORACLE】分析一个全局临时表drop报错不合理的问题</title>
+      <link>https://www.darkathena.top/archives/oracle-drop-global-template-table-error</link>
+      <description>【ORACLE】分析一个全局临时表drop报错不合理的问题 背景 有次在验证全局临时表相关特性时，偶然遇到这么一个问题，整个数据库就我一个客户端会话，我刚建的表，自己drop还报错，说正在被使用中，很是让人费解。 复现用例 下面是简单的复现用例 SQL&gt; create table t_test(PR</description>
+      <pubDate>Sun, 04 Jan 2026 14:26:53 +0000</pubDate>
+      <category>ORACLE数据库</category>
+    </item>
+    <item>
+      <title>【openGauss】用Qoder修复openGauss的一处BUG</title>
+      <link>https://www.darkathena.top/archives/fix-an-opengauss-bug-with-qoder</link>
+      <description>【openGauss】用Qoder修复openGauss的一处BUG 背景 最近遇到一个openGauss的BUG，经验证，在5.0/6.0/7.0RC2上都存在,部分基于openGauss的商业发行版也有这个BUG。 [og600@kylinv10sp3-node1 ~]$ gsql -r
+gsq</description>
+      <pubDate>Sat, 03 Jan 2026 13:32:32 +0000</pubDate>
+      <category>openGauss</category>
+    </item>
+    <item>
+      <title>【GaussDB】跨用户调用已授权的存储过程，可能会在存储过程内SQL的自定义函数表达式里报错没有权限</title>
+      <link>https://www.darkathena.top/archives/gaussdb-nested-function-call-other-user-permission-denied</link>
+      <description>背景 GaussDB内核版本:506.0.0 SPC0100 在开启了behavior_compat_options=plsql_security_definer时，理论上跨用户的存储过程调用，只要授权最外层的存储过程执行权限即可，存储过程内调用的其他对象是不需要再授权的，因为进入存储过程后，当前用</description>
+      <pubDate>Sat, 03 Jan 2026 13:32:06 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DuckDB】duckdb和postgresql对于unnest函数的区别</title>
+      <link>https://www.darkathena.top/archives/duckdb-postgresql-diff-unnest</link>
+      <description>【DuckDB】duckdb和postgresql对于unnest函数的区别 背景 在postgresql中，unnest函数用于解开数组类型的嵌套，能把一个数组变成多行，但不解开一行中的多个字段；当unnest处于from后面时，如果解开的一行有多个字段，同时也会解开成多个字段。 也就是说，在pg</description>
+      <pubDate>Fri, 02 Jan 2026 10:35:16 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DuckDB】探索函数调用新范式：点操作符链式调用</title>
+      <link>https://www.darkathena.top/archives/DuckDB-Function-Chaining-via-the-Dot-Operator</link>
+      <description>【DuckDB】探索函数调用新范式：点操作符链式调用 在数据库操作的日常实践中，函数调用的简洁性与直观性直接影响着开发效率与代码可读性。DuckDB 提供的点操作符函数链式调用功能，为我们打开了全新的函数调用视角，让数据处理逻辑更加流畅自然。 基础使用方法：从传统到创新 基本语法解析 在 DuckD</description>
+      <pubDate>Fri, 02 Jan 2026 10:35:05 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境</title>
+      <link>https://www.darkathena.top/archives/docker-compose-oracle-adg</link>
+      <description>【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境 背景 虽然现在都在搞国产数据库了，但是迁移阶段仍然有不少ORACLE的特性机制需要验证，目前安装单机ORACLE很方便了，ORACLE官方也提供了单机的DOCKER容器，但是如果测试ADG的特</description>
+      <pubDate>Thu, 01 Jan 2026 13:45:47 +0000</pubDate>
+      <category>docker</category>
+    </item>
+    <item>
+      <title>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造</title>
+      <link>https://www.darkathena.top/archives/From-sqlplus-to-gsql-Migrating-and-Adapting-the-Shell-Script-for-Executing-SQL-Files</link>
+      <description>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造 背景 在客户应用系统中，有一套shell脚本来操作ORACLE数据库执行业务存储过程，现数据库需要迁移到GaussDB,因此这套shell脚本也要进行移植改写 原始代码demo 存储过程定义 cre</description>
+      <pubDate>Thu, 01 Jan 2026 13:44:36 +0000</pubDate>
+      <category>openGauss</category>
+    </item>
+    <item>
+      <title>【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</title>
+      <link>https://www.darkathena.top/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug</link>
+      <description>【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到 现场问题现象 数据库版本：506.0.0SPC0100 串行业务： 开启事务，对表A执行delete全表，然后一次性插入一批数据，提交事务 对表A执行skip index scan查询，条件值取自表A</description>
+      <pubDate>Thu, 04 Dec 2025 13:49:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>【Oracle/GaussDB/MogDB】统一权限查询</title>
+      <link>https://www.darkathena.top/archives/oracle-gaussdb-mogdb-union-privilege-query</link>
+      <description>【Oracle/GaussDB/MogDB】统一权限查询 背景 客户在系统下线流程中，有一步操作是锁定该系统对各个数据库登录的账号，但由于历史原因，没有完整记录每个数据库账号有哪些权限，导致有时关闭账号后，部分生产业务出现异常。现客户提出需求，期望从各个数据库中捞出所有用户的所有权限，以便后续关闭账</description>
+      <pubDate>Sun, 30 Nov 2025 07:51:19 +0000</pubDate>
+      <category>openGauss</category>
+    </item>
+    <item>
+      <title> 【Oracle】两个关于Hint的问题</title>
+      <link>https://www.darkathena.top/archives/oracle-hint-confusing</link>
+      <description>一、关于use_hash里的多个表名 很多人在使用use_hash的时候，认为是把需要hash join的两个表或多个表都放到这个hint中，就连ORACLE官方文档中的用例也似乎在表达这个意思。其实这种理解是不对的。 https://docs.oracle.com/en/database/orac</description>
+      <pubDate>Sun, 30 Nov 2025 07:46:56 +0000</pubDate>
+      <category>ORACLE</category>
+    </item>
+    <item>
+      <title>【YashanDB】数据迁移工具YMP安装测试</title>
+      <link>https://www.darkathena.top/archives/yashandb-ymp-install-test</link>
+      <description>【YashanDB】数据迁移工具YMP安装测试 安装准备说明 安装时需要提前准备好ymp的包、yashan数据库的包、ORACLE客户端的包。 无论是使用内置库安装还是外置库安装，yashan数据库内核包都是需要的，因为就算使用外置库，ymp也需要内核包里的yasldr和exp 不按照文档来是失败的</description>
+      <pubDate>Tue, 25 Nov 2025 13:50:31 +0000</pubDate>
+    </item>
+    <item>
+      <title>【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</title>
+      <link>https://www.darkathena.top/archives/yashandb-oracle-sql-compat-test</link>
+      <description>【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录 本文内容比较零散，正常兼容的就不提了，仅记录测试过程中一些需要注意的点ᦁ</description>
+      <pubDate>Tue, 25 Nov 2025 13:42:49 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DuckDB】活用marco以兼容GaussDB的SQL执行</title>
+      <link>https://www.darkathena.top/archives/duckdb-marco-some-case</link>
+      <description>【DuckDB】活用marco以兼容GaussDB的SQL执行 前言 前文有提到，有些复杂的分析型SQL在DuckDB上执行会比GaussDB上快，但实际应用场景中，GaussDB有些函数在DuckDB上并不支持，因此有时候会需要修改GaussDB的SQL,但如果一个某些函数用得非常多，入参还不一样</description>
+      <pubDate>Mon, 24 Nov 2025 14:02:33 +0000</pubDate>
+    </item>
+    <item>
+      <title>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？</title>
+      <link>https://www.darkathena.top/archives/how-sql-audit-tool</link>
+      <description>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ 背景 围绕数据库做的通用工具有很多，其中有一种叫"SQL审核"，有很多用户期望使用"SQL审核"工具满足自己的需求，但实际用起来，发现并不是自己想要的。前一阵子我私下测试了好几个SQL审核软件，发现均无法满足某些客户的某</description>
+      <pubDate>Mon, 24 Nov 2025 13:48:05 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】在duckdb中查询GaussDB的数据</title>
+      <link>https://www.darkathena.top/archives/query-gaussdb-with-duckdb</link>
+      <description>【GaussDB】在duckdb中查询GaussDB的数据 网上好像搜不到openGauss/GaussDB和duckdb配合使用的例子，我就自己来测了下。 环境说明 本文使用的数据库版本 duckdb 1.4.1 GaussDB 5.0.6.0.0 SPC0100 均在同一台虚拟机上，使用的CPU</description>
+      <pubDate>Mon, 27 Oct 2025 14:20:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像</title>
+      <link>https://www.darkathena.top/archives/docker-build-kylinv10sp3-image-includ-gaussdb-runtime</link>
+      <description>【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像 背景 现在信创已经进行到白热化阶段了，为了赶国家2027年的任务，有不少开发</description>
+      <pubDate>Mon, 27 Oct 2025 14:11:04 +0000</pubDate>
+    </item>
+    <item>
+      <title>【YashanDB】单机版数据库升级测试</title>
+      <link>https://www.darkathena.top/archives/yashandb-upgrade-simple</link>
+      <description>【YashanDB】单机版数据库升级测试 背景 2025年8月22号，Yashan总算是通过了安全可靠认证，但是信创市场留给Yashan的份额已经不多了。第一份安可名单出来，很多客户连PoC测试都要求必须是安可名单的才给测试，所以第一批进入安可名单的厂商可以大范围采集真实的用户场景，然后改进自己的产</description>
+      <pubDate>Sun, 26 Oct 2025 09:04:27 +0000</pubDate>
+    </item>
+    <item>
+      <title>【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本</title>
+      <link>https://www.darkathena.top/archives/install-yashandb-unconventionally-and-1cmd-install-online</link>
+      <description>【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本 完全按照文档装，遇到的问题会比较少，但可能对于原理的理解会较浅，而且遇到一些环境差异引起的安装故障也不好排查。所以我这次安装不完全按文档来，就凭感觉去做，看是否可以装成功，以及会遇到哪些问题。 环境信息 这次</description>
+      <pubDate>Sun, 26 Oct 2025 08:34:03 +0000</pubDate>
+    </item>
+    <item>
+      <title>【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案</title>
+      <link>https://www.darkathena.top/archives/A-High-Efficiency-Solution-for-Data-Consistency-Verification-Between-Oracle-and-openGauss-GaussDB</link>
+      <description>一种快速进行ORACLE和openGauss/GaussDB之间数据一致性核对的方案 背景 应用软件的信创改造中，在数据迁移后，对数据进行一致性核对是非常重要的一个环节。数据核对需要面对的考验有且不限于： 核对巨量数据的性能 异构数据库不同数据类型的统一格式化 源库和目标库可能使用不同的字符集 核对</description>
+      <pubDate>Sun, 31 Aug 2025 14:07:05 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题</title>
+      <link>https://www.darkathena.top/archives/gaussdb-autonomoustransaction-create-timeout-hang</link>
+      <description>【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题 背景 某客户在做应用程序的高可用切换测试，在应用程序中，收到了来自数据库的报错，不能创建自治事务 ERROR: autonomous transaction failed to create autonomous s</description>
+      <pubDate>Sun, 31 Aug 2025 13:56:48 +0000</pubDate>
+    </item>
+  </channel>
+</rss>
