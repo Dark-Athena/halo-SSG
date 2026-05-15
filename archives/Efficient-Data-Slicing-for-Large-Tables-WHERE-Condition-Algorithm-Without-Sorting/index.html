@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>大表数据高效切片：基于主键的无排序Where条件生成算法 - DA-技术分享-静态站</title>
     <meta name="description" content="大表数据高效切片：基于主键的无排序Where条件生成算法 背景 在异构数据库迁移的项目中，核对迁移前后的大表数据一致性始终是一个难题，我之前有写过一个在库内计算全表特征值的对比工具（【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案），但只适用于比对ORAC">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>大表数据高效切片：基于主键的无排序Where条件生成算法</h1>
     <div class="meta">
@@ -1298,7 +1298,7 @@ deepwiki： <a href="https://deepwiki.com/Dark-Athena/split_data">https://deepwi
 <blockquote>
 <p>摘要：本公开涉及一种基于数据库的数据分片处理方法、装置、介质及电子设备，方法包括：获取针对待处理分片的处理请求，待处理分片对应的第一边界以及第二边界均基于数据表的复合索引建立；根据第一边界确定第一类逻辑条件，根据第二边界确定第二类逻辑条件，第一类逻辑条件包括用于限定大于或者等于第一边界的数据的各个第一子条件，第二类逻辑条件包括用于限定小于第二边界的数据的各个第二子条件；将各个第一子条件分别与各个第二子条件进行组合，得到候选组合条件；基于处理请求对应的执行语句以及各个候选组合条件，确定各个可执行的结构化查询语言；执行各个结构化查询语言，得到处理请求对应的处理结果。该方法提高了对待处理分片的处理性能。</p>
 </blockquote>
-<p><img alt="image-pbsj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-pbsj.png" srcset="/upload/image-pbsj.png?width=1200 1200w, /upload/image-pbsj.png?width=400 400w, /upload/image-pbsj.png?width=1600 1600w, /upload/image-pbsj.png?width=800 800w"/></p>
+<p><img alt="image-pbsj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-pbsj.png" srcset="/halo-SSG/upload/image-pbsj.png?width=1200 1200w, /halo-SSG/upload/image-pbsj.png?width=400 400w, /halo-SSG/upload/image-pbsj.png?width=1600 1600w, /halo-SSG/upload/image-pbsj.png?width=800 800w"/></p>
 <p>一模一样！</p>
 <table>
 <thead>
@@ -1332,8 +1332,8 @@ deepwiki： <a href="https://deepwiki.com/Dark-Athena/split_data">https://deepwi
 <p>话说，如果这个专利生效后，有人自己写的sql里出现了这种根据索引分成多次查询的where条件，算侵犯这个专利么？</p>
 <h2 id="20260508更新">20260508更新</h2>
 <p>火山的这个专利申请被驳回了</p>
-<p><img alt="image-SBlr.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-SBlr.png" srcset="/upload/image-SBlr.png?width=1200 1200w, /upload/image-SBlr.png?width=400 400w, /upload/image-SBlr.png?width=1600 1600w, /upload/image-SBlr.png?width=800 800w"/></p>
-<p><img alt="image-EKUJ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-EKUJ.png" srcset="/upload/image-EKUJ.png?width=1200 1200w, /upload/image-EKUJ.png?width=400 400w, /upload/image-EKUJ.png?width=1600 1600w, /upload/image-EKUJ.png?width=800 800w"/></p>
+<p><img alt="image-SBlr.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-SBlr.png" srcset="/halo-SSG/upload/image-SBlr.png?width=1200 1200w, /halo-SSG/upload/image-SBlr.png?width=400 400w, /halo-SSG/upload/image-SBlr.png?width=1600 1600w, /halo-SSG/upload/image-SBlr.png?width=800 800w"/></p>
+<p><img alt="image-EKUJ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-EKUJ.png" srcset="/halo-SSG/upload/image-EKUJ.png?width=1200 1200w, /halo-SSG/upload/image-EKUJ.png?width=400 400w, /halo-SSG/upload/image-EKUJ.png?width=1600 1600w, /halo-SSG/upload/image-EKUJ.png?width=800 800w"/></p>
 </div>
 </article>
     </div>
@@ -1341,10 +1341,10 @@ deepwiki： <a href="https://deepwiki.com/Dark-Athena/split_data">https://deepwi
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/gaussdb-index-skip-scan-wrong-result">&larr; 【GaussDB】排查创建索引后查询数据行数发生变化的问题</a>
+    <a href="/halo-SSG/archives/gaussdb-index-skip-scan-wrong-result">&larr; 【GaussDB】排查创建索引后查询数据行数发生变化的问题</a>
     
     
-    <a href="/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow">【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow &rarr;</a>
+    <a href="/halo-SSG/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow">【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow &rarr;</a>
     
 </div>
 

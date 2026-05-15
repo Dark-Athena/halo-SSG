@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】关于21c版本新增plsql包DBMS_MLE的研究 - DA-技术分享-静态站</title>
     <meta name="description" content="在前几年偶然间找到过一篇文章https://www.jdon.com/51121当时这篇文章中就是用的dbms_mle包，但是oracle中实际上并没有这个包，这篇文章应该是相关开发在开发这个包时的测试记录，可以看到这篇文章中，可以在plsql中使用python或者javascirpt的语法来编写过">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】关于21c版本新增plsql包DBMS_MLE的研究</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1398 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -163,7 +163,7 @@
 <a href="https://www.jdon.com/51121" target="_blank">使用JavaScript和Python实现Oracle数据库的存储过程？</a></p>
 <p>当时这篇文章中就是用的dbms_mle包，但是oracle中当时实际上并没有这个包，这篇文章应该是相关开发者在开发这个包时的测试记录，可以看到这篇文章中，可以在plsql中使用python或者javascirpt的语法来编写过程。其原理是使用了GraalVM (<a href="https://www.graalvm.org" target="_blank">https://www.graalvm.org</a>)</p>
 <p>GraalVM是个相当有意思的项目，它自称全栈虚拟机，可以让你跨平台使用多种开发语言，下面这张图，框框里面的就是它能跑的开发语言，框框外的就是运行它的环境，按照这张图描述的，你甚至可以在node.js里面跑python，在oracle里面跑ruby等等<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png" srcset="/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1200 1200w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=400 400w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1600 1600w, /upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png" srcset="/halo-SSG/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=400 400w, /halo-SSG/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-5b347050925b42959e07d6b34715f097.png?width=800 800w"/></p>
 <p>这比我"AIO"的想法更疯狂，我还只是想让ORACLE能支持更多内容，而GraalVM这个项目是朝着大一统的方向走。</p>
 <h2 id="%E7%9B%AE%E5%89%8D%E4%BB%85%E6%94%AF%E6%8C%81javascirpt" tabindex="-1">目前仅支持javascirpt</h2>
 <p>然后oracle在21c版本，正式在数据库中集成了GraalVM，对应plsql的api就是dbms_mle，在此之前，mle只是作为apex插件存在。<br/>
@@ -252,7 +252,7 @@ end;
 <p>（先补充一下，js中写的"console.log();"也会出现在plsql的output池里，可以通过get_line获取内容，这点和那篇早期测试文一致，这个功能其实可以方便我们调试js代码的部分，但oracle官方的正式文档中没有提到。）</p>
 <p>单一js代码要实现很复杂的功能会是件麻烦事，一般的js项目都会创建多个js文件，这样可以让代码更整洁，功能区分更明确，oracle官方的目的是，会js开发的程序员，也可以在plsql里写代码了，但是实际上这个功能更靠谱的场景应该是plsql程序员遇到了一个复杂功能的需求，刚好有外部开源的js程序，期望能直接在plsql里用上这个外部js程序。</p>
 <p>突破点应该就在 require(“mle-js-bindings”) 这里，如果能在os上找到mle-js-bindings文件，那么理论上就能直接引用外部文件，<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png" srcset="/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1200 1200w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=400 400w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1600 1600w, /upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png" srcset="/halo-SSG/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=400 400w, /halo-SSG/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-5253384992c64455ad1b64d0615fa577.png?width=800 800w"/><br/>
 然而啥都没有，那么如果直接写绝对引用呢？</p>
 <p>写了一小段js，保存在了“/home/oracle/test.js”，然后在上面的js代码中插入一行</p>
 <pre><code class="language-js">var test = require("/home/oracle/test");
@@ -271,8 +271,8 @@ require(“path”)，提示没有这个module,用import也会报错，把文件
 也难怪现在没几篇文章说这个东西。</p>
 <p><a href="https://mle-databaseraalvm/mle-executing-javascript-in-oracle-database-c545feb1a010" target="_blank">https://mle-databaseraalvm/mle-executing-javascript-in-oracle-database-c545feb1a010</a> （有墙）<br/>
 这篇文章算是说得最全的了，连架构图都来了，<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png" srcset="/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1200 1200w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=400 400w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1600 1600w, /upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png" srcset="/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1200 1200w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=400 400w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1600 1600w, /upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png" srcset="/halo-SSG/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=400 400w, /halo-SSG/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-2b8b22c5184e4f2291c7291cf480da59.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png" srcset="/halo-SSG/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=400 400w, /halo-SSG/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-6c18e92fbde74c47b9e550f87c758954.png?width=800 800w"/><br/>
 但是依旧没说到怎么引用其他js文件，也没说怎么接触到GraalVM在ORACLE中的runtime。</p>
 <p>毕竟21c是创新者版本，估计更多的功能要等以后完善了吧.</p>
 <p><a href="https://github.com/oracle/graaljs" target="_blank">https://github.com/oracle/graaljs</a></p>
@@ -313,7 +313,7 @@ r: 30
 在网上找到了一个生成二维码的js<br/>
 <a href="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" target="_blank">https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js</a><br/>
 然后封装成plsql的函数，效果如下<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png" srcset="/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1200 1200w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=400 400w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1600 1600w, /upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png" srcset="/halo-SSG/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=400 400w, /halo-SSG/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-46a4917850b84f81832a201dc1a3ba98.png?width=800 800w"/><br/>
 大概思路是用utl_http获取这个js文件的内容，然后再在后面拼接上调用它的js代码，执行这个拼接后的js，会返回一个base64字符串，然后再使用utl_encode转回成二进制数据。</p>
 <p>因为js是可以混淆、压缩、打包的，所以，如果某个外部js模块有很多个零散的js的文件，可以用一些工具比如webpack把它做成一个js文件，然后再用。如果数据库不方便连外网，我们可以把这个js的内容保存到数据库表的clob字段中，并给它命名，以方便使用不同js模块的时候调用。</p>
 <p>这个生成二维码的plsql函数代码我已经做成了单文件版，并已上传到github<br/>
@@ -326,17 +326,17 @@ r: 30
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/create-ol8-21-docker">&larr; 【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像</a>
+    <a href="/halo-SSG/archives/create-ol8-21-docker">&larr; 【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像</a>
     
     
-    <a href="/archives/about-open-cdn">【杂谈】本站点今日起已开启全球CDN加速 &rarr;</a>
+    <a href="/halo-SSG/archives/about-open-cdn">【杂谈】本站点今日起已开启全球CDN加速 &rarr;</a>
     
 </div>
 

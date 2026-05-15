@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】一个允许关键字作为别名所引起的语法歧义场景 - DA-技术分享-静态站</title>
     <meta name="description" content="前言 最近在看SQL语法解析器，发现了antlr4提供的PlSql语法树存在一个BUG，然后我顺着这个BUG，构造了一条SQL，在ORACLE执行，如下 然后神奇的事情出现了，这个查询竟然没有返回行！t1表左关联t2，而且对t1表没有过滤条件，那么无论如何t1表中的数据应该是全部展现的！ 然后有人可">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】一个允许关键字作为别名所引起的语法歧义场景</h1>
     <div class="meta">
@@ -158,10 +158,10 @@
 
 <h2 id="前言">前言</h2>
 <p>最近在看SQL语法解析器，发现了antlr4提供的PlSql语法树存在一个BUG，然后我顺着这个BUG，构造了一条SQL，在ORACLE执行，如下</p>
-<p><img alt="image-ghns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ghns.png" srcset="/upload/image-ghns.png?width=1200 1200w, /upload/image-ghns.png?width=400 400w, /upload/image-ghns.png?width=1600 1600w, /upload/image-ghns.png?width=800 800w"/></p>
+<p><img alt="image-ghns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ghns.png" srcset="/halo-SSG/upload/image-ghns.png?width=1200 1200w, /halo-SSG/upload/image-ghns.png?width=400 400w, /halo-SSG/upload/image-ghns.png?width=1600 1600w, /halo-SSG/upload/image-ghns.png?width=800 800w"/></p>
 <p>然后神奇的事情出现了，这个查询竟然没有返回行！t1表左关联t2，而且对t1表没有过滤条件，那么无论如何t1表中的数据应该是全部展现的！<br/>
 然后有人可能认为ORACLE就是这样的，但下面这个图的出现可能会让人瞬间抓狂！</p>
-<p><img alt="image-nzct.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nzct.png" srcset="/upload/image-nzct.png?width=1200 1200w, /upload/image-nzct.png?width=400 400w, /upload/image-nzct.png?width=1600 1600w, /upload/image-nzct.png?width=800 800w"/></p>
+<p><img alt="image-nzct.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-nzct.png" srcset="/halo-SSG/upload/image-nzct.png?width=1200 1200w, /halo-SSG/upload/image-nzct.png?width=400 400w, /halo-SSG/upload/image-nzct.png?width=1600 1600w, /halo-SSG/upload/image-nzct.png?width=800 800w"/></p>
 <p>两条长得完全一样的SQL，就是简单的两个表关联查询，竟然出现了结果不一致的情况！</p>
 <h2 id="起因">起因</h2>
 <p>在客户应用迁移到某国产数据库中，有一条类似这样的SQL</p>
@@ -305,17 +305,17 @@ select * from t1 left join t2 on id=ids;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/mogdb-5.2.0-support-plsql-nested-subprogram">&larr; 【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-plsql-nested-subprogram">&larr; 【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序</a>
     
     
-    <a href="/archives/mogdb-5.2.0-support-plsql-global-cache">【MogDB】MogDB5.2.0重磅发布第八篇-支持PLSQL编译全局缓存 &rarr;</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-plsql-global-cache">【MogDB】MogDB5.2.0重磅发布第八篇-支持PLSQL编译全局缓存 &rarr;</a>
     
 </div>
 

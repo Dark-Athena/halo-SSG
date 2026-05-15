@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【AIO】使用ORACLE数据库存储过程发送加密email（SSL） - DA-技术分享-静态站</title>
     <meta name="description" content="这一篇教大家如何使用ORACLE存储过程来发送带ssl加密的email">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【AIO】使用ORACLE数据库存储过程发送加密email（SSL）</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1319 阅读</span>
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -166,32 +166,32 @@
 <h2 id="一获取邮件ssl证书文件">一、获取邮件ssl证书文件</h2>
 <h4 id="方法一使用浏览器获取证书以360极速浏览器为例">方法一：使用浏览器获取证书（以360极速浏览器为例）</h4>
 <p>打开对应邮箱的网页客户端，例如QQ邮箱，浏览器会显示一把锁，如图<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png" srcset="/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1200 1200w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=400 400w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1600 1600w, /upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png" srcset="/halo-SSG/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=400 400w, /halo-SSG/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-ae19f4944a7549b394e00ab40fc8d4ff.png?width=800 800w"/><br/>
 点击这个锁，弹出<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png" srcset="/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1200 1200w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=400 400w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1600 1600w, /upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png" srcset="/halo-SSG/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=400 400w, /halo-SSG/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-47fb43c05f4e4b558decb0878e4e8281.png?width=800 800w"/><br/>
 ，<br/>
 然后点击证书信息，显示<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png" srcset="/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1200 1200w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=400 400w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1600 1600w, /upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png" srcset="/halo-SSG/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=400 400w, /halo-SSG/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-d5485ff43f3f4798bf784cead8fef438.png?width=800 800w"/><br/>
 ，<br/>
 点击详细信息，复制到文件<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png" srcset="/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1200 1200w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=400 400w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1600 1600w, /upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=800 800w"/></p>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png" srcset="/halo-SSG/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=400 400w, /halo-SSG/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-708f4a5f985748a185d126ce06c77126.png?width=800 800w"/></p>
 <p>，<br/>
 弹出证书导出向导<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png" srcset="/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1200 1200w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=400 400w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1600 1600w, /upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png" srcset="/halo-SSG/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=400 400w, /halo-SSG/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-dd3d98686da74a5091c99f2c3e5b6edc.png?width=800 800w"/><br/>
 ，<br/>
 下一页<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png" srcset="/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1200 1200w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=400 400w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1600 1600w, /upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=800 800w"/></p>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png" srcset="/halo-SSG/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=400 400w, /halo-SSG/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-0dc1e50b1464478284647e9235a7ef5c.png?width=800 800w"/></p>
 <p>下一页<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png" srcset="/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1200 1200w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=400 400w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1600 1600w, /upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png" srcset="/halo-SSG/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=400 400w, /halo-SSG/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-0d703672f6104f3a9acbe34bf2e30503.png?width=800 800w"/><br/>
 ，<br/>
 任意选择一个路径保存此文件，文件名没有特殊要求。<br/>
 然后回到证书页面，点击证书路径<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png" srcset="/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1200 1200w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=400 400w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1600 1600w, /upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png" srcset="/halo-SSG/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=400 400w, /halo-SSG/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-ff6cb966487148f595680b3c0ae34c61.png?width=800 800w"/><br/>
 ，<br/>
 可以看到有三层，这三层实际上是三个证书，点到第二层，查看证书，按前面的操作保存证书文件，同理第一层也要保存文件。<br/>
 至此，我们已经获取了3个证书文件</p>
 <h4 id="方法二使用邮箱smtp客户端网络抓包以foxmailwiresharkwinhex为例">方法二：使用邮箱smtp客户端网络抓包（以foxmail+wireshark+winhex为例）</h4>
-<p>在foxmail中配置要发送邮件的账号，启动WIRESHARK选择对外网的网络适配器，开始进行抓包，操作FOXMAIL收取一次该账号的邮件，停止wireshark的抓包，接下来在抓包记录中添加过滤器tcp.port == 993 || udp.port == 993（这个是imap收件的SSL端口），并按info排序 <img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png" srcset="/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1200 1200w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=400 400w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1600 1600w, /upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=800 800w"/><br/>
+<p>在foxmail中配置要发送邮件的账号，启动WIRESHARK选择对外网的网络适配器，开始进行抓包，操作FOXMAIL收取一次该账号的邮件，停止wireshark的抓包，接下来在抓包记录中添加过滤器tcp.port == 993 || udp.port == 993（这个是imap收件的SSL端口），并按info排序 <img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png" srcset="/halo-SSG/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=400 400w, /halo-SSG/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-f57305c0d5674731adb37f87a3bce23c.png?width=800 800w"/><br/>
 找到certificate，如上图，可以看到certificates(3958 bytes)下有三段十六进制数据，这个就是三个证书文件，需要分别保存，<br/>
 在”certificate：308207833......”上面点击鼠标右键，复制-值，然后打开winhex，点编辑，剪贴板数据，粘贴至新文件，格式选择 ASCILL HEX，保存成cer后缀的文件即可，同理，对另外两个证书文件也要进行保存。</p>
 <p>上述两种方法均可获得证书文件，但实测发现，第一层（root）和第二层，保存的证书文件MD5一致，第三层证书MD5不一致，仔细对比发现是证书的有效期不一样，因此无问题。<br/>
@@ -248,19 +248,19 @@ RETURN connection;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/%E9%9B%B6%E5%94%AE%E7%9F%A5%E8%AF%86%E4%BE%9B%E5%BA%94%E5%95%86%E7%BB%93%E7%AE%97">&larr; 【零售知识】供应商结算</a>
+    <a href="/halo-SSG/archives/%E9%9B%B6%E5%94%AE%E7%9F%A5%E8%AF%86%E4%BE%9B%E5%BA%94%E5%95%86%E7%BB%93%E7%AE%97">&larr; 【零售知识】供应商结算</a>
     
     
-    <a href="/archives/%E5%9B%9E%E5%BF%86%E5%BD%95-%E6%88%91%E7%BB%8F%E5%8E%86%E7%9A%84%E6%A8%A1%E6%8B%9F%E5%99%A8%E5%92%8Cromhack%E6%97%B6%E4%BB%A3">【个人回忆录】我经历的模拟器和romhack时代 &rarr;</a>
+    <a href="/halo-SSG/archives/%E5%9B%9E%E5%BF%86%E5%BD%95-%E6%88%91%E7%BB%8F%E5%8E%86%E7%9A%84%E6%A8%A1%E6%8B%9F%E5%99%A8%E5%92%8Cromhack%E6%97%B6%E4%BB%A3">【个人回忆录】我经历的模拟器和romhack时代 &rarr;</a>
     
 </div>
 

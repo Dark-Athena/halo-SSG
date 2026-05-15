@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】openGauss补完计划一之ORACLE兼容函数 - DA-技术分享-静态站</title>
     <meta name="description" content="一、前言2021年12月23号到2021年12月24号的数据技术嘉年华直播中，不少国产数据库厂商都在说兼容oracle的语法到了百分之多少。我想着，既然都说兼容，那我能不能直接把我之前写的一些奇奇怪怪的功能给移植到这些数据库上去？但稍微研究了一下这些国产数据库，发现基本是3大方向，基于mysql、基">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】openGauss补完计划一之ORACLE兼容函数</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1532 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -377,7 +377,7 @@ UNISTR</p>
 </table>
 <h2 id="%E5%BE%85%E7%A0%94%E7%A9%B6%E9%97%AE%E9%A2%98" tabindex="-1">待研究问题</h2>
 <ol>
-<li>ratio_to_report不是常规的聚合函数,而是开窗函数,需要写c++函数,目前暂不确定是否需要重新编译数据库。2022-01-02,参考源码中avg的聚合及lag的默认值取法,修改最终函数为当前窗口当前值除以汇总<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png" srcset="/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1200 1200w, /upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=400 400w, /upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1600 1600w, /upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=800 800w"/>但单独编译的时候一堆error,主要不清楚应该去掉哪些依赖,毕竟源码就像个蜘蛛网；如果编译整个数据库这动作又太大了,所以暂时放弃这个函数。</li>
+<li>ratio_to_report不是常规的聚合函数,而是开窗函数,需要写c++函数,目前暂不确定是否需要重新编译数据库。2022-01-02,参考源码中avg的聚合及lag的默认值取法,修改最终函数为当前窗口当前值除以汇总<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png" srcset="/halo-SSG/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=400 400w, /halo-SSG/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=800 800w"/>但单独编译的时候一堆error,主要不清楚应该去掉哪些依赖,毕竟源码就像个蜘蛛网；如果编译整个数据库这动作又太大了,所以暂时放弃这个函数。</li>
 <li>峰度和偏度,在网上找的公式和oracle计算出来的不一样,暂不清楚公式.2022-01-03凌晨睡不着，在国外网站上搜到一个用excel手动计算偏度的案例，已实测和oracle计算一致</li>
 <li>BFILENAME的两个参数,目录和文件名,其中目录这个对象在pg里没有,达不到100%复刻,可以使用pg_read_binary_file这个函数,传入文件全路径达到同样的效果。但需要使用初始化账号，这个可以通过由初始化账号建立使用本账号权限的函数，来实现访问</li>
 </ol>
@@ -392,17 +392,17 @@ UNISTR</p>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/skew-kurt-sql-excel">&larr; 【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算</a>
+    <a href="/halo-SSG/archives/skew-kurt-sql-excel">&larr; 【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算</a>
     
     
-    <a href="/archives/opengauss-datastudio-suggest-part1">【openGauss】对DATA STUDIO的一些功能建议Part1 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-datastudio-suggest-part1">【openGauss】对DATA STUDIO的一些功能建议Part1 &rarr;</a>
     
 </div>
 

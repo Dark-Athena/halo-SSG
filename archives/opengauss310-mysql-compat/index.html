@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性 - DA-技术分享-静态站</title>
     <meta name="description" content="在9月30号，openGauss推出了3.1.0这一预览版，这个版本增加了不少内容，其中让我最感兴趣的是MYSQL的相关兼容">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1205 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -276,7 +276,7 @@
 <pre><code class="language-sql">set @var_name := 123;
 select @var_name;
 </code></pre>
-<p><img alt="image-1671714989283" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671714989283.png" srcset="/upload/2022/12/image-1671714989283.png?width=1200 1200w, /upload/2022/12/image-1671714989283.png?width=400 400w, /upload/2022/12/image-1671714989283.png?width=1600 1600w, /upload/2022/12/image-1671714989283.png?width=800 800w"/></p>
+<p><img alt="image-1671714989283" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671714989283.png" srcset="/halo-SSG/upload/2022/12/image-1671714989283.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671714989283.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671714989283.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671714989283.png?width=800 800w"/></p>
 <p>实际应用：</p>
 <pre><code class="language-sql">create function getRowId (RESET BIT) RETURNS INT(11)
  NO SQL
@@ -302,13 +302,13 @@ $$
  END;
 $$language plpgsql;
 </code></pre>
-<p><img alt="image-1671727402606" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671727402606.png" srcset="/upload/2022/12/image-1671727402606.png?width=1200 1200w, /upload/2022/12/image-1671727402606.png?width=400 400w, /upload/2022/12/image-1671727402606.png?width=1600 1600w, /upload/2022/12/image-1671727402606.png?width=800 800w"/><br/>
+<p><img alt="image-1671727402606" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671727402606.png" srcset="/halo-SSG/upload/2022/12/image-1671727402606.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671727402606.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671727402606.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671727402606.png?width=800 800w"/><br/>
 可以看到这个函数的执行效果和mysql中完全一致</p>
 <h2 id="definer%E5%AE%9A%E4%B9%89%E5%B1%9E%E4%B8%BB" tabindex="-1">DEFINER定义属主</h2>
 <p>目前在openGauss中，支持在创建视图时用和mysql一样的语法定义属主</p>
 <pre><code class="language-sql">create definer=username view test_def_v as select proname from pg_proc limit 5;
 </code></pre>
-<p><img alt="image-1671715666696" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671715666696.png" srcset="/upload/2022/12/image-1671715666696.png?width=1200 1200w, /upload/2022/12/image-1671715666696.png?width=400 400w, /upload/2022/12/image-1671715666696.png?width=1600 1600w, /upload/2022/12/image-1671715666696.png?width=800 800w"/></p>
+<p><img alt="image-1671715666696" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671715666696.png" srcset="/halo-SSG/upload/2022/12/image-1671715666696.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671715666696.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671715666696.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671715666696.png?width=800 800w"/></p>
 <h2 id="auto_increment%E8%87%AA%E5%A2%9E%E5%88%97" tabindex="-1">AUTO_INCREMENT自增列</h2>
 <pre><code class="language-sql">create table test_AUTO_INCREMENT 
 (id int AUTO_INCREMENT, 
@@ -319,7 +319,7 @@ insert into test_AUTO_INCREMENT(val) values ('a');
 insert into test_AUTO_INCREMENT(val) values ('b');
 select * from test_AUTO_INCREMENT;
 </code></pre>
-<p><img alt="image-1671715981330" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671715981330.png" srcset="/upload/2022/12/image-1671715981330.png?width=1200 1200w, /upload/2022/12/image-1671715981330.png?width=400 400w, /upload/2022/12/image-1671715981330.png?width=1600 1600w, /upload/2022/12/image-1671715981330.png?width=800 800w"/></p>
+<p><img alt="image-1671715981330" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671715981330.png" srcset="/halo-SSG/upload/2022/12/image-1671715981330.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671715981330.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671715981330.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671715981330.png?width=800 800w"/></p>
 <h2 id="group_concat%E5%87%BD%E6%95%B0" tabindex="-1">group_concat函数</h2>
 <p>这个函数类似于ORACLE中的listagg/wm_concat、PG中的string_agg,<br/>
 但是，由于这个函数里有语法关键词，所以不能创建一个自定义函数来实现，需要修改sql语法解析, 因此是在内核里实现的</p>
@@ -328,13 +328,13 @@ select * from test_AUTO_INCREMENT;
 FROM PG_DATABASE
 GROUP BY datcompatibility;
 </code></pre>
-<p><img alt="image-1671716811599" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671716811599.png" srcset="/upload/2022/12/image-1671716811599.png?width=1200 1200w, /upload/2022/12/image-1671716811599.png?width=400 400w, /upload/2022/12/image-1671716811599.png?width=1600 1600w, /upload/2022/12/image-1671716811599.png?width=800 800w"/></p>
+<p><img alt="image-1671716811599" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671716811599.png" srcset="/halo-SSG/upload/2022/12/image-1671716811599.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671716811599.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671716811599.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671716811599.png?width=800 800w"/></p>
 <h2 id="aes_decrypt%2Faes_encrypt-%E5%8A%A0%E8%A7%A3%E5%AF%86%E5%87%BD%E6%95%B0" tabindex="-1">aes_decrypt/aes_encrypt 加解密函数</h2>
 <pre><code class="language-sql">select aes_encrypt('openGauss','123456vfhex4dyu,vdaladhjsadad','1234567890123456');
 --由于加密返回的不是可读文本信息，因此这里演示解密是套了一层
 select aes_decrypt(aes_encrypt('openGauss','123456vfhex4dyu,vdaladhjsadad','1234567890123456'),'123456vfhex4dyu,vdaladhjsadad','1234567890123456');
 </code></pre>
-<p><img alt="image-1671717107294" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717107294.png" srcset="/upload/2022/12/image-1671717107294.png?width=1200 1200w, /upload/2022/12/image-1671717107294.png?width=400 400w, /upload/2022/12/image-1671717107294.png?width=1600 1600w, /upload/2022/12/image-1671717107294.png?width=800 800w"/></p>
+<p><img alt="image-1671717107294" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671717107294.png" srcset="/halo-SSG/upload/2022/12/image-1671717107294.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671717107294.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671717107294.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671717107294.png?width=800 800w"/></p>
 <p>并且，基于安全角度考虑，在gsql中使用了包含此函数的sql，都不会记录到gsql的历史记录中（上下翻找不到）</p>
 <h2 id="sha%2Fsha1%2Fsha2-%E5%87%BD%E6%95%B0" tabindex="-1">sha/sha1/sha2 函数</h2>
 <p>sha和sha1一样，sha2的可选算法为</p>
@@ -344,14 +344,14 @@ select aes_decrypt(aes_encrypt('openGauss','123456vfhex4dyu,vdaladhjsadad','1234
 <pre><code class="language-sql">select sha('ABC');
 select sha2('ABC',256);
 </code></pre>
-<p><img alt="image-1671717443983" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717443983.png" srcset="/upload/2022/12/image-1671717443983.png?width=1200 1200w, /upload/2022/12/image-1671717443983.png?width=400 400w, /upload/2022/12/image-1671717443983.png?width=1600 1600w, /upload/2022/12/image-1671717443983.png?width=800 800w"/></p>
+<p><img alt="image-1671717443983" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671717443983.png" srcset="/halo-SSG/upload/2022/12/image-1671717443983.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671717443983.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671717443983.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671717443983.png?width=800 800w"/></p>
 <h2 id="enum-%E6%9E%9A%E4%B8%BE%E7%B1%BB%E5%9E%8B" tabindex="-1">ENUM 枚举类型</h2>
 <pre><code class="language-sql">CREATE TABLE shirts (
   name VARCHAR(40),
   size ENUM('small', 'medium', 'large')
 );
 </code></pre>
-<p><img alt="image-1671717684798" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671717684798.png" srcset="/upload/2022/12/image-1671717684798.png?width=1200 1200w, /upload/2022/12/image-1671717684798.png?width=400 400w, /upload/2022/12/image-1671717684798.png?width=1600 1600w, /upload/2022/12/image-1671717684798.png?width=800 800w"/></p>
+<p><img alt="image-1671717684798" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671717684798.png" srcset="/halo-SSG/upload/2022/12/image-1671717684798.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671717684798.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671717684798.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671717684798.png?width=800 800w"/></p>
 <p>使用时需要注意，在枚举类型中不能出现"anonymous_enum"的字样，在create type时，type名称的构成里也不能包含"anonymous_enum" （我猜这里用了字符串解析）</p>
 <h2 id="like-(binary)-%E6%93%8D%E4%BD%9C%E7%AC%A6" tabindex="-1">like (binary) 操作符</h2>
 <p>在mysql中，默认的排序方式会让字符串的值不区分大小写，使用 "="或者"like"时，能进行不区分大小写的匹配，需要使用 "binary"关键字才是准确的字符串匹配。注意，要先修改参数 B_COMPATIBILITY_MODE</p>
@@ -359,7 +359,7 @@ select sha2('ABC',256);
 SELECT 'a' like 'A';
 SELECT 'a' like binary 'A';
 </code></pre>
-<p><img alt="image-1671718396038" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671718396038.png" srcset="/upload/2022/12/image-1671718396038.png?width=1200 1200w, /upload/2022/12/image-1671718396038.png?width=400 400w, /upload/2022/12/image-1671718396038.png?width=1600 1600w, /upload/2022/12/image-1671718396038.png?width=800 800w"/></p>
+<p><img alt="image-1671718396038" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671718396038.png" srcset="/halo-SSG/upload/2022/12/image-1671718396038.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671718396038.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671718396038.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671718396038.png?width=800 800w"/></p>
 <h2 id="week-%E5%87%BD%E6%95%B0" tabindex="-1">week 函数</h2>
 <p>在mysql中,可以通过配置default_week_format这个参数，或者指定week的第二个参数，来得出某天在不同的算法时，是第几周。<br/>
 在openGauss中，同样引入了这个变量</p>
@@ -369,7 +369,7 @@ alter system set default_week_format = 2;
 select week('2000-1-1');
 select week('2000-1-1',0);
 </code></pre>
-<p><img alt="image-1671718862569" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671718862569.png" srcset="/upload/2022/12/image-1671718862569.png?width=1200 1200w, /upload/2022/12/image-1671718862569.png?width=400 400w, /upload/2022/12/image-1671718862569.png?width=1600 1600w, /upload/2022/12/image-1671718862569.png?width=800 800w"/><br/>
+<p><img alt="image-1671718862569" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671718862569.png" srcset="/halo-SSG/upload/2022/12/image-1671718862569.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671718862569.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671718862569.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671718862569.png?width=800 800w"/><br/>
 但是，需要注意的是，同时支持的<strong>yearweek</strong>函数，目前不受default_week_format这个参数的影响，需要手动指定第二个参数mode（这点很奇怪）<br/>
 另外，我手上这个版本，如果设置了default_week_format参数，重启数据库，会无法启动，因为这个参数会写入postgresql.conf文件，在启动时会识别是未知参数，所以如果测试的时候遇到了，就先在postgresql.conf里手工去掉default_week_format</p>
 <h2 id="json%E7%9B%B8%E5%85%B3%E5%87%BD%E6%95%B0" tabindex="-1">json相关函数</h2>
@@ -379,7 +379,7 @@ select json_replace('{"a": 1, "b": 2, "c": 3}', '$.b', 9);
 select json_insert('{"student":{"id":1,"gender":"man"}}', '$.age', 26);
 SELECT JSON_REMOVE('{"x": 1, "y": 2}', '$.x');
 </code></pre>
-<p><img alt="image-1671719594636" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671719594636.png" srcset="/upload/2022/12/image-1671719594636.png?width=1200 1200w, /upload/2022/12/image-1671719594636.png?width=400 400w, /upload/2022/12/image-1671719594636.png?width=1600 1600w, /upload/2022/12/image-1671719594636.png?width=800 800w"/></p>
+<p><img alt="image-1671719594636" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671719594636.png" srcset="/halo-SSG/upload/2022/12/image-1671719594636.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671719594636.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671719594636.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671719594636.png?width=800 800w"/></p>
 <h2 id="create-table-%E8%AF%AD%E6%B3%95" tabindex="-1">create table 语法</h2>
 <h3 id="engine%E3%80%81charset%E3%80%81collate" tabindex="-1">ENGINE、CHARSET、COLLATE</h3>
 <p>mysql的create table 语法中有ENGINE、CHARSET、COLLATE，openGauss3.1在语法上支持了，但功能还不支持，不过排序大小写可以通过前面提到的参数B_COMPATIBILITY_MODE进行修改，或者在字段上指定排序方式。而字符集一般在一个数据库中应该保持统一。</p>
@@ -389,7 +389,7 @@ SELECT JSON_REMOVE('{"x": 1, "y": 2}', '$.x');
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 </code></pre>
-<p><img alt="image-1671720905691" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671720905691.png" srcset="/upload/2022/12/image-1671720905691.png?width=1200 1200w, /upload/2022/12/image-1671720905691.png?width=400 400w, /upload/2022/12/image-1671720905691.png?width=1600 1600w, /upload/2022/12/image-1671720905691.png?width=800 800w"/></p>
+<p><img alt="image-1671720905691" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671720905691.png" srcset="/halo-SSG/upload/2022/12/image-1671720905691.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671720905691.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671720905691.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671720905691.png?width=800 800w"/></p>
 <h3 id="on-update-current_timestamp" tabindex="-1">ON UPDATE CURRENT_TIMESTAMP</h3>
 <p>MySQL的这个特性可以在表记录被更新时，自动更新指定的字段为当前时间，这个功能在旧版本的Oracle中，只能通过触发器实现</p>
 <pre><code class="language-sql">CREATE TABLE test_on_update(a int,last_update_time timestamp ON UPDATE CURRENT_TIMESTAMP);
@@ -400,16 +400,16 @@ select * from test_on_update;
 update test_on_update set a=3 where 1=1;
 select * from test_on_update;
 </code></pre>
-<p><img alt="image-1671770444013" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671770444013.png" srcset="/upload/2022/12/image-1671770444013.png?width=1200 1200w, /upload/2022/12/image-1671770444013.png?width=400 400w, /upload/2022/12/image-1671770444013.png?width=1600 1600w, /upload/2022/12/image-1671770444013.png?width=800 800w"/></p>
+<p><img alt="image-1671770444013" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671770444013.png" srcset="/halo-SSG/upload/2022/12/image-1671770444013.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671770444013.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671770444013.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671770444013.png?width=800 800w"/></p>
 <h2 id="show-create-table-%E8%AF%AD%E6%B3%95" tabindex="-1">show create table 语法</h2>
 <pre><code class="language-sql">show create table test_collate2;
 </code></pre>
-<p><img alt="image-1671721151989" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721151989.png" srcset="/upload/2022/12/image-1671721151989.png?width=1200 1200w, /upload/2022/12/image-1671721151989.png?width=400 400w, /upload/2022/12/image-1671721151989.png?width=1600 1600w, /upload/2022/12/image-1671721151989.png?width=800 800w"/></p>
+<p><img alt="image-1671721151989" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671721151989.png" srcset="/halo-SSG/upload/2022/12/image-1671721151989.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671721151989.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671721151989.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671721151989.png?width=800 800w"/></p>
 <h2 id="kill-%E8%AF%AD%E6%B3%95" tabindex="-1">kill 语法</h2>
 <pre><code class="language-sql">show processlist;
 kill query 140287740606208;
 </code></pre>
-<p><img alt="image-1671721502719" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721502719.png" srcset="/upload/2022/12/image-1671721502719.png?width=1200 1200w, /upload/2022/12/image-1671721502719.png?width=400 400w, /upload/2022/12/image-1671721502719.png?width=1600 1600w, /upload/2022/12/image-1671721502719.png?width=800 800w"/></p>
+<p><img alt="image-1671721502719" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671721502719.png" srcset="/halo-SSG/upload/2022/12/image-1671721502719.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671721502719.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671721502719.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671721502719.png?width=800 800w"/></p>
 <h2 id="use-db_name" tabindex="-1">USE db_name</h2>
 <p>在mysql中，可以用use来切换当前数据库，openGauss3.1也实现了类似的操作，不过此语法是切换schema</p>
 <pre><code class="language-sql">create table test_use(a int);
@@ -417,7 +417,7 @@ create schema test_schema;
 use test_schema;
 create table test_use(a int);
 </code></pre>
-<p><img alt="image-1671721882558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671721882558.png" srcset="/upload/2022/12/image-1671721882558.png?width=1200 1200w, /upload/2022/12/image-1671721882558.png?width=400 400w, /upload/2022/12/image-1671721882558.png?width=1600 1600w, /upload/2022/12/image-1671721882558.png?width=800 800w"/></p>
+<p><img alt="image-1671721882558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671721882558.png" srcset="/halo-SSG/upload/2022/12/image-1671721882558.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671721882558.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671721882558.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671721882558.png?width=800 800w"/></p>
 <h2 id="sql_mode" tabindex="-1">sql_mode</h2>
 <p>目前openGauss3.1版本中，sql_mode里可以设置下面6个值</p>
 <pre><code class="language-c">    {"sql_mode_defaults", OPT_SQL_MODE_DEFAULT},
@@ -541,11 +541,11 @@ wait_timeout
 <ul>
 <li>
 <p>mysql客户端连接openGauss<br/>
-<img alt="image-1671813502860" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671813502860.png" srcset="/upload/2022/12/image-1671813502860.png?width=1200 1200w, /upload/2022/12/image-1671813502860.png?width=400 400w, /upload/2022/12/image-1671813502860.png?width=1600 1600w, /upload/2022/12/image-1671813502860.png?width=800 800w"/></p>
+<img alt="image-1671813502860" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671813502860.png" srcset="/halo-SSG/upload/2022/12/image-1671813502860.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671813502860.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671813502860.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671813502860.png?width=800 800w"/></p>
 </li>
 <li>
 <p>delimiter 和 反引号<br/>
-<img alt="image-1671813645327" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671813645327.png" srcset="/upload/2022/12/image-1671813645327.png?width=1200 1200w, /upload/2022/12/image-1671813645327.png?width=400 400w, /upload/2022/12/image-1671813645327.png?width=1600 1600w, /upload/2022/12/image-1671813645327.png?width=800 800w"/></p>
+<img alt="image-1671813645327" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671813645327.png" srcset="/halo-SSG/upload/2022/12/image-1671813645327.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671813645327.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671813645327.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671813645327.png?width=800 800w"/></p>
 </li>
 </ul>
 </div>
@@ -554,17 +554,17 @@ wait_timeout
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/one-key-build-opengauss-and-dolphin">&larr; 【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性</a>
+    <a href="/halo-SSG/archives/one-key-build-opengauss-and-dolphin">&larr; 【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性</a>
     
     
-    <a href="/archives/uos-mogeaver-signed-deb">【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver &rarr;</a>
+    <a href="/halo-SSG/archives/uos-mogeaver-signed-deb">【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver &rarr;</a>
     
 </div>
 

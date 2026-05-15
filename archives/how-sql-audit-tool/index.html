@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ - DA-技术分享-静态站</title>
     <meta name="description" content="测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ 背景 围绕数据库做的通用工具有很多，其中有一种叫"SQL审核"，有很多用户期望使用"SQL审核"工具满足自己的需求，但实际用起来，发现并不是自己想要的。前一阵子我私下测试了好几个SQL审核软件，发现均无法满足某些客户的某">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？</h1>
     <div class="meta">
@@ -489,7 +489,7 @@ if (!metaDataCache.tableExists(tableName)) {
 <h3 id="分阶段实施计划">分阶段实施计划</h3>
 <p><strong>第一阶段：基础 SQL 解析（2 个月）</strong><br/>
 核心目标是构建 SQL 语法解析能力，采用 ANTLR4 生成 SQL 词法/语法解析器，基于 Visitor 模式开发自定义节点处理器，实现语法树（AST）的构建与 SQL 文本改写能力。此阶段需完成基础配置框架搭建，参考 SQLFluff 与 Schemalint 的实现流程，在项目根目录创建配置文件（如 <code>.sqlfluff</code> 或 <code>schemalintrc.js</code>），指定方言（dialect）、缩进规则、排除规则（exclude_rules）等关键参数，并支持通过命令行工具（如 <code>npx schemalint</code>）执行基础解析校验[<a href="https://blog.csdn.net/gitblog_00888/article/details/151298941">14</a>][<a href="https://blog.csdn.net/gitblog_01062/article/details/142243832">18</a>][<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>]。</p>
-<p><img alt="image-wrtv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wrtv.png" srcset="/upload/image-wrtv.png?width=1200 1200w, /upload/image-wrtv.png?width=400 400w, /upload/image-wrtv.png?width=1600 1600w, /upload/image-wrtv.png?width=800 800w"/></p>
+<p><img alt="image-wrtv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wrtv.png" srcset="/halo-SSG/upload/image-wrtv.png?width=1200 1200w, /halo-SSG/upload/image-wrtv.png?width=400 400w, /halo-SSG/upload/image-wrtv.png?width=1600 1600w, /halo-SSG/upload/image-wrtv.png?width=800 800w"/></p>
 <p><strong>第二阶段：PL/SQL 支持扩展（3 个月）</strong><br/>
 重点突破 PL/SQL 语法的解析难题，具体实施步骤包括：首先利用 ANTLR4 生成 PL/SQL 专用词法分析器、语法解析器及访问器；其次通过解析器提取 PL/SQL 块的 body 规则及依赖关系，并单独测试 PL/SQL 规则对代码块的解析有效性；最后需解决语法合并冲突，将提取的 PL/SQL 规则和令牌整合至现有 C 语法框架中，特别注意处理命名空间冲突问题[<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>][<a href="https://github.com/antlr/antlr4/discussions/4170">23</a>]。</p>
 <p><strong>第三阶段：语义分析模块开发（2 个月）</strong><br/>
@@ -794,10 +794,10 @@ INTEGER (1 个变量):
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/duckdb-marco-some-case">&larr; 【DuckDB】活用marco以兼容GaussDB的SQL执行</a>
+    <a href="/halo-SSG/archives/duckdb-marco-some-case">&larr; 【DuckDB】活用marco以兼容GaussDB的SQL执行</a>
     
     
-    <a href="/archives/query-gaussdb-with-duckdb">【GaussDB】在duckdb中查询GaussDB的数据 &rarr;</a>
+    <a href="/halo-SSG/archives/query-gaussdb-with-duckdb">【GaussDB】在duckdb中查询GaussDB的数据 &rarr;</a>
     
 </div>
 

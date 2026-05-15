@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】关于多态表函数PTF（Polymorphic Table Functions）的使用 - DA-技术分享-静态站</title>
     <meta name="description" content="前言从ORACLE 18C开始，ORACLE添加了PTF功能，目前在关系型数据库中，只有ORACLE支持此功能，简单来说，这个功能就是传入一个表作为参数，返回一个查询结果，而返回的这个表可以进行各种各样的定义或者修改，比如让返回的结果中自动屏蔽某些字段、自动对所有字段进行TRIM、自动对所有字段进行">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】关于多态表函数PTF（Polymorphic Table Functions）的使用</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1434 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -338,7 +338,7 @@ END ptf_date_to_char;
 select * from ptf_date_to_char.input(hr.job_history);
 </code></pre>
 <p>我们稍微分析一下这个功能结构，<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png" srcset="/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1200 1200w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=400 400w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1600 1600w, /upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png" srcset="/halo-SSG/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1200 1200w, /halo-SSG/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=400 400w, /halo-SSG/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=1600 1600w, /halo-SSG/upload/2021/09/image-cf10c199205c488ab6f662da72824c6e.png?width=800 800w"/></p>
 <p>了解这个处理顺序后，我们就可以发挥想象来做一些其他PTF功能了，比如对所有字段进行nvl处理或者对所有字段进行trim处理等。</p>
 <hr/>
 <h3 id="2自动屏蔽指定字段">2.自动屏蔽指定字段</h3>
@@ -463,7 +463,7 @@ SELECT * FROM poly_pkg.my_ptf(dept);
 <p>有了以上几个案例，应该基本可以说明这个功能怎么使用了，而且我之前有个程序的缺陷(<a href="/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</a>)，无法自动对所有空值进行处理，也能通过此方法解决。<br/>
 可惜的是，在百度上搜索 oracle +ptf 和 ORACLE+Polymorphic Table Functions ，几乎找不到一篇中国人写的文档，而且就算是在英文网站上，相关说明文档也不到一手之数。<br/>
 甚至搜索“DBMS_TF”这个包名，都只有一份oracle的英文官方文档和ORACLE官方的在线sql演示页<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png" srcset="/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1200 1200w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=400 400w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1600 1600w, /upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png" srcset="/halo-SSG/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1200 1200w, /halo-SSG/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=400 400w, /halo-SSG/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=1600 1600w, /halo-SSG/upload/2021/09/image-144c589a02644236be09d88a0ef85201.png?width=800 800w"/><br/>
 希望我这篇文章能给各位带来一些新的启发。</p>
 <p>fin</p>
 <p><font size="1">参考文章：<br/>
@@ -477,10 +477,10 @@ SELECT * FROM poly_pkg.my_ptf(dept);
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/github-host">&larr; 【python】自动更换本地HOSTS中github.com的ip指向为最低延迟ip</a>
+    <a href="/halo-SSG/archives/github-host">&larr; 【python】自动更换本地HOSTS中github.com的ip指向为最低延迟ip</a>
     
     
-    <a href="/archives/oracle-sql-part3">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3 &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-sql-part3">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3 &rarr;</a>
     
 </div>
 

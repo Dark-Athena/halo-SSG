@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】记录一次关于在线对大表新增字段的讨论 - DA-技术分享-静态站</title>
     <meta name="description" content="背景有网友在墨天轮上提了个问题oracle大表增加字段需要注意什么版本：oracle 11.2.0.1.0单机OS：windows server 2008请问一下，2亿的大表新增字段需要注意什么？直接alter table emp add colum就行吗？然后有人回复，alter table em">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】记录一次关于在线对大表新增字段的讨论</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1488 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -197,7 +197,7 @@ insert into test_add_col values('1');
 alter table TEST_ADD_COL add b date default date'2021-11-10' not null;
 </code></pre>
 <p>结果是<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png" srcset="/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1200 1200w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=400 400w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1600 1600w, /upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png" srcset="/halo-SSG/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=400 400w, /halo-SSG/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=800 800w"/><br/>
 可以看到加字段这个动作被此表的dml会话操作给锁了，然后继续</p>
 <pre><code class="language-sql">--会话C
 insert into test_add_col values('1');
@@ -275,17 +275,17 @@ ddl_lock_timeout                     integer     0
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-make-some-video">&larr; 【杂谈】考虑要不要做一些ORACLE数据库的一些技巧及特性的视频演示</a>
+    <a href="/halo-SSG/archives/about-make-some-video">&larr; 【杂谈】考虑要不要做一些ORACLE数据库的一些技巧及特性的视频演示</a>
     
     
-    <a href="/archives/create-ol8-21-docker">【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像 &rarr;</a>
+    <a href="/halo-SSG/archives/create-ol8-21-docker">【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像 &rarr;</a>
     
 </div>
 

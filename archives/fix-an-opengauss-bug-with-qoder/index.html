@@ -6,7 +6,7 @@
     <title>【openGauss】用Qoder修复openGauss的一处BUG - DA-技术分享-静态站</title>
     <meta name="description" content="【openGauss】用Qoder修复openGauss的一处BUG 背景 最近遇到一个openGauss的BUG，经验证，在5.0/6.0/7.0RC2上都存在,部分基于openGauss的商业发行版也有这个BUG。 [og600@kylinv10sp3-node1 ~]$ gsql -r
 gsq">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -129,21 +129,21 @@ gsq">
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】用Qoder修复openGauss的一处BUG</h1>
     <div class="meta">
@@ -152,7 +152,7 @@ gsq">
         
         <span>78 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -816,8 +816,8 @@ DROP TABLE tree;
 <p>这样既解决了当前问题,也提高了代码的健壮性和可维护性。</p>
 </blockquote>
 <p>到此，Qoder完成了本次BUG修复任务，最终消耗Credits 92.3。</p>
-<p><img alt="image-vksz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vksz.png" srcset="/upload/image-vksz.png?width=1200 1200w, /upload/image-vksz.png?width=400 400w, /upload/image-vksz.png?width=1600 1600w, /upload/image-vksz.png?width=800 800w"/></p>
-<p><img alt="image-fqaf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fqaf.png" srcset="/upload/image-fqaf.png?width=1200 1200w, /upload/image-fqaf.png?width=400 400w, /upload/image-fqaf.png?width=1600 1600w, /upload/image-fqaf.png?width=800 800w"/><br/>
+<p><img alt="image-vksz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vksz.png" srcset="/halo-SSG/upload/image-vksz.png?width=1200 1200w, /halo-SSG/upload/image-vksz.png?width=400 400w, /halo-SSG/upload/image-vksz.png?width=1600 1600w, /halo-SSG/upload/image-vksz.png?width=800 800w"/></p>
+<p><img alt="image-fqaf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-fqaf.png" srcset="/halo-SSG/upload/image-fqaf.png?width=1200 1200w, /halo-SSG/upload/image-fqaf.png?width=400 400w, /halo-SSG/upload/image-fqaf.png?width=1600 1600w, /halo-SSG/upload/image-fqaf.png?width=800 800w"/><br/>
 Qoder模型用的Auto,实测免费的Lite很难得到期望的结果。</p>
 <p>我使用了方案一，只修复了BUG，没去加那段防御性代码，PR已提交到openGauss社区（ <a href="https://gitcode.com/opengauss/openGauss-server/pull/8738">https://gitcode.com/opengauss/openGauss-server/pull/8738</a> ），流水线成功，codecheck发现一些行尾无用空格，手动修复了。目前该PR也已经合并进了仓库。</p>
 <h1 id="总结-1">总结</h1>
@@ -831,17 +831,17 @@ Qoder模型用的Auto,实测免费的Lite很难得到期望的结果。</p>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle-drop-global-template-table-error">&larr; 【ORACLE】分析一个全局临时表drop报错不合理的问题</a>
+    <a href="/halo-SSG/archives/oracle-drop-global-template-table-error">&larr; 【ORACLE】分析一个全局临时表drop报错不合理的问题</a>
     
     
-    <a href="/archives/gaussdb-nested-function-call-other-user-permission-denied">【GaussDB】跨用户调用已授权的存储过程，可能会在存储过程内SQL的自定义函数表达式里报错没有权限 &rarr;</a>
+    <a href="/halo-SSG/archives/gaussdb-nested-function-call-other-user-permission-denied">【GaussDB】跨用户调用已授权的存储过程，可能会在存储过程内SQL的自定义函数表达式里报错没有权限 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【MogDB】在刚发布的银河麒麟v11上安装MogDB - DA-技术分享-静态站</title>
     <meta name="description" content="【MogDB】在刚发布的银河麒麟V11上安装MogDB 背景 最近各种官媒开始宣传银河麒麟V11，我注意到材料里面有提到其linux内核已经升到了6.6，不再是V10里的4.x。在眼下AI飞速发展的时代，4.x内核里很多依赖库都已经过时，很多AI相关的工具和软件都无法安装或安装很麻烦，对于高新科技行">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【MogDB】在刚发布的银河麒麟v11上安装MogDB</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>443 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -168,15 +168,15 @@
 <p>银河麒麟镜像下载地址<br/>
 <a href="https://www.kylinos.cn/support/trial/download/">https://www.kylinos.cn/support/trial/download/</a></p>
 <p>登录画面</p>
-<p><img alt="image-wycp.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wycp.png" srcset="/upload/image-wycp.png?width=1200 1200w, /upload/image-wycp.png?width=400 400w, /upload/image-wycp.png?width=1600 1600w, /upload/image-wycp.png?width=800 800w"/></p>
+<p><img alt="image-wycp.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wycp.png" srcset="/halo-SSG/upload/image-wycp.png?width=1200 1200w, /halo-SSG/upload/image-wycp.png?width=400 400w, /halo-SSG/upload/image-wycp.png?width=1600 1600w, /halo-SSG/upload/image-wycp.png?width=800 800w"/></p>
 <p>桌面</p>
-<p><img alt="image-jkex.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jkex.png" srcset="/upload/image-jkex.png?width=1200 1200w, /upload/image-jkex.png?width=400 400w, /upload/image-jkex.png?width=1600 1600w, /upload/image-jkex.png?width=800 800w"/></p>
+<p><img alt="image-jkex.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jkex.png" srcset="/halo-SSG/upload/image-jkex.png?width=1200 1200w, /halo-SSG/upload/image-jkex.png?width=400 400w, /halo-SSG/upload/image-jkex.png?width=1600 1600w, /halo-SSG/upload/image-jkex.png?width=800 800w"/></p>
 <p>开始菜单</p>
-<p><img alt="image-xaxg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xaxg.png" srcset="/upload/image-xaxg.png?width=1200 1200w, /upload/image-xaxg.png?width=400 400w, /upload/image-xaxg.png?width=1600 1600w, /upload/image-xaxg.png?width=800 800w"/></p>
+<p><img alt="image-xaxg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-xaxg.png" srcset="/halo-SSG/upload/image-xaxg.png?width=1200 1200w, /halo-SSG/upload/image-xaxg.png?width=400 400w, /halo-SSG/upload/image-xaxg.png?width=1600 1600w, /halo-SSG/upload/image-xaxg.png?width=800 800w"/></p>
 <p>开始菜单2</p>
-<p><img alt="image-vbho.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vbho.png" srcset="/upload/image-vbho.png?width=1200 1200w, /upload/image-vbho.png?width=400 400w, /upload/image-vbho.png?width=1600 1600w, /upload/image-vbho.png?width=800 800w"/></p>
+<p><img alt="image-vbho.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vbho.png" srcset="/halo-SSG/upload/image-vbho.png?width=1200 1200w, /halo-SSG/upload/image-vbho.png?width=400 400w, /halo-SSG/upload/image-vbho.png?width=1600 1600w, /halo-SSG/upload/image-vbho.png?width=800 800w"/></p>
 <p>锁屏画面</p>
-<p><img alt="image-uylg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uylg.png" srcset="/upload/image-uylg.png?width=1200 1200w, /upload/image-uylg.png?width=400 400w, /upload/image-uylg.png?width=1600 1600w, /upload/image-uylg.png?width=800 800w"/></p>
+<p><img alt="image-uylg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-uylg.png" srcset="/halo-SSG/upload/image-uylg.png?width=1200 1200w, /halo-SSG/upload/image-uylg.png?width=400 400w, /halo-SSG/upload/image-uylg.png?width=1600 1600w, /halo-SSG/upload/image-uylg.png?width=800 800w"/></p>
 <p>默认带桌面安装，内存占用有点大，我装的时候先设置的4G，free直接就是0了，然后才扩到了6G</p>
 <pre><code class="language-bash">[root@kylinv11 ~]# free -g
                total        used        free      shared  buff/cache   available
@@ -785,21 +785,21 @@ Successfully started.
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
-        <a class="tag" href="/tags/os">os</a>
+        <a class="tag" href="/halo-SSG/tags/os">os</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/GaussDB-Filtering-Out-Specified-User-s-Transactions-in-Logical-Replication">&larr; 【GaussDB】在逻辑复制中剔除指定用户的事务</a>
+    <a href="/halo-SSG/archives/GaussDB-Filtering-Out-Specified-User-s-Transactions-in-Logical-Replication">&larr; 【GaussDB】在逻辑复制中剔除指定用户的事务</a>
     
     
-    <a href="/archives/deepwiki2docsify">将deepwiki生成的源代码分析文档转换到你自己的静态站点 &rarr;</a>
+    <a href="/halo-SSG/archives/deepwiki2docsify">将deepwiki生成的源代码分析文档转换到你自己的静态站点 &rarr;</a>
     
 </div>
 

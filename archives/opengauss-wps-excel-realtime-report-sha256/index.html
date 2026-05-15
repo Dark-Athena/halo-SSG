@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表 - DA-技术分享-静态站</title>
     <meta name="description" content="前言其实我的数据库启蒙，是来自于在一家甲方公司通过连接数据库自动刷新的excel表，当时学会了这招就一发不可收拾，制作出各种自动刷新的报表。但是，当时连接的主要是Oracle数据库，现在突然想起，是不是我们的国产数据库也可以这样连接呢？">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,30 +128,30 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表</h1>
     <div class="meta">
         
         <span>2022-11-18</span>
         
-        <span>645 阅读</span>
+        <span>646 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -172,38 +172,38 @@
 <p><a href="https://obs.myhuaweicloud.com/dws/download/dws_8.1.x_odbc_driver_for_windows.zip" target="_blank">windows端ODBC驱动下载（支持sha256） https://obs.myhuaweicloud.com/dws/download/dws_8.1.x_odbc_driver_for_windows.zip</a></p>
 <p>下载好后，解压，根据使用的wps或msoffice是64位还是32位版本，执行对应的安装程序（目测大多数人安装的都是32位版本），一路“next”就行了。<br/>
 不知道自己安装的是32还是64位的，可以把程序打开，到任务管理器里找到对应的程序，会有显示<br/>
-<img alt="image-1668874050903" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874050903.png" srcset="/upload/2022/11/image-1668874050903.png?width=1200 1200w, /upload/2022/11/image-1668874050903.png?width=400 400w, /upload/2022/11/image-1668874050903.png?width=1600 1600w, /upload/2022/11/image-1668874050903.png?width=800 800w"/></p>
+<img alt="image-1668874050903" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874050903.png" srcset="/halo-SSG/upload/2022/11/image-1668874050903.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874050903.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874050903.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874050903.png?width=800 800w"/></p>
 <h3 id="%E6%B7%BB%E5%8A%A0odbc%E6%95%B0%E6%8D%AE%E6%BA%90" tabindex="-1">添加ODBC数据源</h3>
 <ol>
 <li>依次打开<br/>
 控制面板-管理工具-ODBC Data Sources (32-bit)<br/>
-<img alt="image-1668874143580" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874143580.png" srcset="/upload/2022/11/image-1668874143580.png?width=1200 1200w, /upload/2022/11/image-1668874143580.png?width=400 400w, /upload/2022/11/image-1668874143580.png?width=1600 1600w, /upload/2022/11/image-1668874143580.png?width=800 800w"/></li>
+<img alt="image-1668874143580" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874143580.png" srcset="/halo-SSG/upload/2022/11/image-1668874143580.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874143580.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874143580.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874143580.png?width=800 800w"/></li>
 <li>点击右边的添加按钮，找到 PostgreSQL Unicode,双击<br/>
-<img alt="image-1668874242003" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874242003.png" srcset="/upload/2022/11/image-1668874242003.png?width=1200 1200w, /upload/2022/11/image-1668874242003.png?width=400 400w, /upload/2022/11/image-1668874242003.png?width=1600 1600w, /upload/2022/11/image-1668874242003.png?width=800 800w"/></li>
+<img alt="image-1668874242003" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874242003.png" srcset="/halo-SSG/upload/2022/11/image-1668874242003.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874242003.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874242003.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874242003.png?width=800 800w"/></li>
 <li>然后填写连接信息，并点击Test<br/>
-<img alt="image-1668874405597" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874405597.png" srcset="/upload/2022/11/image-1668874405597.png?width=1200 1200w, /upload/2022/11/image-1668874405597.png?width=400 400w, /upload/2022/11/image-1668874405597.png?width=1600 1600w, /upload/2022/11/image-1668874405597.png?width=800 800w"/></li>
+<img alt="image-1668874405597" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874405597.png" srcset="/halo-SSG/upload/2022/11/image-1668874405597.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874405597.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874405597.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874405597.png?width=800 800w"/></li>
 <li>提示连接成功，确定，点击SAVE保存，会弹出安全提示，意思就是连接信息会保存在系统注册表里，不安全，问是否继续，点"是"（本篇不讨论安全问题,请自行斟酌）<br/>
-<img alt="image-1668874472622" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874472622.png" srcset="/upload/2022/11/image-1668874472622.png?width=1200 1200w, /upload/2022/11/image-1668874472622.png?width=400 400w, /upload/2022/11/image-1668874472622.png?width=1600 1600w, /upload/2022/11/image-1668874472622.png?width=800 800w"/></li>
+<img alt="image-1668874472622" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874472622.png" srcset="/halo-SSG/upload/2022/11/image-1668874472622.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874472622.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874472622.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874472622.png?width=800 800w"/></li>
 <li>然后就可以看到数据源里多了一个刚刚新建的数据源<br/>
-<img alt="image-1668874765760" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874765760.png" srcset="/upload/2022/11/image-1668874765760.png?width=1200 1200w, /upload/2022/11/image-1668874765760.png?width=400 400w, /upload/2022/11/image-1668874765760.png?width=1600 1600w, /upload/2022/11/image-1668874765760.png?width=800 800w"/></li>
+<img alt="image-1668874765760" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874765760.png" srcset="/halo-SSG/upload/2022/11/image-1668874765760.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874765760.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874765760.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874765760.png?width=800 800w"/></li>
 </ol>
 <h3 id="%E5%9C%A8wps%E4%B8%AD%E5%BC%95%E7%94%A8%E6%95%B0%E6%8D%AE%E6%BA%90" tabindex="-1">在WPS中引用数据源</h3>
 <ol>
 <li>新建一个空白表格</li>
 <li>点击 数据 - 导入数据，选择ODBC DSN<br/>
-<img alt="image-1668874917682" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874917682.png" srcset="/upload/2022/11/image-1668874917682.png?width=1200 1200w, /upload/2022/11/image-1668874917682.png?width=400 400w, /upload/2022/11/image-1668874917682.png?width=1600 1600w, /upload/2022/11/image-1668874917682.png?width=800 800w"/></li>
+<img alt="image-1668874917682" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874917682.png" srcset="/halo-SSG/upload/2022/11/image-1668874917682.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874917682.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874917682.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874917682.png?width=800 800w"/></li>
 <li>选择刚刚新建的数据源，确定，下一步<br/>
-<img alt="image-1668874959657" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668874959657.png" srcset="/upload/2022/11/image-1668874959657.png?width=1200 1200w, /upload/2022/11/image-1668874959657.png?width=400 400w, /upload/2022/11/image-1668874959657.png?width=1600 1600w, /upload/2022/11/image-1668874959657.png?width=800 800w"/></li>
+<img alt="image-1668874959657" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668874959657.png" srcset="/halo-SSG/upload/2022/11/image-1668874959657.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668874959657.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668874959657.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668874959657.png?width=800 800w"/></li>
 <li>选择需要的表，并将需要的字段移到右边，点击下一步<br/>
-<img alt="image-1668875300934" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875300934.png" srcset="/upload/2022/11/image-1668875300934.png?width=1200 1200w, /upload/2022/11/image-1668875300934.png?width=400 400w, /upload/2022/11/image-1668875300934.png?width=1600 1600w, /upload/2022/11/image-1668875300934.png?width=800 800w"/></li>
+<img alt="image-1668875300934" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875300934.png" srcset="/halo-SSG/upload/2022/11/image-1668875300934.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875300934.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875300934.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875300934.png?width=800 800w"/></li>
 <li>选择手工输入连接语句，点击下一步<br/>
-<img alt="image-1668875424131" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875424131.png" srcset="/upload/2022/11/image-1668875424131.png?width=1200 1200w, /upload/2022/11/image-1668875424131.png?width=400 400w, /upload/2022/11/image-1668875424131.png?width=1600 1600w, /upload/2022/11/image-1668875424131.png?width=800 800w"/></li>
+<img alt="image-1668875424131" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875424131.png" srcset="/halo-SSG/upload/2022/11/image-1668875424131.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875424131.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875424131.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875424131.png?width=800 800w"/></li>
 <li>预览没有问题，点击完成<br/>
-<img alt="image-1668875476891" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875476891.png" srcset="/upload/2022/11/image-1668875476891.png?width=1200 1200w, /upload/2022/11/image-1668875476891.png?width=400 400w, /upload/2022/11/image-1668875476891.png?width=1600 1600w, /upload/2022/11/image-1668875476891.png?width=800 800w"/></li>
+<img alt="image-1668875476891" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875476891.png" srcset="/halo-SSG/upload/2022/11/image-1668875476891.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875476891.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875476891.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875476891.png?width=800 800w"/></li>
 <li>选择数据需要存放的开始单元格，点击确定<br/>
-<img alt="image-1668875523076" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875523076.png" srcset="/upload/2022/11/image-1668875523076.png?width=1200 1200w, /upload/2022/11/image-1668875523076.png?width=400 400w, /upload/2022/11/image-1668875523076.png?width=1600 1600w, /upload/2022/11/image-1668875523076.png?width=800 800w"/></li>
+<img alt="image-1668875523076" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875523076.png" srcset="/halo-SSG/upload/2022/11/image-1668875523076.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875523076.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875523076.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875523076.png?width=800 800w"/></li>
 <li>数据就放回到表格中了<br/>
-<img alt="image-1668875560923" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875560923.png" srcset="/upload/2022/11/image-1668875560923.png?width=1200 1200w, /upload/2022/11/image-1668875560923.png?width=400 400w, /upload/2022/11/image-1668875560923.png?width=1600 1600w, /upload/2022/11/image-1668875560923.png?width=800 800w"/></li>
+<img alt="image-1668875560923" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875560923.png" srcset="/halo-SSG/upload/2022/11/image-1668875560923.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875560923.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875560923.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875560923.png?width=800 800w"/></li>
 </ol>
 <h3 id="%E9%AA%8C%E8%AF%81%E6%95%B0%E6%8D%AE%E5%88%B7%E6%96%B0" tabindex="-1">验证数据刷新</h3>
 <ol>
@@ -211,18 +211,18 @@
 </ol>
 <pre><code class="language-sql">update scott.emp set sal=sal*2 where 1=1;
 </code></pre>
-<p><img alt="image-1668875774103" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875774103.png" srcset="/upload/2022/11/image-1668875774103.png?width=1200 1200w, /upload/2022/11/image-1668875774103.png?width=400 400w, /upload/2022/11/image-1668875774103.png?width=1600 1600w, /upload/2022/11/image-1668875774103.png?width=800 800w"/><br/>
+<p><img alt="image-1668875774103" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875774103.png" srcset="/halo-SSG/upload/2022/11/image-1668875774103.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875774103.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875774103.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875774103.png?width=800 800w"/><br/>
 <a href="https://obs.myhuaweicloud.com/dws/download/dws_8.1.x_gsql_for_windows.zip" target="_blank">windows端gsql下载 （支持sha256）https://obs.myhuaweicloud.com/dws/download/dws_8.1.x_gsql_for_windows.zip</a><br/>
 2. 在表格数据区域点击鼠标右键，刷新数据<br/>
-<img alt="image-1668875838278" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875838278.png" srcset="/upload/2022/11/image-1668875838278.png?width=1200 1200w, /upload/2022/11/image-1668875838278.png?width=400 400w, /upload/2022/11/image-1668875838278.png?width=1600 1600w, /upload/2022/11/image-1668875838278.png?width=800 800w"/><br/>
+<img alt="image-1668875838278" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875838278.png" srcset="/halo-SSG/upload/2022/11/image-1668875838278.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875838278.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875838278.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875838278.png?width=800 800w"/><br/>
 3. 可以看到数据都变更了<br/>
-<img alt="image-1668875866935" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875866935.png" srcset="/upload/2022/11/image-1668875866935.png?width=1200 1200w, /upload/2022/11/image-1668875866935.png?width=400 400w, /upload/2022/11/image-1668875866935.png?width=1600 1600w, /upload/2022/11/image-1668875866935.png?width=800 800w"/></p>
+<img alt="image-1668875866935" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875866935.png" srcset="/halo-SSG/upload/2022/11/image-1668875866935.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875866935.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875866935.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875866935.png?width=800 800w"/></p>
 <h3 id="%E9%85%8D%E7%BD%AE%E6%95%B0%E6%8D%AE%E8%87%AA%E5%8A%A8%E5%88%B7%E6%96%B0" tabindex="-1">配置数据自动刷新</h3>
 <ol>
 <li>在表格数据区域点击鼠标右键，点击数据区域属性<br/>
-<img alt="image-1668875958517" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668875958517.png" srcset="/upload/2022/11/image-1668875958517.png?width=1200 1200w, /upload/2022/11/image-1668875958517.png?width=400 400w, /upload/2022/11/image-1668875958517.png?width=1600 1600w, /upload/2022/11/image-1668875958517.png?width=800 800w"/></li>
+<img alt="image-1668875958517" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668875958517.png" srcset="/halo-SSG/upload/2022/11/image-1668875958517.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668875958517.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668875958517.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668875958517.png?width=800 800w"/></li>
 <li>设置刷新频率，并勾选打开文件时刷新数据<br/>
-<img alt="image-1668876065494" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668876065494.png" srcset="/upload/2022/11/image-1668876065494.png?width=1200 1200w, /upload/2022/11/image-1668876065494.png?width=400 400w, /upload/2022/11/image-1668876065494.png?width=1600 1600w, /upload/2022/11/image-1668876065494.png?width=800 800w"/></li>
+<img alt="image-1668876065494" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668876065494.png" srcset="/halo-SSG/upload/2022/11/image-1668876065494.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668876065494.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668876065494.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668876065494.png?width=800 800w"/></li>
 </ol>
 <h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
 <p>本篇只举了个最简单的例子，实际上，新建多个查询，结合表格的公式，并调整表格的样式，是可以制作出相当精美的报表的，而且只用做一次，以后一直都能用，数据都是可以实时从数据库中获取的。<br/>
@@ -233,17 +233,17 @@
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/uos-mogeaver-signed-deb">&larr; 【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver</a>
+    <a href="/halo-SSG/archives/uos-mogeaver-signed-deb">&larr; 【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver</a>
     
     
-    <a href="/archives/windows-terminal-ssh-save-password">【工具技巧】在windows terminal中保存SSH连接密码（明文） &rarr;</a>
+    <a href="/halo-SSG/archives/windows-terminal-ssh-save-password">【工具技巧】在windows terminal中保存SSH连接密码（明文） &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像 - DA-技术分享-静态站</title>
     <meta name="description" content="背景openGauss 2.1.0版本,新增package类型的对象,可以像oracle一样创建package,参考此篇文章《openGauss存储过程功能全面升级，支持PACKAGE,PLDEBUGGER等诸多新特性》然而当你在自己的openGauss数据库中,运行此篇文章中创建package的命">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1338 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -170,7 +170,7 @@ END PCK1;
 /
 </code></pre>
 <p>极有可能会收到一条报错信息<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png" srcset="/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1200 1200w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=400 400w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1600 1600w, /upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png" srcset="/halo-SSG/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=400 400w, /halo-SSG/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-eba52ace31b844589ed31dab43f4edf1.png?width=800 800w"/></p>
 <p>这是因为,你安装数据库的时候,可能没有配置此参数 “–dbcompatibility”,或者此参数不是配置的"A",而是默认的"PG"。</p>
 <p>根据官方文档介绍<a href="https://opengauss.org/zh/docs/1.0.1/docs/Developerguide/CREATE-DATABASE.html" target="_blank">CREATE DATABASE</a></p>
 <blockquote>
@@ -190,20 +190,20 @@ END PCK1;
 <h2 id="%E6%89%A7%E8%A1%8C%E6%9E%84%E5%BB%BA%E7%9A%84%E6%AD%A5%E9%AA%A4" tabindex="-1">执行构建的步骤</h2>
 <ol>
 <li>准备一台已经安装好docker的linux服务器,而且是有外网的</li>
-<li>下载仓库并解压<a href="https://github.com/enmotech/enmotech-docker-opengauss/archive/refs/heads/master.zip" target="_blank">enmotech-docker-opengauss</a><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png" srcset="/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1200 1200w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=400 400w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1600 1600w, /upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=800 800w"/></li>
-<li>编辑entrypoint.sh文件,将所有的"–dbcompatibility=PG"替换成"–dbcompatibility=A",保存<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png" srcset="/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1200 1200w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=400 400w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1600 1600w, /upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=800 800w"/></li>
+<li>下载仓库并解压<a href="https://github.com/enmotech/enmotech-docker-opengauss/archive/refs/heads/master.zip" target="_blank">enmotech-docker-opengauss</a><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png" srcset="/halo-SSG/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=400 400w, /halo-SSG/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-e922092605ed416a980dfddc172ca4f6.png?width=800 800w"/></li>
+<li>编辑entrypoint.sh文件,将所有的"–dbcompatibility=PG"替换成"–dbcompatibility=A",保存<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png" srcset="/halo-SSG/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=400 400w, /halo-SSG/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-d70fc306c08f4cdb995eeddfef9207bb.png?width=800 800w"/></li>
 <li>下载数据库安装包<a href="https://opengauss.obs.cn-south-1.myhuaweicloud.com/2.1.0/x86/openGauss-2.1.0-CentOS-64bit.tar.bz2" target="_blank">openGauss-2.1.0-CentOS-64bit.tar.bz2</a>,放到仓库目录的2.1.0文件夹下</li>
 <li>修改docker环境的DNS并重启docker服务(防止apt-get失败),下面为此步的操作方式(<a href="https://www.cnblogs.com/wdp-home/p/12213771.html" target="_blank">参考</a>):</li>
 </ol>
 <pre><code class="language-bash">vi /etc/docker/daemon.json
 </code></pre>
-<p>将以下内容保存进daemon.json文件内<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png" srcset="/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1200 1200w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=400 400w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1600 1600w, /upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=800 800w"/></p>
+<p>将以下内容保存进daemon.json文件内<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png" srcset="/halo-SSG/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=400 400w, /halo-SSG/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-aca42a4ddc5a44548a01cea0d2b3f449.png?width=800 800w"/></p>
 <pre><code class="language-json">{   
   "dns": ["8.8.8.8", "114.114.114.114"]    
 }
 </code></pre>
 <ol start="6">
-<li>在2.1.0目录新增一个sources.list文件,添加阿里云的apt源(防止官方源连不上),文件内容为<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png" srcset="/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1200 1200w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=400 400w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1600 1600w, /upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=800 800w"/></li>
+<li>在2.1.0目录新增一个sources.list文件,添加阿里云的apt源(防止官方源连不上),文件内容为<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png" srcset="/halo-SSG/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=400 400w, /halo-SSG/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-47c7e9474f1a48f0a19e2be7c44bcb8b.png?width=800 800w"/></li>
 </ol>
 <pre><code class="language-">deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
 deb-src http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
@@ -217,7 +217,7 @@ deb http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe m
 deb-src http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
 </code></pre>
 <ol start="7">
-<li>修改dockerfile_amd文件,在"COPY Oracle_Views_1.0.0.sql /tmp"下添加一行"COPY sources.list  /etc/apt/"<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png" srcset="/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1200 1200w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=400 400w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1600 1600w, /upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=800 800w"/></li>
+<li>修改dockerfile_amd文件,在"COPY Oracle_Views_1.0.0.sql /tmp"下添加一行"COPY sources.list  /etc/apt/"<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png" srcset="/halo-SSG/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=400 400w, /halo-SSG/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-54f295f58fb442a3b53c9924cbf2666c.png?width=800 800w"/></li>
 <li>授权buildDockerImage.sh为可执行"chmod 777 <a href="http://buildDockerImage.sh" target="_blank">buildDockerImage.sh</a>"</li>
 <li><a href="http://xn--buildDockerImage-np69bqx3e.sh" target="_blank">运行buildDockerImage.sh</a> “./buildDockerImage.sh  -v 2.1.0”</li>
 <li>构建成功,运行容器</li>
@@ -498,7 +498,7 @@ bb0b26897c8d5f90ba9b3fec0c962452599f76f42a3eafa31090b8236ae2ff38
 [root@MiWiFi-R3G-srv enmotech-docker-opengauss-master]# 
 </code></pre>
 <p>最后让我们连上这个数据库,运行一下最开始报错的那段代码<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png" srcset="/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1200 1200w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=400 400w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1600 1600w, /upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png" srcset="/halo-SSG/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=400 400w, /halo-SSG/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-67460a7651aa440fa4bfb7d4256abee9.png?width=800 800w"/></p>
 <p>打完收工。</p>
 </div>
 </article>
@@ -506,17 +506,17 @@ bb0b26897c8d5f90ba9b3fec0c962452599f76f42a3eafa31090b8236ae2ff38
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/connect-to-oracle-cloud-adb">&larr; 【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接</a>
+    <a href="/halo-SSG/archives/connect-to-oracle-cloud-adb">&larr; 【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接</a>
     
     
-    <a href="/archives/binaryclob-to-blob">【ORACLE】对二进制字符串的存储空间占用进行压缩的研究 &rarr;</a>
+    <a href="/halo-SSG/archives/binaryclob-to-blob">【ORACLE】对二进制字符串的存储空间占用进行压缩的研究 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法 - DA-技术分享-静态站</title>
     <meta name="description" content="前言由于最近在复刻oracle中自带的包到其他数据库,因此需要对oracle中的包的逻辑进行解析。比如UTL_RAW这个包,以前用得挺多,但没深究其函数逻辑,这次仔细分析,发现了有一些函数涉及到了计算机基本原理及IEEE标准,比较有意思,因此写一篇这样的文章来分享。函数清单先上官方文档 UTL_RA">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>2366 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a> / 
+        <a href="/halo-SSG/categories/opengauss">openGauss</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -579,17 +579,17 @@ select utl_raw.cast_from_number(-1.1) from dual
 <p>算法:<br/>
 这里内容会比较多,目前国内很难找到关于这个算法的中文说明,用英文关键词去搜也很难找到,但是我搜到了一个CSDN上08年的帖子<br/>
 <a href="https://bbs.csdn.net/topics/280064258">关于utl_raw.cast_to_number</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png" srcset="/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1200 1200w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=400 400w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1600 1600w, /upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png" srcset="/halo-SSG/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=400 400w, /halo-SSG/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-bbffa5e4fdc94ca69d2dc52be0723aaf.png?width=800 800w"/></p>
 <p>这位兄弟启发了我,让我能稍微看懂了一点,于是我模拟了几组数据,尝试在excel中按照此方式进行转换<br/>
 从RAW解析正数<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png" srcset="/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1200 1200w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=400 400w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1600 1600w, /upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png" srcset="/halo-SSG/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=400 400w, /halo-SSG/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-ad12c37dc03d4d25af35dfe2af16914b.png?width=800 800w"/></p>
 <p>从RAW解析负数<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png" srcset="/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1200 1200w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=400 400w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1600 1600w, /upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png" srcset="/halo-SSG/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=400 400w, /halo-SSG/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-3a7bef6baf724cb2942682173839bc9c.png?width=800 800w"/></p>
 <p>模拟成功,但是这只是RAW到NUMBER,如果要计算NUMBER到RAW,得把这个步骤完全反过来<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png" srcset="/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1200 1200w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=400 400w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1600 1600w, /upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png" srcset="/halo-SSG/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=400 400w, /halo-SSG/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-13b3d5eb6db646c680a0b0e853648e25.png?width=800 800w"/></p>
 <p>另外,我还根据193、101这些特殊的数字,找到了oracle的官方文档<br/>
 <a href="https://docs.oracle.com/cd/B14117_01/appdev.101/b10779/oci03typ.htm">3 Datatypes</a></p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png" srcset="/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1200 1200w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=400 400w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1600 1600w, /upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png" srcset="/halo-SSG/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=400 400w, /halo-SSG/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-c954a855884c40919aac5edcfa0a7c09.png?width=800 800w"/></p>
 <p><a href="https://www.darkathena.top/upload/2022/02/raw_cast_from_number%E7%9A%84%E7%A0%94%E7%A9%B6-3059d9faed484776ab0f92d54a3b7ef9.xlsx">模拟计算表格文件下载</a></p>
 <h3 id="21-CAST-TO-NUMBER">21.CAST_TO_NUMBER</h3>
 <p>作用:<br/>
@@ -634,19 +634,19 @@ NVARCHAR2类型的 "测试12ab" 存储的二进制数据(十六进制形式)为 
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/jsdelivr-byebye">&larr; 【站长工具】jsdelivr挂了后,我是如何拯救我的个人网站的(halo)</a>
+    <a href="/halo-SSG/archives/jsdelivr-byebye">&larr; 【站长工具】jsdelivr挂了后,我是如何拯救我的个人网站的(halo)</a>
     
     
-    <a href="/archives/about-opengauss-raw-type">【openGauss】谈谈openGauss中的raw类型 &rarr;</a>
+    <a href="/halo-SSG/archives/about-opengauss-raw-type">【openGauss】谈谈openGauss中的raw类型 &rarr;</a>
     
 </div>
 

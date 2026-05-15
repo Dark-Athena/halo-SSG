@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】使用DBMS_CLOUD包对京东云对象存储服务OSS进行操作及创建外部表 - DA-技术分享-静态站</title>
     <meta name="description" content="前言上一篇文章【ORACLE】关于dbms_cloud包机制的一些研究本来想弄腾讯云COS在ORACLE中的使用的，但是遇上了点麻烦，改程序还得等几天，实在憋不住想先搞个成功的案例，就想到了京东云，因为京东云OSS是几乎完全兼容aws的S3的，所以，理论上我只要在ORACLE中新增个京东云OSS的配">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】使用DBMS_CLOUD包对京东云对象存储服务OSS进行操作及创建外部表</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1383 阅读</span>
         
-        <a href="/categories/cloud">云</a> / 
+        <a href="/halo-SSG/categories/cloud">云</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -168,18 +168,18 @@
 <p>也挺简单，进页面自己创建就行了<br/>
 <a href="https://uc.jdcloud.com/account/accesskey">https://uc.jdcloud.com/account/accesskey</a><br/>
 然后会获得“Access Key ID” 和“Access Key Secret”<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png" srcset="/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=1200 1200w, /upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=400 400w, /upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=1600 1600w, /upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png" srcset="/halo-SSG/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=400 400w, /halo-SSG/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-521c725f6bb042168adb6b8555c96186.png?width=800 800w"/></p>
 <h2 id="2创建oss空间">2.创建OSS空间</h2>
 <p>这个进京东云自行创建就好了，<br/>
 <a href="https://oss-console.jdcloud.com/space">https://oss-console.jdcloud.com/space</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png" srcset="/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=1200 1200w, /upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=400 400w, /upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=1600 1600w, /upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png" srcset="/halo-SSG/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=400 400w, /halo-SSG/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-b16974264cd54dddbeff96de8e2714ec.png?width=800 800w"/><br/>
 点进去看，可以得到bucket域名，这里根据你自己的情况选择，如果你oracle数据库也在京东云上，就用内网域名，否则就像我一样用外网域名<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png" srcset="/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=1200 1200w, /upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=400 400w, /upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=1600 1600w, /upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png" srcset="/halo-SSG/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=400 400w, /halo-SSG/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-ec10e9a356ea4d6ab4af18de83ee532f.png?width=800 800w"/></p>
 <h2 id="3制作wallet">3.制作wallet</h2>
 <p>这个前面已经说过很多篇了，还不会的可以参考一下上一篇<a href="https://www.darkathena.top/archives/dbmscloudrelated">【ORACLE】关于dbms_cloud包机制的一些研究</a>对于https的其实很简单，就用 <a href="https://oss-console.jdcloud.com/space">https://oss-console.jdcloud.com/space</a> 这个地址的证书<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png" srcset="/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=1200 1200w, /upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=400 400w, /upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=1600 1600w, /upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png" srcset="/halo-SSG/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=400 400w, /halo-SSG/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-39f313e45a96444996559b0699eb7c12.png?width=800 800w"/><br/>
 把这两个证书添加到wallet中，保存即可，我是直接用了上一篇保存的wallet，反正oracle已经把这个wallet的路径写进全局参数了。再次提醒，ORACLE12c以后的wallet都不要添加末级证书<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png" srcset="/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=1200 1200w, /upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=400 400w, /upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=1600 1600w, /upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png" srcset="/halo-SSG/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=400 400w, /halo-SSG/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-4f0f8613dc3c4968b62943b9270094e5.png?width=800 800w"/></p>
 <h2 id="4在oracle中创建认证">4.在oracle中创建认证</h2>
 <pre><code class="language-sql">begin
   dbms_cloud.create_credential (
@@ -216,7 +216,7 @@ end;
 /
 </code></pre>
 <p>一次过，进京东云oss，查看object<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png" srcset="/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=1200 1200w, /upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=400 400w, /upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=1600 1600w, /upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png" srcset="/halo-SSG/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=400 400w, /halo-SSG/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-f2931e82fab6494fae3e60f3310d8ae6.png?width=800 800w"/><br/>
 文件已经成功上传了</p>
 <h2 id="2在oracle中创建外部表指向京东云oss">2.在ORACLE中创建外部表指向京东云OSS</h2>
 <p>我们假定，云上已经执行好大数据计算得出结果了，结果保存在“test_upload.csv”文件里，那么我们可以在数据库中创建一个外部表</p>
@@ -237,14 +237,14 @@ end;
 <p>查询外部表</p>
 <pre><code class="language-sql">select * from emp_ext_jd;
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png" srcset="/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=1200 1200w, /upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=400 400w, /upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=1600 1600w, /upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png" srcset="/halo-SSG/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=400 400w, /halo-SSG/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-abe0b2da3ee944e7944d162530adaf5c.png?width=800 800w"/></p>
 <h2 id="3列出oss中所有对象">3.列出OSS中所有对象</h2>
 <pre><code class="language-sql">select *
 from   dbms_cloud.list_objects(
         credential_name =&gt; 'OBJ_STORE_CRED_JD',
         location_uri    =&gt; 'https://darkathenafirst.s3.cn-east-2.jdcloud-oss.com');
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png" srcset="/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=1200 1200w, /upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=400 400w, /upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=1600 1600w, /upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png" srcset="/halo-SSG/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=400 400w, /halo-SSG/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-86380e1f146b4a5b80c94761ab82ac44.png?width=800 800w"/></p>
 <h2 id="4从oss下载对象">4.从OSS下载对象</h2>
 <pre><code class="language-sql">begin
   dbms_cloud.get_object (
@@ -340,7 +340,7 @@ commit;
 <p>然后指定分区查询</p>
 <pre><code class="language-sql">select * from emp_ext_hy_part_jd partition (p_max);
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png" srcset="/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=1200 1200w, /upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=400 400w, /upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=1600 1600w, /upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png" srcset="/halo-SSG/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=400 400w, /halo-SSG/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-78ed8370dfea4935bc9c7aae6d38d1c2.png?width=800 800w"/></p>
 <h2 id="10从oss里复制数据到本地的表">10.从oss里复制数据到本地的表</h2>
 <pre><code class="language-sql">--先创建个空表
 create table emp_ext_jd_copy as select * from emp_ext_jd where 1=2;
@@ -459,7 +459,7 @@ commit;
 </tbody>
 </table>
 <p>以上测试均在确保dbms_cloud其他功能正常的情况下，对同一个对象存储提供商在不同数据库上使用相同的代码执行dbms_cloud.export_data，明显可以发现当对象存储提供商是oraclecloud时，只有oraclecloud上的自治数据库才能成功执行，而且oraclecloud上导出到aws也是成功执行，说明这个与数据库版本号无关，只与是不是oraclecloud自治数据库有关。经比较两个数据库的dbms_cloud代码，发现有大量不一样的地方，其中就包括了本文中提到的FORMAT_TYPE的改动<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png" srcset="/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=1200 1200w, /upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=400 400w, /upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=1600 1600w, /upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png" srcset="/halo-SSG/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=400 400w, /halo-SSG/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-a64e58cecdbb4ceaaa6323bc8bf936a0.png?width=800 800w"/><br/>
 （改天看能不能从云上把相关PLSQL代码都弄到本地来，希望C没有改。。。）</p>
 <p>另外，由于oraclecloud上这个自治数据库是单独的，无法进入操作系统对wallet进行修改，因此无法测试京东云。oracle官方文档中说这个是基于安全限制，已经预先配置了超过90个证书，不允许用于自行添加<br/>
 <a href="https://docs.oracle.com/en/cloud/paas/autonomous-database/adbsa/appendix-database-pl-sql-packages-restrictions.html#GUID-829A7D07-1EA4-4F59-AA60-F780FABAFDEC">https://docs.oracle.com/en/cloud/paas/autonomous-database/adbsa/appendix-database-pl-sql-packages-restrictions.html#GUID-829A7D07-1EA4-4F59-AA60-F780FABAFDEC</a></p>
@@ -501,7 +501,7 @@ ORA-06512: 在 "C##CLOUD$SERVICE.DBMS_CLOUD", line 5172<br/>
 ORA-06512: 在 line 2</p>
 </blockquote>
 <p>经过多次修改代码调试，我确定就是此段代码执行的上传<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png" srcset="/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=1200 1200w, /upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=400 400w, /upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=1600 1600w, /upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png" srcset="/halo-SSG/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=400 400w, /halo-SSG/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-8e2af65a79a441818dd2b43dd565db92.png?width=800 800w"/><br/>
 我把统计行数改成不调用这个函数，直接一个括号count，执行不报错，但是数据没上传，而且后面也没有与云交互的代码。<br/>
 果然还是改了C库，自治数据库上的“sys.dbms_pdb_lib”这个玩意目前弄不到，而且一看就是数据库的核心库，暂时没辙了，只能看ORACLE会不会在以后的版本补丁里加上去了，19版本希望渺茫，估计得看21.4发布的情况了。</p>
 <h1 id="七2021-12-07-更新">七、2021-12-07 更新</h1>
@@ -513,19 +513,19 @@ ORA-06512: 在 line 2</p>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/%E4%BA%91">云</a>
+        <a class="tag" href="/halo-SSG/tags/%E4%BA%91">云</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-fanletter-qa">&larr; 【杂谈】关于建立新专栏《粉丝来信》和《经典问答》</a>
+    <a href="/halo-SSG/archives/about-fanletter-qa">&larr; 【杂谈】关于建立新专栏《粉丝来信》和《经典问答》</a>
     
     
-    <a href="/archives/win-oracle-193-to-1912">【ORACLE】记录一次windows环境ORACLE19.3打补丁升到19.12版本 &rarr;</a>
+    <a href="/halo-SSG/archives/win-oracle-193-to-1912">【ORACLE】记录一次windows环境ORACLE19.3打补丁升到19.12版本 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【GaussDB】排查创建索引后查询数据行数发生变化的问题 - DA-技术分享-静态站</title>
     <meta name="description" content="【GaussDB】排查创建索引后查询数据行数发生变化的问题 背景 客户开发反馈，有个复杂的SQL，本来查询行数有几千行，针对其中一个表创建索引后，这个SQL查询行数只有一百多行了,重复多次执行都可以复现。 确认版本 GaussDB 内核为 506.0.0SPC0100， 已打修复跳扫BUG的热补丁（">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,28 +128,28 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【GaussDB】排查创建索引后查询数据行数发生变化的问题</h1>
     <div class="meta">
         
         <span>2026-02-02</span>
         
-        <span>78 阅读</span>
+        <span>79 阅读</span>
         
     </div>
     <div class="post-body">
@@ -369,22 +369,22 @@ gaussdb=# select  /*+tablescan(t)*/ count(1) from root.t_test_skip t where c2 in
 
 </code></pre>
 <p>最后几行的数据似乎还是有些特别的</p>
-<p><img alt="image-ffyu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ffyu.png" srcset="/upload/image-ffyu.png?width=1200 1200w, /upload/image-ffyu.png?width=400 400w, /upload/image-ffyu.png?width=1600 1600w, /upload/image-ffyu.png?width=800 800w"/><br/>
+<p><img alt="image-ffyu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ffyu.png" srcset="/halo-SSG/upload/image-ffyu.png?width=1200 1200w, /halo-SSG/upload/image-ffyu.png?width=400 400w, /halo-SSG/upload/image-ffyu.png?width=1600 1600w, /halo-SSG/upload/image-ffyu.png?width=800 800w"/><br/>
 比如说c3最后两行有NULL，但尝试把这两个NULL改成有值，同样还是能复现问题；<br/>
 然后C2是A/B ，也改成和上面一样的6 ，也还是能复现问题。<br/>
 这意味着，可能与最后两行是什么值没有关系了，更可能与索引页面边界有关。</p>
 <p>于是尝试比较插入133行的索引页面，和插入134行的索引页面，发现在133行时，索引页面有2个，但是插入第134行时，索引页面变成了4个。</p>
 <p>目前没有GaussDB没有文档详细介绍rcr_ubtree的文件结构，只能先肉眼看看二进制文件能不能比出一些差异。</p>
 <p>在134行表(左)和133行表（右）的索引文件里，最上面这个块（0h~2000h）长得差不多，只有一点点信息，然后下面全是空的</p>
-<p><img alt="image-iqwt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iqwt.png" srcset="/upload/image-iqwt.png?width=1200 1200w, /upload/image-iqwt.png?width=400 400w, /upload/image-iqwt.png?width=1600 1600w, /upload/image-iqwt.png?width=800 800w"/></p>
+<p><img alt="image-iqwt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-iqwt.png" srcset="/halo-SSG/upload/image-iqwt.png?width=1200 1200w, /halo-SSG/upload/image-iqwt.png?width=400 400w, /halo-SSG/upload/image-iqwt.png?width=1600 1600w, /halo-SSG/upload/image-iqwt.png?width=800 800w"/></p>
 <p>第2个块(2001h~3ff0h)就有些区别了，左边这个134行表的，多出了一些空的，但右边这个133行表的，空的就比较少，而且右边已经索引到了最后一行（可以发现 <code>1.B.CNY</code>），而134行的在第二个块里还不包含后面一部分数据</p>
-<p><img alt="image-xite.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xite.png" srcset="/upload/image-xite.png?width=1200 1200w, /upload/image-xite.png?width=400 400w, /upload/image-xite.png?width=1600 1600w, /upload/image-xite.png?width=800 800w"/></p>
+<p><img alt="image-xite.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-xite.png" srcset="/halo-SSG/upload/image-xite.png?width=1200 1200w, /halo-SSG/upload/image-xite.png?width=400 400w, /halo-SSG/upload/image-xite.png?width=1600 1600w, /halo-SSG/upload/image-xite.png?width=800 800w"/></p>
 <p>134行表索引的第三个块(4000h~5ff0h)比较空，有几行数据</p>
-<p><img alt="image-vnip.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vnip.png" srcset="/upload/image-vnip.png?width=1200 1200w, /upload/image-vnip.png?width=400 400w, /upload/image-vnip.png?width=1600 1600w, /upload/image-vnip.png?width=800 800w"/></p>
-<p><img alt="image-puop.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-puop.png" srcset="/upload/image-puop.png?width=1200 1200w, /upload/image-puop.png?width=400 400w, /upload/image-puop.png?width=1600 1600w, /upload/image-puop.png?width=800 800w"/></p>
-<p><img alt="image-hzhg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hzhg.png" srcset="/upload/image-hzhg.png?width=1200 1200w, /upload/image-hzhg.png?width=400 400w, /upload/image-hzhg.png?width=1600 1600w, /upload/image-hzhg.png?width=800 800w"/></p>
+<p><img alt="image-vnip.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vnip.png" srcset="/halo-SSG/upload/image-vnip.png?width=1200 1200w, /halo-SSG/upload/image-vnip.png?width=400 400w, /halo-SSG/upload/image-vnip.png?width=1600 1600w, /halo-SSG/upload/image-vnip.png?width=800 800w"/></p>
+<p><img alt="image-puop.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-puop.png" srcset="/halo-SSG/upload/image-puop.png?width=1200 1200w, /halo-SSG/upload/image-puop.png?width=400 400w, /halo-SSG/upload/image-puop.png?width=1600 1600w, /halo-SSG/upload/image-puop.png?width=800 800w"/></p>
+<p><img alt="image-hzhg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hzhg.png" srcset="/halo-SSG/upload/image-hzhg.png?width=1200 1200w, /halo-SSG/upload/image-hzhg.png?width=400 400w, /halo-SSG/upload/image-hzhg.png?width=1600 1600w, /halo-SSG/upload/image-hzhg.png?width=800 800w"/></p>
 <p>134行表的索引第4个块里似乎有一行数据,但不完整，应该是无用的，没被vacuum掉</p>
-<p><img alt="image-riww.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-riww.png" srcset="/upload/image-riww.png?width=1200 1200w, /upload/image-riww.png?width=400 400w, /upload/image-riww.png?width=1600 1600w, /upload/image-riww.png?width=800 800w"/></p>
+<p><img alt="image-riww.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-riww.png" srcset="/halo-SSG/upload/image-riww.png?width=1200 1200w, /halo-SSG/upload/image-riww.png?width=400 400w, /halo-SSG/upload/image-riww.png?width=1600 1600w, /halo-SSG/upload/image-riww.png?width=800 800w"/></p>
 <p>识别到 <code>(0,6,20080813)</code> 开始及后面的数据，在134行表的索引里，都在多出来的这第3个块里，跳扫少了的两行数据正好也在这个块里。</p>
 <p>暂时不理解为什么已经有了第3个块，里面还有很多空的，为什么会有第4个块（难道是文档里说的双循环队列？）。<strong>但目前现象就是在索引跳扫的时候，刚好把第三个块里的前两个字段为 <code>(0,6)</code> 的数据给忽略掉了，第二个块前两个字段刚好也全是 <code>(0,6)</code></strong></p>
 <p>考虑到<strong>跳扫其实是要自动拼接前导列的条件</strong>，因此<strong>怀疑此处是拼接的条件有误</strong>。</p>
@@ -1358,7 +1358,7 @@ UBtree index page information of block 3/3
                         ctid(0,123), tablebucketid -1, tableoid 0
                         Length: 48, has var-width attrs
 </code></pre>
-<p><img alt="image-fejo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fejo.png" srcset="/upload/image-fejo.png?width=1200 1200w, /upload/image-fejo.png?width=400 400w, /upload/image-fejo.png?width=1600 1600w, /upload/image-fejo.png?width=800 800w"/></p>
+<p><img alt="image-fejo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-fejo.png" srcset="/halo-SSG/upload/image-fejo.png?width=1200 1200w, /halo-SSG/upload/image-fejo.png?width=400 400w, /halo-SSG/upload/image-fejo.png?width=1600 1600w, /halo-SSG/upload/image-fejo.png?width=800 800w"/></p>
 <p>暂时只能分析到这里了，等华为排查给出原因后再更新。</p>
 <h2 id="20260203更新">20260203更新</h2>
 <p>华为答复：</p>
@@ -1504,17 +1504,17 @@ gaussdb=#
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI">&larr; 【GaussDB】用AI解析UGO中的SQL审核模块的实现</a>
+    <a href="/halo-SSG/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI">&larr; 【GaussDB】用AI解析UGO中的SQL审核模块的实现</a>
     
     
-    <a href="/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting">大表数据高效切片：基于主键的无排序Where条件生成算法 &rarr;</a>
+    <a href="/halo-SSG/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting">大表数据高效切片：基于主键的无排序Where条件生成算法 &rarr;</a>
     
 </div>
 

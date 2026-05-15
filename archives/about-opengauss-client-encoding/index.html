@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】把应用开发中的设置客户端字符编码往细了说 - DA-技术分享-静态站</title>
     <meta name="description" content="前言早前写过2篇有关Oracle字符集的文章基本说明了 ”数据字符编码“、”客户端字符编码“、”数据库字符编码“三者的关系，这些关系，对于openGauss也是一样的">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】把应用开发中的设置客户端字符编码往细了说</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>846 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -221,7 +221,7 @@
 <p>由于可以设置的方式太多,那么必然会出现各个设置互相冲突时，以哪个为准的问题。<br/>
 首先明确一点，当前会话执行的客户端字符编码，一定是可以通过<br/>
 <strong>show client_encoding;</strong> 这个命令查看的，也就是说，无论怎么设置，最终都是为了影响会话里的 <strong>client_encoding</strong> 参数。接着，我们可以进行各种组合尝试，来确认这个参数的默认值及获取来源<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/02/image.png" srcset="/upload/2023/02/image.png?width=1200 1200w, /upload/2023/02/image.png?width=400 400w, /upload/2023/02/image.png?width=1600 1600w, /upload/2023/02/image.png?width=800 800w"/></p>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2023/02/image.png" srcset="/halo-SSG/upload/2023/02/image.png?width=1200 1200w, /halo-SSG/upload/2023/02/image.png?width=400 400w, /halo-SSG/upload/2023/02/image.png?width=1600 1600w, /halo-SSG/upload/2023/02/image.png?width=800 800w"/></p>
 <p>根据以上测试结果，可以得到如下几个结论<br/>
 对于gsql</p>
 <ol>
@@ -241,7 +241,7 @@
 <p>以上同样的测试，我用<strong>psycopg2</strong>和<strong>jdbc</strong>也测了一遍，和<strong>libpq</strong>的表现是完全一致的，也就是说，设定PGCLIENTENCODING对各种程序开发是最通用的设定客户端字符集编码的方案。（单一程序处理多种字符编码的情况本文暂不考虑）</p>
 <h2 id="%E5%85%B6%E4%BB%96" tabindex="-1">其他</h2>
 <p>附上我用libpq测试<a href="https://www.darkathena.top/archives/about-oracle-charset" target="_blank">之前文章中的用例</a>结果，可以发现能插入的结果和ORACLE表现是完全一致的，有区别的是，ORACLE中字符编码错了可能也能插入，而MogDB/openGauss/postgresql中则会报错，这个点是好是坏，也只能见仁见智，区分场景了。但我个人偏向于应尽量避免让错误的数据进入数据库<br/>
-<img alt="image-1675252053480" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/02/image-1675252053480.png" srcset="/upload/2023/02/image-1675252053480.png?width=1200 1200w, /upload/2023/02/image-1675252053480.png?width=400 400w, /upload/2023/02/image-1675252053480.png?width=1600 1600w, /upload/2023/02/image-1675252053480.png?width=800 800w"/></p>
+<img alt="image-1675252053480" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2023/02/image-1675252053480.png" srcset="/halo-SSG/upload/2023/02/image-1675252053480.png?width=1200 1200w, /halo-SSG/upload/2023/02/image-1675252053480.png?width=400 400w, /halo-SSG/upload/2023/02/image-1675252053480.png?width=1600 1600w, /halo-SSG/upload/2023/02/image-1675252053480.png?width=800 800w"/></p>
 <p>本文结论为参考了各种官方文档，加上自己的测试得到的结果，如有不对，请联系我指出。</p>
 <h2 id="%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5" tabindex="-1">参考链接</h2>
 <p><a href="https://docs.mogdb.io/zh/mogdb/v3.0/character-set-support" target="_blank">https://docs.mogdb.io/zh/mogdb/v3.0/character-set-support</a><br/>
@@ -254,10 +254,10 @@
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/centos7-mount-iscis">&larr; centos7挂载iscis存储操作记录</a>
+    <a href="/halo-SSG/archives/centos7-mount-iscis">&larr; centos7挂载iscis存储操作记录</a>
     
     
-    <a href="/archives/one-key-build-opengauss-and-dolphin">【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性 &rarr;</a>
+    <a href="/halo-SSG/archives/one-key-build-opengauss-and-dolphin">【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性 &rarr;</a>
     
 </div>
 

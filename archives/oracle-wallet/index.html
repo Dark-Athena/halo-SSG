@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】简单谈谈ORACLE中WALLET（钱夹） - DA-技术分享-静态站</title>
     <meta name="description" content="一般开发中，很少会接触到Oracle数据库的wallet，但是我在一次研究发送ssl邮件的时候，了解到了这个东西，当时因为我没找到关于wallet的完整介绍文档，没和DBA说清楚，导致DBA错误操作使数据库无法登陆了。后来我翻了很多中文和英文的文档和文章，对于单实例ORACLE数据库，大致整理出以下">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>2774 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -180,7 +180,7 @@ orapki wallet add -wallet /u01/app/wallet -trusted_cert -cert /u01/app/wallet/ce
 </code></pre>
 <h4 id="2图形界面工具-owmwallet-manager">2.图形界面工具 owm（Wallet Manager）</h4>
 <p>有可视化窗口的工具，配置方式更人性化<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png" srcset="/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1200 1200w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=400 400w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1600 1600w, /upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png" srcset="/halo-SSG/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1200 1200w, /halo-SSG/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=400 400w, /halo-SSG/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=1600 1600w, /halo-SSG/upload/2021/09/image-b460377ef8284c3d8eef15c1db567bc3.png?width=800 800w"/></p>
 <h2 id="wallet文件">wallet文件</h2>
 <p>在选定目录执行创建wallet并保存后，会在该目录下生成“ewallet.p12”和“cwallet.sso”这两个文件,如果需要变更wallet目录，只需要移动这两个文件即可</p>
 <h2 id="其他">其他</h2>
@@ -193,17 +193,17 @@ orapki wallet add -wallet /u01/app/wallet -trusted_cert -cert /u01/app/wallet/ce
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle-sql-part3">&larr; 【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3</a>
+    <a href="/halo-SSG/archives/oracle-sql-part3">&larr; 【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part3</a>
     
     
-    <a href="/archives/oracle-acl">【ORACLE】简单谈谈ORACLE数据库中的ACL配置 &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-acl">【ORACLE】简单谈谈ORACLE数据库中的ACL配置 &rarr;</a>
     
 </div>
 

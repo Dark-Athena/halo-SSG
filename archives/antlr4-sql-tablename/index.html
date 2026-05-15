@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【python】使用Antlr4实现识别sql中的表或视图名 - DA-技术分享-静态站</title>
     <meta name="description" content="前言先上成果预览图吧作为一个数据库sql开发者，肯定有很多人和我一样，想要有一个工具，能传入任意sql，解析出sql中的所有表。我之前有一篇文章【AIO】将任意查询sql转换成带远程数据库DBLINK的sql 中就提到了，使用纯文本硬解析会存在很多不确定因素，比如oracle新版本就添加了新的sql">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【python】使用Antlr4实现识别sql中的表或视图名</h1>
     <div class="meta">
@@ -151,11 +151,11 @@
         
         <span>3338 阅读</span>
         
-        <a href="/categories/python">python</a> / 
+        <a href="/halo-SSG/categories/python">python</a> / 
         
-        <a href="/categories/oracle">ORACLE</a> / 
+        <a href="/halo-SSG/categories/oracle">ORACLE</a> / 
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -164,7 +164,7 @@
 
 <h2 id="前言">前言</h2>
 <p>先上成果预览图吧<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png" srcset="/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1200 1200w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=400 400w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1600 1600w, /upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png" srcset="/halo-SSG/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=400 400w, /halo-SSG/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-b249169e3b7748f383763bd2cbead446.png?width=800 800w"/></p>
 <p>作为一个数据库sql开发者，肯定有很多人和我一样，想要有一个工具，能传入任意sql，解析出sql中的所有表。<br/>
 我之前有一篇文章<a href="/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql</a> 中就提到了，使用纯文本硬解析会存在很多不确定因素，比如oracle新版本就添加了新的sql语法，有些场景太难处理，而解析器则只需要配置好规则，并且标准化规则的语法，那么扩展性就很强了。</p>
 <p>antlr4 <a href="https://github.com/antlr/antlr4">https://github.com/antlr/antlr4</a></p>
@@ -252,7 +252,7 @@ PlSqlParser.tokens</p>
 </code></pre>
 <p>再 ctrl+z,回车<br/>
 稍等一会儿，程序就会返回<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png" srcset="/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1200 1200w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=400 400w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1600 1600w, /upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png" srcset="/halo-SSG/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=400 400w, /halo-SSG/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-66ec2c66f9224978ac5e6cc338f3b97f.png?width=800 800w"/><br/>
 有一说一，这个性能真的有点差。</p>
 <p>这里提几点，</p>
 <ol>
@@ -288,7 +288,7 @@ query_block
 <p>另外，这个pygrun有更新版本，支持界面显示树，加上 -g 参数即可，下载在这里<br/>
 <a href="https://github.com/jszheng/py3antlr4book/tree/master/bin">https://github.com/jszheng/py3antlr4book/tree/master/bin</a><br/>
 效果如下<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png" srcset="/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1200 1200w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=400 400w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1600 1600w, /upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png" srcset="/halo-SSG/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=400 400w, /halo-SSG/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-708e3135637f4dde9446b27292065f75.png?width=800 800w"/></p>
 <p>有了这个例子，我们就要看怎么把我们要的东西挑出来了</p>
 <h4 id="第8步编写获取表名的程序">第8步，编写获取表名的程序</h4>
 <p>这里提一个名词 ，叫 面向对象编程， 之前看python教程的时候不觉得咋样，这次是真被折磨了，如果懂java的估计早就习惯了，但我纯自己写java实在太少，属于那种能查问题但不会写的。这个解析器里面用了好多自定义类，进去是啥知道，要不是开了源，压根就不知道出来的是啥，也不知道它有哪些方法（虽然用命令可查，但是我习惯了“记事本编程”，没有一边查定义一边编程的习惯），所以参考它这个带界面的那段程序，是一行一行写进去的，我们不需要界面，只需要知道怎样循环它，怎样拿它的值就行了，说这些，我肯定被java大佬鄙视了吧，这里python的逻辑和java太像了。。。</p>
@@ -358,21 +358,21 @@ for i in tb_p:
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/python">python</a>
+        <a class="tag" href="/halo-SSG/tags/python">python</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oml4py-server-setup">&larr; 【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a>
+    <a href="/halo-SSG/archives/oml4py-server-setup">&larr; 【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a>
     
     
-    <a href="/archives/my-first-miniprogram">【杂谈】我的第一个微信小程序发布了 &rarr;</a>
+    <a href="/halo-SSG/archives/my-first-miniprogram">【杂谈】我的第一个微信小程序发布了 &rarr;</a>
     
 </div>
 

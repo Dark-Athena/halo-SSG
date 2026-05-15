@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>将deepwiki生成的源代码分析文档转换到你自己的静态站点 - DA-技术分享-静态站</title>
     <meta name="description" content="将deepwiki生成的源代码分析文档转换到你自己的静态站点 背景 deepwiki是一个基于AI的源代码分析文档生成工具，只需要将github源代码仓库URL的 github.com改成 deepwiki.com,即可获得对应仓库的源代码分析文档（首次需要填写进度通知邮箱，并等待几分钟，之后就会在">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>将deepwiki生成的源代码分析文档转换到你自己的静态站点</h1>
     <div class="meta">
@@ -160,7 +160,7 @@
 <h2 id="背景">背景</h2>
 <p>deepwiki是一个基于AI的源代码分析文档生成工具，只需要将github源代码仓库URL的 <code>github.com</code>改成 <code>deepwiki.com</code>,即可获得对应仓库的源代码分析文档（首次需要填写进度通知邮箱，并等待几分钟，之后就会在deepwiki网站持久化这份文档）<br/>
 例子：<a href="https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web">https://deepwiki.com/Dark-Athena/PlsqlRewrite4GaussDB-web</a></p>
-<p><img alt="image-tvlk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tvlk.png" srcset="/upload/image-tvlk.png?width=1200 1200w, /upload/image-tvlk.png?width=400 400w, /upload/image-tvlk.png?width=1600 1600w, /upload/image-tvlk.png?width=800 800w"/></p>
+<p><img alt="image-tvlk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-tvlk.png" srcset="/halo-SSG/upload/image-tvlk.png?width=1200 1200w, /halo-SSG/upload/image-tvlk.png?width=400 400w, /halo-SSG/upload/image-tvlk.png?width=1600 1600w, /halo-SSG/upload/image-tvlk.png?width=800 800w"/></p>
 <p>可以看到deepwiki分析源代码后，会生成很多个章节，对程序的架构、处理逻辑，以及一些关键代码进行解释。甚至还可以直接在网页中对话来向AI来咨询问题。</p>
 <p>但是deepwiki网站在国外，页面加载比较慢，有时候有些js资源还会加载失败，所以自然会有人想到要把这份文档保存下来，保存到自己本地，或者部署到自己的静态站点上。</p>
 <p>目前的确已经有人开发了工具，可以把deepwiki生成的页面导出成markdown，但是丢失了目录层级结构，而且也不能通过链接跳转文件。</p>
@@ -504,8 +504,8 @@ DevTools listening on ws://127.0.0.1:51519/devtools/browser/0fd6194b-c352-49af-a
 </code></pre>
 <p>静态部署效果<br/>
 <a href="https://www.darkathena.top/PlsqlRewrite4GaussDB-web-wiki/index.html">https://www.darkathena.top/PlsqlRewrite4GaussDB-web-wiki/index.html</a></p>
-<p><img alt="image-javx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-javx.png" srcset="/upload/image-javx.png?width=1200 1200w, /upload/image-javx.png?width=400 400w, /upload/image-javx.png?width=1600 1600w, /upload/image-javx.png?width=800 800w"/></p>
-<p><img alt="image-ikhc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ikhc.png" srcset="/upload/image-ikhc.png?width=1200 1200w, /upload/image-ikhc.png?width=400 400w, /upload/image-ikhc.png?width=1600 1600w, /upload/image-ikhc.png?width=800 800w"/></p>
+<p><img alt="image-javx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-javx.png" srcset="/halo-SSG/upload/image-javx.png?width=1200 1200w, /halo-SSG/upload/image-javx.png?width=400 400w, /halo-SSG/upload/image-javx.png?width=1600 1600w, /halo-SSG/upload/image-javx.png?width=800 800w"/></p>
+<p><img alt="image-ikhc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ikhc.png" srcset="/halo-SSG/upload/image-ikhc.png?width=1200 1200w, /halo-SSG/upload/image-ikhc.png?width=400 400w, /halo-SSG/upload/image-ikhc.png?width=1600 1600w, /halo-SSG/upload/image-ikhc.png?width=800 800w"/></p>
 <p>我这个docsify站点是真正的双语，是因为我把生成的zh_cn目录打包让扣子空间全部翻译了再打包给我，我只需要解压覆盖原文件即可。翻译本身特别消耗token，而且文件数多，全部翻译，用专门的API费用会比较大，所以目前白嫖扣子空间还是非常爽的。</p>
 <h2 id="总结">总结</h2>
 <p>没什么好总结的，AI时代，没有什么能阻碍你去开发自己想要的程序了。</p>
@@ -516,10 +516,10 @@ DevTools listening on ws://127.0.0.1:51519/devtools/browser/0fd6194b-c352-49af-a
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/kylin-v11-mogdb-install">&larr; 【MogDB】在刚发布的银河麒麟v11上安装MogDB</a>
+    <a href="/halo-SSG/archives/kylin-v11-mogdb-install">&larr; 【MogDB】在刚发布的银河麒麟v11上安装MogDB</a>
     
     
-    <a href="/archives/Connecting-to-GaussDB-M-Compatibility-Mode-via-MySQL-Client">【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库 &rarr;</a>
+    <a href="/halo-SSG/archives/Connecting-to-GaussDB-M-Compatibility-Mode-via-MySQL-Client">【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库 &rarr;</a>
     
 </div>
 

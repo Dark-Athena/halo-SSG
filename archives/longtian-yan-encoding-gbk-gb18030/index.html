@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>恼人的"龙天"(䶮)--谈谈从GBK转到GB18030的特殊情况 - DA-技术分享-静态站</title>
     <meta name="description" content="背景 最近在做一个去O迁移适配，刚好也有友商在一起做，两边测试方式不一样。友商先遇到了一个问题，就是在ORACLE中某个的2字节GBK字符到迁移到友商的库中变成了4字节，刚好那个字段在这个字是2字节的时候，已经存满了，转换成4字节后就会超长，死活都导不进去，经分析，是因为友商建库时选择了GB1803">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>恼人的"龙天"(䶮)--谈谈从GBK转到GB18030的特殊情况</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>722 阅读</span>
         
-        <a href="/categories/default">默认分类</a>
+        <a href="/halo-SSG/categories/default">默认分类</a>
         
     </div>
     <div class="post-body">
@@ -167,16 +167,16 @@
 <p><img alt="" src="https://picx.zhimg.com/80/v2-205332e5f1df6298618958c2e612816c_1440w.webp?source=1def8aca"/><br/>
 (https://www.zhihu.com/question/403694151)<br/>
 如上图 右下角的位置，GBK+FE9F 这个编码，对应的unicode编码为U+E863，然后我们去查下unicode官网，找找这个编码，</p>
-<p><img alt="屏幕截图 2023-12-23 212524.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2023-12-23 212524.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2023-12-23 212524.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2023-12-23 212524.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212524.png?width=800 800w"/></p>
 <p>在unicode官网里，这个编码并没有字形对应，而且该位置属于PUA(私人编码区)。</p>
 <p>我们再来看GB18030-2022中U+E863是什么<br/>
-<img alt="屏幕截图 2023-12-23 212038.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2023-12-23 212038.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=800 800w"/></p>
+<img alt="屏幕截图 2023-12-23 212038.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2023-12-23 212038.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20212038.png?width=800 800w"/></p>
 <p>U+E863对应的GB18030编码为 GB18030+8336CF39 ,此处也没有字形。也就是说，GBK编码的FE9F这个字，既不被UNICODE承认，也不在最新的国家强制标准GB18030-2022里。</p>
 <p>可是，不是说GB18030比GBK能支持更多的生僻字么？其实，这个字并不是没有了，而是GB18030把它"直接兼容"了。</p>
 <p>我们直接用GBK编码的FE9F在GB18030标准里找<br/>
-<img alt="屏幕截图 2023-12-23 213156.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2023-12-23 213156.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=800 800w"/></p>
+<img alt="屏幕截图 2023-12-23 213156.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2023-12-23 213156.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213156.png?width=800 800w"/></p>
 <p>可以看到这里的确有对应的字形，而且就是“龙天”，这个字对应的UNICODE编码为U+4DAE，于是我们再去UNICODE官网找找<br/>
-<img alt="屏幕截图 2023-12-23 213532.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2023-12-23 213532.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=800 800w"/></p>
+<img alt="屏幕截图 2023-12-23 213532.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2023-12-23 213532.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202023-12-23%20213532.png?width=800 800w"/></p>
 <p>果然在这里也能找到。</p>
 <p>我们以UNICODE编码来整理一下这两个字的各种编码（由于这个字在UTF8中没有字形对应，所以可能部分网页上会显示方框，如果复制出来放到中国区域的windows的记事本里，就可以正常显示对应的字，因为当成GBK显示了）</p>
 <table>
@@ -251,10 +251,10 @@ SQL&gt;
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/kylin-v10-add-epel">&larr; 银河麒麟v10添加epol(epel)仓库</a>
+    <a href="/halo-SSG/archives/kylin-v10-add-epel">&larr; 银河麒麟v10添加epol(epel)仓库</a>
     
     
-    <a href="/archives/opengauss-pgtrigger-tgtype-decode">【openGauss】如何通过pg_trigger.tgtype获取触发器的各种触发条件 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-pgtrigger-tgtype-decode">【openGauss】如何通过pg_trigger.tgtype获取触发器的各种触发条件 &rarr;</a>
     
 </div>
 

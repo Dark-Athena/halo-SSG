@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>记事本 - DA-技术分享-静态站</title>
     <meta name="description" content="">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,14 +128,14 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
@@ -178,7 +178,7 @@
     <div class="meta">2026/04/09 10:25:26</div>
     
     <div class="post-body"><div class="content-wrp">
-<p style="">azure 删除所有资源、取消所有订阅、移除所有付款方式后，仍然可能每月收到扣费，此时在成本管理计费等页面里是查不到任何记录的，而且请求支持也无法找到可以退费的入口，因为当前账号上已经没有任何东西了。在取消订阅的时候，一定要注意这样一封邮件</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GFzG.png" srcset="/upload/image-GFzG.png?width=1200 1200w, /upload/image-GFzG.png?width=400 400w, /upload/image-GFzG.png?width=1600 1600w, /upload/image-GFzG.png?width=800 800w" width="979px"/></figure><p style="">这表示我之前曾经有预留3年的一个虚拟机，由于已经删除了所有计划，所以就移动到了共享计划里，后续可以绑定其他新的订阅里享受优惠，但如果我不做任何操作，我就需要持续每月付费，浪费了这个折扣。</p><p style="">取消这个的方式，在azure里搜索 "预留" ，应该能看到有一个名称就叫"预留"的服务，里面就可以看到这个预留条目，</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-BbjB.png" srcset="/upload/image-BbjB.png?width=1200 1200w, /upload/image-BbjB.png?width=400 400w, /upload/image-BbjB.png?width=1600 1600w, /upload/image-BbjB.png?width=800 800w" width="1863px"/></figure><p style="">点进去，然后点"退回",就可以取消这个预留了，状态先会变成如图所示的挂起，后台处理完成后就会变成已取消。当然历史已经扣了的就不会再返还了，不过当期的还能退一部分，未来的就全不会扣了。</p>
+<p style="">azure 删除所有资源、取消所有订阅、移除所有付款方式后，仍然可能每月收到扣费，此时在成本管理计费等页面里是查不到任何记录的，而且请求支持也无法找到可以退费的入口，因为当前账号上已经没有任何东西了。在取消订阅的时候，一定要注意这样一封邮件</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-GFzG.png" srcset="/halo-SSG/upload/image-GFzG.png?width=1200 1200w, /halo-SSG/upload/image-GFzG.png?width=400 400w, /halo-SSG/upload/image-GFzG.png?width=1600 1600w, /halo-SSG/upload/image-GFzG.png?width=800 800w" width="979px"/></figure><p style="">这表示我之前曾经有预留3年的一个虚拟机，由于已经删除了所有计划，所以就移动到了共享计划里，后续可以绑定其他新的订阅里享受优惠，但如果我不做任何操作，我就需要持续每月付费，浪费了这个折扣。</p><p style="">取消这个的方式，在azure里搜索 "预留" ，应该能看到有一个名称就叫"预留"的服务，里面就可以看到这个预留条目，</p><figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-BbjB.png" srcset="/halo-SSG/upload/image-BbjB.png?width=1200 1200w, /halo-SSG/upload/image-BbjB.png?width=400 400w, /halo-SSG/upload/image-BbjB.png?width=1600 1600w, /halo-SSG/upload/image-BbjB.png?width=800 800w" width="1863px"/></figure><p style="">点进去，然后点"退回",就可以取消这个预留了，状态先会变成如图所示的挂起，后台处理完成后就会变成已取消。当然历史已经扣了的就不会再返还了，不过当期的还能退一部分，未来的就全不会扣了。</p>
 </div></div>
 </div>
 
@@ -187,7 +187,7 @@
     <div class="meta">2026/03/30 09:40:13</div>
     
     <div class="post-body"><div class="content-wrp">
-<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-MSpH.png" srcset="/upload/image-MSpH.png?width=1200 1200w, /upload/image-MSpH.png?width=400 400w, /upload/image-MSpH.png?width=1600 1600w, /upload/image-MSpH.png?width=800 800w" width="897px"/></figure><p style="">原来在MACOS 的世界里，</p><p style="">复制不是 <code>ctrl+c</code> ,</p><p style="">切换中英文是 <code>win+space</code></p><p style=""><code>delete</code> 是 <code>backspace</code>,</p><p style="">没有一个键<code>delete</code>.</p>
+<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-MSpH.png" srcset="/halo-SSG/upload/image-MSpH.png?width=1200 1200w, /halo-SSG/upload/image-MSpH.png?width=400 400w, /halo-SSG/upload/image-MSpH.png?width=1600 1600w, /halo-SSG/upload/image-MSpH.png?width=800 800w" width="897px"/></figure><p style="">原来在MACOS 的世界里，</p><p style="">复制不是 <code>ctrl+c</code> ,</p><p style="">切换中英文是 <code>win+space</code></p><p style=""><code>delete</code> 是 <code>backspace</code>,</p><p style="">没有一个键<code>delete</code>.</p>
 </div></div>
 </div>
 
@@ -206,7 +206,7 @@ gh pr edit 1 --base for-yashandb --repo Dark-Athena/halo</code></pre><p style=""
     <div class="meta">2026/03/24 14:48:22</div>
     
     <div class="post-body"><div class="content-wrp">
-<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iyNz.png" srcset="/upload/image-iyNz.png?width=1200 1200w, /upload/image-iyNz.png?width=400 400w, /upload/image-iyNz.png?width=1600 1600w, /upload/image-iyNz.png?width=800 800w" width="228px"/></figure><p style="">DBeaver 里，对于三批国测名单，只剩海量、虚谷、神通三家没支持了，当然海量用GaussDB的也能连。另外，有原生支持连接的只有DM/GAUSSDB/GBASE8S/KINGBASE/OCEANBASE/TIDB/YASHANDB ,YASHANDB 这个PR还没合进去，我从pr的fork仓里自己构建的，实测和连ORACLE的感觉一样。注意这里oceanbase只能连接mysql租户</p><p style=""></p>
+<figure data-content-type="image" style="align-items: start; display: flex; flex-direction: column"><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-iyNz.png" srcset="/halo-SSG/upload/image-iyNz.png?width=1200 1200w, /halo-SSG/upload/image-iyNz.png?width=400 400w, /halo-SSG/upload/image-iyNz.png?width=1600 1600w, /halo-SSG/upload/image-iyNz.png?width=800 800w" width="228px"/></figure><p style="">DBeaver 里，对于三批国测名单，只剩海量、虚谷、神通三家没支持了，当然海量用GaussDB的也能连。另外，有原生支持连接的只有DM/GAUSSDB/GBASE8S/KINGBASE/OCEANBASE/TIDB/YASHANDB ,YASHANDB 这个PR还没合进去，我从pr的fork仓里自己构建的，实测和连ORACLE的感觉一样。注意这里oceanbase只能连接mysql租户</p><p style=""></p>
 </div></div>
 </div>
 
@@ -252,7 +252,7 @@ gh pr edit 1 --base for-yashandb --repo Dark-Athena/halo</code></pre><p style=""
     
     <div class="post-body"><div class="content-wrp">
 <p style="">搞信创，应用开发两年测两年，刚上线，操作系统就进入扩展支持期了。。。</p>
-<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/%E9%93%B6%E6%B2%B3%E9%BA%92%E9%BA%9F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%89%88%E6%94%AF%E6%8C%81%E5%91%A8%E6%9C%9F%E7%94%98%E7%89%B9%E5%9B%BE_%E6%AF%8F%E5%B9%B4%E4%B8%80%E6%A0%BC%E7%89%88.png" srcset="/upload/%E9%93%B6%E6%B2%B3%E9%BA%92%E9%BA%9F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%89%88%E6%94%AF%E6%8C%81%E5%91%A8%E6%9C%9F%E7%94%98%E7%89%B9%E5%9B%BE_%E6%AF%8F%E5%B9%B4%E4%B8%80%E6%A0%BC%E7%89%88.png?width=1200 1200w, /upload/%E9%93%B6%E6%B2%B3%E9%BA%92%E9%BA%9F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%89%88%E6%94%AF%E6%8C%81%E5%91%A8%E6%9C%9F%E7%94%98%E7%89%B9%E5%9B%BE_%E6%AF%8F%E5%B9%B4%E4%B8%80%E6%A0%BC%E7%89%88.png?width=400 400w, /upload/%E9%93%B6%E6%B2%B3%E9%BA%92%E9%BA%9F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%89%88%E6%94%AF%E6%8C%81%E5%91%A8%E6%9C%9F%E7%94%98%E7%89%B9%E5%9B%BE_%E6%AF%8F%E5%B9%B4%E4%B8%80%E6%A0%BC%E7%89%88.png?width=1600 1600w, /upload/%E9%93%B6%E6%B2%B3%E9%BA%92%E9%BA%9F%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%89%88%E6%94%AF%E6%8C%81%E5%91%A8%E6%9C%9F%E7%94%98%E7%89%B9%E5%9B%BE_%E6%AF%8F%E5%B9%B4%E4%B8%80%E6%A0%BC%E7%89%88.png?width=800 800w"/>
+<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png" srcset="/halo-SSG/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=1200 1200w, /halo-SSG/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=400 400w, /halo-SSG/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=1600 1600w, /halo-SSG/upload/银河麒麟服务器版支持周期甘特图_每年一格版.png?width=800 800w"/>
 </div></div>
 </div>
 
@@ -746,7 +746,7 @@ YashanDB Server Enterprise Edition Release 23.4.2.104 x86_64 - Linux
     
     <div class="post-body"><div class="content-wrp">
 <p style="">不想再更新OSCHINA了</p><p style=""></p>
-<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-08-20%20202839.png" srcset="/upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-08-20%20202839.png?width=1200 1200w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-08-20%20202839.png?width=400 400w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-08-20%20202839.png?width=1600 1600w, /upload/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202025-08-20%20202839.png?width=800 800w"/>
+<img onerror="Joe.errorImg(this, 'LoadFailedImg')" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2025-08-20 202839.png" srcset="/halo-SSG/upload/屏幕截图 2025-08-20 202839.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2025-08-20 202839.png?width=400 400w, /halo-SSG/upload/屏幕截图 2025-08-20 202839.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2025-08-20 202839.png?width=800 800w"/>
 </div></div>
 </div>
 
@@ -1465,7 +1465,7 @@ git reset --hard 1617fd98</code></pre><p style=""></p>
     
     <div class="post-body"><div class="content-wrp">
 <p>现在的win10/11，如果装在有TPM芯片的机器上，可能会默认开启设备加密，bitlocker看上去没启用，但磁盘管理器上都会显示bitlocker已加密。如果要关闭，可以在设置里搜索"设备加密"，点击"关闭"<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/10/image.png" srcset="/upload/2023/10/image.png?width=1200 1200w, /upload/2023/10/image.png?width=400 400w, /upload/2023/10/image.png?width=1600 1600w, /upload/2023/10/image.png?width=800 800w"/></p>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2023/10/image.png" srcset="/halo-SSG/upload/2023/10/image.png?width=1200 1200w, /halo-SSG/upload/2023/10/image.png?width=400 400w, /halo-SSG/upload/2023/10/image.png?width=1600 1600w, /halo-SSG/upload/2023/10/image.png?width=800 800w"/></p>
 </div></div>
 </div>
 
@@ -1631,7 +1631,7 @@ docker-compose -f docker-compose_v3_alpine_pgsql_latest.yaml up -d
     <div class="meta">2023/04/29 16:51:04</div>
     
     <div class="post-body"><div class="content-wrp">
-<p><img alt="image-1682757960311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/04/image-1682757960311.png" srcset="/upload/2023/04/image-1682757960311.png?width=1200 1200w, /upload/2023/04/image-1682757960311.png?width=400 400w, /upload/2023/04/image-1682757960311.png?width=1600 1600w, /upload/2023/04/image-1682757960311.png?width=800 800w"/><br/>
+<p><img alt="image-1682757960311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2023/04/image-1682757960311.png" srcset="/halo-SSG/upload/2023/04/image-1682757960311.png?width=1200 1200w, /halo-SSG/upload/2023/04/image-1682757960311.png?width=400 400w, /halo-SSG/upload/2023/04/image-1682757960311.png?width=1600 1600w, /halo-SSG/upload/2023/04/image-1682757960311.png?width=800 800w"/><br/>
 TOS固件重大更新，取消了第三方内存限制，可以尝试增加内存了</p>
 </div></div>
 </div>
@@ -1868,7 +1868,7 @@ docker run --restart=always --name next-terminal -d \
 <p>winscp集成windows terminal的一种方法,</p>
 <pre><code class="language-bash">%ProgramFiles%\WindowsApps\Microsoft.WindowsTerminal_1.15.2874.0_x64__8wekyb3d8bbwe\wt.exe docker run --rm -it ictu/sshpass -p !P ssh -o StrictHostKeyChecking=no !U@!@
 </code></pre>
-<p><img alt="image-1668259586318" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1668259586318.png" srcset="/upload/2022/11/image-1668259586318.png?width=1200 1200w, /upload/2022/11/image-1668259586318.png?width=400 400w, /upload/2022/11/image-1668259586318.png?width=1600 1600w, /upload/2022/11/image-1668259586318.png?width=800 800w"/><br/>
+<p><img alt="image-1668259586318" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1668259586318.png" srcset="/halo-SSG/upload/2022/11/image-1668259586318.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1668259586318.png?width=400 400w, /halo-SSG/upload/2022/11/image-1668259586318.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1668259586318.png?width=800 800w"/><br/>
 原理为 使用sshpass的docker容器<br/>
 前提是本机已经安装了docker desktop</p>
 <p>这个方案有2个小问题，</p>
@@ -1904,8 +1904,8 @@ docker run --restart=always --name next-terminal -d \
     <div class="post-body"><div class="content-wrp">
 <p>2008年注册的CSDN账号，但直到去年第四季度才开始在上面输出自己的知识，没想到成了第一批拥有这个实体化勋章的人。我获评这个勋章的原因是"领军人物/<br/>
 授人以渔"。这个采纳榜截图是今年4月份的，估计已经创下大数据板块单人最高被采纳数的历史了。而之后我由于已经开始正式工作，也没时间盯着问题去答了，但是之前所做的这些也算是给数据库这个圈子增加了不少的热度<br/>
-<img alt="2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg" srcset="/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1200 1200w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=400 400w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1600 1600w, /upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=800 800w"/><br/>
-<img alt="a596ecf08ef766739d3eac57ba426339_talk_1659182155526" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png" srcset="/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1200 1200w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=400 400w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1600 1600w, /upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=800 800w"/></p>
+<img alt="2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg" srcset="/halo-SSG/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1200 1200w, /halo-SSG/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=400 400w, /halo-SSG/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=1600 1600w, /halo-SSG/upload/2022/07/2e370cdf454a3c6daeee8d296b9c9a09_talk_1659182155311.jpg?width=800 800w"/><br/>
+<img alt="a596ecf08ef766739d3eac57ba426339_talk_1659182155526" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png" srcset="/halo-SSG/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1200 1200w, /halo-SSG/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=400 400w, /halo-SSG/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=1600 1600w, /halo-SSG/upload/2022/07/a596ecf08ef766739d3eac57ba426339_talk_1659182155526.png?width=800 800w"/></p>
 </div></div>
 </div>
 
@@ -1960,7 +1960,7 @@ docker run --restart=always --name next-terminal -d \
     
     <div class="post-body"><div class="content-wrp">
 <p>最近很少写文章,主要是花了比较多的时间去做解答了,</p>
-<p><img alt="屏幕截图 2022-04-10 135947" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202022-04-10%20135947.png" srcset="/upload/2022/04/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202022-04-10%20135947.png?width=1200 1200w, /upload/2022/04/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202022-04-10%20135947.png?width=400 400w, /upload/2022/04/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202022-04-10%20135947.png?width=1600 1600w, /upload/2022/04/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202022-04-10%20135947.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2022-04-10 135947" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/04/屏幕截图 2022-04-10 135947.png" srcset="/halo-SSG/upload/2022/04/屏幕截图 2022-04-10 135947.png?width=1200 1200w, /halo-SSG/upload/2022/04/屏幕截图 2022-04-10 135947.png?width=400 400w, /halo-SSG/upload/2022/04/屏幕截图 2022-04-10 135947.png?width=1600 1600w, /halo-SSG/upload/2022/04/屏幕截图 2022-04-10 135947.png?width=800 800w"/></p>
 <p>另外还在进行一些学习,也占用了不少时间。<br/>
 有些问答我已经搬到了《经典问答》板块<a href="https://www.darkathena.top/s/classicqa" target="_blank">https://www.darkathena.top/s/classicqa</a>,里面有些sql还是有点意思的</p>
 </div></div>

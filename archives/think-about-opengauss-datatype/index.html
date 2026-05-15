@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】记录一次关于对openGauss(postgresql)数据类型的摸索经过及感想 - DA-技术分享-静态站</title>
     <meta name="description" content="背景起因是这样的，本来想写一篇文章来描述Oracle及openGauss中raw/blob类型的差异，但是写到一半，发现对官方文档中raw存储的是十六进制字符串这点有点不理解https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/%E4%BA%">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】记录一次关于对openGauss(postgresql)数据类型的摸索经过及感想</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>981 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a> / 
+        <a href="/halo-SSG/categories/opengauss">openGauss</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -168,7 +168,7 @@
 <p>如果是在oracle里，可以使用dump函数来获得实际存储的信息，但是在openGauss/pg里却没有找到对应的函数（可能有，但我没找到）。于是我想到compat-tools里提供了dump的兼容函数，于是试着查了一下，发现报错，原因是这个函数内直接用"::bytea"来将输入参数强制转换成二进制类型，但实际上并不是所有类型都能这么转的，甚至连自带的int类型都不能直接转换成bytea<br/>
 然后想到，我之前整理raw类型相关的函数时，有个rawsend可以把raw转换成bytea，而且貌似看见过其他的以type名称开头以send结尾的函数，我就在想，pg是不是有什么机制，要求所有的类型都要有send函数，而且极有可能有个配置存储了类型与send函数之间的关系，自然而然的联想到会不会有个叫pg_type的表里面刚好存了？<br/>
 一查，果然<br/>
-<img alt="image-1652455431472" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652455431472.png" srcset="/upload/2022/05/image-1652455431472.png?width=1200 1200w, /upload/2022/05/image-1652455431472.png?width=400 400w, /upload/2022/05/image-1652455431472.png?width=1600 1600w, /upload/2022/05/image-1652455431472.png?width=800 800w"/></p>
+<img alt="image-1652455431472" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/05/image-1652455431472.png" srcset="/halo-SSG/upload/2022/05/image-1652455431472.png?width=1200 1200w, /halo-SSG/upload/2022/05/image-1652455431472.png?width=400 400w, /halo-SSG/upload/2022/05/image-1652455431472.png?width=1600 1600w, /halo-SSG/upload/2022/05/image-1652455431472.png?width=800 800w"/></p>
 <p>然后我顺便去搜了下官方文档，发现官方文档其实有介绍这个表</p>
 <p><a href="https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/PG_TYPE.html" target="_blank">https://opengauss.org/zh/docs/3.0.0/docs/Developerguide/PG_TYPE.html</a></p>
 <table>
@@ -266,9 +266,9 @@ select public.dump(n), public.dump(t) from dump_test;
 于是我把目光聚焦到orafce这个插件上，这个插件是开源的，我先克隆下来看看<br/>
 <a href="https://github.com/orafce/orafce" target="_blank">https://github.com/orafce/orafce</a></p>
 <p>然后找到它调用的函数<br/>
-<img alt="image-1652458903334" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652458903334.png" srcset="/upload/2022/05/image-1652458903334.png?width=1200 1200w, /upload/2022/05/image-1652458903334.png?width=400 400w, /upload/2022/05/image-1652458903334.png?width=1600 1600w, /upload/2022/05/image-1652458903334.png?width=800 800w"/></p>
+<img alt="image-1652458903334" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/05/image-1652458903334.png" srcset="/halo-SSG/upload/2022/05/image-1652458903334.png?width=1200 1200w, /halo-SSG/upload/2022/05/image-1652458903334.png?width=400 400w, /halo-SSG/upload/2022/05/image-1652458903334.png?width=1600 1600w, /halo-SSG/upload/2022/05/image-1652458903334.png?width=800 800w"/></p>
 <p>可以看到它这里使用了get_fn_expr_argtype来获取类型，而这个函数同样大量出现在pg数据库源码内，其中就包括了前面提到的pg_typeof函数。<br/>
-<img alt="image-1652459173777" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/05/image-1652459173777.png" srcset="/upload/2022/05/image-1652459173777.png?width=1200 1200w, /upload/2022/05/image-1652459173777.png?width=400 400w, /upload/2022/05/image-1652459173777.png?width=1600 1600w, /upload/2022/05/image-1652459173777.png?width=800 800w"/><br/>
+<img alt="image-1652459173777" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/05/image-1652459173777.png" srcset="/halo-SSG/upload/2022/05/image-1652459173777.png?width=1200 1200w, /halo-SSG/upload/2022/05/image-1652459173777.png?width=400 400w, /halo-SSG/upload/2022/05/image-1652459173777.png?width=1600 1600w, /halo-SSG/upload/2022/05/image-1652459173777.png?width=800 800w"/><br/>
 可是，pg_typeof能输出正确的类型，而orafce的dump输出的却是错误的类型，那么肯定还有哪里不一样。</p>
 <p>可惜我知识水平能力只能到这里了。</p>
 <h2 id="%E6%80%BB%E7%BB%93" tabindex="-1">总结</h2>
@@ -282,19 +282,19 @@ select public.dump(n), public.dump(t) from dump_test;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-opengauss-lob-type">&larr; 【openGauss】谈一谈openGauss对Oracle中lob类型的兼容情况</a>
+    <a href="/halo-SSG/archives/about-opengauss-lob-type">&larr; 【openGauss】谈一谈openGauss对Oracle中lob类型的兼容情况</a>
     
     
-    <a href="/archives/opengauss-datastudio300">【openGauss】尝鲜openGauss官方客户端工具DataStudio3.0.0 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-datastudio300">【openGauss】尝鲜openGauss官方客户端工具DataStudio3.0.0 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法 - DA-技术分享-静态站</title>
     <meta name="description" content="一、背景 目前仍然很多客户的运维机使用windows操作系统，开发人员也是在windows环境上进行编码测试，甚至还有一些客户管理比较严格，禁止开发人员登录服务器进行操作。在MogDB 5.2.0版本之前，没有提供windows平台的gsql，因此在windows上执行一些批处理SQL脚本会很不方便">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>143 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -356,9 +356,9 @@ Elapsed time was:     0 s
 C:\test&gt;
 </code></pre>
 <h2 id="四-和ORACLE执行的效果对比">四、和ORACLE执行的效果对比</h2>
-<p><img alt="image-plgs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-plgs.png" srcset="/upload/image-plgs.png?width=1200 1200w, /upload/image-plgs.png?width=400 400w, /upload/image-plgs.png?width=1600 1600w, /upload/image-plgs.png?width=800 800w"/></p>
-<p><img alt="image-sozv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sozv.png" srcset="/upload/image-sozv.png?width=1200 1200w, /upload/image-sozv.png?width=400 400w, /upload/image-sozv.png?width=1600 1600w, /upload/image-sozv.png?width=800 800w"/></p>
-<p><img alt="image-drtq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-drtq.png" srcset="/upload/image-drtq.png?width=1200 1200w, /upload/image-drtq.png?width=400 400w, /upload/image-drtq.png?width=1600 1600w, /upload/image-drtq.png?width=800 800w"/></p>
+<p><img alt="image-plgs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-plgs.png" srcset="/halo-SSG/upload/image-plgs.png?width=1200 1200w, /halo-SSG/upload/image-plgs.png?width=400 400w, /halo-SSG/upload/image-plgs.png?width=1600 1600w, /halo-SSG/upload/image-plgs.png?width=800 800w"/></p>
+<p><img alt="image-sozv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-sozv.png" srcset="/halo-SSG/upload/image-sozv.png?width=1200 1200w, /halo-SSG/upload/image-sozv.png?width=400 400w, /halo-SSG/upload/image-sozv.png?width=1600 1600w, /halo-SSG/upload/image-sozv.png?width=800 800w"/></p>
+<p><img alt="image-drtq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-drtq.png" srcset="/halo-SSG/upload/image-drtq.png?width=1200 1200w, /halo-SSG/upload/image-drtq.png?width=400 400w, /halo-SSG/upload/image-drtq.png?width=1600 1600w, /halo-SSG/upload/image-drtq.png?width=800 800w"/></p>
 <h2 id="五-总结">五、总结</h2>
 <p>本文所列出的功能，在windows上的sqlplus和gsql、sqlldr和gs_loader的最终执行效果几乎完全一致。甚至如果本地没有sqlplus/sqlldr，把gsql.exe/gs_loader.exe改成sqlplus.exe/sqlldr.exe，批处理的脚本几乎不用改，可以把MogDB当成ORACLE去执行这些脚本。</p>
 <p>当然，其实也可以看到，有一些运维常用命令在这个版本中的gsql并没有支持，比如 <code>exit</code>退出客户端，<code>conn</code>的完整指令 <code>connect</code>,<code>execute</code>的缩写 <code>exec</code>。实现这些并不麻烦，只要选择了使用MogDB，后续都可能实现。</p>
@@ -370,19 +370,19 @@ C:\test&gt;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/opengauss-float2int-cast-round">&larr; 【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换</a>
+    <a href="/halo-SSG/archives/opengauss-float2int-cast-round">&larr; 【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换</a>
     
     
-    <a href="/archives/mogeaver-step-by-step-tutorial">【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了 &rarr;</a>
+    <a href="/halo-SSG/archives/mogeaver-step-by-step-tutorial">【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了 &rarr;</a>
     
 </div>
 

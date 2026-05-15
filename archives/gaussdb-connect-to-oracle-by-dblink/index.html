@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【GaussDB】使用DBLINK连接到ORACLE - DA-技术分享-静态站</title>
     <meta name="description" content="GaussDB 从内核 506版本(20250430发布)起，支持通过DBLINK连接到ORACLE数据库 https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0811.html 安装 使用这个功能，">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,28 +128,28 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【GaussDB】使用DBLINK连接到ORACLE</h1>
     <div class="meta">
         
         <span>2025-05-20</span>
         
-        <span>294 阅读</span>
+        <span>295 阅读</span>
         
     </div>
     <div class="post-body">
@@ -165,9 +165,9 @@
 <li>另一种方案是使用tpops平台上传插件包和安装插件，该方案纯白屏化操作，无需ssh到服务器</li>
 </ul>
 <p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/usermanual/qlh_02_0431.html">&lt;上传插件包&gt;</a></p>
-<p><img alt="image-bxke.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bxke.png" srcset="/upload/image-bxke.png?width=1200 1200w, /upload/image-bxke.png?width=400 400w, /upload/image-bxke.png?width=1600 1600w, /upload/image-bxke.png?width=800 800w"/></p>
+<p><img alt="image-bxke.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-bxke.png" srcset="/halo-SSG/upload/image-bxke.png?width=1200 1200w, /halo-SSG/upload/image-bxke.png?width=400 400w, /halo-SSG/upload/image-bxke.png?width=1600 1600w, /halo-SSG/upload/image-bxke.png?width=800 800w"/></p>
 <p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/usermanual/qlh_02_0426.html">&lt;插件安装&gt;</a></p>
-<p><img alt="image-gdod.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-gdod.png" srcset="/upload/image-gdod.png?width=1200 1200w, /upload/image-gdod.png?width=400 400w, /upload/image-gdod.png?width=1600 1600w, /upload/image-gdod.png?width=800 800w"/></p>
+<p><img alt="image-gdod.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-gdod.png" srcset="/halo-SSG/upload/image-gdod.png?width=1200 1200w, /halo-SSG/upload/image-gdod.png?width=400 400w, /halo-SSG/upload/image-gdod.png?width=1600 1600w, /halo-SSG/upload/image-gdod.png?width=800 800w"/></p>
 <p>需要注意的是，TPOPS这个版本仅支持以下表格中的instantclient版本上传，并且需要保证填写的cksum和ORACLE官方页面上保持一致,但由于ORACLE官方下载页面只会保留最新的版本，因此就算通过某种方式得到了原本的官方包，也没有官方页面可以获得cksum值了，只能通过GaussDB文档里来获取这些版本的cksum值。</p>
 <table>
 <thead>
@@ -249,24 +249,24 @@ export TNS_ADMIN=$ORACLE_HOME/network/admin
 <li>从gs_ora_fdw.control这个文件里看，里面的comment和oracle_fdw一样，都是 <code>foreign data wrapper for Oracle access</code>，但是没有找到对应的so（疑似打包到了主程序里）</li>
 <li>gs_ora_fdw极有可能是基于oracle_fdw改的，文档中的oracle_fdw还没有替换干净，不过gs_ora_fdw很多下推场景是oracle_fdw所不具备的，应该是做了不少优化</li>
 </ol>
-<p><img alt="image-hmfi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hmfi.png" srcset="/upload/image-hmfi.png?width=1200 1200w, /upload/image-hmfi.png?width=400 400w, /upload/image-hmfi.png?width=1600 1600w, /upload/image-hmfi.png?width=800 800w"/></p>
+<p><img alt="image-hmfi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hmfi.png" srcset="/halo-SSG/upload/image-hmfi.png?width=1200 1200w, /halo-SSG/upload/image-hmfi.png?width=400 400w, /halo-SSG/upload/image-hmfi.png?width=1600 1600w, /halo-SSG/upload/image-hmfi.png?width=800 800w"/></p>
 </div>
 </article>
     </div>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/mogdb-ubuntu-server-22.04-lts-install">&larr; 【MogDB】测试 ubuntu server 22.04 LTS 安装mogdb 5.0.11</a>
+    <a href="/halo-SSG/archives/mogdb-ubuntu-server-22.04-lts-install">&larr; 【MogDB】测试 ubuntu server 22.04 LTS 安装mogdb 5.0.11</a>
     
     
-    <a href="/archives/oracle-merge-into-some-bug">【ORACLE】记录一些ORACLE的merge into语句的BUG &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-merge-into-some-bug">【ORACLE】记录一些ORACLE的merge into语句的BUG &rarr;</a>
     
 </div>
 

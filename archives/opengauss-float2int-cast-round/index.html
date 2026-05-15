@@ -6,7 +6,7 @@
     <title>【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换 - DA-技术分享-静态站</title>
     <meta name="description" content="一、问题背景 在一次测试中，发现下面这条sql在oracle和POSTGRESQL/OPENGAUSS中的查询结果不一致 select  cast(cast(0.5 as float) as integer);
  在oracle中返回1，在openGauss中返回0，咋一看好像是openGauss中">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -129,21 +129,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】OPENGAUSS/POSTGRESQL 中float类型到int类型的隐式转换</h1>
     <div class="meta">
@@ -152,7 +152,7 @@
         
         <span>199 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -297,7 +297,7 @@ Datum dtoi8(PG_FUNCTION_ARGS)
 </blockquote>
 <p>这里是按照常规的算法进行四舍五入的，但结果竟然和银行家算法一样。</p>
 <p>看到这里我一下犯了迷糊，理所当然的认为一定会走到这个rint，但后来根据openGauss社区专家的指点，实际上这里调用的是 <code>std::rint(float)</code>，c++内置的一个标准函数，而这个函数就是使用的银行家算法！</p>
-<p><img alt="85bb206f2d90efee4de5638cff15d12.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/85bb206f2d90efee4de5638cff15d12.png" srcset="/upload/85bb206f2d90efee4de5638cff15d12.png?width=1200 1200w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=400 400w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=1600 1600w, /upload/85bb206f2d90efee4de5638cff15d12.png?width=800 800w"/></p>
+<p><img alt="85bb206f2d90efee4de5638cff15d12.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/85bb206f2d90efee4de5638cff15d12.png" srcset="/halo-SSG/upload/85bb206f2d90efee4de5638cff15d12.png?width=1200 1200w, /halo-SSG/upload/85bb206f2d90efee4de5638cff15d12.png?width=400 400w, /halo-SSG/upload/85bb206f2d90efee4de5638cff15d12.png?width=1600 1600w, /halo-SSG/upload/85bb206f2d90efee4de5638cff15d12.png?width=800 800w"/></p>
 <h2 id="三-扩展">三、扩展</h2>
 <p>既然已经定位到了原理，于是我们回到ORACLE看看，不精确的浮点类型在ORACLE的表现是怎样的？其实ORACLE也有这种浮点类型，叫binary_float和binary_double，这两个类型不能在sql中使用，只能在plsql中使用，我们写个简单的例子在ORACLE进行测试</p>
 <pre><code class="language-sql">declare
@@ -357,19 +357,19 @@ end;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/mogdb-5.2.0-support-oracle-sql-hint">&larr; 【MogDB】MogDB5.2.0重磅发布第五篇-支持部分ORACLE的HINT</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-oracle-sql-hint">&larr; 【MogDB】MogDB5.2.0重磅发布第五篇-支持部分ORACLE的HINT</a>
     
     
-    <a href="/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法 &rarr;</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法 &rarr;</a>
     
 </div>
 

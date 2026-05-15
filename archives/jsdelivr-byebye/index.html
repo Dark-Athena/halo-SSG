@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【站长工具】jsdelivr挂了后,我是如何拯救我的个人网站的(halo) - DA-技术分享-静态站</title>
     <meta name="description" content="前言众所周知,在去年年底,知名的免费cdn服务提供商jsdelivr由于大陆域名备案的问题,没有国内的CDN加速了,目前都只能解析到海外,不但速度慢,还会偶发性无法连接到服务器。因此国内超多网站都受到了影响。有人说可以批量修改引用的url,都改成 unpkg.com,但实测,我的个人网站上有一半的j">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【站长工具】jsdelivr挂了后,我是如何拯救我的个人网站的(halo)</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>2604 阅读</span>
         
-        <a href="/categories/%E7%AB%99%E9%95%BF%E5%B7%A5%E5%85%B7">站长工具</a>
+        <a href="/halo-SSG/categories/%E7%AB%99%E9%95%BF%E5%B7%A5%E5%85%B7">站长工具</a>
         
     </div>
     <div class="post-body">
@@ -166,17 +166,17 @@
 <ol>
 <li>
 <p>打开博客模板文件夹,找出所有包含jsdelivr的链接,去重后发现有39个链接<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png" srcset="/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1200 1200w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=400 400w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1600 1600w, /upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png" srcset="/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1200 1200w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=400 400w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1600 1600w, /upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png" srcset="/halo-SSG/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=400 400w, /halo-SSG/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-7c2a2db1b3cb4e6a9d2e78394fdeecc3.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png" srcset="/halo-SSG/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=400 400w, /halo-SSG/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-4269e198087b40559289b5b59ecbf7ef.png?width=800 800w"/></p>
 </li>
 <li>
 <p>然后写入一个文本文件<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png" srcset="/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1200 1200w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=400 400w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1600 1600w, /upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png" srcset="/halo-SSG/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=400 400w, /halo-SSG/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-04f328b9e9f342149c9f27fd77442b54.png?width=800 800w"/></p>
 </li>
 <li>
 <p>编写下载程序<br/>
 可以看到这个目录结构相当复杂,如果要做最少的改动,应该让下载文件后的目录与链接路径保持一致,于是我想到了我以前曾经用网际快车下载过整个网站,但这玩意早就过时了,也懒得装软件。现在用python应该就可以实现,为避免重复造轮子,这种想法肯定有人也曾有过,于是先搜,轻松找到一篇文章<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png" srcset="/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1200 1200w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=400 400w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1600 1600w, /upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png" srcset="/halo-SSG/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=400 400w, /halo-SSG/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-0ba53b6fac8a4daa9688baaecd725d45.png?width=800 800w"/><br/>
 <a href="https://zhuanlan.zhihu.com/p/62876301">让Python自动下载网站所有文件 ! https://zhuanlan.zhihu.com/p/62876301</a></p>
 </li>
 </ol>
@@ -255,21 +255,21 @@ if __name__ == '__main__':
 <li>
 <p>执行<br/>
 将上面的代码保存成py文件后执行,就会在当前目录下生成cdn.jsdelivr.net的主目录及其子目录和文件<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png" srcset="/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1200 1200w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=400 400w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1600 1600w, /upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png" srcset="/halo-SSG/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=400 400w, /halo-SSG/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-0974dc8ee772461f8be787f426f5cd7a.png?width=800 800w"/></p>
 </li>
 <li>
 <p>上传文件夹到服务器<br/>
 由于我是使用的halo博客,可以自定义添加静态资源,直接把下载的gh和npm两个文件夹整个拖到/root/.halo/static目录即可<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png" srcset="/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1200 1200w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=400 400w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1600 1600w, /upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png" srcset="/halo-SSG/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=400 400w, /halo-SSG/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-4dcf4fcb9e94423b832831210366d9de.png?width=800 800w"/></p>
 </li>
 <li>
 <p>修改博客模板中的链接<br/>
 这个就容易了,直接打开模板中的所有文件,批量将cdn.jsdelivr.net替换成我网站的域名,并保存,覆盖到服务器上<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png" srcset="/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1200 1200w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=400 400w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1600 1600w, /upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png" srcset="/halo-SSG/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=400 400w, /halo-SSG/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-74c074c2c2214e6cbc52d86a290aad55.png?width=800 800w"/></p>
 </li>
 <li>
 <p>最终效果<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png" srcset="/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1200 1200w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=400 400w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1600 1600w, /upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png" srcset="/halo-SSG/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1200 1200w, /halo-SSG/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=400 400w, /halo-SSG/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=1600 1600w, /halo-SSG/upload/2022/03/image-9545e8b563fd4f55b456fa4f5c439f9c.png?width=800 800w"/></p>
 </li>
 </ol>
 <h2 id="说点题外的">说点题外的</h2>
@@ -281,17 +281,17 @@ if __name__ == '__main__':
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/%E6%9D%82%E8%B0%88">杂谈</a>
+        <a class="tag" href="/halo-SSG/tags/%E6%9D%82%E8%B0%88">杂谈</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-utl-encode-and-emulate-cal">&larr; 【ORACLE】详解oracle数据库UTL_ENCODE包各个函数的模拟算法</a>
+    <a href="/halo-SSG/archives/about-utl-encode-and-emulate-cal">&larr; 【ORACLE】详解oracle数据库UTL_ENCODE包各个函数的模拟算法</a>
     
     
-    <a href="/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法 &rarr;</a>
+    <a href="/halo-SSG/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法 &rarr;</a>
     
 </div>
 

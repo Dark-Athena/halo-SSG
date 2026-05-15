@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题 - DA-技术分享-静态站</title>
     <meta name="description" content="JSON(JavaScript Object Notation) 是一种轻量级的数据交换格式。它基于JavaScript（Standard ECMA-262 3rd Edition - December 1999）的一个子集。 JSON采用完全独立于语言的文本格式，但是也使用了类似于C语言家族的习惯">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1012 阅读</span>
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -236,11 +236,11 @@ not(starts-with(.,'-0.' )))
 <h2></h2>
 <p>但是，这个问题其实还没完，因为这个json库还有其他问题，开发者会进行不定期更新，每次我这边数据库里对这个包进行更新时，还要自己手动修复这个bug，所以我把这个问题及解决方案提交给了这个json库的开发者<br/>
 <a href="https://github.com/pljson/pljson/issues/237">https://github.com/pljson/pljson/issues/237</a><br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png" srcset="/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1200 1200w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=400 400w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1600 1600w, /upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png" srcset="/halo-SSG/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=400 400w, /halo-SSG/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=800 800w"/><br/>
 然后这个问题终于在之后的版本中得到了修复。</p>
 <h2></h2>
 <p>但是还有但是，我提交的这个问题后面，又有另一个人提了另一个问题<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png" srcset="/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1200 1200w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=400 400w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1600 1600w, /upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png" srcset="/halo-SSG/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=400 400w, /halo-SSG/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=800 800w"/><br/>
 大概意思就是如果把数字字符集改成德国的，这个修复方案就还是不行，所以这个开发者后面又改了一版。</p>
 <p>至此，这个问题应该算是正式解决了，但是，没错，还有个但是。</p>
 <h2></h2>
@@ -258,19 +258,19 @@ not(starts-with(.,'-0.' )))
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/sqltojson%E6%95%88%E7%8E%87%E4%BC%98%E5%8C%96">&larr; 【ORACLE】关于pljson_util_pkg.sql_to_json转换大量数据的效率优化方案</a>
+    <a href="/halo-SSG/archives/sqltojson%E6%95%88%E7%8E%87%E4%BC%98%E5%8C%96">&larr; 【ORACLE】关于pljson_util_pkg.sql_to_json转换大量数据的效率优化方案</a>
     
     
-    <a href="/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格 &rarr;</a>
+    <a href="/halo-SSG/archives/%E4%BB%BB%E6%84%8Fsql%E7%94%9F%E6%88%90html%E8%A1%A8%E6%A0%BC">【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格 &rarr;</a>
     
 </div>
 

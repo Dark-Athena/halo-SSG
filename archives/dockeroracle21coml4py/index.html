@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【docker】大小仅3GB的Oracle21c的docker镜像，含apex和oml4py - DA-技术分享-静态站</title>
     <meta name="description" content="前言之前在【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像这篇文章中，最后构建出来的docker镜像有15GB，上传阿里云压缩后也有9GB，我怎么算都不对劲，系统100M,数据库也就几个GB，加上APEX，怎么也应该也不会超过10GB，有没有办法把大">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【docker】大小仅3GB的Oracle21c的docker镜像，含apex和oml4py</h1>
     <div class="meta">
@@ -151,11 +151,11 @@
         
         <span>1273 阅读</span>
         
-        <a href="/categories/python">python</a> / 
+        <a href="/halo-SSG/categories/python">python</a> / 
         
-        <a href="/categories/oracle">ORACLE</a> / 
+        <a href="/halo-SSG/categories/oracle">ORACLE</a> / 
         
-        <a href="/categories/docker">docker</a>
+        <a href="/halo-SSG/categories/docker">docker</a>
         
     </div>
     <div class="post-body">
@@ -168,7 +168,7 @@
 <p>于是我运行了一下</p>
 <pre><code>image history imageid
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png" srcset="/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=1200 1200w, /upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=400 400w, /upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=1600 1600w, /upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png" srcset="/halo-SSG/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=400 400w, /halo-SSG/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-6448c52649fc4eb193a9a2f73a47c116.png?width=800 800w"/></p>
 <p>发现有些层的数据大小出现了重复，有个3GB大小的额外出现了2次，所以导致整个镜像很大。于是我又仔细看了下Tim Hall的dockefile，发现写得很整齐规范，根据执行内容的不同，把代码分成了很多个阶段，并标有注释。</p>
 <p>但是，对于dockerfile来说，每执行一条指令，它就会构建一个新的层。如果某条指令有修改现有的文件，那么它就会把数据都复制出一个新的层，这样大小就翻倍了。就算在本层把无用大文件删掉，上一层的大小还是不会变，因为上一层还有这个大文件。</p>
 <p>所以，有时候会发现，常见的dockerfile都是用"&amp;&amp;\"把代码合并成一条来执行的，但本次的dockerfile代码量有点多，全合成一行不方便查看和修改，所以此时就要引入多阶段构建的概念。</p>
@@ -222,11 +222,11 @@ CMD exec ${SCRIPTS_DIR}/start.sh
 <p>可以看到并不用修改多少代码，即可把所有无用的层都干掉，每个文件只留一份数据。</p>
 <h2 id="成品">成品</h2>
 <p>按这个方案构建后，最终的镜像大小只有9GB了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png" srcset="/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=1200 1200w, /upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=400 400w, /upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=1600 1600w, /upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png" srcset="/halo-SSG/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=400 400w, /halo-SSG/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-b282c7cdc9c84ba38d449845057de9c4.png?width=800 800w"/></p>
 <p>然后上传阿里云<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png" srcset="/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=1200 1200w, /upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=400 400w, /upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=1600 1600w, /upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png" srcset="/halo-SSG/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=400 400w, /halo-SSG/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-95eccb176b8f4bbc970b7c3a3895dc84.png?width=800 800w"/></p>
 <p>阿里云压缩后只有3G了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png" srcset="/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=1200 1200w, /upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=400 400w, /upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=1600 1600w, /upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png" srcset="/halo-SSG/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=400 400w, /halo-SSG/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-a0aa2aa55d594531a6d305c751069511.png?width=800 800w"/></p>
 <p>项目地址：<a href="https://github.com/Dark-Athena/dockerfile/tree/main/ol8_21_oml4py">https://github.com/Dark-Athena/dockerfile/tree/main/ol8_21_oml4py</a></p>
 <p>docker pull及run：</p>
 <pre><code>docker pull registry.cn-shanghai.aliyuncs.com/darkathena/ol8_21_oml4py:2.0
@@ -245,21 +245,21 @@ Feel free to copy or fork this stuff. It's unlikely I'll accept pull requests as
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/python">python</a>
+        <a class="tag" href="/halo-SSG/tags/python">python</a>
         
-        <a class="tag" href="/tags/docker">docker</a>
+        <a class="tag" href="/halo-SSG/tags/docker">docker</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle-new-features-article-list">&larr; 【ORACLE】ORACLE数据库新特性相关文章汇总(18C-21C)</a>
+    <a href="/halo-SSG/archives/oracle-new-features-article-list">&larr; 【ORACLE】ORACLE数据库新特性相关文章汇总(18C-21C)</a>
     
     
-    <a href="/archives/about-oml4py-part2">【ORACLE】关于21c版本中机器学习OML4PY功能嵌入式python代码执行的研究整理 &rarr;</a>
+    <a href="/halo-SSG/archives/about-oml4py-part2">【ORACLE】关于21c版本中机器学习OML4PY功能嵌入式python代码执行的研究整理 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像 - DA-技术分享-静态站</title>
     <meta name="description" content="前言最近有不少ORACLE21C的特性想测试，但是它有些特性是基于ORACLE LINUX操作系统的，网上没搜到现成docker或者虚拟机镜像，而且oracle cloud免费的21c体验不对中国区信用卡用户开放(上次办的万事达只能用19c)，于是我打算自己弄一个。首先我尝试了Tim Hook提供的">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】从安装ORACLE LINUX 8开始构建一个ORACLE21C的docker镜像</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1945 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a> / 
+        <a href="/halo-SSG/categories/oracle">ORACLE</a> / 
         
-        <a href="/categories/docker">docker</a>
+        <a href="/halo-SSG/categories/docker">docker</a>
         
     </div>
     <div class="post-body">
@@ -178,59 +178,59 @@ VERR_NEM_INIT_FAILED (VERR_NEM_VM_CREATE_FAILED).
 <h2 id="新建虚拟机">新建虚拟机</h2>
 <h3 id="虚拟机硬件部分">虚拟机硬件部分</h3>
 <p>点创建新的虚拟机<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png" srcset="/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=1200 1200w, /upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=400 400w, /upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=1600 1600w, /upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png" srcset="/halo-SSG/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=400 400w, /halo-SSG/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-9320d63a9f55433aa13788d36af5b6ee.png?width=800 800w"/><br/>
 典型，下一步<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png" srcset="/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=1200 1200w, /upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=400 400w, /upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=1600 1600w, /upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png" srcset="/halo-SSG/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=400 400w, /halo-SSG/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-f9cf2d6d2777446b8fdc47f28b37f01e.png?width=800 800w"/><br/>
 选择安装光盘镜像，下一步<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png" srcset="/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=1200 1200w, /upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=400 400w, /upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=1600 1600w, /upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png" srcset="/halo-SSG/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=400 400w, /halo-SSG/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-28399ef24d4e4a689febe8e9f4745b5a.png?width=800 800w"/><br/>
 设置名称和虚拟机保存位置，下一步<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png" srcset="/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=1200 1200w, /upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=400 400w, /upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=1600 1600w, /upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png" srcset="/halo-SSG/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=400 400w, /halo-SSG/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-3f463216b03844ee80ce25c6d8c15d83.png?width=800 800w"/><br/>
 设置磁盘大小40GB，下一步<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png" srcset="/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=1200 1200w, /upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=400 400w, /upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=1600 1600w, /upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png" srcset="/halo-SSG/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=400 400w, /halo-SSG/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-02df80e2c57e45ceaa6386f755f0985e.png?width=800 800w"/><br/>
 点击自定义硬件<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png" srcset="/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=1200 1200w, /upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=400 400w, /upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=1600 1600w, /upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png" srcset="/halo-SSG/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=400 400w, /halo-SSG/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-08a6f80386454d519d1e2c20f80d8d6f.png?width=800 800w"/><br/>
 设置cpu2个，内存4096MB,网络桥接，复制物理网络，点关闭<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png" srcset="/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=1200 1200w, /upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=400 400w, /upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=1600 1600w, /upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png" srcset="/halo-SSG/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=400 400w, /halo-SSG/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-16a83e72ef4c486598a85a52bfff8444.png?width=800 800w"/><br/>
 点完成<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png" srcset="/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=1200 1200w, /upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=400 400w, /upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=1600 1600w, /upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png" srcset="/halo-SSG/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=400 400w, /halo-SSG/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-661898eafbb34727afd120dad2c71241.png?width=800 800w"/></p>
 <h3 id="虚拟机安装部分">虚拟机安装部分</h3>
 <p>虚拟机启动后，点向上方向键，切换到 Install Oracle Linux 8.4.0，回车<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png" srcset="/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=1200 1200w, /upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=400 400w, /upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=1600 1600w, /upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png" srcset="/halo-SSG/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=400 400w, /halo-SSG/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-570fc7a239274120bee8ab97b197e048.png?width=800 800w"/><br/>
 等一会儿，自动进入到语言选择界面，按你自己的习惯选择即可，一般建议用默认的英语<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png" srcset="/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=1200 1200w, /upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=400 400w, /upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=1600 1600w, /upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png" srcset="/halo-SSG/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=400 400w, /halo-SSG/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-c7179398cbe5445a82525c1e3680ff21.png?width=800 800w"/><br/>
 进入到这个界面，先点安装目的地<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png" srcset="/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=1200 1200w, /upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=400 400w, /upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=1600 1600w, /upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png" srcset="/halo-SSG/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=400 400w, /halo-SSG/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-54a082d5e0fa4b3a84389a59556f0720.png?width=800 800w"/><br/>
 进来后直接点完成（这里应该是40GiB，此处只为截图演示）<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png" srcset="/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=1200 1200w, /upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=400 400w, /upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=1600 1600w, /upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png" srcset="/halo-SSG/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=400 400w, /halo-SSG/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-11f777e120014da4a3ca1c95d215e610.png?width=800 800w"/><br/>
 然后点根密码，设置好后点完成<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png" srcset="/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=1200 1200w, /upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=400 400w, /upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=1600 1600w, /upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png" srcset="/halo-SSG/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=400 400w, /halo-SSG/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-decb78f01c5d4d82af1d34ce1434a79d.png?width=800 800w"/></p>
 <p>点开始安装<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png" srcset="/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=1200 1200w, /upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=400 400w, /upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=1600 1600w, /upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png" srcset="/halo-SSG/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=400 400w, /halo-SSG/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-47b800d51a0246d1b8bbf974927d6b26.png?width=800 800w"/><br/>
 接下来就是漫长的等待了，完成后点重启系统<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png" srcset="/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=1200 1200w, /upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=400 400w, /upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=1600 1600w, /upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png" srcset="/halo-SSG/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=400 400w, /halo-SSG/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-c13ff06eab044fbcb9eb5b5485549fef.png?width=800 800w"/><br/>
 点许可证信息<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png" srcset="/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=1200 1200w, /upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=400 400w, /upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=1600 1600w, /upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png" srcset="/halo-SSG/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=400 400w, /halo-SSG/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-7c16f2b702b04ffca710b257bb893268.png?width=800 800w"/><br/>
 打勾，点完成<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png" srcset="/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=1200 1200w, /upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=400 400w, /upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=1600 1600w, /upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png" srcset="/halo-SSG/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=400 400w, /halo-SSG/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-bbade6e400bf40449ffb15c50aae4b51.png?width=800 800w"/><br/>
 点结束配置<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png" srcset="/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=1200 1200w, /upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=400 400w, /upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=1600 1600w, /upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png" srcset="/halo-SSG/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=400 400w, /halo-SSG/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-edd6d99fd27b4b7185553478d270a058.png?width=800 800w"/><br/>
 点前进-前进-跳过，随便新建一个用户，注意不能是oracle，然后点前进<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png" srcset="/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=1200 1200w, /upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=400 400w, /upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=1600 1600w, /upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png" srcset="/halo-SSG/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=400 400w, /halo-SSG/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-cbc7cb751af54536aafd4677e1939edc.png?width=800 800w"/><br/>
 设置密码-前进，点开始使用<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png" srcset="/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=1200 1200w, /upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=400 400w, /upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=1600 1600w, /upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png" srcset="/halo-SSG/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=400 400w, /halo-SSG/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-5491526a87c24be8b3980c601db0fab6.png?width=800 800w"/><br/>
 点右上角，进入有线，打开有线设置<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png" srcset="/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=1200 1200w, /upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=400 400w, /upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=1600 1600w, /upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png" srcset="/halo-SSG/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=400 400w, /halo-SSG/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-d7804153352a44c2af8d3d1300f21a4b.png?width=800 800w"/><br/>
 点击齿轮<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png" srcset="/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=1200 1200w, /upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=400 400w, /upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=1600 1600w, /upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png" srcset="/halo-SSG/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=400 400w, /halo-SSG/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-2d815c54765e47eaa743999736478ffc.png?width=800 800w"/><br/>
 勾上自动连接，点确认<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png" srcset="/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=1200 1200w, /upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=400 400w, /upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=1600 1600w, /upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png" srcset="/halo-SSG/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=400 400w, /halo-SSG/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-741def8ad10d4364a4fa24b4677b9eb1.png?width=800 800w"/><br/>
 显示成这个样子即为连接成功，如果不是这样，请参考下面桥接模式的网络设置<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png" srcset="/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=1200 1200w, /upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=400 400w, /upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=1600 1600w, /upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png" srcset="/halo-SSG/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=400 400w, /halo-SSG/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-c39da7b2cbf94e65a9f0eab21531ed6e.png?width=800 800w"/></p>
 <h3 id="桥接模式的网络设置">桥接模式的网络设置</h3>
 <p>桥接模式需要另外设置虚拟网络，进入编辑-虚拟网络编辑器<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png" srcset="/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=1200 1200w, /upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=400 400w, /upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=1600 1600w, /upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png" srcset="/halo-SSG/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=400 400w, /halo-SSG/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-40c9f7016601417598b952fc7ac647c9.png?width=800 800w"/><br/>
 点下面的更改设置<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png" srcset="/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=1200 1200w, /upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=400 400w, /upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=1600 1600w, /upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png" srcset="/halo-SSG/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=400 400w, /halo-SSG/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-416db8addd66429aa3bcbfd24717ded9.png?width=800 800w"/><br/>
 将桥接模式对应的网卡手动设置成你的主网卡</p>
 <h2 id="准备docker构建目录">准备docker构建目录</h2>
 <p>将apex_21.2_en.zip、LINUX.X64_213000_db_home.zip 两个文件放到ol8_21/softwave目录里,<br/>
@@ -247,7 +247,7 @@ VERR_NEM_INIT_FAILED (VERR_NEM_VM_CREATE_FAILED).
     └── put_software_here.txt
 </code></pre>
 <p>挂载ol8_21这个目录到虚拟机，可以尝试使用VM自带的功能<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png" srcset="/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=1200 1200w, /upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=400 400w, /upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=1600 1600w, /upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png" srcset="/halo-SSG/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=400 400w, /halo-SSG/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-3d29d409ceae42e780e1bb04f531232a.png?width=800 800w"/><br/>
 但有时候会出现挂载后，在虚拟机内不显示的情况，所以还可以尝试windows开共享，然后虚拟机里挂载smb。<br/>
 如果都嫌麻烦，可以直接sftp把这个文件夹给复制进虚拟机</p>
 <h2 id="安装docker环境及启动docker服务">安装docker环境及启动docker服务</h2>
@@ -308,7 +308,7 @@ INSTALL_APEX="true"</p>
 <p>使用过程中遇到个奇怪的现象，我暂停虚拟机运行，再恢复，竟然无法在容器外再连上数据库了，虚拟机内容器还是在运行的，而且数据库也是正常启动的，容器内可以登录数据库。然后尝试stop容器再start，同样在容器外部无法连接。最终是重启了服务器再开启容器才连上。</p>
 <p>我猜测这里存在某种机制会让docker的映射端口失效，但是检查docker port，端口映射还在那里；查看netstat -ntlp，端口也是处于监听状态。也就是说服务器和容器都没问题，是它们之间的沟通出了问题了（像极了前后端开发吵架~）。沿着这个思路，我尝试在此场景下，终止docker服务再启动docker服务和容器，果然通了。至于为什么暂停虚拟机再恢复虚拟机会导致这个问题，目前阶段我给不出明确原因，猜测可能是虚拟机暂停和恢复时并没有完整还原所有的数据，比如一些硬件地址，导致端口映射错位，毕竟端口号也只是个"名称"而已。</p>
 <p>之后我又把这个镜像 push到了阿里云上，然后再在本机windows环境上pull下来，同样也可以使用，只是第一次启动的时候需要几分钟来初始化数据库。(15GB，上传下载就需要不少时间了)<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png" srcset="/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=1200 1200w, /upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=400 400w, /upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=1600 1600w, /upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png" srcset="/halo-SSG/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=400 400w, /halo-SSG/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-d0133e068ed647aa95e618858b560ddb.png?width=800 800w"/></p>
 <p>另外，这个docker里没配置oml4py的相关环境<br/>
 <a href="https://www.darkathena.top/archives/oml4py-server-setup">【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</a>，<br/>
 改天看看怎么修改docker的构建脚本让它预先安装，目前还不确定这次用的oraclelinux:8-slim系统版本是否支持oml。精简版镜像构建的就这么大了(操作系统只有一百兆,其实最主要的原因是这个dockerfile没有使用多阶段构建的方式)，如果直接用OL8的完整版构建，最后的docker镜像可是个庞然大物了</p>
@@ -318,21 +318,21 @@ INSTALL_APEX="true"</p>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/os">os</a>
+        <a class="tag" href="/halo-SSG/tags/os">os</a>
         
-        <a class="tag" href="/tags/docker">docker</a>
+        <a class="tag" href="/halo-SSG/tags/docker">docker</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/aboutaddcolonline">&larr; 【ORACLE】记录一次关于在线对大表新增字段的讨论</a>
+    <a href="/halo-SSG/archives/aboutaddcolonline">&larr; 【ORACLE】记录一次关于在线对大表新增字段的讨论</a>
     
     
-    <a href="/archives/about-dbmsmle">【ORACLE】关于21c版本新增plsql包DBMS_MLE的研究 &rarr;</a>
+    <a href="/halo-SSG/archives/about-dbmsmle">【ORACLE】关于21c版本新增plsql包DBMS_MLE的研究 &rarr;</a>
     
 </div>
 

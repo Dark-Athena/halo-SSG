@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理 - DA-技术分享-静态站</title>
     <meta name="description" content="前言对象存储服务，简单来说，可以理解成一个网盘，可以上传下载数据，也可以直接在网盘中对文件进行某些操作。">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>2079 阅读</span>
         
-        <a href="/categories/cloud">云</a>
+        <a href="/halo-SSG/categories/cloud">云</a>
         
     </div>
     <div class="post-body">
@@ -175,7 +175,7 @@
 <h3 id="一s3的命令行工具安装及使用">一、S3的命令行工具安装及使用</h3>
 <h4 id="1安装">1.安装</h4>
 <p>打开官方文档，可以看到有两种方式<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png" srcset="/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1200 1200w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=400 400w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1600 1600w, /upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png" srcset="/halo-SSG/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=400 400w, /halo-SSG/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-bed4013dfd664c03bc7d1b0bd18be621.png?width=800 800w"/><br/>
 对于windows环境，官方建议下载安装程序，我当时就踩了这个坑。<br/>
 这个windows版本的aws命令行工具，实际安装后，是通过python环境来执行的，如果本地服务器上没有安装python，那么这个安装程序自带一个2.*版本python并进行自动安装。这种情况下，在执行同步命令的时候，会有满屏的unicode报错，</p>
 <blockquote>
@@ -310,19 +310,19 @@ exit
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/%E4%BA%91">云</a>
+        <a class="tag" href="/halo-SSG/tags/%E4%BA%91">云</a>
         
-        <a class="tag" href="/tags/batsh">bat/sh</a>
+        <a class="tag" href="/halo-SSG/tags/batsh">bat/sh</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/cmd%E5%AF%BC%E5%87%BA%E5%A4%9Aoracle%E5%BA%93%E5%A4%9A%E6%95%B0%E6%8D%AE">&larr; 【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理</a>
+    <a href="/halo-SSG/archives/cmd%E5%AF%BC%E5%87%BA%E5%A4%9Aoracle%E5%BA%93%E5%A4%9A%E6%95%B0%E6%8D%AE">&larr; 【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理</a>
     
     
-    <a href="/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql &rarr;</a>
+    <a href="/halo-SSG/archives/sqltodblink">【AIO】将任意查询sql转换成带远程数据库DBLINK的sql &rarr;</a>
     
 </div>
 

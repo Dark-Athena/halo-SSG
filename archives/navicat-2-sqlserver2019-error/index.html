@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【SQLSERVER】如何解决Navicat Premium连接sqlserver2019报错的问题 - DA-技术分享-静态站</title>
     <meta name="description" content="">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【SQLSERVER】如何解决Navicat Premium连接sqlserver2019报错的问题</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>2663 阅读</span>
         
-        <a href="/categories/uncatelogued">未分类</a>
+        <a href="/halo-SSG/categories/uncatelogued">未分类</a>
         
     </div>
     <div class="post-body">
@@ -167,38 +167,38 @@
 <p>网上很容易搜到这个问题的答案,就是进入navicat的安装目录,找到sqlncli_x64.msi,安装即可。</p>
 <p><font size="10"><strong>但是!</strong></font><br/>
 按照那些教程安装后,你会发现,报错变成了这样<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png" srcset="/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=1200 1200w, /upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=400 400w, /upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=1600 1600w, /upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png" srcset="/halo-SSG/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=400 400w, /halo-SSG/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-62f82413eb2e4643b92c5b403fdfc930.png?width=800 800w"/></p>
 <h2 id="三初步分析">三、初步分析</h2>
 <p>首先我确保了前面的配置没有填错,sqlserver的服务器地址和ip是用逗号分隔的<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png" srcset="/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=1200 1200w, /upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=400 400w, /upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=1600 1600w, /upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png" srcset="/halo-SSG/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=400 400w, /halo-SSG/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-e7daf4025d254dbb9af4d92c1434a814.png?width=800 800w"/></p>
 <p>然后我注意到了安装navicat自带的sqlncli_x64.msi时,上面显示的是"SQL Server 2008 Native Client"<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png" srcset="/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=1200 1200w, /upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=400 400w, /upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=1600 1600w, /upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png" srcset="/halo-SSG/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=400 400w, /halo-SSG/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-7bf4e7860fa0435f859e3dea16f2aa9d.png?width=800 800w"/></p>
 <p>莫非是版本问题？于是我去找了下sqlserver的驱动,msodbcsql.msi这个包是odbc的,结果安装上去没识别出来。<br/>
 由于当时只是要验证一个sql,我就先在网上找了个在线数据库的网站测了,然后之后又忙着做其他事,忘了。</p>
 <p>然后今天2021-12-22,我发现CSDN有人在问这个问题,也是navicat连不上sqlserver,然后下面一堆回复说自己也连不上。我意识到这个问题可能的确没人给出最新版的解决方案,所以就花了点时间研究。</p>
 <h2 id="四正式分析">四、正式分析</h2>
 <p>首先我以关键字"SQL Server Native Client"在bing上搜索,得到<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png" srcset="/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=1200 1200w, /upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=400 400w, /upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=1600 1600w, /upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=800 800w"/><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png" srcset="/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=1200 1200w, /upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=400 400w, /upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=1600 1600w, /upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png" srcset="/halo-SSG/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=400 400w, /halo-SSG/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-020c805f08104f538832cbd41118ecb5.png?width=800 800w"/><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png" srcset="/halo-SSG/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=400 400w, /halo-SSG/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-c0862db60ba14ab4a143396d5eb1e3ae.png?width=800 800w"/><br/>
 结合上面两个内容,基本可以确定,11版本的客户端应该是可以连接sqlserve2019的,而且我前面的报错是10版本的客户端报出来的,那么现在的问题就是,去哪下这个11版本的客户端,或者是不是有更新的客户端。<br/>
 根据上面一张图的页面里,得到一个这样的链接<br/>
 <a href="https://docs.microsoft.com/en-us/sql/relational-databases/native-client/applications/support-policies-for-sql-server-native-client?view=sql-server-ver15">https://docs.microsoft.com/en-us/sql/relational-databases/native-client/applications/support-policies-for-sql-server-native-client?view=sql-server-ver15</a><br/>
 打开,一路看下去,相关内容<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png" srcset="/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=1200 1200w, /upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=400 400w, /upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=1600 1600w, /upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png" srcset="/halo-SSG/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=400 400w, /halo-SSG/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-8beab175f1c741eca2066eb1f1e0e9d6.png?width=800 800w"/><br/>
 点进去第一个(这篇文章竟然是2021年9月22号的)<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png" srcset="/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=1200 1200w, /upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=400 400w, /upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=1600 1600w, /upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png" srcset="/halo-SSG/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=400 400w, /halo-SSG/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-2e3457051f7749c4a072c8c2154a7b62.png?width=800 800w"/><br/>
 这里说的是SQLSERVER2016版本自带客户端,但我肯定不会去下那个庞然大物。点"see SQL Server Native Client"进去,会告诉你不要用这玩意了,建议改用OLE DB的<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png" srcset="/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=1200 1200w, /upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=400 400w, /upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=1600 1600w, /upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png" srcset="/halo-SSG/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=400 400w, /halo-SSG/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-0f7b6e85383648bd996269c65d93caaf.png?width=800 800w"/><br/>
 但是如果去下载安装OLE DB版本的,你会发现NAVICAT里识别不出来。</p>
 <p>所以回到上一页,看这句</p>
 <blockquote>
 <p>You can also get sqlncli.msi from the SQL Server 2012 Feature Pack web page. To download the most recent version of the SQL Server Native Client, go to <a href="https://www.microsoft.com/en-us/download/details.aspx?id=56041">Microsoft® SQL Server® 2012 Feature Pack</a>.</p>
 </blockquote>
 <p>最新版本的客户端在sqlserver2012里面,点击链接进去,点download,选择体积大一点的这个sqlncli.msi下载<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png" srcset="/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=1200 1200w, /upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=400 400w, /upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=1600 1600w, /upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png" srcset="/halo-SSG/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=400 400w, /halo-SSG/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-5316b3f967dd4c3e9352cec3021dded7.png?width=800 800w"/><br/>
 安装好后,在navicat的连接编辑页面中,出现了11版本的驱动<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png" srcset="/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=1200 1200w, /upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=400 400w, /upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=1600 1600w, /upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png" srcset="/halo-SSG/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=400 400w, /halo-SSG/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-fe249791b5ef461486b2f914471f9571.png?width=800 800w"/><br/>
 选择它,然后测试<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png" srcset="/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=1200 1200w, /upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=400 400w, /upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=1600 1600w, /upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png" srcset="/halo-SSG/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=400 400w, /halo-SSG/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-14e628e15cba45efa40b9e6fbba45b5c.png?width=800 800w"/></p>
 <p>完美解决,如果有弹幕,此时应该满屏的氢氧根离子了吧 ohohohohohohoh~</p>
 </div>
 </article>
@@ -207,10 +207,10 @@
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/talk-about-q-and-a-with-db">&larr; 【杂谈】从墨天轮及CSDN关于问答板块现状中对国产数据库进行的一些思考</a>
+    <a href="/halo-SSG/archives/talk-about-q-and-a-with-db">&larr; 【杂谈】从墨天轮及CSDN关于问答板块现状中对国产数据库进行的一些思考</a>
     
     
-    <a href="/archives/sql2csv-xslt">【ORACLE】任意sql查询结果利用xslt模板转换成csv文件 &rarr;</a>
+    <a href="/halo-SSG/archives/sql2csv-xslt">【ORACLE】任意sql查询结果利用xslt模板转换成csv文件 &rarr;</a>
     
 </div>
 

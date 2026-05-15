@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【MogDB】在ORACLE和MogDB中查看存储过程出参游标数据的方式 - DA-技术分享-静态站</title>
     <meta name="description" content="一、前言 使用ORACLE作为数据库的应用软件中，偶尔会遇到使用游标作为出参的存储过程，这种存储过程迁移到MogDB并不需要进行改造，但是在开发这样的存储过程时，开发人员偶尔会想要在数据库中测试执行一下，看看游标中的数据是否符合预期，但游标并不是常规的基本数据类型，再写一段plsql或者其他语言的代">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【MogDB】在ORACLE和MogDB中查看存储过程出参游标数据的方式</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>263 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -230,13 +230,13 @@ SQL&gt;
 <p>oracle 12c新增了dbms_sql.return_result功能，可以在sqlplus中执行存储过程后直接显示结果集中的数据（可以参考mysql的存储过程里直接select查数据的用法）,但是由于其本身就已经fetch完了，因此游标已不能再使用。另外oracle还支持ResultSet,这里就不过多介绍了，因为return_result和resultset功能需要修改原存储过程，而且应用开发的时候还得使用新的接口来处理这个数据交互，不具有通用性。详细用法参考oracle官方文档 <a href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sqpug/using-scripts-in-SQL-Plus.html#GUID-9C965E00-45C6-42B2-8E4D-9B1EFA143834">using-scripts-in-SQL-Plus</a></p>
 <h3 id="3plsql-developer">3.PLSQL DEVELOPER</h3>
 <p>相比前面sqlplus还要额外声明变量打印的方式，PLSQL DEVELOPER的处理方式更人性化一些，只需在调试窗口中直接执行，即可逐个打开变量查看游标中的数据</p>
-<p><img alt="屏幕截图 2024-04-13 170412.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170412.png" srcset="/upload/屏幕截图 2024-04-13 170412.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170412.png?width=400 400w, /upload/屏幕截图 2024-04-13 170412.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170412.png?width=800 800w"/></p>
-<p><img alt="屏幕截图 2024-04-13 170620.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170620.png" srcset="/upload/屏幕截图 2024-04-13 170620.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170620.png?width=400 400w, /upload/屏幕截图 2024-04-13 170620.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170620.png?width=800 800w"/></p>
-<p><img alt="屏幕截图 2024-04-13 170656.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 170656.png" srcset="/upload/屏幕截图 2024-04-13 170656.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 170656.png?width=400 400w, /upload/屏幕截图 2024-04-13 170656.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 170656.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 170412.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 170412.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 170412.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 170412.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 170412.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 170412.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 170620.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 170620.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 170620.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 170620.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 170620.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 170620.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 170656.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 170656.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 170656.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 170656.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 170656.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 170656.png?width=800 800w"/></p>
 <p>但是这里注意，游标的数据窗口关闭后，再打开就无法看到里面的数据了</p>
 <h3 id="4oracle-sql-developer">4.Oracle sql developer</h3>
 <p>和plsql developer一样，Oracle官方的Oracle sql developer，也是通过调试来查看出参游标中的数据，不过并不需要像plsql developer那样打开新的窗口，并且此处切换不同的游标查看并不会出现只能看一次的情况</p>
-<p><img alt="屏幕截图 2024-04-13 184316.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 184316.png" srcset="/upload/屏幕截图 2024-04-13 184316.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 184316.png?width=400 400w, /upload/屏幕截图 2024-04-13 184316.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 184316.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 184316.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 184316.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 184316.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 184316.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 184316.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 184316.png?width=800 800w"/></p>
 <h2 id="四mogdb查看游标中数据的方式">四、MogDB查看游标中数据的方式</h2>
 <p>注：本文使用的MogDB版本为5.0，相关限定条件不一定适用于更高的版本</p>
 <h3 id="1gsql">1.gsql</h3>
@@ -298,9 +298,9 @@ MogDB=#
 <h3 id="2mogeaver">2.Mogeaver</h3>
 <p>得益于开源的dbeaver，Mogeaver在游标查看上也相当方便（这里使用的Mogeaver版本为23.3.0）。<br/>
 打开一个SQL窗口，开启<strong>手动提交</strong>（默认是自动提交的），然后使用call语句执行存储过程，可以看到出参以结果集的方式返回了，可以直接点到对应的游标名称上，右侧的数值查看器即可展示游标中的数据，无需像plsqldev那样切换窗口来展示（如果使用Mogeaver连接ORACLE来查看出参游标，效果是一样的）</p>
-<p><img alt="屏幕截图 2024-04-13 180427.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 180427.png" srcset="/upload/屏幕截图 2024-04-13 180427.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 180427.png?width=400 400w, /upload/屏幕截图 2024-04-13 180427.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 180427.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 180427.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 180427.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 180427.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 180427.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 180427.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 180427.png?width=800 800w"/></p>
 <p>当然这里如果想用gsql里那样的方式，使用fetch语句来各种操作游标也是可以的，毕竟这里的fetch就是sql语句,执行后就会返回对应的结果。</p>
-<p><img alt="屏幕截图 2024-04-13 181715.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/屏幕截图 2024-04-13 181715.png" srcset="/upload/屏幕截图 2024-04-13 181715.png?width=1200 1200w, /upload/屏幕截图 2024-04-13 181715.png?width=400 400w, /upload/屏幕截图 2024-04-13 181715.png?width=1600 1600w, /upload/屏幕截图 2024-04-13 181715.png?width=800 800w"/></p>
+<p><img alt="屏幕截图 2024-04-13 181715.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/屏幕截图 2024-04-13 181715.png" srcset="/halo-SSG/upload/屏幕截图 2024-04-13 181715.png?width=1200 1200w, /halo-SSG/upload/屏幕截图 2024-04-13 181715.png?width=400 400w, /halo-SSG/upload/屏幕截图 2024-04-13 181715.png?width=1600 1600w, /halo-SSG/upload/屏幕截图 2024-04-13 181715.png?width=800 800w"/></p>
 <h2 id="总结">总结</h2>
 <p>很多人在突然面对一个新的东西时，可能会出现不知所措的情况，但是如果去使用了，可能会发现新的东西并不是那么不同，能找到越来越多的相似点。</p>
 <p>在Oracle和MogDB中，带有游标出参的存储过程创建语法是完全一致的。而且MogDB也有在开发过程中查看游标数据的多种方式，可以让从Oracle转过来的开发人员能更快适应在MogDB上进行开发。</p>
@@ -310,19 +310,19 @@ MogDB=#
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle_char_type">&larr; 【ORACLE】对Oracle中char类型的研究分析</a>
+    <a href="/halo-SSG/archives/oracle_char_type">&larr; 【ORACLE】对Oracle中char类型的研究分析</a>
     
     
-    <a href="/archives/mogdb506-release-compatible-update">【MogDB】解读MogDB5.0.6版本中有关兼容性的一些更新 &rarr;</a>
+    <a href="/halo-SSG/archives/mogdb506-release-compatible-update">【MogDB】解读MogDB5.0.6版本中有关兼容性的一些更新 &rarr;</a>
     
 </div>
 

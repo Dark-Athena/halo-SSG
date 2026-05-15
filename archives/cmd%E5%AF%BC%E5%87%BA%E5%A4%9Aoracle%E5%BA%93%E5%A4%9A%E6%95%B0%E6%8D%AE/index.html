@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理 - DA-技术分享-静态站</title>
     <meta name="description" content="在企业和一些三方数据分析公司合作时，会需要每天导出数据提供给第三方，一般双方会先约定好需要一些什么数据，包括每个数据有哪些字段，数据条件是怎样的。假设企业内部的数据是存储在多个ORACLE数据库中的，在不用JAVA/PYTHON等开发一个专用服务的情况下，能否仅通过windows下的cmd命令来实现">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【BAT】在windows环境下使用cmd批处理实现多数据来源的多份数据导出及管理</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1437 阅读</span>
         
-        <a href="/categories/batch">批处理（bat/sh）</a>
+        <a href="/halo-SSG/categories/batch">批处理（bat/sh）</a>
         
     </div>
     <div class="post-body">
@@ -171,7 +171,7 @@
 7.在文件提供给第三方后，为了避免对方处理的文件和上传的文件不一致导致的各种猜疑，建议把生成的文件的MD5写入日志</p>
 <h2 id="三针对每条分析给出可执行的方案">三、针对每条分析给出可执行的方案</h2>
 <p>1.有两种方案，所有SQL都放在一个文本文件内，并编号，但是sql是会换行的，用bat解析这样的文本很麻烦，而且要定义一些特殊的标签来识别，所以我选择的是每个SQL分别存一个文件，并且文件名命名为对应的数据名称,比如这样<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-e5df482c57564e009e25285844285485.png" srcset="/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1200 1200w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=400 400w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1600 1600w, /upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-e5df482c57564e009e25285844285485.png" srcset="/halo-SSG/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=400 400w, /halo-SSG/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-e5df482c57564e009e25285844285485.png?width=800 800w"/></p>
 <p>2.多个数据源，直接用bat的临时变量进行赋值，比如</p>
 <pre><code class="language-bat">set db1=user/password@db1
 set db2=user/password@db2
@@ -179,29 +179,29 @@ set db3=user/password@db3
 </code></pre>
 <p>3.在度娘搜索关键词 BAT+数组，可得方案，<br/>
 <a href="https://www.jb51.net/article/67630.htm">https://www.jb51.net/article/67630.htm</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png" srcset="/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1200 1200w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=400 400w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1600 1600w, /upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png" srcset="/halo-SSG/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=400 400w, /halo-SSG/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-ffe7c8c28c8649b6a67185437551949c.png?width=800 800w"/></p>
 <p>4.sqluldr2有windows版和linux版，也分32位和64位的，单文件，没有官方下载渠道，需要自行搜索下载<br/>
 (注：此程序非ORACLE官方出品，从程序说明来看，作者是个叫Lou Fangxin的中国人，经确认就是数据库圈内的知名人士-楼方鑫，另外关于商业授权，请自行斟酌<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png" srcset="/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1200 1200w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=400 400w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1600 1600w, /upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png" srcset="/halo-SSG/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=400 400w, /halo-SSG/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-caea3f0e447e4b2895ec900004797954.png?width=800 800w"/><br/>
 )<br/>
 附作者编写的sqluldr2详细文档（建议仔细阅读，没准有可以用上地方）<br/>
 <a href="https://www.doc88.com/p-6522591706862.html?r=1">https://www.doc88.com/p-6522591706862.html?r=1</a></p>
 <p>5.在bat下获取系统日期是个既简单又麻烦的事，因为日期是存在多种格式的，我们先在cmd里直接获取一下日期变量看显示的什么</p>
 <pre><code class="language-batch">echo %date%
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png" srcset="/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1200 1200w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=400 400w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1600 1600w, /upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png" srcset="/halo-SSG/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=400 400w, /halo-SSG/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-627ec20f139349eeb492e5a280c0ec48.png?width=800 800w"/><br/>
 其实这个格式与操作系统中的设置的日期显示格式有关，用户可以自行修改，不同的设备上的默认格式也不一样，比如我改了之后，同样执行上面这个命令，格式就显示得不一样了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png" srcset="/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1200 1200w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=400 400w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1600 1600w, /upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png" srcset="/halo-SSG/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=400 400w, /halo-SSG/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-1d976a6f8d9e49328b497d86ae4d4d98.png?width=800 800w"/></p>
 <p>为了让最终的方案更通用，我们需要获取格式化的日期，度娘搜索关键词 “bat获取格式化日期”，得到一篇文章<br/>
 <a href="https://blog.csdn.net/zzh87615/article/details/6120987">https://blog.csdn.net/zzh87615/article/details/6120987</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png" srcset="/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1200 1200w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=400 400w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1600 1600w, /upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png" srcset="/halo-SSG/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=400 400w, /halo-SSG/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-bdae86fc071b41cc9a65c2b54e850769.png?width=800 800w"/><br/>
 分析这个，其实就是字符串截取，默认操作系统的日期格式是什么样了，但如果操作系统的日期格式有变化，那么这段代码执行出来的结果实际是个错的。<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png" srcset="/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1200 1200w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=400 400w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1600 1600w, /upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png" srcset="/halo-SSG/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=400 400w, /halo-SSG/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-e7d77bb5c99445a08730f96fb186af80.png?width=800 800w"/><br/>
 在cmd命令中，这些参数变量什么的，是没有数据类型定义的，输出的结果就是个简单的文本而已，所以理论上在不知道日期格式设置的是什么的时候，是无法解析 %date%这个环境变量的。这个日期格式其实是保存在注册表中的，理论上只要通过bat读取到注册表对应的键值，再穷举所有可能键值的截取方式就行了，但注册表中的这个日期格式，用户是可以完全自定义的，输入几个其他字符也能正常显示，这个方法太过复杂，而且不能保证准确，所以只能换个方法。</p>
 <p>与bat类似，vbs是在windows环境下常用的脚本语言，能够实现更复杂的功能。<br/>
 参考这篇文章的第三个方案<br/>
 <a href="https://www.jb51.net/article/44361.htm">https://www.jb51.net/article/44361.htm</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png" srcset="/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1200 1200w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=400 400w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1600 1600w, /upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png" srcset="/halo-SSG/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=400 400w, /halo-SSG/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-8b98efe001904199b0a9c16c252f04dc.png?width=800 800w"/><br/>
 我们可以写个更灵活的vbs文件，因为生成的文件名中的日期有时候表示数据发生日期，即昨日</p>
 <pre><code class="language-vbscript">Set objArgs = WScript. Arguments  
 LastDate=NOW()-objArgs(0)  
@@ -287,7 +287,7 @@ echo %date% %time% end 生成完毕&gt;&gt;%log_dir%\FILEEXP_%t%.log
 </code></pre>
 <p>保存成 run_increment.bat</p>
 <p>目录结构<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png" srcset="/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1200 1200w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=400 400w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1600 1600w, /upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png" srcset="/halo-SSG/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=400 400w, /halo-SSG/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-8e3f96616ed9419c8034a948e2bf2f93.png?width=800 800w"/></p>
 <p>其中多出来的几个文件<br/>
 run_history.bat用于引用不同条件的SQL，手动生成历史数据<br/>
 run_sync.bat和ossutil是数据同步相关文件，可参考我的这篇文章<br/>
@@ -305,19 +305,19 @@ run_sync.bat和ossutil是数据同步相关文件，可参考我的这篇文章<
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/batsh">bat/sh</a>
+        <a class="tag" href="/halo-SSG/tags/batsh">bat/sh</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/%E8%B0%88%E8%B0%88%E5%85%B3%E4%BA%8E5w2h%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B">&larr; 【杂谈】谈谈关于5W2H的那些事</a>
+    <a href="/halo-SSG/archives/%E8%B0%88%E8%B0%88%E5%85%B3%E4%BA%8E5w2h%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B">&larr; 【杂谈】谈谈关于5W2H的那些事</a>
     
     
-    <a href="/archives/s3-cos-oss-cmd">【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理 &rarr;</a>
+    <a href="/halo-SSG/archives/s3-cos-oss-cmd">【云】对象存储服务亚马逊云S3、腾讯云cos、阿里云oss的命令行工具使用方式整理 &rarr;</a>
     
 </div>
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【工具技巧】在windows terminal中保存SSH连接密码（明文） - DA-技术分享-静态站</title>
     <meta name="description" content="前言从2020年开始，网上时不时会刷到windows terminal这个软件的各种讨论及新闻。这玩意已在win11中，代替了cmd成为了默认的终端软件，而且集成了cmd/powershell,甚至还能自行添加其他终端进去。拥有各种字体、颜色的个性化设置，一时间互联网上无数好评。">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【工具技巧】在windows terminal中保存SSH连接密码（明文）</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1853 阅读</span>
         
-        <a href="/categories/%E7%AB%99%E9%95%BF%E5%B7%A5%E5%85%B7">站长工具</a> / 
+        <a href="/halo-SSG/categories/%E7%AB%99%E9%95%BF%E5%B7%A5%E5%85%B7">站长工具</a> / 
         
-        <a href="/categories/batch">批处理（bat/sh）</a>
+        <a href="/halo-SSG/categories/batch">批处理（bat/sh）</a>
         
     </div>
     <div class="post-body">
@@ -171,9 +171,9 @@
 <p>比如用root用户连接192.168.1.1服务器</p>
 <pre><code class="language-bash">ssh root@192.168.1.1
 </code></pre>
-<p><img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image.png" srcset="/upload/2022/11/image.png?width=1200 1200w, /upload/2022/11/image.png?width=400 400w, /upload/2022/11/image.png?width=1600 1600w, /upload/2022/11/image.png?width=800 800w"/></p>
+<p><img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image.png" srcset="/halo-SSG/upload/2022/11/image.png?width=1200 1200w, /halo-SSG/upload/2022/11/image.png?width=400 400w, /halo-SSG/upload/2022/11/image.png?width=1600 1600w, /halo-SSG/upload/2022/11/image.png?width=800 800w"/></p>
 <p>保存配置后，点击上方的下拉三角，选择刚刚创建的配置，即可打开一个新的窗口，只是需要输入密码。<br/>
-<img alt="image-1667743779800" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743779800.png" srcset="/upload/2022/11/image-1667743779800.png?width=1200 1200w, /upload/2022/11/image-1667743779800.png?width=400 400w, /upload/2022/11/image-1667743779800.png?width=1600 1600w, /upload/2022/11/image-1667743779800.png?width=800 800w"/></p>
+<img alt="image-1667743779800" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667743779800.png" srcset="/halo-SSG/upload/2022/11/image-1667743779800.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667743779800.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667743779800.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667743779800.png?width=800 800w"/></p>
 <p>而网上能搜到的wt免密登录ssh的方式，都是使用证书来进行免密，但弄证书真是个麻烦事，虽然比密码登录要安全，但我一大堆个人测试服务器，各种删了建，没必要去管什么安全性，哪怕给个明文保存密码的方式我都能接受。</p>
 <p>于是，我先略过wt，直接找ssh免密登录的方式，找到个sshpass，但是这玩意是linux上用的，没找到windows的版本（有找到cygwin的版本，但总感觉又多隔了一层不舒服斯基）。然后又找到了putty,但是putty打开后是个窗口。最后，我目光聚焦到了putty自带的命令行工具plink上。<br/>
 <a href="https://stackoverflow.com/questions/23419659/sshpass-is-not-recognized-on-windows" target="_blank">sshpass-is-not-recognized-on-windows</a></p>
@@ -181,16 +181,16 @@
 <pre><code class="language-bash">plink 192.168.1.1 -l root -pw password
 </code></pre>
 <p>于是，我把wt中配置的命令行，改成plink的这段，然后连接<br/>
-<img alt="image-1667743888223" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743888223.png" srcset="/upload/2022/11/image-1667743888223.png?width=1200 1200w, /upload/2022/11/image-1667743888223.png?width=400 400w, /upload/2022/11/image-1667743888223.png?width=1600 1600w, /upload/2022/11/image-1667743888223.png?width=800 800w"/><br/>
-<img alt="image-1667743922745" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743922745.png" srcset="/upload/2022/11/image-1667743922745.png?width=1200 1200w, /upload/2022/11/image-1667743922745.png?width=400 400w, /upload/2022/11/image-1667743922745.png?width=1600 1600w, /upload/2022/11/image-1667743922745.png?width=800 800w"/><br/>
+<img alt="image-1667743888223" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667743888223.png" srcset="/halo-SSG/upload/2022/11/image-1667743888223.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667743888223.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667743888223.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667743888223.png?width=800 800w"/><br/>
+<img alt="image-1667743922745" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667743922745.png" srcset="/halo-SSG/upload/2022/11/image-1667743922745.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667743922745.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667743922745.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667743922745.png?width=800 800w"/><br/>
 不需要密码，直接一个回车就进来了！<br/>
 但是，事情好像没我想得那么简单，因为，它中文乱码了…<br/>
-<img alt="image-1667743978722" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667743978722.png" srcset="/upload/2022/11/image-1667743978722.png?width=1200 1200w, /upload/2022/11/image-1667743978722.png?width=400 400w, /upload/2022/11/image-1667743978722.png?width=1600 1600w, /upload/2022/11/image-1667743978722.png?width=800 800w"/><br/>
+<img alt="image-1667743978722" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667743978722.png" srcset="/halo-SSG/upload/2022/11/image-1667743978722.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667743978722.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667743978722.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667743978722.png?width=800 800w"/><br/>
 我linux服务器是utf8的，而windows简体中文环境默认是gbk，乱码原因显而易见。</p>
 <p>在putty中，可以在设置中调整窗口的字符集，但是plink本身就是个命令行工具，而且并没有字符集设置的启动参数。<br/>
 我尝试在cmd中直接使用plink连接，中文也是乱码的。<br/>
 再打开一个cmd，输入chcp 65001，再用plink连接，中文不乱码了。<br/>
-<img alt="image-1667744324931" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744324931.png" srcset="/upload/2022/11/image-1667744324931.png?width=1200 1200w, /upload/2022/11/image-1667744324931.png?width=400 400w, /upload/2022/11/image-1667744324931.png?width=1600 1600w, /upload/2022/11/image-1667744324931.png?width=800 800w"/></p>
+<img alt="image-1667744324931" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667744324931.png" srcset="/halo-SSG/upload/2022/11/image-1667744324931.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667744324931.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667744324931.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667744324931.png?width=800 800w"/></p>
 <p>可是wt的命令行里咋输入这两条指令呢？</p>
 <p>直接填这两条命令，打开会报错，<br/>
 在cmd中，是用"&amp;&amp;"来连接两个命令；<br/>
@@ -200,9 +200,9 @@
 于是我添加了一个这样的命令行</p>
 <pre><code class="language-bash">cmd /c chcp 65001&amp;&amp;plink -ssh 192.168.1.1 -l root -pw password
 </code></pre>
-<p><img alt="image-1667744775194" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744775194.png" srcset="/upload/2022/11/image-1667744775194.png?width=1200 1200w, /upload/2022/11/image-1667744775194.png?width=400 400w, /upload/2022/11/image-1667744775194.png?width=1600 1600w, /upload/2022/11/image-1667744775194.png?width=800 800w"/><br/>
+<p><img alt="image-1667744775194" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667744775194.png" srcset="/halo-SSG/upload/2022/11/image-1667744775194.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667744775194.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667744775194.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667744775194.png?width=800 800w"/><br/>
 于是，它自动登录，而且没有乱码了！<br/>
-<img alt="image-1667744807250" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/11/image-1667744807250.png" srcset="/upload/2022/11/image-1667744807250.png?width=1200 1200w, /upload/2022/11/image-1667744807250.png?width=400 400w, /upload/2022/11/image-1667744807250.png?width=1600 1600w, /upload/2022/11/image-1667744807250.png?width=800 800w"/></p>
+<img alt="image-1667744807250" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/11/image-1667744807250.png" srcset="/halo-SSG/upload/2022/11/image-1667744807250.png?width=1200 1200w, /halo-SSG/upload/2022/11/image-1667744807250.png?width=400 400w, /halo-SSG/upload/2022/11/image-1667744807250.png?width=1600 1600w, /halo-SSG/upload/2022/11/image-1667744807250.png?width=800 800w"/></p>
 <p>我又尝试了使用powershell作为启动入口的方式</p>
 <pre><code class="language-bash">powershell /c chcp 65001;plink -ssh 192.168.1.1 -l root -pw password
 </code></pre>
@@ -225,19 +225,19 @@ cmd /c chcp 65001&amp;&amp;plink -ssh 192.168.1.1 -l root -pw password
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/batsh">bat/sh</a>
+        <a class="tag" href="/halo-SSG/tags/batsh">bat/sh</a>
         
-        <a class="tag" href="/tags/os">os</a>
+        <a class="tag" href="/halo-SSG/tags/os">os</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/opengauss-wps-excel-realtime-report-sha256">&larr; 【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表</a>
+    <a href="/halo-SSG/archives/opengauss-wps-excel-realtime-report-sha256">&larr; 【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表</a>
     
     
-    <a href="/archives/2way-write-file-with-procedure-in-opengauss">【openGauss】两种在openGauss中使用存储过程生成文本文件的方式 &rarr;</a>
+    <a href="/halo-SSG/archives/2way-write-file-with-procedure-in-opengauss">【openGauss】两种在openGauss中使用存储过程生成文本文件的方式 &rarr;</a>
     
 </div>
 

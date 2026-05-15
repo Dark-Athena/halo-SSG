@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【DuckDB】活用marco以兼容GaussDB的SQL执行 - DA-技术分享-静态站</title>
     <meta name="description" content="【DuckDB】活用marco以兼容GaussDB的SQL执行 前言 前文有提到，有些复杂的分析型SQL在DuckDB上执行会比GaussDB上快，但实际应用场景中，GaussDB有些函数在DuckDB上并不支持，因此有时候会需要修改GaussDB的SQL,但如果一个某些函数用得非常多，入参还不一样">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【DuckDB】活用marco以兼容GaussDB的SQL执行</h1>
     <div class="meta">
@@ -163,7 +163,7 @@
 答案是的确可以,DuckDB虽然不具备创建复杂的PLSQL函数的能力，但是支持创建宏(macro)</p>
 <p>官网文档：<a href="https://duckdb.org/docs/stable/sql/statements/create_macro">https://duckdb.org/docs/stable/sql/statements/create_macro</a></p>
 <h2 id="宏macro的语法">宏(macro)的语法</h2>
-<p><img alt="image-trea.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-trea.png" srcset="/upload/image-trea.png?width=1200 1200w, /upload/image-trea.png?width=400 400w, /upload/image-trea.png?width=1600 1600w, /upload/image-trea.png?width=800 800w"/><br/>
+<p><img alt="image-trea.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-trea.png" srcset="/halo-SSG/upload/image-trea.png?width=1200 1200w, /halo-SSG/upload/image-trea.png?width=400 400w, /halo-SSG/upload/image-trea.png?width=1600 1600w, /halo-SSG/upload/image-trea.png?width=800 800w"/><br/>
 官网的语法图有点粗糙了，语法路径没有写全，需要看后面的例子才知道支持哪些用法，所以我重新画了个完整的语法图。</p>
 <pre><code>CreateMacro
  ::=
@@ -172,7 +172,7 @@ CREATE ( 'OR REPLACE' )? ( TEMPORARY | TEMP )? ( 'IF NOT EXISTS' )?
 (','  ( '(' (param-name (param-datatype)? (':= default-value')?)? (','  (param-name (param-datatype)? (':= default-value')?)?)* ')' ) AS ( TABLE query | expr)  )* ';'
 </code></pre>
 <p>这里是用 <a href="https://www.bottlecaps.de/rr/ui">https://www.bottlecaps.de/rr/ui</a> 在线生成的效果</p>
-<p><img alt="image-ggfz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ggfz.png" srcset="/upload/image-ggfz.png?width=1200 1200w, /upload/image-ggfz.png?width=400 400w, /upload/image-ggfz.png?width=1600 1600w, /upload/image-ggfz.png?width=800 800w"/></p>
+<p><img alt="image-ggfz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ggfz.png" srcset="/halo-SSG/upload/image-ggfz.png?width=1200 1200w, /halo-SSG/upload/image-ggfz.png?width=400 400w, /halo-SSG/upload/image-ggfz.png?width=1600 1600w, /halo-SSG/upload/image-ggfz.png?width=800 800w"/></p>
 <p>接下来解读一下这个语法</p>
 <ol>
 <li>最简单的主干是 <code>create macro macro_name () as expr;</code> 和 <code>create macro macro_name () as table query;</code> 这两种形式，其实这就意味着它是有两种宏：标量宏和表宏。<br/>
@@ -302,19 +302,19 @@ ORACLE 21c是于 2020 年 12 月 8 日发布，而duckdb的宏最早可以追溯
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/duckdb">duckdb</a>
+        <a class="tag" href="/halo-SSG/tags/duckdb">duckdb</a>
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/yashandb-oracle-sql-compat-test">&larr; 【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</a>
+    <a href="/halo-SSG/archives/yashandb-oracle-sql-compat-test">&larr; 【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</a>
     
     
-    <a href="/archives/how-sql-audit-tool">测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ &rarr;</a>
+    <a href="/halo-SSG/archives/how-sql-audit-tool">测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ &rarr;</a>
     
 </div>
 

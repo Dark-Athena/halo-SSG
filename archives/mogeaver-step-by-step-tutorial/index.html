@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了 - DA-技术分享-静态站</title>
     <meta name="description" content="前言 关于Mogeaver 为什么选择Mogeaver 版本说明 下载地址 一、界面布局说明 1.菜单栏">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【MogDB】图形化开发工具Mogeaver使用方法看这一篇就够了</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>516 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -196,7 +196,7 @@
 <p><a href="https://docs.mogdb.io/zh/mogdb/v5.0/mogeaver-release-notes">https://docs.mogdb.io/zh/mogdb/v5.0/mogeaver-release-notes</a></p>
 <h2 id="一-界面布局说明">一、界面布局说明</h2>
 <p>Mogeaver窗口包含菜单栏、工具栏、一个或多个编辑器和视图的工作区以及状态栏</p>
-<p><img alt="image-razl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-razl.png" srcset="/upload/image-razl.png?width=1200 1200w, /upload/image-razl.png?width=400 400w, /upload/image-razl.png?width=1600 1600w, /upload/image-razl.png?width=800 800w"/></p>
+<p><img alt="image-razl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-razl.png" srcset="/halo-SSG/upload/image-razl.png?width=1200 1200w, /halo-SSG/upload/image-razl.png?width=400 400w, /halo-SSG/upload/image-razl.png?width=1600 1600w, /halo-SSG/upload/image-razl.png?width=800 800w"/></p>
 <h3 id="1-菜单栏">1.菜单栏</h3>
 <p>默认情况下，菜单栏包含以下菜单：</p>
 <ul>
@@ -212,7 +212,7 @@
 <p>您可以自定义菜单栏和要显示的菜单项列表；为此，请转到 <strong>窗口(Window)</strong> -&gt; <strong>自定义 视角(Customize Perspective)</strong> -&gt; <strong>菜单可见性(Menu Visibility)</strong> 标签页。</p>
 <h3 id="2-工具栏">2.工具栏</h3>
 <p>工具栏包含最基本和最常用命令的按钮：</p>
-<p><img alt="image-ybuf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ybuf.png" srcset="/upload/image-ybuf.png?width=1200 1200w, /upload/image-ybuf.png?width=400 400w, /upload/image-ybuf.png?width=1600 1600w, /upload/image-ybuf.png?width=800 800w"/></p>
+<p><img alt="image-ybuf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ybuf.png" srcset="/halo-SSG/upload/image-ybuf.png?width=1200 1200w, /halo-SSG/upload/image-ybuf.png?width=400 400w, /halo-SSG/upload/image-ybuf.png?width=1600 1600w, /halo-SSG/upload/image-ybuf.png?width=800 800w"/></p>
 <p>有些按钮是启用的(彩色的)，有些则是禁用的(灰色的)。根据工作区中活动的编辑器，启用和禁用按钮的集合会发生变化。只有启用的按钮适用于活动视图 或编辑器。</p>
 <h3 id="3-快捷栏">3.快捷栏</h3>
 <p>工作区域的左侧和右侧各有一个快捷栏。快捷栏托管视图和编辑器的快捷方式，如果至少有一个视图或编辑器最小化，则会显示，否则它们会隐藏</p>
@@ -220,54 +220,54 @@
 <p>视图是工作区内的窗口，提供信息的展示和导航方式。</p>
 <p>编辑器是您可以与文件和数据库的内容进行交互的窗口。</p>
 <p>视图和编辑器可以作为单独的窗口出现，或者与其他视图/编辑器堆叠在一个标签式窗口中。 以下图片显示了一个标签式窗口的标题栏。如果标签不适合标题栏，则它们会隐藏。 要查看隐藏的标签列表，请点击显示列表图标，该图标还表示它们的数量：</p>
-<p><img alt="image-vgzy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vgzy.png" srcset="/upload/image-vgzy.png?width=1200 1200w, /upload/image-vgzy.png?width=400 400w, /upload/image-vgzy.png?width=1600 1600w, /upload/image-vgzy.png?width=800 800w"/></p>
+<p><img alt="image-vgzy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vgzy.png" srcset="/halo-SSG/upload/image-vgzy.png?width=1200 1200w, /halo-SSG/upload/image-vgzy.png?width=400 400w, /halo-SSG/upload/image-vgzy.png?width=1600 1600w, /halo-SSG/upload/image-vgzy.png?width=800 800w"/></p>
 <p>几个视图和编辑器可以同时在工作区打开，但一次只能有一个处于活动状态。</p>
 <p>您可以通过打开和关闭视图、将它们停靠在工作区的不同位置、将它们折叠到快捷栏或扩展它们以占据整个工作区并将它们恢复到最新的停靠位置来更改工作区的布局。</p>
 <h2 id="二-连接">二、连接</h2>
 <h3 id="1--常规">1. 常规</h3>
 <p>点击菜单栏 <code>数据库</code>-<code>新建数据库连接</code></p>
-<p><img alt="image-vpbb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vpbb.png" srcset="/upload/image-vpbb.png?width=1200 1200w, /upload/image-vpbb.png?width=400 400w, /upload/image-vpbb.png?width=1600 1600w, /upload/image-vpbb.png?width=800 800w"/></p>
+<p><img alt="image-vpbb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vpbb.png" srcset="/halo-SSG/upload/image-vpbb.png?width=1200 1200w, /halo-SSG/upload/image-vpbb.png?width=400 400w, /halo-SSG/upload/image-vpbb.png?width=1600 1600w, /halo-SSG/upload/image-vpbb.png?width=800 800w"/></p>
 <p>选择 <code>MogDB</code>数据库</p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image.png" srcset="/upload/image.png?width=1200 1200w, /upload/image.png?width=400 400w, /upload/image.png?width=1600 1600w, /upload/image.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image.png" srcset="/halo-SSG/upload/image.png?width=1200 1200w, /halo-SSG/upload/image.png?width=400 400w, /halo-SSG/upload/image.png?width=1600 1600w, /halo-SSG/upload/image.png?width=800 800w"/></p>
 <p>填写 <code>主机地址</code>、<code>端口</code>、<code>数据库名</code>、<code>用户名</code>、<code>密码</code>，</p>
-<p><img alt="image-bhbk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bhbk.png" srcset="/upload/image-bhbk.png?width=1200 1200w, /upload/image-bhbk.png?width=400 400w, /upload/image-bhbk.png?width=1600 1600w, /upload/image-bhbk.png?width=800 800w"/></p>
+<p><img alt="image-bhbk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-bhbk.png" srcset="/halo-SSG/upload/image-bhbk.png?width=1200 1200w, /halo-SSG/upload/image-bhbk.png?width=400 400w, /halo-SSG/upload/image-bhbk.png?width=1600 1600w, /halo-SSG/upload/image-bhbk.png?width=800 800w"/></p>
 <p>点击 <code>测试连接</code>，出现下图表示连接正常</p>
-<p><img alt="image-mmpc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mmpc.png" srcset="/upload/image-mmpc.png?width=1200 1200w, /upload/image-mmpc.png?width=400 400w, /upload/image-mmpc.png?width=1600 1600w, /upload/image-mmpc.png?width=800 800w"/></p>
+<p><img alt="image-mmpc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-mmpc.png" srcset="/halo-SSG/upload/image-mmpc.png?width=1200 1200w, /halo-SSG/upload/image-mmpc.png?width=400 400w, /halo-SSG/upload/image-mmpc.png?width=1600 1600w, /halo-SSG/upload/image-mmpc.png?width=800 800w"/></p>
 <p>点击 <code>Finish</code>完成连接创建</p>
 <h3 id="2-显示所有数据库">2.显示所有数据库</h3>
 <p>默认情况下，用上述方式新建的连接，只会显示指定连接的库，不会显示该实例下的其他数据库，可以在连接上，点击鼠标右键-编辑连接，在 <code>MogDB</code>选项卡中勾选 <code>显示所有数据库</code></p>
-<p><img alt="image-hgbt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hgbt.png" srcset="/upload/image-hgbt.png?width=1200 1200w, /upload/image-hgbt.png?width=400 400w, /upload/image-hgbt.png?width=1600 1600w, /upload/image-hgbt.png?width=800 800w"/></p>
-<p><img alt="image-azex.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-azex.png" srcset="/upload/image-azex.png?width=1200 1200w, /upload/image-azex.png?width=400 400w, /upload/image-azex.png?width=1600 1600w, /upload/image-azex.png?width=800 800w"/></p>
+<p><img alt="image-hgbt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hgbt.png" srcset="/halo-SSG/upload/image-hgbt.png?width=1200 1200w, /halo-SSG/upload/image-hgbt.png?width=400 400w, /halo-SSG/upload/image-hgbt.png?width=1600 1600w, /halo-SSG/upload/image-hgbt.png?width=800 800w"/></p>
+<p><img alt="image-azex.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-azex.png" srcset="/halo-SSG/upload/image-azex.png?width=1200 1200w, /halo-SSG/upload/image-azex.png?width=400 400w, /halo-SSG/upload/image-azex.png?width=1600 1600w, /halo-SSG/upload/image-azex.png?width=800 800w"/></p>
 <h3 id="3-切换当前SQL窗口连接的数据库和schema">3.切换当前SQL窗口连接的数据库和schema</h3>
-<p><img alt="image-kdjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kdjd.png" srcset="/upload/image-kdjd.png?width=1200 1200w, /upload/image-kdjd.png?width=400 400w, /upload/image-kdjd.png?width=1600 1600w, /upload/image-kdjd.png?width=800 800w"/></p>
-<p><img alt="image-hihq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hihq.png" srcset="/upload/image-hihq.png?width=1200 1200w, /upload/image-hihq.png?width=400 400w, /upload/image-hihq.png?width=1600 1600w, /upload/image-hihq.png?width=800 800w"/></p>
+<p><img alt="image-kdjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-kdjd.png" srcset="/halo-SSG/upload/image-kdjd.png?width=1200 1200w, /halo-SSG/upload/image-kdjd.png?width=400 400w, /halo-SSG/upload/image-kdjd.png?width=1600 1600w, /halo-SSG/upload/image-kdjd.png?width=800 800w"/></p>
+<p><img alt="image-hihq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hihq.png" srcset="/halo-SSG/upload/image-hihq.png?width=1200 1200w, /halo-SSG/upload/image-hihq.png?width=400 400w, /halo-SSG/upload/image-hihq.png?width=1600 1600w, /halo-SSG/upload/image-hihq.png?width=800 800w"/></p>
 <h3 id="4--配置dbms-output输出">4. 配置dbms_output输出</h3>
 <p>默认情况下，dbms_output不会输出到控制台（pldsql developer是自动执行了一下 <code>dbms_output.enable</code>）,可以在连接上，点击鼠标右键-编辑连接，在 <code>MogDB</code>选项卡中勾选 <code>启用DBMS输出</code></p>
-<p><img alt="image-kfti.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kfti.png" srcset="/upload/image-kfti.png?width=1200 1200w, /upload/image-kfti.png?width=400 400w, /upload/image-kfti.png?width=1600 1600w, /upload/image-kfti.png?width=800 800w"/></p>
+<p><img alt="image-kfti.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-kfti.png" srcset="/halo-SSG/upload/image-kfti.png?width=1200 1200w, /halo-SSG/upload/image-kfti.png?width=400 400w, /halo-SSG/upload/image-kfti.png?width=1600 1600w, /halo-SSG/upload/image-kfti.png?width=800 800w"/></p>
 <p>然后执行 <code>dbms_output.put_line</code>，即可在输出窗口中看到dbms_output的输出信息</p>
-<p><img alt="image-hkvf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hkvf.png" srcset="/upload/image-hkvf.png?width=1200 1200w, /upload/image-hkvf.png?width=400 400w, /upload/image-hkvf.png?width=1600 1600w, /upload/image-hkvf.png?width=800 800w"/></p>
+<p><img alt="image-hkvf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hkvf.png" srcset="/halo-SSG/upload/image-hkvf.png?width=1200 1200w, /halo-SSG/upload/image-hkvf.png?width=400 400w, /halo-SSG/upload/image-hkvf.png?width=1600 1600w, /halo-SSG/upload/image-hkvf.png?width=800 800w"/></p>
 <h3 id="5--配置C风格注释">5. 配置C风格注释</h3>
 <p>默认情况下，Mogeaver的块注释按照postgresql的风格进行高亮，即支持嵌套注释。但是ORACLE风格的块注释是C语言风格的，不支持嵌套注释，遇到第一个块注释结尾就认为整段注释结束。<br/>
 由于MogDB 5.2.0版本起，也支持了ORACLE风格块注释，因此Mogeaver也新增一个选项，用于切换注释高亮风格。可以在连接上，点击鼠标右键-编译连接，在 <code>MogDB</code>选项卡中勾选 <code>Enable C Style Comment</code></p>
 <p>开关的对比效果如下</p>
-<p><img alt="image-uhwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uhwk.png" srcset="/upload/image-uhwk.png?width=1200 1200w, /upload/image-uhwk.png?width=400 400w, /upload/image-uhwk.png?width=1600 1600w, /upload/image-uhwk.png?width=800 800w"/></p>
+<p><img alt="image-uhwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-uhwk.png" srcset="/halo-SSG/upload/image-uhwk.png?width=1200 1200w, /halo-SSG/upload/image-uhwk.png?width=400 400w, /halo-SSG/upload/image-uhwk.png?width=1600 1600w, /halo-SSG/upload/image-uhwk.png?width=800 800w"/></p>
 <p>注意该选项需要配合数据库的 <code>enable_oracle_comment</code>参数使用</p>
 <h2 id="三-数据库导航">三、数据库导航</h2>
 <p>数据库导航器是用于处理数据库结构和内容的主视图。</p>
 <h3 id="1--查看对象列表">1. 查看对象列表</h3>
-<p><img alt="image-fofq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fofq.png" srcset="/upload/image-fofq.png?width=1200 1200w, /upload/image-fofq.png?width=400 400w, /upload/image-fofq.png?width=1600 1600w, /upload/image-fofq.png?width=800 800w"/></p>
+<p><img alt="image-fofq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-fofq.png" srcset="/halo-SSG/upload/image-fofq.png?width=1200 1200w, /halo-SSG/upload/image-fofq.png?width=400 400w, /halo-SSG/upload/image-fofq.png?width=1600 1600w, /halo-SSG/upload/image-fofq.png?width=800 800w"/></p>
 <h3 id="2--按名称过滤对象">2. 按名称过滤对象</h3>
-<p><img alt="image-ydyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ydyx.png" srcset="/upload/image-ydyx.png?width=1200 1200w, /upload/image-ydyx.png?width=400 400w, /upload/image-ydyx.png?width=1600 1600w, /upload/image-ydyx.png?width=800 800w"/></p>
+<p><img alt="image-ydyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ydyx.png" srcset="/halo-SSG/upload/image-ydyx.png?width=1200 1200w, /halo-SSG/upload/image-ydyx.png?width=400 400w, /halo-SSG/upload/image-ydyx.png?width=1600 1600w, /halo-SSG/upload/image-ydyx.png?width=800 800w"/></p>
 <h3 id="3--查看对象属性">3. 查看对象属性</h3>
 <p>在对象名称上双击，或者鼠标右键-查看</p>
-<p><img alt="image-lpwf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lpwf.png" srcset="/upload/image-lpwf.png?width=1200 1200w, /upload/image-lpwf.png?width=400 400w, /upload/image-lpwf.png?width=1600 1600w, /upload/image-lpwf.png?width=800 800w"/></p>
+<p><img alt="image-lpwf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-lpwf.png" srcset="/halo-SSG/upload/image-lpwf.png?width=1200 1200w, /halo-SSG/upload/image-lpwf.png?width=400 400w, /halo-SSG/upload/image-lpwf.png?width=1600 1600w, /halo-SSG/upload/image-lpwf.png?width=800 800w"/></p>
 <h2 id="四-对象属性">四、对象属性</h2>
 <h3 id="1-属性">1.属性</h3>
-<p><img alt="image-ktps.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ktps.png" srcset="/upload/image-ktps.png?width=1200 1200w, /upload/image-ktps.png?width=400 400w, /upload/image-ktps.png?width=1600 1600w, /upload/image-ktps.png?width=800 800w"/></p>
+<p><img alt="image-ktps.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ktps.png" srcset="/halo-SSG/upload/image-ktps.png?width=1200 1200w, /halo-SSG/upload/image-ktps.png?width=400 400w, /halo-SSG/upload/image-ktps.png?width=1600 1600w, /halo-SSG/upload/image-ktps.png?width=800 800w"/></p>
 <h3 id="2-查看DDL">2.查看DDL</h3>
-<p><img alt="image-dsxm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-dsxm.png" srcset="/upload/image-dsxm.png?width=1200 1200w, /upload/image-dsxm.png?width=400 400w, /upload/image-dsxm.png?width=1600 1600w, /upload/image-dsxm.png?width=800 800w"/></p>
+<p><img alt="image-dsxm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-dsxm.png" srcset="/halo-SSG/upload/image-dsxm.png?width=1200 1200w, /halo-SSG/upload/image-dsxm.png?width=400 400w, /halo-SSG/upload/image-dsxm.png?width=1600 1600w, /halo-SSG/upload/image-dsxm.png?width=800 800w"/></p>
 <h3 id="3-数据-只有表和视图有-">3.数据（只有表和视图有）</h3>
-<p><img alt="image-nrhn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nrhn.png" srcset="/upload/image-nrhn.png?width=1200 1200w, /upload/image-nrhn.png?width=400 400w, /upload/image-nrhn.png?width=1600 1600w, /upload/image-nrhn.png?width=800 800w"/></p>
+<p><img alt="image-nrhn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-nrhn.png" srcset="/halo-SSG/upload/image-nrhn.png?width=1200 1200w, /halo-SSG/upload/image-nrhn.png?width=400 400w, /halo-SSG/upload/image-nrhn.png?width=1600 1600w, /halo-SSG/upload/image-nrhn.png?width=800 800w"/></p>
 <h2 id="五-SQL编辑器">五、SQL编辑器</h2>
 <p>要开始使用SQL编辑器，您有几种选择：</p>
 <ol>
@@ -295,68 +295,68 @@
 <p>您可以在[项目资源管理器]视图中的<strong>脚本</strong>文件夹中看到所有已保存的SQL脚本。。</p>
 <h3 id="1--SQL编辑器概述">1. SQL编辑器概述</h3>
 <p>SQL编辑器包含脚本面板、工具栏和结果面板。</p>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png" srcset="/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1200 1200w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=400 400w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1600 1600w, /docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png" srcset="/halo-SSG/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1200 1200w, /halo-SSG/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=400 400w, /halo-SSG/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=1600 1600w, /halo-SSG/docs/dbeaver-chinese-docs/zh/dbeaver/dbeaver/images/ug/SQL-Editor.png?width=800 800w"/></p>
 <p><strong>提示</strong>：您可以按Alt+Enter或右键单击并导航到<strong>首选项</strong>来打开SQL编辑器首选项。</p>
 <h3 id="2--切换手动提交-自动提交">2. 切换手动提交、自动提交</h3>
 <p>默认新建的连接为自动提交，可根据需要改成手动提交（注意长时间持有未提交事务可能会造成其他会话被阻塞）</p>
-<p><img alt="image-auki.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-auki.png" srcset="/upload/image-auki.png?width=1200 1200w, /upload/image-auki.png?width=400 400w, /upload/image-auki.png?width=1600 1600w, /upload/image-auki.png?width=800 800w"/></p>
+<p><img alt="image-auki.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-auki.png" srcset="/halo-SSG/upload/image-auki.png?width=1200 1200w, /halo-SSG/upload/image-auki.png?width=400 400w, /halo-SSG/upload/image-auki.png?width=1600 1600w, /halo-SSG/upload/image-auki.png?width=800 800w"/></p>
 <h3 id="3--列编辑模式-块选择-">3. 列编辑模式（块选择）</h3>
 <p>菜单栏-<code>编辑</code>-<code>Toggle Block Selection</code>,开启后，鼠标在SQL编辑器区域会变为十字型，此时可以按列选择、复制、输入</p>
-<p><img alt="image-aduh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aduh.png" srcset="/upload/image-aduh.png?width=1200 1200w, /upload/image-aduh.png?width=400 400w, /upload/image-aduh.png?width=1600 1600w, /upload/image-aduh.png?width=800 800w"/></p>
-<p><img alt="image-igwc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-igwc.png" srcset="/upload/image-igwc.png?width=1200 1200w, /upload/image-igwc.png?width=400 400w, /upload/image-igwc.png?width=1600 1600w, /upload/image-igwc.png?width=800 800w"/></p>
-<p><img alt="image-tdog.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tdog.png" srcset="/upload/image-tdog.png?width=1200 1200w, /upload/image-tdog.png?width=400 400w, /upload/image-tdog.png?width=1600 1600w, /upload/image-tdog.png?width=800 800w"/></p>
+<p><img alt="image-aduh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-aduh.png" srcset="/halo-SSG/upload/image-aduh.png?width=1200 1200w, /halo-SSG/upload/image-aduh.png?width=400 400w, /halo-SSG/upload/image-aduh.png?width=1600 1600w, /halo-SSG/upload/image-aduh.png?width=800 800w"/></p>
+<p><img alt="image-igwc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-igwc.png" srcset="/halo-SSG/upload/image-igwc.png?width=1200 1200w, /halo-SSG/upload/image-igwc.png?width=400 400w, /halo-SSG/upload/image-igwc.png?width=1600 1600w, /halo-SSG/upload/image-igwc.png?width=800 800w"/></p>
+<p><img alt="image-tdog.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-tdog.png" srcset="/halo-SSG/upload/image-tdog.png?width=1200 1200w, /halo-SSG/upload/image-tdog.png?width=400 400w, /halo-SSG/upload/image-tdog.png?width=1600 1600w, /halo-SSG/upload/image-tdog.png?width=800 800w"/></p>
 <h3 id="4--快捷键">4. 快捷键</h3>
 <p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>用户界面</code>-<code>Keys</code></p>
-<p><img alt="image-nblt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nblt.png" srcset="/upload/image-nblt.png?width=1200 1200w, /upload/image-nblt.png?width=400 400w, /upload/image-nblt.png?width=1600 1600w, /upload/image-nblt.png?width=800 800w"/></p>
+<p><img alt="image-nblt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-nblt.png" srcset="/halo-SSG/upload/image-nblt.png?width=1200 1200w, /halo-SSG/upload/image-nblt.png?width=400 400w, /halo-SSG/upload/image-nblt.png?width=1600 1600w, /halo-SSG/upload/image-nblt.png?width=800 800w"/></p>
 <p>可以输入菜单名称进行过滤，在 <code>Binding</code>处修改快捷键，比如 <code>alter+shift+A</code>是企业微信的截图键，和列编辑模式冲突，我们可以把这个快捷键修改成其他组合。另外还要修改生效范围，即 <code>When</code>,修改到 <code>SQL编辑器上下文</code></p>
 <h3 id="5--大小写转换">5. 大小写转换</h3>
 <p>选中需要转换的文本，鼠标右键-格式-<code>to Upper Case</code>,转换成大写；<code>to Lower Case</code>转换成小写。或者选中文本后，按对应的快捷键</p>
-<p><img alt="image-qdzf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qdzf.png" srcset="/upload/image-qdzf.png?width=1200 1200w, /upload/image-qdzf.png?width=400 400w, /upload/image-qdzf.png?width=1600 1600w, /upload/image-qdzf.png?width=800 800w"/></p>
+<p><img alt="image-qdzf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qdzf.png" srcset="/halo-SSG/upload/image-qdzf.png?width=1200 1200w, /halo-SSG/upload/image-qdzf.png?width=400 400w, /halo-SSG/upload/image-qdzf.png?width=1600 1600w, /halo-SSG/upload/image-qdzf.png?width=800 800w"/></p>
 <h3 id="6--SQL模板">6. SQL模板</h3>
 <p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>SQL编辑器</code>-<code>模板</code>，目前版本预置了5个模板，可自定义</p>
-<p><img alt="image-uabs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uabs.png" srcset="/upload/image-uabs.png?width=1200 1200w, /upload/image-uabs.png?width=400 400w, /upload/image-uabs.png?width=1600 1600w, /upload/image-uabs.png?width=800 800w"/></p>
+<p><img alt="image-uabs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-uabs.png" srcset="/halo-SSG/upload/image-uabs.png?width=1200 1200w, /halo-SSG/upload/image-uabs.png?width=400 400w, /halo-SSG/upload/image-uabs.png?width=1600 1600w, /halo-SSG/upload/image-uabs.png?width=800 800w"/></p>
 <p>使用方式举例：<br/>
 在SQL编辑器中输入 <code>sf</code>,然后按键盘的 <code>tab</code>键</p>
-<p><img alt="image-xdgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xdgz.png" srcset="/upload/image-xdgz.png?width=1200 1200w, /upload/image-xdgz.png?width=400 400w, /upload/image-xdgz.png?width=1600 1600w, /upload/image-xdgz.png?width=800 800w"/></p>
-<p><img alt="image-lvyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-lvyx.png" srcset="/upload/image-lvyx.png?width=1200 1200w, /upload/image-lvyx.png?width=400 400w, /upload/image-lvyx.png?width=1600 1600w, /upload/image-lvyx.png?width=800 800w"/></p>
+<p><img alt="image-xdgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-xdgz.png" srcset="/halo-SSG/upload/image-xdgz.png?width=1200 1200w, /halo-SSG/upload/image-xdgz.png?width=400 400w, /halo-SSG/upload/image-xdgz.png?width=1600 1600w, /halo-SSG/upload/image-xdgz.png?width=800 800w"/></p>
+<p><img alt="image-lvyx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-lvyx.png" srcset="/halo-SSG/upload/image-lvyx.png?width=1200 1200w, /halo-SSG/upload/image-lvyx.png?width=400 400w, /halo-SSG/upload/image-lvyx.png?width=1600 1600w, /halo-SSG/upload/image-lvyx.png?width=800 800w"/></p>
 <h3 id="7--修改字体大小">7. 修改字体大小</h3>
 <p>SQL编辑器和数值查看器：</p>
 <p>菜单栏-<code>窗口</code>-<code>首选项</code>-<code>用户界面</code>-<code>Appearance</code>-<code>Colors and fonts</code>-<code>Dbeaver Fonts</code>-<code>Monospace font</code></p>
-<p><img alt="image-efiz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-efiz.png" srcset="/upload/image-efiz.png?width=1200 1200w, /upload/image-efiz.png?width=400 400w, /upload/image-efiz.png?width=1600 1600w, /upload/image-efiz.png?width=800 800w"/></p>
-<p><img alt="image-hwoy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-hwoy.png" srcset="/upload/image-hwoy.png?width=1200 1200w, /upload/image-hwoy.png?width=400 400w, /upload/image-hwoy.png?width=1600 1600w, /upload/image-hwoy.png?width=800 800w"/></p>
+<p><img alt="image-efiz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-efiz.png" srcset="/halo-SSG/upload/image-efiz.png?width=1200 1200w, /halo-SSG/upload/image-efiz.png?width=400 400w, /halo-SSG/upload/image-efiz.png?width=1600 1600w, /halo-SSG/upload/image-efiz.png?width=800 800w"/></p>
+<p><img alt="image-hwoy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hwoy.png" srcset="/halo-SSG/upload/image-hwoy.png?width=1200 1200w, /halo-SSG/upload/image-hwoy.png?width=400 400w, /halo-SSG/upload/image-hwoy.png?width=1600 1600w, /halo-SSG/upload/image-hwoy.png?width=800 800w"/></p>
 <h3 id="8--历史执行记录">8. 历史执行记录</h3>
 <p>点击SQL编辑器的工具栏中的</p>
-<p><img alt="image-qiwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qiwk.png" srcset="/upload/image-qiwk.png?width=1200 1200w, /upload/image-qiwk.png?width=400 400w, /upload/image-qiwk.png?width=1600 1600w, /upload/image-qiwk.png?width=800 800w"/></p>
+<p><img alt="image-qiwk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qiwk.png" srcset="/halo-SSG/upload/image-qiwk.png?width=1200 1200w, /halo-SSG/upload/image-qiwk.png?width=400 400w, /halo-SSG/upload/image-qiwk.png?width=1600 1600w, /halo-SSG/upload/image-qiwk.png?width=800 800w"/></p>
 <p>会展示该SQL窗口执行过的SQL及相关执行信息</p>
-<p><img alt="image-sbrw.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-sbrw.png" srcset="/upload/image-sbrw.png?width=1200 1200w, /upload/image-sbrw.png?width=400 400w, /upload/image-sbrw.png?width=1600 1600w, /upload/image-sbrw.png?width=800 800w"/></p>
+<p><img alt="image-sbrw.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-sbrw.png" srcset="/halo-SSG/upload/image-sbrw.png?width=1200 1200w, /halo-SSG/upload/image-sbrw.png?width=400 400w, /halo-SSG/upload/image-sbrw.png?width=1600 1600w, /halo-SSG/upload/image-sbrw.png?width=800 800w"/></p>
 <h3 id="9--执行多条SQL">9. 执行多条SQL</h3>
 <p>选择多条SQL，点击SQL编辑器的工具栏中的</p>
-<p><img alt="image-uvvj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uvvj.png" srcset="/upload/image-uvvj.png?width=1200 1200w, /upload/image-uvvj.png?width=400 400w, /upload/image-uvvj.png?width=1600 1600w, /upload/image-uvvj.png?width=800 800w"/></p>
-<p><img alt="image-jjuo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jjuo.png" srcset="/upload/image-jjuo.png?width=1200 1200w, /upload/image-jjuo.png?width=400 400w, /upload/image-jjuo.png?width=1600 1600w, /upload/image-jjuo.png?width=800 800w"/></p>
+<p><img alt="image-uvvj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-uvvj.png" srcset="/halo-SSG/upload/image-uvvj.png?width=1200 1200w, /halo-SSG/upload/image-uvvj.png?width=400 400w, /halo-SSG/upload/image-uvvj.png?width=1600 1600w, /halo-SSG/upload/image-uvvj.png?width=800 800w"/></p>
+<p><img alt="image-jjuo.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jjuo.png" srcset="/halo-SSG/upload/image-jjuo.png?width=1200 1200w, /halo-SSG/upload/image-jjuo.png?width=400 400w, /halo-SSG/upload/image-jjuo.png?width=1600 1600w, /halo-SSG/upload/image-jjuo.png?width=800 800w"/></p>
 <p>注意该按钮无法识别 <code>/</code>为语句分隔符</p>
 <h3 id="10--显示行号">10. 显示行号</h3>
 <p>方法一：在SQL编辑器左侧的空白处点击鼠标右键，选择 <code>Show Line Numbers</code>,该方法仅为此窗口临时开启</p>
-<p><img alt="image-wuvs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wuvs.png" srcset="/upload/image-wuvs.png?width=1200 1200w, /upload/image-wuvs.png?width=400 400w, /upload/image-wuvs.png?width=1600 1600w, /upload/image-wuvs.png?width=800 800w"/></p>
+<p><img alt="image-wuvs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wuvs.png" srcset="/halo-SSG/upload/image-wuvs.png?width=1200 1200w, /halo-SSG/upload/image-wuvs.png?width=400 400w, /halo-SSG/upload/image-wuvs.png?width=1600 1600w, /halo-SSG/upload/image-wuvs.png?width=800 800w"/></p>
 <p>方法二：菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>Text Editors</code>,勾选 <code>Show Line Numbers</code> ，该方法为全局开启</p>
-<p><img alt="image-diqe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-diqe.png" srcset="/upload/image-diqe.png?width=1200 1200w, /upload/image-diqe.png?width=400 400w, /upload/image-diqe.png?width=1600 1600w, /upload/image-diqe.png?width=800 800w"/></p>
+<p><img alt="image-diqe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-diqe.png" srcset="/halo-SSG/upload/image-diqe.png?width=1200 1200w, /halo-SSG/upload/image-diqe.png?width=400 400w, /halo-SSG/upload/image-diqe.png?width=1600 1600w, /halo-SSG/upload/image-diqe.png?width=800 800w"/></p>
 <h3 id="11--查看SQL的执行计划">11. 查看SQL的执行计划</h3>
 <p>选择待分析的SQL，点击SQL编辑器的工具栏中的</p>
-<p><img alt="image-cpuc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-cpuc.png" srcset="/upload/image-cpuc.png?width=1200 1200w, /upload/image-cpuc.png?width=400 400w, /upload/image-cpuc.png?width=1600 1600w, /upload/image-cpuc.png?width=800 800w"/><br/>
+<p><img alt="image-cpuc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-cpuc.png" srcset="/halo-SSG/upload/image-cpuc.png?width=1200 1200w, /halo-SSG/upload/image-cpuc.png?width=400 400w, /halo-SSG/upload/image-cpuc.png?width=1600 1600w, /halo-SSG/upload/image-cpuc.png?width=800 800w"/><br/>
 根据需要勾选相关的选项，点击提交</p>
-<p><img alt="image-dnhj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-dnhj.png" srcset="/upload/image-dnhj.png?width=1200 1200w, /upload/image-dnhj.png?width=400 400w, /upload/image-dnhj.png?width=1600 1600w, /upload/image-dnhj.png?width=800 800w"/></p>
-<p><img alt="image-njif.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-njif.png" srcset="/upload/image-njif.png?width=1200 1200w, /upload/image-njif.png?width=400 400w, /upload/image-njif.png?width=1600 1600w, /upload/image-njif.png?width=800 800w"/></p>
+<p><img alt="image-dnhj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-dnhj.png" srcset="/halo-SSG/upload/image-dnhj.png?width=1200 1200w, /halo-SSG/upload/image-dnhj.png?width=400 400w, /halo-SSG/upload/image-dnhj.png?width=1600 1600w, /halo-SSG/upload/image-dnhj.png?width=800 800w"/></p>
+<p><img alt="image-njif.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-njif.png" srcset="/halo-SSG/upload/image-njif.png?width=1200 1200w, /halo-SSG/upload/image-njif.png?width=400 400w, /halo-SSG/upload/image-njif.png?width=1600 1600w, /halo-SSG/upload/image-njif.png?width=800 800w"/></p>
 <p>注意如果勾选了 <code>ANALYSE</code>,SQL会真实执行一次</p>
 <h3 id="12--查看输出">12. 查看输出</h3>
 <p>点击SQL编辑器的工具栏中的</p>
-<p><img alt="image-iyhh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iyhh.png" srcset="/upload/image-iyhh.png?width=1200 1200w, /upload/image-iyhh.png?width=400 400w, /upload/image-iyhh.png?width=1600 1600w, /upload/image-iyhh.png?width=800 800w"/></p>
+<p><img alt="image-iyhh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-iyhh.png" srcset="/halo-SSG/upload/image-iyhh.png?width=1200 1200w, /halo-SSG/upload/image-iyhh.png?width=400 400w, /halo-SSG/upload/image-iyhh.png?width=1600 1600w, /halo-SSG/upload/image-iyhh.png?width=800 800w"/></p>
 <p>该窗口会显示 <code>raise notice</code>、<code>raise warning</code>以及 <code>dbms_output</code>返回到客户端的字符串</p>
-<p><img alt="image-wlju.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wlju.png" srcset="/upload/image-wlju.png?width=1200 1200w, /upload/image-wlju.png?width=400 400w, /upload/image-wlju.png?width=1600 1600w, /upload/image-wlju.png?width=800 800w"/></p>
+<p><img alt="image-wlju.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wlju.png" srcset="/halo-SSG/upload/image-wlju.png?width=1200 1200w, /halo-SSG/upload/image-wlju.png?width=400 400w, /halo-SSG/upload/image-wlju.png?width=1600 1600w, /halo-SSG/upload/image-wlju.png?width=800 800w"/></p>
 <h3 id="13--定位执行SQL的错误位置">13. 定位执行SQL的错误位置</h3>
 <p>执行SQL报错后，可以点击下方报错信息右边的 <code>Go To The Error</code>按钮，将光标自动移动到报错的位置。（注意该方式仅限于查看当前SQL文本的错误，不含SQL调用的存储过程内部的错误）</p>
-<p><img alt="image-jnrf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jnrf.png" srcset="/upload/image-jnrf.png?width=1200 1200w, /upload/image-jnrf.png?width=400 400w, /upload/image-jnrf.png?width=1600 1600w, /upload/image-jnrf.png?width=800 800w"/></p>
+<p><img alt="image-jnrf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jnrf.png" srcset="/halo-SSG/upload/image-jnrf.png?width=1200 1200w, /halo-SSG/upload/image-jnrf.png?width=400 400w, /halo-SSG/upload/image-jnrf.png?width=1600 1600w, /halo-SSG/upload/image-jnrf.png?width=800 800w"/></p>
 <h3 id="14--存储过程报错行数解读-以及找到对应代码">14. 存储过程报错行数解读，以及找到对应代码</h3>
 <p>创建一个语法正确，但执行必定会报错的package,并执行它</p>
-<p><img alt="image-libt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-libt.png" srcset="/upload/image-libt.png?width=1200 1200w, /upload/image-libt.png?width=400 400w, /upload/image-libt.png?width=1600 1600w, /upload/image-libt.png?width=800 800w"/></p>
+<p><img alt="image-libt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-libt.png" srcset="/halo-SSG/upload/image-libt.png?width=1200 1200w, /halo-SSG/upload/image-libt.png?width=400 400w, /halo-SSG/upload/image-libt.png?width=1600 1600w, /halo-SSG/upload/image-libt.png?width=800 800w"/></p>
 <p>报错信息显示</p>
 <pre><code>ERROR: invalid input syntax for type numeric: "a"
   在位置：PL/pgSQL function pkg_test.p2() line 5 at assignment
@@ -367,89 +367,89 @@ PL/pgSQL function pkg_test.p1() line 6 at PERFORM
 <p><code>在位置：PL/pgSQL function pkg_test.p2() line 5</code> 意为这个报错是在pkg_test.p2()的第5行被触发</p>
 <p>调用pkg_test.p2()的是 <code>PL/pgSQL function pkg_test.p1() line 6</code>，即pkg_test.p1()的第6行。</p>
 <p>我们可以打开这个package的p1和p2，根据行号找到对应的位置</p>
-<p><img alt="image-aijy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aijy.png" srcset="/upload/image-aijy.png?width=1200 1200w, /upload/image-aijy.png?width=400 400w, /upload/image-aijy.png?width=1600 1600w, /upload/image-aijy.png?width=800 800w"/></p>
-<p><img alt="image-smqs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-smqs.png" srcset="/upload/image-smqs.png?width=1200 1200w, /upload/image-smqs.png?width=400 400w, /upload/image-smqs.png?width=1600 1600w, /upload/image-smqs.png?width=800 800w"/></p>
-<p><img alt="image-vbgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-vbgz.png" srcset="/upload/image-vbgz.png?width=1200 1200w, /upload/image-vbgz.png?width=400 400w, /upload/image-vbgz.png?width=1600 1600w, /upload/image-vbgz.png?width=800 800w"/></p>
+<p><img alt="image-aijy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-aijy.png" srcset="/halo-SSG/upload/image-aijy.png?width=1200 1200w, /halo-SSG/upload/image-aijy.png?width=400 400w, /halo-SSG/upload/image-aijy.png?width=1600 1600w, /halo-SSG/upload/image-aijy.png?width=800 800w"/></p>
+<p><img alt="image-smqs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-smqs.png" srcset="/halo-SSG/upload/image-smqs.png?width=1200 1200w, /halo-SSG/upload/image-smqs.png?width=400 400w, /halo-SSG/upload/image-smqs.png?width=1600 1600w, /halo-SSG/upload/image-smqs.png?width=800 800w"/></p>
+<p><img alt="image-vbgz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-vbgz.png" srcset="/halo-SSG/upload/image-vbgz.png?width=1200 1200w, /halo-SSG/upload/image-vbgz.png?width=400 400w, /halo-SSG/upload/image-vbgz.png?width=1600 1600w, /halo-SSG/upload/image-vbgz.png?width=800 800w"/></p>
 <p>注意Mogeaver支持查看package内单个procedure的代码，也支持按package查看代码。执行报错时返回的行号是单个procedure的行号，而非package的行号</p>
-<p><img alt="image-oggn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-oggn.png" srcset="/upload/image-oggn.png?width=1200 1200w, /upload/image-oggn.png?width=400 400w, /upload/image-oggn.png?width=1600 1600w, /upload/image-oggn.png?width=800 800w"/></p>
-<p><img alt="image-rlko.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rlko.png" srcset="/upload/image-rlko.png?width=1200 1200w, /upload/image-rlko.png?width=400 400w, /upload/image-rlko.png?width=1600 1600w, /upload/image-rlko.png?width=800 800w"/></p>
+<p><img alt="image-oggn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-oggn.png" srcset="/halo-SSG/upload/image-oggn.png?width=1200 1200w, /halo-SSG/upload/image-oggn.png?width=400 400w, /halo-SSG/upload/image-oggn.png?width=1600 1600w, /halo-SSG/upload/image-oggn.png?width=800 800w"/></p>
+<p><img alt="image-rlko.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-rlko.png" srcset="/halo-SSG/upload/image-rlko.png?width=1200 1200w, /halo-SSG/upload/image-rlko.png?width=400 400w, /halo-SSG/upload/image-rlko.png?width=1600 1600w, /halo-SSG/upload/image-rlko.png?width=800 800w"/></p>
 <h2 id="六-数据查看-编辑器">六、数据查看/编辑器</h2>
 <h3 id="1--日期时间格式">1. 日期时间格式</h3>
 <p>默认情况下，Mogeaver查询结果显示的日期时间会格式化成保留秒后三位小数，不一定和数据库原始值一致，可以在 菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>数据编辑器</code>-<code>数据格式</code>，勾选 <code>禁用日期/时间格式</code>，或者在下方自定义期望的格式</p>
-<p><img alt="image-qsyf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qsyf.png" srcset="/upload/image-qsyf.png?width=1200 1200w, /upload/image-qsyf.png?width=400 400w, /upload/image-qsyf.png?width=1600 1600w, /upload/image-qsyf.png?width=800 800w"/></p>
+<p><img alt="image-qsyf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qsyf.png" srcset="/halo-SSG/upload/image-qsyf.png?width=1200 1200w, /halo-SSG/upload/image-qsyf.png?width=400 400w, /halo-SSG/upload/image-qsyf.png?width=1600 1600w, /halo-SSG/upload/image-qsyf.png?width=800 800w"/></p>
 <h3 id="2--数字格式">2. 数字格式</h3>
 <p>默认情况下，Mogeaver查询结果显示的数值会格式化成按3位分组，如果不想要分组，可以在 菜单栏-<code>窗口</code>-<code>首选项</code>-<code>编辑器</code>-<code>数据编辑器</code>-<code>数据格式</code>，勾选 <code>禁用数字格式化</code>，或者在下方自定义期望的格式</p>
-<p><img alt="image-wear.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wear.png" srcset="/upload/image-wear.png?width=1200 1200w, /upload/image-wear.png?width=400 400w, /upload/image-wear.png?width=1600 1600w, /upload/image-wear.png?width=800 800w"/></p>
+<p><img alt="image-wear.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wear.png" srcset="/halo-SSG/upload/image-wear.png?width=1200 1200w, /halo-SSG/upload/image-wear.png?width=400 400w, /halo-SSG/upload/image-wear.png?width=1600 1600w, /halo-SSG/upload/image-wear.png?width=800 800w"/></p>
 <h3 id="3--查看游标">3. 查看游标</h3>
 <p>切换成手动提交</p>
-<p><img alt="image-tiij.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tiij.png" srcset="/upload/image-tiij.png?width=1200 1200w, /upload/image-tiij.png?width=400 400w, /upload/image-tiij.png?width=1600 1600w, /upload/image-tiij.png?width=800 800w"/></p>
+<p><img alt="image-tiij.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-tiij.png" srcset="/halo-SSG/upload/image-tiij.png?width=1200 1200w, /halo-SSG/upload/image-tiij.png?width=400 400w, /halo-SSG/upload/image-tiij.png?width=1600 1600w, /halo-SSG/upload/image-tiij.png?width=800 800w"/></p>
 <p>执行存储过程，鼠标选中需要查看的游标名称，右侧即可显示游标内的数据</p>
-<p><img alt="image-jved.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jved.png" srcset="/upload/image-jved.png?width=1200 1200w, /upload/image-jved.png?width=400 400w, /upload/image-jved.png?width=1600 1600w, /upload/image-jved.png?width=800 800w"/></p>
+<p><img alt="image-jved.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jved.png" srcset="/halo-SSG/upload/image-jved.png?width=1200 1200w, /halo-SSG/upload/image-jved.png?width=400 400w, /halo-SSG/upload/image-jved.png?width=1600 1600w, /halo-SSG/upload/image-jved.png?width=800 800w"/></p>
 <h3 id="4--导出数据">4. 导出数据</h3>
 <ul>
 <li>导出方法一：</li>
 </ul>
 <p>点击数据查看器下面的 <code>导出数据</code></p>
-<p><img alt="image-gzyn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-gzyn.png" srcset="/upload/image-gzyn.png?width=1200 1200w, /upload/image-gzyn.png?width=400 400w, /upload/image-gzyn.png?width=1600 1600w, /upload/image-gzyn.png?width=800 800w"/></p>
+<p><img alt="image-gzyn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-gzyn.png" srcset="/halo-SSG/upload/image-gzyn.png?width=1200 1200w, /halo-SSG/upload/image-gzyn.png?width=400 400w, /halo-SSG/upload/image-gzyn.png?width=1600 1600w, /halo-SSG/upload/image-gzyn.png?width=800 800w"/></p>
 <p>如果点击此处的 <code>Excel</code>或者 <code>网页浏览器</code>，会直接调用本地程序打开导出到本地临时目录中的文件；<br/>
 如果点击导出数据，则会弹出导出选项，可以选择需要导出的文件格式</p>
-<p><img alt="image-ziof.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ziof.png" srcset="/upload/image-ziof.png?width=1200 1200w, /upload/image-ziof.png?width=400 400w, /upload/image-ziof.png?width=1600 1600w, /upload/image-ziof.png?width=800 800w"/></p>
+<p><img alt="image-ziof.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ziof.png" srcset="/halo-SSG/upload/image-ziof.png?width=1200 1200w, /halo-SSG/upload/image-ziof.png?width=400 400w, /halo-SSG/upload/image-ziof.png?width=1600 1600w, /halo-SSG/upload/image-ziof.png?width=800 800w"/></p>
 <ul>
 <li>导出方法二：<br/>
 在查询的数据上鼠标右键-<code>高级复制</code>，此时会复制到操作系统剪贴板，可以粘贴到其他文本中。这在生成json/markdown格式数据时很方便。</li>
 </ul>
-<p><img alt="image-kafq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kafq.png" srcset="/upload/image-kafq.png?width=1200 1200w, /upload/image-kafq.png?width=400 400w, /upload/image-kafq.png?width=1600 1600w, /upload/image-kafq.png?width=800 800w"/></p>
+<p><img alt="image-kafq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-kafq.png" srcset="/halo-SSG/upload/image-kafq.png?width=1200 1200w, /halo-SSG/upload/image-kafq.png?width=400 400w, /halo-SSG/upload/image-kafq.png?width=1600 1600w, /halo-SSG/upload/image-kafq.png?width=800 800w"/></p>
 <ul>
 <li>导出方法三：</li>
 </ul>
 <p>在查询的数据上鼠标右键-<code>生成SQL</code>，可以快速生成对应数据的insert语句，方便测试时复制数据到其他环境</p>
-<p><img alt="image-fybm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-fybm.png" srcset="/upload/image-fybm.png?width=1200 1200w, /upload/image-fybm.png?width=400 400w, /upload/image-fybm.png?width=1600 1600w, /upload/image-fybm.png?width=800 800w"/></p>
+<p><img alt="image-fybm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-fybm.png" srcset="/halo-SSG/upload/image-fybm.png?width=1200 1200w, /halo-SSG/upload/image-fybm.png?width=400 400w, /halo-SSG/upload/image-fybm.png?width=1600 1600w, /halo-SSG/upload/image-fybm.png?width=800 800w"/></p>
 <ul>
 <li>导出方法四：</li>
 </ul>
 <p>在数据库导航中，表上也可以点击鼠标右键，选择 <code>导出数据</code>或 <code>生成SQL</code>,操作和前面几种方法一致</p>
-<p><img alt="image-tezm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tezm.png" srcset="/upload/image-tezm.png?width=1200 1200w, /upload/image-tezm.png?width=400 400w, /upload/image-tezm.png?width=1600 1600w, /upload/image-tezm.png?width=800 800w"/></p>
+<p><img alt="image-tezm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-tezm.png" srcset="/halo-SSG/upload/image-tezm.png?width=1200 1200w, /halo-SSG/upload/image-tezm.png?width=400 400w, /halo-SSG/upload/image-tezm.png?width=1600 1600w, /halo-SSG/upload/image-tezm.png?width=800 800w"/></p>
 <h3 id="5--修改记录">5. 修改记录</h3>
 <p>查询表，然后直接编辑单元格内的数据，保存即可</p>
-<p><img alt="image-jnns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jnns.png" srcset="/upload/image-jnns.png?width=1200 1200w, /upload/image-jnns.png?width=400 400w, /upload/image-jnns.png?width=1600 1600w, /upload/image-jnns.png?width=800 800w"/></p>
+<p><img alt="image-jnns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jnns.png" srcset="/halo-SSG/upload/image-jnns.png?width=1200 1200w, /halo-SSG/upload/image-jnns.png?width=400 400w, /halo-SSG/upload/image-jnns.png?width=1600 1600w, /halo-SSG/upload/image-jnns.png?width=800 800w"/></p>
 <p>注意在本机通过执行SQL的方式创建的表，mogeaver中的元数据不会立即更新，如果出现查询的数据为readonly状态，需要在数据库导航中手动刷新一下</p>
-<p><img alt="image-yinv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-yinv.png" srcset="/upload/image-yinv.png?width=1200 1200w, /upload/image-yinv.png?width=400 400w, /upload/image-yinv.png?width=1600 1600w, /upload/image-yinv.png?width=800 800w"/></p>
+<p><img alt="image-yinv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-yinv.png" srcset="/halo-SSG/upload/image-yinv.png?width=1200 1200w, /halo-SSG/upload/image-yinv.png?width=400 400w, /halo-SSG/upload/image-yinv.png?width=1600 1600w, /halo-SSG/upload/image-yinv.png?width=800 800w"/></p>
 <h3 id="6--粘贴多行记录">6. 粘贴多行记录</h3>
 <ul>
 <li>从查询结果中选定希望复制的数据，按 <code>ctrl+c</code></li>
 </ul>
-<p><img alt="image-afjy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-afjy.png" srcset="/upload/image-afjy.png?width=1200 1200w, /upload/image-afjy.png?width=400 400w, /upload/image-afjy.png?width=1600 1600w, /upload/image-afjy.png?width=800 800w"/></p>
+<p><img alt="image-afjy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-afjy.png" srcset="/halo-SSG/upload/image-afjy.png?width=1200 1200w, /halo-SSG/upload/image-afjy.png?width=400 400w, /halo-SSG/upload/image-afjy.png?width=1600 1600w, /halo-SSG/upload/image-afjy.png?width=800 800w"/></p>
 <ul>
 <li>将光标移到行末尾，点击下方的 <code>添加行</code>，会自动插入一个空行</li>
 </ul>
-<p><img alt="image-aqjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aqjd.png" srcset="/upload/image-aqjd.png?width=1200 1200w, /upload/image-aqjd.png?width=400 400w, /upload/image-aqjd.png?width=1600 1600w, /upload/image-aqjd.png?width=800 800w"/></p>
+<p><img alt="image-aqjd.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-aqjd.png" srcset="/halo-SSG/upload/image-aqjd.png?width=1200 1200w, /halo-SSG/upload/image-aqjd.png?width=400 400w, /halo-SSG/upload/image-aqjd.png?width=1600 1600w, /halo-SSG/upload/image-aqjd.png?width=800 800w"/></p>
 <ul>
 <li>在空行上鼠标右键，<code>高级粘贴</code>，勾选 <code>插入多行</code>，点击 <code>OK</code></li>
 </ul>
-<p><img alt="image-iljn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-iljn.png" srcset="/upload/image-iljn.png?width=1200 1200w, /upload/image-iljn.png?width=400 400w, /upload/image-iljn.png?width=1600 1600w, /upload/image-iljn.png?width=800 800w"/></p>
+<p><img alt="image-iljn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-iljn.png" srcset="/halo-SSG/upload/image-iljn.png?width=1200 1200w, /halo-SSG/upload/image-iljn.png?width=400 400w, /halo-SSG/upload/image-iljn.png?width=1600 1600w, /halo-SSG/upload/image-iljn.png?width=800 800w"/></p>
 <ul>
 <li>粘贴效果如下，点击 <code>保存</code>即可确认粘贴结果</li>
 </ul>
-<p><img alt="image-tfby.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-tfby.png" srcset="/upload/image-tfby.png?width=1200 1200w, /upload/image-tfby.png?width=400 400w, /upload/image-tfby.png?width=1600 1600w, /upload/image-tfby.png?width=800 800w"/></p>
+<p><img alt="image-tfby.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-tfby.png" srcset="/halo-SSG/upload/image-tfby.png?width=1200 1200w, /halo-SSG/upload/image-tfby.png?width=400 400w, /halo-SSG/upload/image-tfby.png?width=1600 1600w, /halo-SSG/upload/image-tfby.png?width=800 800w"/></p>
 <h2 id="七-调试">七、调试</h2>
 <h3 id="1--调试步骤">1. 调试步骤</h3>
 <ul>
 <li>在导航栏打开需要调试的入口存储过程，如果需要调试的package内的存储过程，也要打开到package内的这个存储过程</li>
 </ul>
-<p><img alt="image-nsrb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nsrb.png" srcset="/upload/image-nsrb.png?width=1200 1200w, /upload/image-nsrb.png?width=400 400w, /upload/image-nsrb.png?width=1600 1600w, /upload/image-nsrb.png?width=800 800w"/></p>
+<p><img alt="image-nsrb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-nsrb.png" srcset="/halo-SSG/upload/image-nsrb.png?width=1200 1200w, /halo-SSG/upload/image-nsrb.png?width=400 400w, /halo-SSG/upload/image-nsrb.png?width=1600 1600w, /halo-SSG/upload/image-nsrb.png?width=800 800w"/></p>
 <ul>
 <li>切换到 <code>源</code></li>
 </ul>
-<p><img alt="image-shph.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-shph.png" srcset="/upload/image-shph.png?width=1200 1200w, /upload/image-shph.png?width=400 400w, /upload/image-shph.png?width=1600 1600w, /upload/image-shph.png?width=800 800w"/></p>
+<p><img alt="image-shph.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-shph.png" srcset="/halo-SSG/upload/image-shph.png?width=1200 1200w, /halo-SSG/upload/image-shph.png?width=400 400w, /halo-SSG/upload/image-shph.png?width=1600 1600w, /halo-SSG/upload/image-shph.png?width=800 800w"/></p>
 <ul>
 <li>点击上方工具栏的瓢虫按钮</li>
 </ul>
-<p><img alt="image-nqxe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-nqxe.png" srcset="/upload/image-nqxe.png?width=1200 1200w, /upload/image-nqxe.png?width=400 400w, /upload/image-nqxe.png?width=1600 1600w, /upload/image-nqxe.png?width=800 800w"/></p>
-<p><img alt="image-etfn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-etfn.png" srcset="/upload/image-etfn.png?width=1200 1200w, /upload/image-etfn.png?width=400 400w, /upload/image-etfn.png?width=1600 1600w, /upload/image-etfn.png?width=800 800w"/></p>
+<p><img alt="image-nqxe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-nqxe.png" srcset="/halo-SSG/upload/image-nqxe.png?width=1200 1200w, /halo-SSG/upload/image-nqxe.png?width=400 400w, /halo-SSG/upload/image-nqxe.png?width=1600 1600w, /halo-SSG/upload/image-nqxe.png?width=800 800w"/></p>
+<p><img alt="image-etfn.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-etfn.png" srcset="/halo-SSG/upload/image-etfn.png?width=1200 1200w, /halo-SSG/upload/image-etfn.png?width=400 400w, /halo-SSG/upload/image-etfn.png?width=1600 1600w, /halo-SSG/upload/image-etfn.png?width=800 800w"/></p>
 <ul>
 <li>输入参数（若有），点击 <code>OK</code>,进入调试</li>
 </ul>
-<p><img alt="image-ffpk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ffpk.png" srcset="/upload/image-ffpk.png?width=1200 1200w, /upload/image-ffpk.png?width=400 400w, /upload/image-ffpk.png?width=1600 1600w, /upload/image-ffpk.png?width=800 800w"/></p>
+<p><img alt="image-ffpk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ffpk.png" srcset="/halo-SSG/upload/image-ffpk.png?width=1200 1200w, /halo-SSG/upload/image-ffpk.png?width=400 400w, /halo-SSG/upload/image-ffpk.png?width=1600 1600w, /halo-SSG/upload/image-ffpk.png?width=800 800w"/></p>
 <p>此时可以进行添加断点、单步执行、单步进入、查看变量、执行到最后等操作</p>
 <p>详细请参考演示视频<br/>
 https://www.bilibili.com/video/BV1vw4m1Q7LM</p>
@@ -466,7 +466,7 @@ https://www.bilibili.com/video/BV1vw4m1Q7LM</p>
 <h3 id="1--拖动各种后缀的文件到mogeaver里打开">1. 拖动各种后缀的文件到mogeaver里打开</h3>
 <p>默认情况下，可以拖动sql后缀的文件到Mogeaver的SQL编辑器中，但是拖动其他文件可能会变成调用操作系统的默认打开方式中的软件。Mogeaver支持自定义配置对应后缀的文件需要的打开方式。<br/>
 以 <code>*.pck</code>为例，在菜单栏-窗口-首选项-用户界面-Editors-File Associations ,在上面增加 <code>*.pck</code>的文件类型，并对应在下面关联上 <code>SQL编辑器</code></p>
-<p><img alt="image-uhhm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-uhhm.png" srcset="/upload/image-uhhm.png?width=1200 1200w, /upload/image-uhhm.png?width=400 400w, /upload/image-uhhm.png?width=1600 1600w, /upload/image-uhhm.png?width=800 800w"/></p>
+<p><img alt="image-uhhm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-uhhm.png" srcset="/halo-SSG/upload/image-uhhm.png?width=1200 1200w, /halo-SSG/upload/image-uhhm.png?width=400 400w, /halo-SSG/upload/image-uhhm.png?width=1600 1600w, /halo-SSG/upload/image-uhhm.png?width=800 800w"/></p>
 <p>此时拖动pck文件到mogeaver中，即可自动创建一个SQL编辑器窗口打开这个文件</p>
 <h3 id="2--变更运行软件的版本时需要执行的操作">2. 变更运行软件的版本时需要执行的操作</h3>
 <p>一般情况下，变更Mogeaver的版本，只需要删除旧版本程序目录，启动新版本程序即可，但某些情况下，Mogeaver的java缓存可能更新异常，因此建议在变更Mogeaver版本时，手动删除以下目录</p>
@@ -506,7 +506,7 @@ https://www.bilibili.com/video/BV1vw4m1Q7LM</p>
 </code></pre>
 <h3 id="8--数据导入时自动给表增加了字段">8. 数据导入时自动给表增加了字段</h3>
 <p>在导入时如果没有进行好字段映射，那么对于文件中有字段，而未映射到数据库表中的，默认会自动新建字段，建议看清界面选项再进行操作</p>
-<p><img alt="image-odtm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-odtm.png" srcset="/upload/image-odtm.png?width=1200 1200w, /upload/image-odtm.png?width=400 400w, /upload/image-odtm.png?width=1600 1600w, /upload/image-odtm.png?width=800 800w"/></p>
+<p><img alt="image-odtm.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-odtm.png" srcset="/halo-SSG/upload/image-odtm.png?width=1200 1200w, /halo-SSG/upload/image-odtm.png?width=400 400w, /halo-SSG/upload/image-odtm.png?width=1600 1600w, /halo-SSG/upload/image-odtm.png?width=800 800w"/></p>
 <h3 id="9--在kylin-v10-桌面版上使用Mogeaver">9. 在kylin v10 桌面版上使用Mogeaver</h3>
 <p>x86_64环境</p>
 <pre><code>wget https://cdn-mogdb.enmotech.com/mogeaver/23.3.1/mogeaver-ce-23.3.1-linux.gtk.x86_64.tar.gz
@@ -541,19 +541,19 @@ https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jre
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">&larr; 【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-sqlplus-sqlldr-usage">&larr; 【MogDB】MogDB5.2.0重磅发布第四篇-支持windows版gsql，兼容sqlplus/sqlldr语法</a>
     
     
-    <a href="/archives/mogdb-5.2.0-support-rowid">【MogDB】MogDB5.2.0重磅发布第三篇-支持astore下的rowid &rarr;</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-rowid">【MogDB】MogDB5.2.0重磅发布第三篇-支持astore下的rowid &rarr;</a>
     
 </div>
 

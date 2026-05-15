@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算 - DA-技术分享-静态站</title>
     <meta name="description" content="ith tt as (select salary,         count(1) over() ct,         avg(salary) over() av,         stddev(salary) over() st    from hr.employees),r as (sele">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【oracle】解析ORACLE21C新增的4个峰度和偏度函数的计算过程并使用excel及sql进行公式计算</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1581 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a> / 
+        <a href="/halo-SSG/categories/opengauss">openGauss</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -170,9 +170,9 @@
 </ol>
 <p>这4个函数与统计学有关，至于有什么用，不是本篇重点，请自行检索相关文献。但要注意的是，目前国内某些百科，由于翻译或者语境的问题，导致相关描述存在问题。如果想对此方面有更详细了解的，建议多搜索一些国外的文章。</p>
 <h2 id="二原公式">二、原公式</h2>
-<p>SKEWNESS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png" srcset="/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1200 1200w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=400 400w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1600 1600w, /upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=800 800w"/></p>
+<p>SKEWNESS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png" srcset="/halo-SSG/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=400 400w, /halo-SSG/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-1817d724bd064fb09c8f65b460554e66.png?width=800 800w"/></p>
 <p>SKEWNESS_POP()=SKEWNESS_SAMP()*(n–2)/SQRT(n(n–1))</p>
-<p>KURTOSIS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png" srcset="/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1200 1200w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=400 400w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1600 1600w, /upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=800 800w"/></p>
+<p>KURTOSIS_SAMP()=<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png" srcset="/halo-SSG/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=400 400w, /halo-SSG/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-0c98390b6ae3441fa54f4735cc42adbe.png?width=800 800w"/></p>
 <p>KURTOSIS_POP()=(KURTOSIS_SAMP()*(n-2)*(n-3)/(n-1)-6)/(n+1)</p>
 <p>其中x̄为平均值，n为项数,s为标准差，SQRT为取平方根</p>
 <h2 id="三excel公式计算">三、Excel公式计算</h2>
@@ -214,13 +214,13 @@
 <h4 id="6除以分母得到最终结果">6.除以分母得到最终结果</h4>
 <p>-18.75/((8-1)*(8-2)*1.9821^3)=-0.4587</p>
 <h4 id="7和excel函数比较">7.和excel函数比较</h4>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png" srcset="/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1200 1200w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=400 400w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1600 1600w, /upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png" srcset="/halo-SSG/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=400 400w, /halo-SSG/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-9277d6c5b1d64cd18131dcfa7180e14b.png?width=800 800w"/><br/>
 可以发现结果完全一致</p>
 <h4 id="8计算skewness-pop即excel中的skewp">8.计算SKEWNESS_POP(即excel中的skew.p）</h4>
 <p>-0.4587*(8–2)/SQRT(8(8–1))=-0.3677</p>
 <h4 id="9关于kurtosis-samp和kurtosis-pop">9.关于KURTOSIS_SAMP和KURTOSIS_POP</h4>
 <p>请参考文末的excel表格，自行增加下图标黄部分,就当留给读者的课后作业了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png" srcset="/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1200 1200w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=400 400w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1600 1600w, /upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png" srcset="/halo-SSG/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=400 400w, /halo-SSG/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-5c765e07cf1048be81f77b8f68213821.png?width=800 800w"/></p>
 <pre><code>D7=(A7-F$9)^4
 D15=SUM(D7:D14)
 E22=KURT(A7:A14)
@@ -272,10 +272,10 @@ select ct * (ct + 1) * avp / ((ct - 1) * (ct - 2) * (ct - 3) * stp) -
 
 </code></pre>
 <p>SQL执行对比截图<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png" srcset="/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1200 1200w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=400 400w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1600 1600w, /upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png" srcset="/halo-SSG/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=400 400w, /halo-SSG/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-9b24803122284da5ac8904e418eaee75.png?width=800 800w"/></p>
 <h3 id="五将函数移植到其他数据库">五、将函数移植到其他数据库</h3>
 <p>比如openGauss(base on postgresql)<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png" srcset="/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1200 1200w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=400 400w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1600 1600w, /upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png" srcset="/halo-SSG/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=400 400w, /halo-SSG/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-2927c54f9ce54f9a8c728621cfcd1212.png?width=800 800w"/><br/>
 代码请参考我的gitee项目<br/>
 <a href="https://gitee.com/darkathena/opengauss-oracle/tree/master/oracle-function">https://gitee.com/darkathena/opengauss-oracle/tree/master/oracle-function</a></p>
 <h2 id="参考资料">参考资料</h2>
@@ -290,19 +290,19 @@ select ct * (ct + 1) * avp / ((ct - 1) * (ct - 2) * (ct - 3) * stp) -
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/opengauss-compat-oracle-package">&larr; 【openGauss】openGauss补完计划二之ORACLE兼容PACKAGE</a>
+    <a href="/halo-SSG/archives/opengauss-compat-oracle-package">&larr; 【openGauss】openGauss补完计划二之ORACLE兼容PACKAGE</a>
     
     
-    <a href="/archives/opengauss-compat-oracle-function">【openGauss】openGauss补完计划一之ORACLE兼容函数 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-compat-oracle-function">【openGauss】openGauss补完计划一之ORACLE兼容函数 &rarr;</a>
     
 </div>
 

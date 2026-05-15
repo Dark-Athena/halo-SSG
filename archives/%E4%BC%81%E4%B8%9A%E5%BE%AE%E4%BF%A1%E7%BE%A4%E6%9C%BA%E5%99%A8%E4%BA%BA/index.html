@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【AIO】使用ORACLE数据库存储过程发送企业微信群机器人消息 - DA-技术分享-静态站</title>
     <meta name="description" content="为了对标阿里系的钉钉，腾讯于2016年4月18日退出了企业微信，专注企业内部通讯，替代原有的RTX腾讯通 （RTX首页已推荐企业微信，建议原RTX用户迁移到企业微信）目前企业微信由于微信的生态及其易用性，已被很多企业使用，甚至个人都可以申请开通一个企业，其中经常会使用到的一个功能为消息推送。消息推送">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【AIO】使用ORACLE数据库存储过程发送企业微信群机器人消息</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1024 阅读</span>
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -160,16 +160,16 @@
 
 <h4 id="前言">前言</h4>
 <p>为了对标阿里系的钉钉，腾讯于2016年4月18日推出了企业微信<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png" srcset="/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1200 1200w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=400 400w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1600 1600w, /upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png" srcset="/halo-SSG/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=400 400w, /halo-SSG/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-3b123ae2010a403d897d0c433e0100f7.png?width=800 800w"/><br/>
 专注企业内部通讯（目前已加入客户管理及客户通讯功能），替代原有的RTX腾讯通<br/>
-<img alt="RTX首页已推荐企业微信，建议原RTX用户迁移到企业微信" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png" srcset="/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1200 1200w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=400 400w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1600 1600w, /upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=800 800w"/></p>
+<img alt="RTX首页已推荐企业微信，建议原RTX用户迁移到企业微信" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png" srcset="/halo-SSG/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=400 400w, /halo-SSG/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-b5f25a53ccd448678d1bf9b2715c08d5.png?width=800 800w"/></p>
 <p>企业微信由于微信的生态及其易用性，已被很多企业使用，甚至个人都可以申请开通一个企业，其中经常会使用到的一个功能为消息推送。</p>
 <p>消息推送目前分两大种，一是通过在企业微信新建应用，通过该应用发送给企业微信内指定的成员或群；二是通过企业微信群内的自建机器人，来发送消息到群。两种方式都支持api调用，但由于第一种需要新建应用，还要token和secret支持，在企业内有多个企业微信的应用开发项目时，容易发生token频繁更新导致经常失效，第二种方式不需要token，甚至不需要企业微信管理员的授权，所以第二种更方便使用。</p>
 <p>一般像这种api调用都要再另外开发一个程序，比如JAVA/PY等，也有利用.bat/.sh这类的操作系统批处理脚本来发送，但是都依赖于操作系统，而且增加了运维监控的工作量。</p>
 <p>本文针对第二种，介绍下如何通过ORACLE数据库存储过程来使用此功能（本文不描述如何申请开通企业微信）。</p>
 <h3 id="先了解企业微信官方api文档-群机器人配置说明">先了解企业微信官方API文档-群机器人配置说明</h3>
 <p><a href="https://work.weixin.qq.com/api/doc/90000/90136/91770">https://work.weixin.qq.com/api/doc/90000/90136/91770</a><br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png" srcset="/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1200 1200w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=400 400w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1600 1600w, /upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png" srcset="/halo-SSG/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=400 400w, /halo-SSG/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-c2080d10f6284d13af1543176717ab10.png?width=800 800w"/><br/>
 看完文档后，可以了解到，使用这个API大致分以下几个步骤<br/>
 1.创建一个群聊机器人<br/>
 2.获得群聊机器人的链接（含webhook）<br/>
@@ -178,14 +178,14 @@
 <h2 id="一创建群聊机器人及获得webhook">一、创建群聊机器人及获得webhook</h2>
 <p>1.打开手机端企业微信客户端，打开一个群（不支持外部群）<br/>
 2.点击右上角两个人头的图标<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png" srcset="/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1200 1200w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=400 400w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1600 1600w, /upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png" srcset="/halo-SSG/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=400 400w, /halo-SSG/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-15f75be8405148f585e56c0dfe07323d.png?width=800 800w"/><br/>
 3.点击群机器人<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png" srcset="/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1200 1200w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=400 400w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1600 1600w, /upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png" srcset="/halo-SSG/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=400 400w, /halo-SSG/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-982317b013cb4b2f9e8b66f49e229f95.png?width=800 800w"/><br/>
 4.点击添加机器人（或右上角添加）<br/>
-<img alt="i" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-2ea76709187c41809a273728c730de30.png" srcset="/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1200 1200w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=400 400w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1600 1600w, /upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=800 800w"/><br/>
+<img alt="i" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-2ea76709187c41809a273728c730de30.png" srcset="/halo-SSG/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=400 400w, /halo-SSG/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-2ea76709187c41809a273728c730de30.png?width=800 800w"/><br/>
 5.输入机器人名字，点击添加按钮<br/>
 6.获得webhook的地址，直接点复制，也可返回查看<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png" srcset="/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1200 1200w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=400 400w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1600 1600w, /upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png" srcset="/halo-SSG/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=400 400w, /halo-SSG/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-45661fd61bc046aca41f1f754e9f8bba.png?width=800 800w"/><br/>
 该地址格式如下，注意保密不要泄露<br/>
 <a href="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=a******-***-***-***-******">https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=a******-***-***-***-******</a></p>
 <h2 id="二在oracle数据库中配置acl授权可能需要sys用户允许oracle数据库访问企业微信api的地址">二、在ORACLE数据库中配置ACL授权(可能需要SYS用户)，允许ORACLE数据库访问企业微信API的地址</h2>
@@ -258,7 +258,7 @@ end qyapi_weixin_robot_sql;
 end;
 /
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png" srcset="/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1200 1200w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=400 400w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1600 1600w, /upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png" srcset="/halo-SSG/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=400 400w, /halo-SSG/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-8041b6c631ba4c29a6c7e23255b7ea60.png?width=800 800w"/></p>
 <p>2.发送文件</p>
 <pre><code class="language-plsql">begin
   qyapi_weixin_robot_sql.sendmsg_file(i_webhook           =&gt; 'a******-***-***-***-******',
@@ -270,7 +270,7 @@ end;
 /
 
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png" srcset="/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1200 1200w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=400 400w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1600 1600w, /upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png" srcset="/halo-SSG/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=400 400w, /halo-SSG/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-b9f06e50aae14795a505f15673b5046e.png?width=800 800w"/></p>
 <p>3.发送图片<br/>
 其实图片也是可以通过文件发送的，但是如果是通过文件的形式发送，用户需要点击这个图片打开才能看到内容，如果是以图片显示发送，则在聊天窗口中可以直接显示图片内容</p>
 <pre><code class="language-plsql">begin
@@ -281,7 +281,7 @@ end;
 /
 
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png" srcset="/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1200 1200w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=400 400w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1600 1600w, /upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png" srcset="/halo-SSG/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1200 1200w, /halo-SSG/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=400 400w, /halo-SSG/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=1600 1600w, /halo-SSG/upload/2021/07/image-cd6df372717e40bda3746496e468b658.png?width=800 800w"/></p>
 <h3 id="20210715-更新补充">20210715 更新补充</h3>
 <p>之前在 oracle 11g上测试的时候，这个api必须有包含对应证书的wallet才能发送，当然也可以把地址中的https的s去掉，只是这样安全度会降低。今天写这篇文章时同步在oracle 19c上测试，发现去掉钱夹的配置，地址为https时一样可以正常发送，原因不明。所以之后可能会在这个包中再多配置一个参数，由用户自行决定是否要启用ssl</p>
 </div>
@@ -290,19 +290,19 @@ end;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/%E5%85%B3%E4%BA%8E%E6%88%91%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%8F%91%E8%B5%B7aio%E9%A1%B9%E7%9B%AE">&larr; 【杂谈】关于我为什么要发起AIO(ALL IN ORACLE)项目</a>
+    <a href="/halo-SSG/archives/%E5%85%B3%E4%BA%8E%E6%88%91%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%8F%91%E8%B5%B7aio%E9%A1%B9%E7%9B%AE">&larr; 【杂谈】关于我为什么要发起AIO(ALL IN ORACLE)项目</a>
     
     
-    <a href="/archives/%E5%8F%91%E9%80%81email">【AIO】使用ORACLE数据库存储过程发送email（不含SSL） &rarr;</a>
+    <a href="/halo-SSG/archives/%E5%8F%91%E9%80%81email">【AIO】使用ORACLE数据库存储过程发送email（不含SSL） &rarr;</a>
     
 </div>
 

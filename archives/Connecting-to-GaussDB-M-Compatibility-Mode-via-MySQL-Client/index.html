@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库 - DA-技术分享-静态站</title>
     <meta name="description" content="【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库 概述 GaussDB 从内核 505.1 版本（2024年4月发布）起，新增了一种新的兼容模式 M-Compatibility，这是一种整体上比之前的B模式对MySQL兼容性更高的模式。这种M模式在建库">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【GaussDB】使用MySQL客户端连接到GaussDB的M-Compatibility数据库</h1>
     <div class="meta">
@@ -201,7 +201,7 @@ gs_guc reload -I all -N all -c "m_format_dev_version='s2'"
 <hr/>
 <h2 id="连接测试">连接测试</h2>
 <h3 id="初始连接问题">初始连接问题</h3>
-<p><img alt="image-grwl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-grwl.png" srcset="/upload/image-grwl.png?width=1200 1200w, /upload/image-grwl.png?width=400 400w, /upload/image-grwl.png?width=1600 1600w, /upload/image-grwl.png?width=800 800w"/><br/>
+<p><img alt="image-grwl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-grwl.png" srcset="/halo-SSG/upload/image-grwl.png?width=1200 1200w, /halo-SSG/upload/image-grwl.png?width=400 400w, /halo-SSG/upload/image-grwl.png?width=1600 1600w, /halo-SSG/upload/image-grwl.png?width=800 800w"/><br/>
 使用MySQL客户端连接时出现报错：</p>
 <blockquote>
 <p><strong>错误信息：</strong> <code>plat_compat_b_conn_handshake, handshake error.</code></p>
@@ -287,15 +287,15 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
 <p>多了两个参数，逐步测试：</p>
 <h4 id="步骤1添加-usesslfalse">步骤1：添加 useSSL=false</h4>
 <p>先加一个 <code>useSSL=false</code> 参数测试。<br/>
-<img alt="image-kjpz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-kjpz.png" srcset="/upload/image-kjpz.png?width=1200 1200w, /upload/image-kjpz.png?width=400 400w, /upload/image-kjpz.png?width=1600 1600w, /upload/image-kjpz.png?width=800 800w"/><br/>
+<img alt="image-kjpz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-kjpz.png" srcset="/halo-SSG/upload/image-kjpz.png?width=1200 1200w, /halo-SSG/upload/image-kjpz.png?width=400 400w, /halo-SSG/upload/image-kjpz.png?width=1600 1600w, /halo-SSG/upload/image-kjpz.png?width=800 800w"/><br/>
 <strong>结果：</strong> 出现了和mogeaver一样的报错。</p>
 <h4 id="步骤2添加-allowpublickeyretrievaltrue">步骤2：添加 allowPublicKeyRetrieval=true</h4>
 <p>再把另一个参数也加上去 <code>allowPublicKeyRetrieval=true</code>。<br/>
-<img alt="image-mrai.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-mrai.png" srcset="/upload/image-mrai.png?width=1200 1200w, /upload/image-mrai.png?width=400 400w, /upload/image-mrai.png?width=1600 1600w, /upload/image-mrai.png?width=800 800w"/><br/>
+<img alt="image-mrai.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-mrai.png" srcset="/halo-SSG/upload/image-mrai.png?width=1200 1200w, /halo-SSG/upload/image-mrai.png?width=400 400w, /halo-SSG/upload/image-mrai.png?width=1600 1600w, /halo-SSG/upload/image-mrai.png?width=800 800w"/><br/>
 <strong>结果：</strong> ✅ 执行成功了！</p>
 <h4 id="验证其他客户端">验证其他客户端</h4>
 <p>在mogeaver里也加上这个参数 <code>allowPublicKeyRetrieval=true</code>。<br/>
-<img alt="image-jlyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-jlyz.png" srcset="/upload/image-jlyz.png?width=1200 1200w, /upload/image-jlyz.png?width=400 400w, /upload/image-jlyz.png?width=1600 1600w, /upload/image-jlyz.png?width=800 800w"/><br/>
+<img alt="image-jlyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-jlyz.png" srcset="/halo-SSG/upload/image-jlyz.png?width=1200 1200w, /halo-SSG/upload/image-jlyz.png?width=400 400w, /halo-SSG/upload/image-jlyz.png?width=1600 1600w, /halo-SSG/upload/image-jlyz.png?width=800 800w"/><br/>
 <strong>结果：</strong> ✅ 也连接成功了！</p>
 <blockquote>
 <p><strong>说明：</strong> 但是mogeaver里的useSSL为true，之所以没有报错，是因为mogeaver里还自动加上了<code>enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></p>
@@ -310,7 +310,7 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
 <h2 id="常见问题及解决">常见问题及解决</h2>
 <p>如果是普通的测试人员，测到这里，就会认为连接测试这一项已经测试通过了，但是换几个不同的环境里的GaussDB去测，还可能会出现这样的报错：</p>
 <h3 id="问题access-denied-for-user">问题：Access denied for user</h3>
-<p><img alt="image-itil.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-itil.png" srcset="/upload/image-itil.png?width=1200 1200w, /upload/image-itil.png?width=400 400w, /upload/image-itil.png?width=1600 1600w, /upload/image-itil.png?width=800 800w"/></p>
+<p><img alt="image-itil.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-itil.png" srcset="/halo-SSG/upload/image-itil.png?width=1200 1200w, /halo-SSG/upload/image-itil.png?width=400 400w, /halo-SSG/upload/image-itil.png?width=1600 1600w, /halo-SSG/upload/image-itil.png?width=800 800w"/></p>
 <blockquote>
 <p><strong>错误信息：</strong> <code>Access denied for user</code></p>
 </blockquote>
@@ -380,17 +380,17 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/deepwiki2docsify">&larr; 将deepwiki生成的源代码分析文档转换到你自己的静态站点</a>
+    <a href="/halo-SSG/archives/deepwiki2docsify">&larr; 将deepwiki生成的源代码分析文档转换到你自己的静态站点</a>
     
     
-    <a href="/archives/GaussDB-s-Fully-Encrypted-Technology-Encrypted-Equality-Queries-and-Technical-Overview">【GaussDB】全密态等值查询功能测试及全密态技术介绍 &rarr;</a>
+    <a href="/halo-SSG/archives/GaussDB-s-Fully-Encrypted-Technology-Encrypted-Equality-Queries-and-Technical-Overview">【GaussDB】全密态等值查询功能测试及全密态技术介绍 &rarr;</a>
     
 </div>
 

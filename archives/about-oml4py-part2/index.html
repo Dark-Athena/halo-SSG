@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】关于21c版本中机器学习OML4PY功能嵌入式python代码执行的研究整理 - DA-技术分享-静态站</title>
     <meta name="description" content="前言在折腾了好久之后，总算可以用oracle官方提供的方案在oracle数据库中执行python代码了，但是仔细研究后，发现除了安装是个坑外，使用起来也是有相当多的限制，毕竟这个功能的目的是用来写机器学习的，不是纯粹的执行python代码。所以我就写这篇文章记录下这个功能该怎么使用。官方原文档：ht">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】关于21c版本中机器学习OML4PY功能嵌入式python代码执行的研究整理</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1307 阅读</span>
         
-        <a href="/categories/python">python</a> / 
+        <a href="/halo-SSG/categories/python">python</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -168,7 +168,7 @@
 <p>注意，本文不会大篇幅复制官方原文档的内容，请自行结合官方原文档食用。</p>
 <p>官方原文档：<a href="https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html" target="_blank">https://docs.oracle.com/en/database/oracle/machine-learning/oml4py/1/mlpug/sql-embedded-python-execution1.html</a></p>
 <h2 id="%E6%A6%82%E8%A7%88" tabindex="-1">概览</h2>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png" srcset="/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1200 1200w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=400 400w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1600 1600w, /upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png" srcset="/halo-SSG/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=400 400w, /halo-SSG/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-660a7abcc0d94568b3382fe2ddab7641.png?width=800 800w"/></p>
 <h2 id="%E5%88%9B%E5%BB%BA%E5%87%BD%E6%95%B0" tabindex="-1">创建函数</h2>
 <pre><code class="language-sql">sys.pyqScriptCreate (
     V_NAME          VARCHAR2    IN  --脚本名称
@@ -329,9 +329,9 @@ name value
      &lt;root&gt;&lt;str&gt;/u02/config/cdb1/homes/OraDB21Home1/hs/log&lt;/str&gt;&lt;/root&gt;
 </code></pre>
 <p>然后我们进操作系统的这个“/u02/config/cdb1/homes/OraDB21Home1/hs/log”目录看看<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png" srcset="/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1200 1200w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=400 400w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1600 1600w, /upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png" srcset="/halo-SSG/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=400 400w, /halo-SSG/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-11b8aef64f1347ac8ebafcf250b1a6da.png?width=800 800w"/></p>
 <p>果然在这里，另外我尝试生成文件到其他目录，有报权限不够，看看这个文件的属性<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png" srcset="/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1200 1200w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=400 400w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1600 1600w, /upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png" srcset="/halo-SSG/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=400 400w, /halo-SSG/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-62d6da0775ee4468888fa59a467a4214.png?width=800 800w"/></p>
 <p>这说明使用oml4py,让ORACLE嵌入式执行python时，是以操作系统oracle用户的身份在操作系统中执行的，和dbms_mle的机制不一样，但这样其实更方便数据的交互。不过需要注意的是，这要更加防范恶意的sql注入，所以一定要把控好相关对象的执行权限。</p>
 <p>而且由于它会自动回收，所以如果写自动化的程序时，一定要写此种异常的重试机制（ORACLE干嘛自己不把这个加进去~）。</p>
 <p>既然知道了它与操作系统有关，当然就到了喜闻乐见的整活环节了。</p>
@@ -372,19 +372,19 @@ NAME	VALUE
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/python">python</a>
+        <a class="tag" href="/halo-SSG/tags/python">python</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/dockeroracle21coml4py">&larr; 【docker】大小仅3GB的Oracle21c的docker镜像，含apex和oml4py</a>
+    <a href="/halo-SSG/archives/dockeroracle21coml4py">&larr; 【docker】大小仅3GB的Oracle21c的docker镜像，含apex和oml4py</a>
     
     
-    <a href="/archives/about-immutable">【ORACLE】关于ORACLE19.11后的新特性immutable不可变表的一些研究 &rarr;</a>
+    <a href="/halo-SSG/archives/about-immutable">【ORACLE】关于ORACLE19.11后的新特性immutable不可变表的一些研究 &rarr;</a>
     
 </div>
 

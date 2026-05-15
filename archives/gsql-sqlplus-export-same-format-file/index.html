@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】让gsql和sqlplus输出包含有SQL及数据的完全一致的文本文件 - DA-技术分享-静态站</title>
     <meta name="description" content="背景从oracle迁移到openGauss或mogdb，需要进行数据核对，虽然mogdb有官方的数据核对工具mvd，但有些客户还是想自己再核对一次，不过表太多，肯定需要进行很多条sql的批量核对，而且核对还不能仅仅只是统计行数，至少还要对数值列求和，有些表可能还要进行分组统计。其实写段Java或者p">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,30 +128,30 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】让gsql和sqlplus输出包含有SQL及数据的完全一致的文本文件</h1>
     <div class="meta">
         
         <span>2022-10-21</span>
         
-        <span>698 阅读</span>
+        <span>699 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -221,8 +221,8 @@ gsql命令的参数，定位是个日志文件,只会显示执行的sql命令、
 <li>sqlplus里指定列宽，只能针对所有数字类型列或明确的列名，不能直接统一所有列的列宽，动态解析列名然后再轮一下列名来设置，代码又有点复杂了</li>
 </ol>
 <p>下面是多次测试中，较为接近的两种效果了，但文本差异对比估计还是完全对应不上（gsql自带的美化效果此时反而成了自定义的累赘）<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image.png" srcset="/upload/2022/10/image.png?width=1200 1200w, /upload/2022/10/image.png?width=400 400w, /upload/2022/10/image.png?width=1600 1600w, /upload/2022/10/image.png?width=800 800w"/><br/>
-<img alt="image-1666330878436" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666330878436.png" srcset="/upload/2022/10/image-1666330878436.png?width=1200 1200w, /upload/2022/10/image-1666330878436.png?width=400 400w, /upload/2022/10/image-1666330878436.png?width=1600 1600w, /upload/2022/10/image-1666330878436.png?width=800 800w"/></p>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/10/image.png" srcset="/halo-SSG/upload/2022/10/image.png?width=1200 1200w, /halo-SSG/upload/2022/10/image.png?width=400 400w, /halo-SSG/upload/2022/10/image.png?width=1600 1600w, /halo-SSG/upload/2022/10/image.png?width=800 800w"/><br/>
+<img alt="image-1666330878436" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/10/image-1666330878436.png" srcset="/halo-SSG/upload/2022/10/image-1666330878436.png?width=1200 1200w, /halo-SSG/upload/2022/10/image-1666330878436.png?width=400 400w, /halo-SSG/upload/2022/10/image-1666330878436.png?width=1600 1600w, /halo-SSG/upload/2022/10/image-1666330878436.png?width=800 800w"/></p>
 <p>其实我做了很多种尝试，发现最麻烦的是两个问题，</p>
 <ol>
 <li>列宽无法做成一致，两个工具都没提供全局列宽的设定方式</li>
@@ -341,7 +341,7 @@ select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_
 <pre><code class="language-bash">gsql -r -Uuser -Wpassword -f gsql_check.sql
 </code></pre>
 <h3 id="%E8%BE%93%E5%87%BA%E6%95%88%E6%9E%9C%E5%AF%B9%E6%AF%94" tabindex="-1">输出效果对比</h3>
-<p><img alt="image-1666334068461" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/10/image-1666334068461.png" srcset="/upload/2022/10/image-1666334068461.png?width=1200 1200w, /upload/2022/10/image-1666334068461.png?width=400 400w, /upload/2022/10/image-1666334068461.png?width=1600 1600w, /upload/2022/10/image-1666334068461.png?width=800 800w"/></p>
+<p><img alt="image-1666334068461" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/10/image-1666334068461.png" srcset="/halo-SSG/upload/2022/10/image-1666334068461.png?width=1200 1200w, /halo-SSG/upload/2022/10/image-1666334068461.png?width=400 400w, /halo-SSG/upload/2022/10/image-1666334068461.png?width=1600 1600w, /halo-SSG/upload/2022/10/image-1666334068461.png?width=800 800w"/></p>
 <p>可以发现，两个工具跑出来的文本文件完全一致，且要素齐全，文本对比工具没有找到任何一处文本差异！</p>
 <p><strong>注：</strong></p>
 <ol>
@@ -355,17 +355,17 @@ select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-nvarchar2-and-national-charset">&larr; 【ORACLE】谈一谈NVARCHAR2、NCHAR、NCLOB等数据类型和国家字符集</a>
+    <a href="/halo-SSG/archives/about-nvarchar2-and-national-charset">&larr; 【ORACLE】谈一谈NVARCHAR2、NCHAR、NCLOB等数据类型和国家字符集</a>
     
     
-    <a href="/archives/transport-data-from-oracle-to-opengauss-faster">【openGauss】一种可能是目前最快的从ORACLE同步数据到MogDB(openGauss)的方式 &rarr;</a>
+    <a href="/halo-SSG/archives/transport-data-from-oracle-to-opengauss-faster">【openGauss】一种可能是目前最快的从ORACLE同步数据到MogDB(openGauss)的方式 &rarr;</a>
     
 </div>
 

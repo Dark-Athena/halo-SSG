@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格 - DA-技术分享-静态站</title>
     <meta name="description" content="一般大家做报表的时候，会选择使用一些BI工具或者EXCEL表格来进行展现，因为需要让表格带点“颜色”，不像csv那样单调。但是目前这些工具都不支持任意SQL直接生成带格式的表格，一般都要先做个模板，因为SQL的列数不确定。并且这些工具最终生成的是一个文件，或者一个在线页面，如果是系统自动推送给用户，">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【AIO】使用ORACLE数据库存储过程把任意SQL生成HTML网页表格</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1089 阅读</span>
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -253,7 +253,7 @@ end;
 &lt;/body&gt;
 &lt;/html&gt;
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png" srcset="/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1200 1200w, /upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=400 400w, /upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1600 1600w, /upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png" srcset="/halo-SSG/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=400 400w, /halo-SSG/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=800 800w"/></p>
 <p>原来只是在前面加了一段css样式，所以我们在生成的时候，直接把这整段都拼到前面去就好了，或者也可以换其他的样式，比如</p>
 <pre><code class="language-html">&lt;style type="text/css"&gt;
              body {font:10pt Arial,Helvetica,sans-serif; color:black; background:White;}
@@ -265,7 +265,7 @@ end;
              a {font:9pt Arial,Helvetica,sans-serif; color:#663300; background:#ffffff; margin-top:0pt; margin-bottom:0pt; vertical-align:top;}
              &lt;/style&gt;
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png" srcset="/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1200 1200w, /upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=400 400w, /upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1600 1600w, /upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png" srcset="/halo-SSG/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1200 1200w, /halo-SSG/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=400 400w, /halo-SSG/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1600 1600w, /halo-SSG/upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=800 800w"/></p>
 <p>那么基本思路都理清了，的确是可以实现的，然后我参考以上逻辑写了一个函数，调用时只需要传入sql查询语句即可返回对应的html代码字符串，比如</p>
 <pre><code class="language-plsql">l_html:=SQL_TO_HTML('select name ,id from table')；
 </code></pre>
@@ -282,19 +282,19 @@ end;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/sqltojson%E4%B8%AD%E7%9A%84%E6%95%B0%E5%AD%97%E6%A0%BC%E5%BC%8F%E8%BD%AC%E6%8D%A2%E9%97%AE%E9%A2%98">&larr; 【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</a>
+    <a href="/halo-SSG/archives/sqltojson%E4%B8%AD%E7%9A%84%E6%95%B0%E5%AD%97%E6%A0%BC%E5%BC%8F%E8%BD%AC%E6%8D%A2%E9%97%AE%E9%A2%98">&larr; 【ORACLE】记录pljson_util_pkg.sql_to_json中的数字格式转换问题</a>
     
     
-    <a href="/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令 &rarr;</a>
+    <a href="/halo-SSG/archives/sql%E6%89%A7%E8%A1%8Cwindows%E5%91%BD%E4%BB%A4">【AIO】使用ORACLE存储过程执行windows操作系统命令 &rarr;</a>
     
 </div>
 

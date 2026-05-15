@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【YaShanDB】给YaShanDB开发R2DBC驱动 - DA-技术分享-静态站</title>
     <meta name="description" content="【YaShanDB】使用AI给YaShanDB开发R2DBC驱动 背景 崖山数据库作为一款发布没多少年的纯自研数据库，在内核设计上非常亮眼，而且也通过了国测，但是周边的应用生态还有不少欠缺。最近打算让HALO博客的后台支持崖山数据库，但是却发现崖山数据库官方竟然没有R2DBC驱动，就想着看能不能给崖">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【YaShanDB】给YaShanDB开发R2DBC驱动</h1>
     <div class="meta">
@@ -165,8 +165,8 @@
 <blockquote>
 <p>我打算开发yashandb的r2dbc驱动，但我手上只有yashandb的jdbc驱动，你排个计划，看怎么做。jdbc驱动jar文件我已经放到当前目录了</p>
 </blockquote>
-<p><img alt="image-VqoY.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VqoY.png" srcset="/upload/image-VqoY.png?width=1200 1200w, /upload/image-VqoY.png?width=400 400w, /upload/image-VqoY.png?width=1600 1600w, /upload/image-VqoY.png?width=800 800w"/></p>
-<p><img alt="image-RUKZ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-RUKZ.png" srcset="/upload/image-RUKZ.png?width=1200 1200w, /upload/image-RUKZ.png?width=400 400w, /upload/image-RUKZ.png?width=1600 1600w, /upload/image-RUKZ.png?width=800 800w"/></p>
+<p><img alt="image-VqoY.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-VqoY.png" srcset="/halo-SSG/upload/image-VqoY.png?width=1200 1200w, /halo-SSG/upload/image-VqoY.png?width=400 400w, /halo-SSG/upload/image-VqoY.png?width=1600 1600w, /halo-SSG/upload/image-VqoY.png?width=800 800w"/></p>
+<p><img alt="image-RUKZ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-RUKZ.png" srcset="/halo-SSG/upload/image-RUKZ.png?width=1200 1200w, /halo-SSG/upload/image-RUKZ.png?width=400 400w, /halo-SSG/upload/image-RUKZ.png?width=1600 1600w, /halo-SSG/upload/image-RUKZ.png?width=800 800w"/></p>
 <blockquote>
 <hr/>
 <p>name: r2dbc-yashandb-driver<br/>
@@ -431,17 +431,17 @@ dependencies:
 </blockquote>
 <p>后面他就啪啪啪自己在干了，我也去干其他活了，没管，烧了大概250 Credits后就开发完了，他自己编写的测试用例也通过了。</p>
 <p>不过由于没有提前给他可用的崖山数据库服务端环境，因此他的测试没有真实连库，于是我给了个环境给他，然后他又自己去干了，测了不对他就自己改，直到他认为本次任务已完成</p>
-<p><img alt="image-ifow.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ifow.png" srcset="/upload/image-ifow.png?width=1200 1200w, /upload/image-ifow.png?width=400 400w, /upload/image-ifow.png?width=1600 1600w, /upload/image-ifow.png?width=800 800w"/></p>
-<p><img alt="image-GjfA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GjfA.png" srcset="/upload/image-GjfA.png?width=1200 1200w, /upload/image-GjfA.png?width=400 400w, /upload/image-GjfA.png?width=1600 1600w, /upload/image-GjfA.png?width=800 800w"/></p>
+<p><img alt="image-ifow.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ifow.png" srcset="/halo-SSG/upload/image-ifow.png?width=1200 1200w, /halo-SSG/upload/image-ifow.png?width=400 400w, /halo-SSG/upload/image-ifow.png?width=1600 1600w, /halo-SSG/upload/image-ifow.png?width=800 800w"/></p>
+<p><img alt="image-GjfA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-GjfA.png" srcset="/halo-SSG/upload/image-GjfA.png?width=1200 1200w, /halo-SSG/upload/image-GjfA.png?width=400 400w, /halo-SSG/upload/image-GjfA.png?width=1600 1600w, /halo-SSG/upload/image-GjfA.png?width=800 800w"/></p>
 <p>但是吧，r2dbc其实有一套标准测试，用于验证各个数据库提供的r2dbc驱动是否符合规范，于是我也让他去测测</p>
-<p><img alt="image-XQjz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-XQjz.png" srcset="/upload/image-XQjz.png?width=1200 1200w, /upload/image-XQjz.png?width=400 400w, /upload/image-XQjz.png?width=1600 1600w, /upload/image-XQjz.png?width=800 800w"/></p>
+<p><img alt="image-XQjz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-XQjz.png" srcset="/halo-SSG/upload/image-XQjz.png?width=1200 1200w, /halo-SSG/upload/image-XQjz.png?width=400 400w, /halo-SSG/upload/image-XQjz.png?width=1600 1600w, /halo-SSG/upload/image-XQjz.png?width=800 800w"/></p>
 <p>测完后他发现他自己写的r2dbc驱动的确有问题，就自己修复了，都没找我确认。</p>
-<p><img alt="image-BXqV.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-BXqV.png" srcset="/upload/image-BXqV.png?width=1200 1200w, /upload/image-BXqV.png?width=400 400w, /upload/image-BXqV.png?width=1600 1600w, /upload/image-BXqV.png?width=800 800w"/></p>
+<p><img alt="image-BXqV.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-BXqV.png" srcset="/halo-SSG/upload/image-BXqV.png?width=1200 1200w, /halo-SSG/upload/image-BXqV.png?width=400 400w, /halo-SSG/upload/image-BXqV.png?width=1600 1600w, /halo-SSG/upload/image-BXqV.png?width=800 800w"/></p>
 <p>很明显这里列名大小写他幻觉了。肯定有很多开发人员没搞懂数据库字段名大小写的原理，因此把AI给训错了。</p>
 <blockquote>
 <p>列名大小写那里再确认一下执行的完整用例，YASHANDB 应该是按别名大小写返回的，但是要求别名上用双引号包裹，如果没有双引号，数据库服务端会转成大写，和ORACLE的表现一致，所以我不觉得应该在r2dbc驱动里强制转小写</p>
 </blockquote>
-<p><img alt="image-rOSM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rOSM.png" srcset="/upload/image-rOSM.png?width=1200 1200w, /upload/image-rOSM.png?width=400 400w, /upload/image-rOSM.png?width=1600 1600w, /upload/image-rOSM.png?width=800 800w"/></p>
+<p><img alt="image-rOSM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-rOSM.png" srcset="/halo-SSG/upload/image-rOSM.png?width=1200 1200w, /halo-SSG/upload/image-rOSM.png?width=400 400w, /halo-SSG/upload/image-rOSM.png?width=1600 1600w, /halo-SSG/upload/image-rOSM.png?width=800 800w"/></p>
 <p>然后他就去自己分析自己把这个问题修好了。</p>
 <p>readme没有自动生成，让他生成一下，然后我发现了一个值得注意的地方</p>
 <pre><code>&gt; 其中 2 个用例因 YashanDB 不支持的特性被 `@Disabled`：
@@ -453,21 +453,21 @@ dependencies:
 另外有个对未来版本崖山有兼容性问题的一个点，目前崖山数据库的所有官方连接驱动里，对于数据库名称都是忽略的，一旦未来崖山支持了多个库（其实最新版内核已经支持多个库了，只是连接驱动都还没支持），驱动都得改（虽然改动量应该不大）</p>
 <h2 id="CI-CD-workflow---github-copilot">CI/CD workflow - github copilot</h2>
 <p>到此也算开发完了，我就让copilot cli把这个项目推到github了，然后直接在网页的agents里让copilot去弄CI（毕竟是github自己的能力，就让github自己干了）。另外，我前面用的jdbc包在网上没有下载，我就另外给了个旧版本可以下载地址</p>
-<p><img alt="image-xKQK.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xKQK.png" srcset="/upload/image-xKQK.png?width=1200 1200w, /upload/image-xKQK.png?width=400 400w, /upload/image-xKQK.png?width=1600 1600w, /upload/image-xKQK.png?width=800 800w"/></p>
-<p><img alt="image-VUvu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VUvu.png" srcset="/upload/image-VUvu.png?width=1200 1200w, /upload/image-VUvu.png?width=400 400w, /upload/image-VUvu.png?width=1600 1600w, /upload/image-VUvu.png?width=800 800w"/></p>
+<p><img alt="image-xKQK.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-xKQK.png" srcset="/halo-SSG/upload/image-xKQK.png?width=1200 1200w, /halo-SSG/upload/image-xKQK.png?width=400 400w, /halo-SSG/upload/image-xKQK.png?width=1600 1600w, /halo-SSG/upload/image-xKQK.png?width=800 800w"/></p>
+<p><img alt="image-VUvu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-VUvu.png" srcset="/halo-SSG/upload/image-VUvu.png?width=1200 1200w, /halo-SSG/upload/image-VUvu.png?width=400 400w, /halo-SSG/upload/image-VUvu.png?width=1600 1600w, /halo-SSG/upload/image-VUvu.png?width=800 800w"/></p>
 <p>后来我又发现崖山刚刚把jdbc驱动上传到maven了，就又改了下</p>
-<p><img alt="image-ALrM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ALrM.png" srcset="/upload/image-ALrM.png?width=1200 1200w, /upload/image-ALrM.png?width=400 400w, /upload/image-ALrM.png?width=1600 1600w, /upload/image-ALrM.png?width=800 800w"/></p>
+<p><img alt="image-ALrM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ALrM.png" srcset="/halo-SSG/upload/image-ALrM.png?width=1200 1200w, /halo-SSG/upload/image-ALrM.png?width=400 400w, /halo-SSG/upload/image-ALrM.png?width=1600 1600w, /halo-SSG/upload/image-ALrM.png?width=800 800w"/></p>
 <p>action里直接跑release,也自动帮我打包发布了</p>
-<p><img alt="image-NJrz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-NJrz.png" srcset="/upload/image-NJrz.png?width=1200 1200w, /upload/image-NJrz.png?width=400 400w, /upload/image-NJrz.png?width=1600 1600w, /upload/image-NJrz.png?width=800 800w"/></p>
+<p><img alt="image-NJrz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-NJrz.png" srcset="/halo-SSG/upload/image-NJrz.png?width=1200 1200w, /halo-SSG/upload/image-NJrz.png?width=400 400w, /halo-SSG/upload/image-NJrz.png?width=1600 1600w, /halo-SSG/upload/image-NJrz.png?width=800 800w"/></p>
 <h2 id="性能测试---Qoder">性能测试 - Qoder</h2>
 <p>开发完了，自然要做下性能对比测试，我看了下我qoder还没用完，就让qoder写了个测试</p>
-<p><img alt="image-imff.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-imff.png" srcset="/upload/image-imff.png?width=1200 1200w, /upload/image-imff.png?width=400 400w, /upload/image-imff.png?width=1600 1600w, /upload/image-imff.png?width=800 800w"/></p>
+<p><img alt="image-imff.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-imff.png" srcset="/halo-SSG/upload/image-imff.png?width=1200 1200w, /halo-SSG/upload/image-imff.png?width=400 400w, /halo-SSG/upload/image-imff.png?width=1600 1600w, /halo-SSG/upload/image-imff.png?width=800 800w"/></p>
 <p>的确有发现性能问题，其他场景性能表现正常，但批量插入的性能慢了几十倍</p>
-<p><img alt="image-ZSIT.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ZSIT.png" srcset="/upload/image-ZSIT.png?width=1200 1200w, /upload/image-ZSIT.png?width=400 400w, /upload/image-ZSIT.png?width=1600 1600w, /upload/image-ZSIT.png?width=800 800w"/></p>
+<p><img alt="image-ZSIT.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ZSIT.png" srcset="/halo-SSG/upload/image-ZSIT.png?width=1200 1200w, /halo-SSG/upload/image-ZSIT.png?width=400 400w, /halo-SSG/upload/image-ZSIT.png?width=1600 1600w, /halo-SSG/upload/image-ZSIT.png?width=800 800w"/></p>
 <p>于是就让qoder去克隆了这个项目找问题</p>
-<p><img alt="image-bEXO.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-bEXO.png" srcset="/upload/image-bEXO.png?width=1200 1200w, /upload/image-bEXO.png?width=400 400w, /upload/image-bEXO.png?width=1600 1600w, /upload/image-bEXO.png?width=800 800w"/></p>
+<p><img alt="image-bEXO.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-bEXO.png" srcset="/halo-SSG/upload/image-bEXO.png?width=1200 1200w, /halo-SSG/upload/image-bEXO.png?width=400 400w, /halo-SSG/upload/image-bEXO.png?width=1600 1600w, /halo-SSG/upload/image-bEXO.png?width=800 800w"/></p>
 <p>Qoder说找到了BUG，我就转给了copilot，自动修去了</p>
-<p><img alt="image-rSXy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-rSXy.png" srcset="/upload/image-rSXy.png?width=1200 1200w, /upload/image-rSXy.png?width=400 400w, /upload/image-rSXy.png?width=1600 1600w, /upload/image-rSXy.png?width=800 800w"/></p>
+<p><img alt="image-rSXy.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-rSXy.png" srcset="/halo-SSG/upload/image-rSXy.png?width=1200 1200w, /halo-SSG/upload/image-rSXy.png?width=400 400w, /halo-SSG/upload/image-rSXy.png?width=1600 1600w, /halo-SSG/upload/image-rSXy.png?width=800 800w"/></p>
 <p>修完再测</p>
 <h3 id="性能对比结果">性能对比结果</h3>
 <blockquote>
@@ -637,17 +637,17 @@ dependencies:
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/yashandb">yashandb</a>
+        <a class="tag" href="/halo-SSG/tags/yashandb">yashandb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/halo-for-yashandb">&larr; 【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</a>
+    <a href="/halo-SSG/archives/halo-for-yashandb">&larr; 【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</a>
     
     
-    <a href="/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery">【ESXI】断电重启后NFS存储无法识别的修复方案 &rarr;</a>
+    <a href="/halo-SSG/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery">【ESXI】断电重启后NFS存储无法识别的修复方案 &rarr;</a>
     
 </div>
 

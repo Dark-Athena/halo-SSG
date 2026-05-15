@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【GaussDB】讨论下for update游标加锁的设计 - DA-技术分享-静态站</title>
     <meta name="description" content="【GaussDB】讨论下for update游标加锁的设计 背景 在 Oracle 中有一种常见用法：通过存储过程有条件地更新一张或多张表的数据。由于存储过程可能被并发调用，需要加锁防止并发执行。做法是定义一个游标，在查询语句末尾加上 FOR UPDATE，然后 OPEN 这个游标即实现加锁。至于后">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【GaussDB】讨论下for update游标加锁的设计</h1>
     <div class="meta">
@@ -275,7 +275,7 @@ COMMIT;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
@@ -285,7 +285,7 @@ COMMIT;
     <span></span>
     
     
-    <a href="/archives/AI-Coding-Plans-Subscription-Models-Market-Landscape-20260512">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） &rarr;</a>
+    <a href="/halo-SSG/archives/AI-Coding-Plans-Subscription-Models-Market-Landscape-20260512">AI 订阅策略调研报告：各大厂商的定价体系及其变化趋势（2026-05-12） &rarr;</a>
     
 </div>
 

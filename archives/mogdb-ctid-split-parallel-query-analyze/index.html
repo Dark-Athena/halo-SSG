@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【MogDB】一种基于ctid分片并发查询以提升大表查询性能的方式 - DA-技术分享-静态站</title>
     <meta name="description" content="【MogDB】一种基于ctid分片并发查询以提升大表查询性能的方式 在oracle里有见过这样一种用法,大意是基于行所在的文件号、块号、行号拼成一个数字，除以10取余数，这样这个余数可能为0~9这10个数字，应用并发执行10个SQL，让每个线程中SQL条件的这个余数分别等于0~9，即可将一个大表通过">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【MogDB】一种基于ctid分片并发查询以提升大表查询性能的方式</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>137 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -677,19 +677,19 @@ public class OptimizedCtidTest {
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/gaussdb-gaussdb-bug-fen-xiang">&larr; 【GaussDB】GaussDB506.0-BUG记录</a>
+    <a href="/halo-SSG/archives/gaussdb-gaussdb-bug-fen-xiang">&larr; 【GaussDB】GaussDB506.0-BUG记录</a>
     
     
-    <a href="/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters">【openGauss】一个可能被忽视的功能--关于自定义参数的奇技淫巧 &rarr;</a>
+    <a href="/halo-SSG/archives/openGauss-Unlocking-Hidden-Potential-Clever-Tricks-for-Custom-Parameters">【openGauss】一个可能被忽视的功能--关于自定义参数的奇技淫巧 &rarr;</a>
     
 </div>
 

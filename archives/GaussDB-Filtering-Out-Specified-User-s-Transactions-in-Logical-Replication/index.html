@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【GaussDB】在逻辑复制中剔除指定用户的事务 - DA-技术分享-静态站</title>
     <meta name="description" content="【GaussDB】在逻辑复制中剔除指定用户的事务 1. 需求背景 在逻辑复制中，期望对源端指定用户的所有操作不复制到目标端。然而WAL日志中没有用户信息可用于过滤，因此考虑结合审计日志来实现这一需求。 2. 解决方案 2.1 配置审计日志 首先需要开启事务号记录和指定用户的全量审计： --开启记录事">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【GaussDB】在逻辑复制中剔除指定用户的事务</h1>
     <div class="meta">
@@ -262,17 +262,17 @@ select pg_replication_origin_drop('maintain_node');
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/gaussdb-autonomoustransaction-create-timeout-hang">&larr; 【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题</a>
+    <a href="/halo-SSG/archives/gaussdb-autonomoustransaction-create-timeout-hang">&larr; 【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题</a>
     
     
-    <a href="/archives/kylin-v11-mogdb-install">【MogDB】在刚发布的银河麒麟v11上安装MogDB &rarr;</a>
+    <a href="/halo-SSG/archives/kylin-v11-mogdb-install">【MogDB】在刚发布的银河麒麟v11上安装MogDB &rarr;</a>
     
 </div>
 

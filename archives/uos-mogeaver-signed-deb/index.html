@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver - DA-技术分享-静态站</title>
     <meta name="description" content="前言最近有使用UOS桌面办公环境的客户在问，目前MogDB提供的开发工具Mogeaver只有tar包，而UOS使用软件比较严格，未签名的软件无法直接使用，所以希望能有一个能在UOS上使用的deb包。我和同事在网上搜了一下如何编写deb包，然后根据步骤在ubuntu下生成了一个deb包，但实测无法在U">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【UOS-MogDB】如何在未进入开发者模式的统信UOS上使用Mogeaver</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1476 阅读</span>
         
-        <a href="/categories/os">操作系统</a> / 
+        <a href="/halo-SSG/categories/os">操作系统</a> / 
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -171,7 +171,7 @@
 <h2 id="%E8%BF%9B%E5%85%A5%E5%BC%80%E5%8F%91%E8%80%85%E6%A8%A1%E5%BC%8F" tabindex="-1">进入开发者模式</h2>
 <p>进入操作系统后，打开控制中心-通用-进入开发者模式（需要登录UOS账号）<br/>
 打开会要求重启系统，启动后再进来控制中心，可看到已进入开发者模式，且不可退出开发者模式（所以需要有一台开发机来做这件事，不能用生产环境）<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image.png" srcset="/upload/2022/12/image.png?width=1200 1200w, /upload/2022/12/image.png?width=400 400w, /upload/2022/12/image.png?width=1600 1600w, /upload/2022/12/image.png?width=800 800w"/></p>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image.png" srcset="/halo-SSG/upload/2022/12/image.png?width=1200 1200w, /halo-SSG/upload/2022/12/image.png?width=400 400w, /halo-SSG/upload/2022/12/image.png?width=1600 1600w, /halo-SSG/upload/2022/12/image.png?width=800 800w"/></p>
 <h2 id="%E5%88%B6%E4%BD%9Cdeb%E5%8C%85" tabindex="-1">制作deb包</h2>
 <p>这里是坑最大的地方了，UOS的deb包和Ubuntu的deb包，内部结构不一样。<br/>
 最开始我们参考了这篇文章写了个打包脚本<br/>
@@ -187,7 +187,7 @@
 另外，还可以使用这个工具，只是需要填写的信息更多<br/>
 <a href="https://bbs.chinauos.com/en/post/10049" target="_blank">https://bbs.chinauos.com/en/post/10049</a><br/>
 而且这个工具已经上架UOS商店<br/>
-<img alt="image-1671036590097" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671036590097.png" srcset="/upload/2022/12/image-1671036590097.png?width=1200 1200w, /upload/2022/12/image-1671036590097.png?width=400 400w, /upload/2022/12/image-1671036590097.png?width=1600 1600w, /upload/2022/12/image-1671036590097.png?width=800 800w"/></li>
+<img alt="image-1671036590097" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671036590097.png" srcset="/halo-SSG/upload/2022/12/image-1671036590097.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671036590097.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671036590097.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671036590097.png?width=800 800w"/></li>
 <li>方法三：<br/>
 当然，如果需要经常打包，这些工具肯定就不适用了，可以参考工具打出来的包的目录(deb文件可以直接解压)，手动写个sh脚本，这样之后每次软件有更新，就能一键出包了。以下目录结构可供参考(本文暂不提供脚本)</li>
 </ol>
@@ -231,28 +231,28 @@
 </ol>
 <pre><code class="language-bash">deepin-elf-sign-deb mogeaver-ce-22.2.1-linux.gtk.x86_64.deb
 </code></pre>
-<p><img alt="image-1671029556480" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671029556480.png" srcset="/upload/2022/12/image-1671029556480.png?width=1200 1200w, /upload/2022/12/image-1671029556480.png?width=400 400w, /upload/2022/12/image-1671029556480.png?width=1600 1600w, /upload/2022/12/image-1671029556480.png?width=800 800w"/><br/>
+<p><img alt="image-1671029556480" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671029556480.png" srcset="/halo-SSG/upload/2022/12/image-1671029556480.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671029556480.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671029556480.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671029556480.png?width=800 800w"/><br/>
 最后输出Signed successfully为成功</p>
 <ol start="4">
 <li>找到生成签名后的文件<br/>
 在当前目录的signed_deb下<br/>
-<img alt="image-1671029741920" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671029741920.png" srcset="/upload/2022/12/image-1671029741920.png?width=1200 1200w, /upload/2022/12/image-1671029741920.png?width=400 400w, /upload/2022/12/image-1671029741920.png?width=1600 1600w, /upload/2022/12/image-1671029741920.png?width=800 800w"/></li>
+<img alt="image-1671029741920" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671029741920.png" srcset="/halo-SSG/upload/2022/12/image-1671029741920.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671029741920.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671029741920.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671029741920.png?width=800 800w"/></li>
 </ol>
 <h2 id="%E5%AE%89%E8%A3%85" tabindex="-1">安装</h2>
 <p>将签名后的deb包复制到需要使用的UOS操作系统上，在文件管理里双击deb包即可安装<br/>
-<img alt="image-1671029841017" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671029841017.png" srcset="/upload/2022/12/image-1671029841017.png?width=1200 1200w, /upload/2022/12/image-1671029841017.png?width=400 400w, /upload/2022/12/image-1671029841017.png?width=1600 1600w, /upload/2022/12/image-1671029841017.png?width=800 800w"/><br/>
-<img alt="image-1671029967315" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671029967315.png" srcset="/upload/2022/12/image-1671029967315.png?width=1200 1200w, /upload/2022/12/image-1671029967315.png?width=400 400w, /upload/2022/12/image-1671029967315.png?width=1600 1600w, /upload/2022/12/image-1671029967315.png?width=800 800w"/></p>
+<img alt="image-1671029841017" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671029841017.png" srcset="/halo-SSG/upload/2022/12/image-1671029841017.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671029841017.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671029841017.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671029841017.png?width=800 800w"/><br/>
+<img alt="image-1671029967315" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671029967315.png" srcset="/halo-SSG/upload/2022/12/image-1671029967315.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671029967315.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671029967315.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671029967315.png?width=800 800w"/></p>
 <p>然后开始菜单里就有mogeaver的图标了，<br/>
-<img alt="image-1671031752278" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671031752278.png" srcset="/upload/2022/12/image-1671031752278.png?width=1200 1200w, /upload/2022/12/image-1671031752278.png?width=400 400w, /upload/2022/12/image-1671031752278.png?width=1600 1600w, /upload/2022/12/image-1671031752278.png?width=800 800w"/></p>
+<img alt="image-1671031752278" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671031752278.png" srcset="/halo-SSG/upload/2022/12/image-1671031752278.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671031752278.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671031752278.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671031752278.png?width=800 800w"/></p>
 <p>不过此时打开可能会有下面两个报错之一<br/>
-<img alt="没有jdk环境" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671030465531.png" srcset="/upload/2022/12/image-1671030465531.png?width=1200 1200w, /upload/2022/12/image-1671030465531.png?width=400 400w, /upload/2022/12/image-1671030465531.png?width=1600 1600w, /upload/2022/12/image-1671030465531.png?width=800 800w"/><br/>
-<img alt="jdk版本低了" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671030573292.png" srcset="/upload/2022/12/image-1671030573292.png?width=1200 1200w, /upload/2022/12/image-1671030573292.png?width=400 400w, /upload/2022/12/image-1671030573292.png?width=1600 1600w, /upload/2022/12/image-1671030573292.png?width=800 800w"/></p>
+<img alt="没有jdk环境" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671030465531.png" srcset="/halo-SSG/upload/2022/12/image-1671030465531.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671030465531.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671030465531.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671030465531.png?width=800 800w"/><br/>
+<img alt="jdk版本低了" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671030573292.png" srcset="/halo-SSG/upload/2022/12/image-1671030573292.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671030573292.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671030573292.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671030573292.png?width=800 800w"/></p>
 <p>因为这个环境的mogeaver依赖jdk11的运行环境，因此需要再安装一下</p>
 <pre><code class="language-bash">sudo apt-get install openjdk-11-jdk
 </code></pre>
 <p>但是，你会发现，没进入开发者模式就不能用sudo。。。但我在网上搜的，UOS里默认的jdk版本就是11，估计是我本地环境有问题，暂时不管这个问题了。</p>
 <p>最后附上在UOS里成功使用Mogeaver连接MogDB的图<br/>
-<img alt="image-1671032269605" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671032269605.png" srcset="/upload/2022/12/image-1671032269605.png?width=1200 1200w, /upload/2022/12/image-1671032269605.png?width=400 400w, /upload/2022/12/image-1671032269605.png?width=1600 1600w, /upload/2022/12/image-1671032269605.png?width=800 800w"/></p>
+<img alt="image-1671032269605" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671032269605.png" srcset="/halo-SSG/upload/2022/12/image-1671032269605.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671032269605.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671032269605.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671032269605.png?width=800 800w"/></p>
 <h2 id="%E4%B8%80%E7%82%B9%E6%84%9F%E6%83%B3" tabindex="-1">一点感想</h2>
 <p>目前国产操作系统发展迅速，但软件生态依旧是个大问题。当时安卓的app数量能迅速超越苹果，我估计其中一个原因就是它不限制在商店外安装app，而且早期并不需要签名，所以有大量开发者涌入，开发了无数经典的app。<br/>
 我很理解UOS现在基于安全需要，所有软件必须要签名，但是目前这种签名方式，只要注册个账号就能签，签完就能装，软件的安全性完全没有保障。而且根据签名也不一定能找到开发者，何必多此一举？</p>
@@ -262,21 +262,21 @@
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/os">os</a>
+        <a class="tag" href="/halo-SSG/tags/os">os</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/opengauss310-mysql-compat">&larr; 【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性</a>
+    <a href="/halo-SSG/archives/opengauss310-mysql-compat">&larr; 【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性</a>
     
     
-    <a href="/archives/opengauss-wps-excel-realtime-report-sha256">【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-wps-excel-realtime-report-sha256">【openGauss】在WPS表格里制作连接到openGauss的实时刷新报表 &rarr;</a>
     
 </div>
 

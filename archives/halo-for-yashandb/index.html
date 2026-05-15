@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 - DA-技术分享-静态站</title>
     <meta name="description" content="【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 【YaShanDB】给YaShanDB开发R2DBC驱动 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了 AI Coding 这次我连编辑器都懒得打开了，直接github上找agent开干，中">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</h1>
     <div class="meta">
@@ -161,11 +161,11 @@
 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了</p>
 <h2 id="ai-coding">AI Coding</h2>
 <p>这次我连编辑器都懒得打开了，直接github上找agent开干，中间过程我也不关心了</p>
-<p><img alt="image-ebFU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ebFU.png" srcset="/upload/image-ebFU.png?width=1200 1200w, /upload/image-ebFU.png?width=400 400w, /upload/image-ebFU.png?width=1600 1600w, /upload/image-ebFU.png?width=800 800w"/></p>
+<p><img alt="image-ebFU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ebFU.png" srcset="/halo-SSG/upload/image-ebFU.png?width=1200 1200w, /halo-SSG/upload/image-ebFU.png?width=400 400w, /halo-SSG/upload/image-ebFU.png?width=1600 1600w, /halo-SSG/upload/image-ebFU.png?width=800 800w"/></p>
 <p>然后让他生成了docker compose,让我能一键启动个带崖山数据库的halo。不过由于开了个新的agent，他不记得要用修改后的halo了，而且中间由于java构建环境各个组件版本兼容性的问题修复了很多次才修好。</p>
-<p><img alt="image-HeAt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-HeAt.png" srcset="/upload/image-HeAt.png?width=1200 1200w, /upload/image-HeAt.png?width=400 400w, /upload/image-HeAt.png?width=1600 1600w, /upload/image-HeAt.png?width=800 800w"/></p>
+<p><img alt="image-HeAt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-HeAt.png" srcset="/halo-SSG/upload/image-HeAt.png?width=1200 1200w, /halo-SSG/upload/image-HeAt.png?width=400 400w, /halo-SSG/upload/image-HeAt.png?width=1600 1600w, /halo-SSG/upload/image-HeAt.png?width=800 800w"/></p>
 <p>不过好在最后还是完成了</p>
-<p><img alt="image-qLAe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-qLAe.png" srcset="/upload/image-qLAe.png?width=1200 1200w, /upload/image-qLAe.png?width=400 400w, /upload/image-qLAe.png?width=1600 1600w, /upload/image-qLAe.png?width=800 800w"/></p>
+<p><img alt="image-qLAe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qLAe.png" srcset="/halo-SSG/upload/image-qLAe.png?width=1200 1200w, /halo-SSG/upload/image-qLAe.png?width=400 400w, /halo-SSG/upload/image-qLAe.png?width=1600 1600w, /halo-SSG/upload/image-qLAe.png?width=800 800w"/></p>
 <pre><code class="language-bash"># 克隆此 fork
 git clone https://github.com/Dark-Athena/halo.git &amp;&amp; cd halo
 
@@ -178,20 +178,20 @@ docker compose -f docker-compose-yashandb.yaml up -d
 </code></pre>
 <h2 id="remote-test">remote test</h2>
 <p>我也不下载代码，直接在github上启动codespace</p>
-<p><img alt="image-CRsh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-CRsh.png" srcset="/upload/image-CRsh.png?width=1200 1200w, /upload/image-CRsh.png?width=400 400w, /upload/image-CRsh.png?width=1600 1600w, /upload/image-CRsh.png?width=800 800w"/></p>
-<p><img alt="image-CRIH.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-CRIH.png" srcset="/upload/image-CRIH.png?width=1200 1200w, /upload/image-CRIH.png?width=400 400w, /upload/image-CRIH.png?width=1600 1600w, /upload/image-CRIH.png?width=800 800w"/></p>
-<p><img alt="image-GOXl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-GOXl.png" srcset="/upload/image-GOXl.png?width=1200 1200w, /upload/image-GOXl.png?width=400 400w, /upload/image-GOXl.png?width=1600 1600w, /upload/image-GOXl.png?width=800 800w"/></p>
+<p><img alt="image-CRsh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-CRsh.png" srcset="/halo-SSG/upload/image-CRsh.png?width=1200 1200w, /halo-SSG/upload/image-CRsh.png?width=400 400w, /halo-SSG/upload/image-CRsh.png?width=1600 1600w, /halo-SSG/upload/image-CRsh.png?width=800 800w"/></p>
+<p><img alt="image-CRIH.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-CRIH.png" srcset="/halo-SSG/upload/image-CRIH.png?width=1200 1200w, /halo-SSG/upload/image-CRIH.png?width=400 400w, /halo-SSG/upload/image-CRIH.png?width=1600 1600w, /halo-SSG/upload/image-CRIH.png?width=800 800w"/></p>
+<p><img alt="image-GOXl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-GOXl.png" srcset="/halo-SSG/upload/image-GOXl.png?width=1200 1200w, /halo-SSG/upload/image-GOXl.png?width=400 400w, /halo-SSG/upload/image-GOXl.png?width=1600 1600w, /halo-SSG/upload/image-GOXl.png?width=800 800w"/></p>
 <p>最终成功一键启动,这个web版的vscode也会自动把端口给映射出来，能远程访问</p>
-<p><img alt="image-VXwv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-VXwv.png" srcset="/upload/image-VXwv.png?width=1200 1200w, /upload/image-VXwv.png?width=400 400w, /upload/image-VXwv.png?width=1600 1600w, /upload/image-VXwv.png?width=800 800w"/><br/>
+<p><img alt="image-VXwv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-VXwv.png" srcset="/halo-SSG/upload/image-VXwv.png?width=1200 1200w, /halo-SSG/upload/image-VXwv.png?width=400 400w, /halo-SSG/upload/image-VXwv.png?width=1600 1600w, /halo-SSG/upload/image-VXwv.png?width=800 800w"/><br/>
 首次进入初始化页面</p>
-<p><img alt="image-NxaU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-NxaU.png" srcset="/upload/image-NxaU.png?width=1200 1200w, /upload/image-NxaU.png?width=400 400w, /upload/image-NxaU.png?width=1600 1600w, /upload/image-NxaU.png?width=800 800w"/><br/>
+<p><img alt="image-NxaU.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-NxaU.png" srcset="/halo-SSG/upload/image-NxaU.png?width=1200 1200w, /halo-SSG/upload/image-NxaU.png?width=400 400w, /halo-SSG/upload/image-NxaU.png?width=1600 1600w, /halo-SSG/upload/image-NxaU.png?width=800 800w"/><br/>
 系统概览里的数据库显示了YashanDB(版本号暂时懒得管了)(后面偶然瞟了一眼r2dbc驱动，AI写死了，没从JDBC的数据库元数据里取，后面再改下)(r2dbc-yashandb 0.1.2版本已修复版本号的问题)</p>
-<p><img alt="image-aRYl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-aRYl.png" srcset="/upload/image-aRYl.png?width=1200 1200w, /upload/image-aRYl.png?width=400 400w, /upload/image-aRYl.png?width=1600 1600w, /upload/image-aRYl.png?width=800 800w"/></p>
+<p><img alt="image-aRYl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-aRYl.png" srcset="/halo-SSG/upload/image-aRYl.png?width=1200 1200w, /halo-SSG/upload/image-aRYl.png?width=400 400w, /halo-SSG/upload/image-aRYl.png?width=1600 1600w, /halo-SSG/upload/image-aRYl.png?width=800 800w"/></p>
 <p>测试了安装几个插件，编写文章发布都是正常的。</p>
 <p>代码开源在</p>
 <p><a href="https://github.com/Dark-Athena/halo/tree/for-yashandb">https://github.com/Dark-Athena/halo/tree/for-yashandb</a></p>
 <p>本地一行代码没有，直接在网页上聊几句天就把项目开发完了，还能远程直接启动服务来演示，CI/CD也直接集成了，github这生态真是太舒服了。</p>
-<p><img alt="image-RojJ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-RojJ.png" srcset="/upload/image-RojJ.png?width=1200 1200w, /upload/image-RojJ.png?width=400 400w, /upload/image-RojJ.png?width=1600 1600w, /upload/image-RojJ.png?width=800 800w"/></p>
+<p><img alt="image-RojJ.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-RojJ.png" srcset="/halo-SSG/upload/image-RojJ.png?width=1200 1200w, /halo-SSG/upload/image-RojJ.png?width=400 400w, /halo-SSG/upload/image-RojJ.png?width=1600 1600w, /halo-SSG/upload/image-RojJ.png?width=800 800w"/></p>
 <h2 id="坑点">坑点</h2>
 <p>spring 的r2dbc方言，只支持ORACLE/MYSQL/POSTGRSQL/SQLSERVER/H2这5个数据库，然后HALO博客官方的社区版只支持MYSQL/POSTGRSQL/H2这3个数据库，ORACLE的支持是在商业版里的，没开源。崖山数据库的支持肯定是要大量套用ORACLE的方言的，所以AI在这里绕了挺久，我也没看他最后是怎么修复的，反正改了几轮后跑通了。</p>
 <p><a href="https://github.com/spring-projects/spring-framework/blob/main/spring-r2dbc/src/main/java/org/springframework/r2dbc/core/binding/BindMarkersFactoryResolver.java">https://github.com/spring-projects/spring-framework/blob/main/spring-r2dbc/src/main/java/org/springframework/r2dbc/core/binding/BindMarkersFactoryResolver.java</a></p>
@@ -220,17 +220,17 @@ docker compose -f docker-compose-yashandb.yaml up -d
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/yashandb">yashandb</a>
+        <a class="tag" href="/halo-SSG/tags/yashandb">yashandb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/binomial-option-pricing-7-languages-program-report">&larr; 美式期权二叉树算法 — 七语言实现与交叉验证报告</a>
+    <a href="/halo-SSG/archives/binomial-option-pricing-7-languages-program-report">&larr; 美式期权二叉树算法 — 七语言实现与交叉验证报告</a>
     
     
-    <a href="/archives/yashandb-r2dbc-driver-dev">【YaShanDB】给YaShanDB开发R2DBC驱动 &rarr;</a>
+    <a href="/halo-SSG/archives/yashandb-r2dbc-driver-dev">【YaShanDB】给YaShanDB开发R2DBC驱动 &rarr;</a>
     
 </div>
 

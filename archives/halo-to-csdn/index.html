@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【python】将halo博客文章批量同步到csdn - DA-技术分享-静态站</title>
     <meta name="description" content="起因目前新的个人博客网站是很难在搜索引擎收录的，就算在搜索引擎注册了站长、提交了sitemap、添加了统计代码和点击热点脚本，也做了SEO，也还是搜不到。那么为了增加自己文章的曝光度，可以选择多添加友链，但扪心自问，你自己找到一篇文章的时候会去看友链么？当然友链其实作为网站页面内容来被搜索引擎检索的">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,30 +128,30 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【python】将halo博客文章批量同步到csdn</h1>
     <div class="meta">
         
         <span>2021-10-05</span>
         
-        <span>1565 阅读</span>
+        <span>1566 阅读</span>
         
-        <a href="/categories/python">python</a>
+        <a href="/halo-SSG/categories/python">python</a>
         
     </div>
     <div class="post-body">
@@ -172,7 +172,7 @@
 <p>所以我就想到了干脆自己用python写个简单的。</p>
 <h2 id="分析">分析</h2>
 <p>1.首先，halo是有api的，只要在博客设置里开启了api功能并设置了api_access_key，就可以使用halo提供的各种api了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png" srcset="/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1200 1200w, /upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=400 400w, /upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1600 1600w, /upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png" srcset="/halo-SSG/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=400 400w, /halo-SSG/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=800 800w"/></p>
 <p>API文档 <a href="https://api.halo.run/">https://api.halo.run/</a></p>
 <p>2.先获取文章列表，可以通过 /api/content/posts? 这个接口，设定size为一个很大的值，至少要等于在halo博客中发布的文章数，这样就可以不分页，一次性获取所有的文章列表</p>
 <p>3.解析出每一篇的文章的 article_id 和 title，这里可以把自己不想同步的文章去掉</p>
@@ -296,17 +296,17 @@ except Exception as e:
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/python">python</a>
+        <a class="tag" href="/halo-SSG/tags/python">python</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle-sql-part5">&larr; 【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part5</a>
+    <a href="/halo-SSG/archives/oracle-sql-part5">&larr; 【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part5</a>
     
     
-    <a href="/archives/oracle-sql-part4">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part4 &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-sql-part4">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part4 &rarr;</a>
     
 </div>
 

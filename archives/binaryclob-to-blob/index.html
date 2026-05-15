@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】对二进制字符串的存储空间占用进行压缩的研究 - DA-技术分享-静态站</title>
     <meta name="description" content="老早就想整这个东西了,但之前一直在找oracle有没有原生的函数能进行相关处理,至今还没找到。目前oracle提供的自带函数里,只有一个bin_to_num能对二进制进行转换,但其输入参数却是个数不定的1或者0,假设我们有一个由1和0构成的超大文本,怎么把这个文本当成真正的二进制进行存储？">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】对二进制字符串的存储空间占用进行压缩的研究</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1121 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -171,14 +171,14 @@ insert into bin_test values
 <p>接下来我们查看一下这3个值分别占用的字节数</p>
 <pre><code class="language-sql">select vsize(numb),vsize(text),dbms_lob.getlength(bina) from bin_test;
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png" srcset="/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=1200 1200w, /upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=400 400w, /upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=1600 1600w, /upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png" srcset="/halo-SSG/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=400 400w, /halo-SSG/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-b2c09bc3a799417d8b9b94b49ef492e8.png?width=800 800w"/><br/>
 可以看到,用字符串方式存储的占用空间最大,数字其次,而二进制类型的占用空间最小,8个1仅仅只占用1个byte,是用文本存储的八分之一！<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png" srcset="/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=1200 1200w, /upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=400 400w, /upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=1600 1600w, /upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png" srcset="/halo-SSG/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=400 400w, /halo-SSG/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-aa91f77d043a4809bb94e8fb8a847cb1.png?width=800 800w"/></p>
 <h2 id="开整">开整</h2>
 <p>首先当然是搜索引擎找解决方案了,但是目前在百度上搜到的进制转换都是针对很短的文本进行的处理,而且有些转换结果还是错的,好几页的搜索结果,文章标题都一样的。于是只能去BING碰碰运气。<br/>
 果然,在著名的stackoverflow上找到了和我有一样想法的人<br/>
 <a href="https://stackoverflow.com/questions/11188292/oracle-binary-data-types">https://stackoverflow.com/questions/11188292/oracle-binary-data-types</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png" srcset="/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=1200 1200w, /upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=400 400w, /upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=1600 1600w, /upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png" srcset="/halo-SSG/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=400 400w, /halo-SSG/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-e427519823f54380ab77ffd068148d20.png?width=800 800w"/><br/>
 但是,这个回答问题的,只给了2000长度的参数,假设我要处理的数据是超过2000的,则他这个方式会报错。<br/>
 因此我对其进行了修改,让其支持clob参数的输入。</p>
 <p>但是,问题又来了,他这个处理只是输出十六进制的字符串,实际上空间占用大小是真二进制的两倍,因此,我们要对它的输出结果进行转换。<br/>
@@ -231,17 +231,17 @@ end;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/opengauss-docker-compat-oracle">&larr; 【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</a>
+    <a href="/halo-SSG/archives/opengauss-docker-compat-oracle">&larr; 【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像</a>
     
     
-    <a href="/archives/invisible-character-replace">【ORACLE】字符串处理小技巧之字符串不可见字符的识别与处理 &rarr;</a>
+    <a href="/halo-SSG/archives/invisible-character-replace">【ORACLE】字符串处理小技巧之字符串不可见字符的识别与处理 &rarr;</a>
     
 </div>
 

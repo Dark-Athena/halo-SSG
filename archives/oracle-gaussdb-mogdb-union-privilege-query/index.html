@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【Oracle/GaussDB/MogDB】统一权限查询 - DA-技术分享-静态站</title>
     <meta name="description" content="【Oracle/GaussDB/MogDB】统一权限查询 背景 客户在系统下线流程中，有一步操作是锁定该系统对各个数据库登录的账号，但由于历史原因，没有完整记录每个数据库账号有哪些权限，导致有时关闭账号后，部分生产业务出现异常。现客户提出需求，期望从各个数据库中捞出所有用户的所有权限，以便后续关闭账">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【Oracle/GaussDB/MogDB】统一权限查询</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>77 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -482,21 +482,21 @@ select GRANTEE, GRANTED_ROLE from dba_role_privs where grantee in (select userna
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug">&larr; 【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</a>
+    <a href="/halo-SSG/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug">&larr; 【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</a>
     
     
-    <a href="/archives/oracle-hint-confusing"> 【Oracle】两个关于Hint的问题 &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-hint-confusing"> 【Oracle】两个关于Hint的问题 &rarr;</a>
     
 </div>
 

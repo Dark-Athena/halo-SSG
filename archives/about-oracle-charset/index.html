@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】谈一谈Oracle数据库使用的字符集,不仅仅是乱码 - DA-技术分享-静态站</title>
     <meta name="description" content="先看一个查询sql及其输出结果上面这个sql,查询了a和b两个字段,均为&quot;张三&quot;两个汉字,并且使用length函数检查,长度均为2。但是,当你看到下面这几个sql的输出结果时,很有可能第一反应是&quot;这特喵的怎么可能？&quot;">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】谈一谈Oracle数据库使用的字符集,不仅仅是乱码</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>3488 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -160,14 +160,14 @@
 
 <h2 id="一前言">一、前言</h2>
 <p>先看一个比较有意思的案例<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png" srcset="/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1200 1200w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=400 400w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1600 1600w, /upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png" srcset="/halo-SSG/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=400 400w, /halo-SSG/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-39bf407662054f8185348d7fc3ff22a6.png?width=800 800w"/><br/>
 上面这个sql,查询了a和b两个字段,均为"张三"两个汉字,并且使用length函数检查,长度均为2。<br/>
 但是,当你看到下面这几个sql的输出结果时,很有可能第一反应是:</p>
 <p><font size="5"><strong>"这特喵的怎么可能？"</strong></font></p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png" srcset="/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1200 1200w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=400 400w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1600 1600w, /upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png" srcset="/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1200 1200w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=400 400w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1600 1600w, /upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png" srcset="/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1200 1200w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=400 400w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1600 1600w, /upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png" srcset="/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1200 1200w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=400 400w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1600 1600w, /upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png" srcset="/halo-SSG/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=400 400w, /halo-SSG/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-624c5022f5db417cb8b847c2a35de792.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png" srcset="/halo-SSG/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=400 400w, /halo-SSG/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-ae9a973dde67413b9445935a66efeca1.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png" srcset="/halo-SSG/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=400 400w, /halo-SSG/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-dfaf91d16c914283a4194f4ca5209700.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png" srcset="/halo-SSG/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=400 400w, /halo-SSG/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-b195769f34f145a6b49572fe0af0c859.png?width=800 800w"/></p>
 <p>其实,你所看到的两个"张三",的确长得是一模一样,用显微镜去看也不可能看到区别。<br/>
 但为什么a和b不相等呢？<br/>
 这是因为组成他们的成分不一样,这个成分就是 <font color="red" size="6">字符集</font></p>
@@ -242,9 +242,9 @@ select UTL_I18N.MAP_LOCALE_TO_ISO('American','America') from dual;
 <p>首先,对于语言,我们做个这样的测试：</p>
 <ol>
 <li>数据库安装时,语言选择了"AMERICAN",然后客户端环境变量的"NLS_LANG"设置成"SIMPLIFIED CHINESE_CHINA.AL32UTF8",打开客户端软件，连接数据库后执行一段错误的sql<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png" srcset="/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1200 1200w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=400 400w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1600 1600w, /upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png" srcset="/halo-SSG/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=400 400w, /halo-SSG/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-49389c90b4a940f89471d1da4372f40f.png?width=800 800w"/></li>
 <li>然后把客户端环境变量的"NLS_LANG"改成"AMERICAN_CHINA.AL32UTF8",并重新打开客户端软件，连接数据库后执行同样的sql<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png" srcset="/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1200 1200w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=400 400w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1600 1600w, /upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png" srcset="/halo-SSG/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=400 400w, /halo-SSG/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-1fa742b06a9d4752bb851767b218889c.png?width=800 800w"/></li>
 </ol>
 <p>对，客户端环境变量的这个语言就是用来干这个的，用于在客户端显示不同语言的报错或者提示信息，你甚至可以设置成日语或者法语，这些系统提示信息在数据库内部本就是有记录多种语言的。另外，也可以通过数据库自带plsql包"UTL_LMS"将对应的系统提示信息转换成非客户端设置的语言。</p>
 <pre><code class="language-sql">DECLARE
@@ -348,7 +348,7 @@ select sys_context('USERENV','LANGUAGE') from dual;
                             'AL32UTF8')
   from dual;
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png" srcset="/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1200 1200w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=400 400w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1600 1600w, /upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png" srcset="/halo-SSG/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=400 400w, /halo-SSG/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-640b2b7dae044d4bb2696db177418a41.png?width=800 800w"/><br/>
 但以上仅仅是只以ZHS16GBK及AL32UTF8来进行举例，实际场景不乏有日语、韩语、法语等等，要判断一个乱码到底是哪个字符集转哪个字符集出了问题，其实很难。</p>
 <p>所以我开发了一个plsql包，穷举转换，输出一个表格，用户可肉眼排查乱码是怎么产生的(为减少数据输出条数，仅针对某一方有亚洲语言字符集参与的乱码)</p>
 <pre><code class="language-sql">create or replace package charset_util_pkg is
@@ -464,7 +464,7 @@ end charset_util_pkg;
 </code></pre>
 <pre><code class="language-sql">select A.* from charset_util_pkg.convert_any_charset('寮犱笁') A;
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png" srcset="/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1200 1200w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=400 400w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1600 1600w, /upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png" srcset="/halo-SSG/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=400 400w, /halo-SSG/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-f609d63dbf7b4d7a9681e5a3accbc329.png?width=800 800w"/></p>
 <p>或者限定当前数据库字符集以减少条目</p>
 <pre><code class="language-sql">select A.*
   from charset_util_pkg.convert_any_charset('寮犱笁') A
@@ -473,7 +473,7 @@ end charset_util_pkg;
           from nls_database_parameters
          where parameter = 'NLS_CHARACTERSET');
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png" srcset="/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1200 1200w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=400 400w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1600 1600w, /upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png" srcset="/halo-SSG/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=400 400w, /halo-SSG/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-25c4f66582e54ceda112a81afdda8d65.png?width=800 800w"/></p>
 <p>或者使用列作为传入参数</p>
 <pre><code class="language-sql">select A.*
   from test_20220122_1 b,charset_util_pkg.convert_any_charset(b.b) A
@@ -482,7 +482,7 @@ end charset_util_pkg;
           from nls_database_parameters
          where parameter = 'NLS_CHARACTERSET');
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png" srcset="/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1200 1200w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=400 400w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1600 1600w, /upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png" srcset="/halo-SSG/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=400 400w, /halo-SSG/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-de725bca6caa42f58f5a7d2db58b710f.png?width=800 800w"/></p>
 <p>另外，还可以从结果中复制其对应的sql_text以快速获得正确的转换代码。</p>
 <h2 id="总结">总结</h2>
 <p>经过以上研究可以得知，如果开发的应用项目乱码,其应用开发人员应该占首要责任,因为客户端字符集及数据编码都是由开发人员指定的，在一个只有应用输入数据的数据库中，乱码与数据库字符集的关系并不大（除非数据库安装时指定了一个偏门的字符集）。</p>
@@ -511,17 +511,17 @@ select a,
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/sql-draw-chinese-fu-2">&larr; 【ORACLE】墨天轮SQL祝福大赛后续的一点研究</a>
+    <a href="/halo-SSG/archives/sql-draw-chinese-fu-2">&larr; 【ORACLE】墨天轮SQL祝福大赛后续的一点研究</a>
     
     
-    <a href="/archives/about-opengauss-package">【openGauss】谈一谈PostgreSQL及openGauss中的package &rarr;</a>
+    <a href="/halo-SSG/archives/about-opengauss-package">【openGauss】谈一谈PostgreSQL及openGauss中的package &rarr;</a>
     
 </div>
 

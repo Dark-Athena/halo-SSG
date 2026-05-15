@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接 - DA-技术分享-静态站</title>
     <meta name="description" content="前言在上一篇文章【ORACLE】教你怎么自主免费开通ORACLE的MOS权限 中,教大家通过申请免费的ORACLE CLOUD服务来开通了MOS权限,既然来都来了,ORACLE CLOUD上那么多免费的服务,我们不用一用不就浪费了？所以,这篇教大家如何在ORACLE CLOUD里开通一台自治数据库,">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>3019 阅读</span>
         
-        <a href="/categories/cloud">云</a> / 
+        <a href="/halo-SSG/categories/cloud">云</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -169,28 +169,28 @@
 <ol>
 <li>进入oraclecloud网站并登陆 <a href="https://cloud.oracle.com" target="_blank">https://cloud.oracle.com</a></li>
 <li>点击创建ATP数据库(当然ADW也行)<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png" srcset="/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=1200 1200w, /upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=400 400w, /upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=1600 1600w, /upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png" srcset="/halo-SSG/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=400 400w, /halo-SSG/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-bd0189ad2058414fa0a6f95dc72c1e64.png?width=800 800w"/></li>
 <li>填写数据库相关信息,“始终免费”、管理员密码、邮箱<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png" srcset="/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=1200 1200w, /upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=400 400w, /upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=1600 1600w, /upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png" srcset="/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=1200 1200w, /upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=400 400w, /upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=1600 1600w, /upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png" srcset="/halo-SSG/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=400 400w, /halo-SSG/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-a96da9a4fcd74cbdae6e15920d359cf5.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png" srcset="/halo-SSG/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=400 400w, /halo-SSG/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-d196ab3568c84d3c8995a70985f29751.png?width=800 800w"/></li>
 <li>点击创建自治数据库按钮,接下来就等它创建好<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png" srcset="/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=1200 1200w, /upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=400 400w, /upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=1600 1600w, /upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png" srcset="/halo-SSG/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=400 400w, /halo-SSG/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-299b8477d00c41b682e1427f33afde59.png?width=800 800w"/></li>
 </ol>
 <h2 id="%E4%B8%89%E3%80%81%E9%85%8D%E7%BD%AE%E6%9C%AC%E5%9C%B0%E8%BF%9E%E6%8E%A5%E7%8E%AF%E5%A2%83" tabindex="-1">三、配置本地连接环境</h2>
 <ol>
 <li>数据库创建好后,点击刚刚创建的数据库<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png" srcset="/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=1200 1200w, /upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=400 400w, /upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=1600 1600w, /upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png" srcset="/halo-SSG/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=400 400w, /halo-SSG/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-7e730ededf404620999dbaaf5182e424.png?width=800 800w"/></li>
 <li>点击数据库连接<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png" srcset="/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=1200 1200w, /upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=400 400w, /upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=1600 1600w, /upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png" srcset="/halo-SSG/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=400 400w, /halo-SSG/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-082fb659d4b6499db918715935eb71e9.png?width=800 800w"/></li>
 <li>点击下载wallet<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png" srcset="/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=1200 1200w, /upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=400 400w, /upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=1600 1600w, /upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png" srcset="/halo-SSG/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=400 400w, /halo-SSG/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-be0175c9c07c4d27aaa93c00d33750f8.png?width=800 800w"/></li>
 <li>输入密码并点击下载(可以和上面的管理密码不一致),获得一个压缩包<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png" srcset="/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=1200 1200w, /upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=400 400w, /upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=1600 1600w, /upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png" srcset="/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=1200 1200w, /upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=400 400w, /upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=1600 1600w, /upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png" srcset="/halo-SSG/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=400 400w, /halo-SSG/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-fe80cec7551b4e05ab40b91c658cec7c.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png" srcset="/halo-SSG/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=400 400w, /halo-SSG/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-eb54316cf86047179a51e918eb3aa699.png?width=800 800w"/></li>
 <li>打开压缩包中的tnsname.ora,并将其内容添加至你本机客户端tnsname.ora文件中<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png" srcset="/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=1200 1200w, /upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=400 400w, /upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=1600 1600w, /upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png" srcset="/halo-SSG/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=400 400w, /halo-SSG/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-105b5d2a19204406a6c8deecfb1a2a50.png?width=800 800w"/></li>
 <li>将压缩包中,除了tnsname.ora以外的文件,解压到你本机客户端的network/admin/文件夹下,注意别把你自己的tnsname.ora覆盖了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png" srcset="/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=1200 1200w, /upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=400 400w, /upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=1600 1600w, /upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png" srcset="/halo-SSG/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=400 400w, /halo-SSG/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-ecf972213c434828bcb2ad68372cffc3.png?width=800 800w"/></li>
 <li>打开sqlnet.ora文件,把文件内的路径配置完整(这里一般是自动读环境变量,但有些电脑上不一定配置了)</li>
 </ol>
 <pre><code class="language-">WALLET_LOCATION = (SOURCE = (METHOD = file) (METHOD_DATA = (DIRECTORY="?/network/admin")))
@@ -203,10 +203,10 @@ SSL_SERVER_DN_MATCH=yes
 <h2 id="%E5%9B%9B%E3%80%81%E8%BF%9E%E6%8E%A5%E6%95%B0%E6%8D%AE%E5%BA%93" tabindex="-1">四、连接数据库</h2>
 <ol>
 <li>sqlplus<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2023/05/image.png" srcset="/upload/2023/05/image.png?width=1200 1200w, /upload/2023/05/image.png?width=400 400w, /upload/2023/05/image.png?width=1600 1600w, /upload/2023/05/image.png?width=800 800w"/></li>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2023/05/image.png" srcset="/halo-SSG/upload/2023/05/image.png?width=1200 1200w, /halo-SSG/upload/2023/05/image.png?width=400 400w, /halo-SSG/upload/2023/05/image.png?width=1600 1600w, /halo-SSG/upload/2023/05/image.png?width=800 800w"/></li>
 <li>plsql developer<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png" srcset="/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=1200 1200w, /upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=400 400w, /upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=1600 1600w, /upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png" srcset="/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=1200 1200w, /upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=400 400w, /upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=1600 1600w, /upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=800 800w"/></li>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png" srcset="/halo-SSG/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=400 400w, /halo-SSG/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-c7a0821a98874ea8a2a1cdb41508d5aa.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png" srcset="/halo-SSG/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=400 400w, /halo-SSG/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-28e766fede5a45748b904a8921fb379c.png?width=800 800w"/></li>
 </ol>
 <h2 id="%E4%BA%94%E3%80%81%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9" tabindex="-1">五、注意事项</h2>
 <ol>
@@ -230,19 +230,19 @@ SSL_SERVER_DN_MATCH=yes
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/%E4%BA%91">云</a>
+        <a class="tag" href="/halo-SSG/tags/%E4%BA%91">云</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-opengauss-package">&larr; 【openGauss】谈一谈PostgreSQL及openGauss中的package</a>
+    <a href="/halo-SSG/archives/about-opengauss-package">&larr; 【openGauss】谈一谈PostgreSQL及openGauss中的package</a>
     
     
-    <a href="/archives/opengauss-docker-compat-oracle">【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-docker-compat-oracle">【openGauss】构建一个兼容Oracle模式支持创建package的openGauss的docker镜像 &rarr;</a>
     
 </div>
 

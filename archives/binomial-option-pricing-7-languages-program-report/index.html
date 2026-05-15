@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>美式期权二叉树算法 — 七语言实现与交叉验证报告 - DA-技术分享-静态站</title>
     <meta name="description" content="背景：最近帮忙给客户优化了一个算法，经过了解，是期货行业的一个标准算法，叫“美式期权二叉树算法”，由于是标准算法，因此本文并不提供客户的原始实现和在其基础上的优化版本，而是完全由AI自主进行分析、测试、编写报告、推送到github。 本次使用的工具为运行在macos上的WPS灵犀CLAW，仅通过飞书">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>美式期权二叉树算法 — 七语言实现与交叉验证报告</h1>
     <div class="meta">
@@ -160,9 +160,9 @@
 <p>本次使用的工具为运行在macos上的WPS灵犀CLAW，仅通过飞书聊天完成所有任务</p>
 <table>
 <tbody><tr>
-<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg" srcset="/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=1200 1200w, /upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=400 400w, /upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=1600 1600w, /upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=800 800w" width="200"/></td>
-<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg" srcset="/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=1200 1200w, /upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=400 400w, /upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=1600 1600w, /upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=800 800w" width="200"/></td>
-<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/bca01b9799be0d616c0728f957182076_compress.jpg" srcset="/upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=1200 1200w, /upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=400 400w, /upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=1600 1600w, /upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=800 800w" width="200"/></td>
+<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg" srcset="/halo-SSG/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=1200 1200w, /halo-SSG/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=400 400w, /halo-SSG/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=1600 1600w, /halo-SSG/upload/85f381eade6f4059f5bbbd2401113fe9_compress.jpg?width=800 800w" width="200"/></td>
+<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg" srcset="/halo-SSG/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=1200 1200w, /halo-SSG/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=400 400w, /halo-SSG/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=1600 1600w, /halo-SSG/upload/275813ec7e59e7dd272d9ddd3faf69ca_compress.jpg?width=800 800w" width="200"/></td>
+<td><img sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/bca01b9799be0d616c0728f957182076_compress.jpg" srcset="/halo-SSG/upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=1200 1200w, /halo-SSG/upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=400 400w, /halo-SSG/upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=1600 1600w, /halo-SSG/upload/bca01b9799be0d616c0728f957182076_compress.jpg?width=800 800w" width="200"/></td>
 </tr>
 </tbody></table>
 <p>相关代码开源地址：<br/>
@@ -489,19 +489,19 @@ $$ LANGUAGE plpgsql;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/gaussdb">gaussdb</a>
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
         
-        <a class="tag" href="/tags/ai">AI</a>
+        <a class="tag" href="/halo-SSG/tags/ai">AI</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">&larr; 【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a>
+    <a href="/halo-SSG/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">&larr; 【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a>
     
     
-    <a href="/archives/halo-for-yashandb">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 &rarr;</a>
+    <a href="/halo-SSG/archives/halo-for-yashandb">【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 &rarr;</a>
     
 </div>
 

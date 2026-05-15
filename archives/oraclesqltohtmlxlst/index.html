@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】在数据库中使用xml和xslt来实现sql查询转换成HTML表格 - DA-技术分享-静态站</title>
     <meta name="description" content="前言之前有篇文章介绍了sql转html的一个方案，此方案存在缺点，即对空值无法处理，后来基于oracle18c添加的多态表函数PTF，解决了此问题。但是个人感觉代码还是太过复杂，今天在打算优化pljson包的时候，想到它的sql转json是使用的xlst来对xml进行的转换，而且代码很简单，除了模板">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】在数据库中使用xml和xslt来实现sql查询转换成HTML表格</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1688 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a> / 
+        <a href="/halo-SSG/categories/oracle">ORACLE</a> / 
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -237,7 +237,7 @@
 <p>这代码还能继续压缩...</p>
 <h2 id="成品">成品</h2>
 <p>效果：<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png" srcset="/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1200 1200w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=400 400w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1600 1600w, /upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png" srcset="/halo-SSG/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=400 400w, /halo-SSG/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-64a1978d61a2453e9d20ec4295dc20cb.png?width=800 800w"/></p>
 <p>代码见我的github</p>
 <p><a href="https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/sql_to_html_xlst.fnc">https://github.com/Dark-Athena/sql_to_html-oracle/blob/main/sql_to_html_xlst.fnc</a></p>
 <p>另外，我还加入了sqlplus导出html的css样式，如果想用其他样式，可以自行替换</p>
@@ -251,19 +251,19 @@
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/dbmsclouduserpwd">&larr; 【ORACLE】dbms_cloud包使用的各大云厂商对象存储的username及password位置</a>
+    <a href="/halo-SSG/archives/dbmsclouduserpwd">&larr; 【ORACLE】dbms_cloud包使用的各大云厂商对象存储的username及password位置</a>
     
     
-    <a href="/archives/about-fanletter-qa">【杂谈】关于建立新专栏《粉丝来信》和《经典问答》 &rarr;</a>
+    <a href="/halo-SSG/archives/about-fanletter-qa">【杂谈】关于建立新专栏《粉丝来信》和《经典问答》 &rarr;</a>
     
 </div>
 

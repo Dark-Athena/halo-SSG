@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】在plsql中通过几条简单的命令生成运维可视化图表html页面 - DA-技术分享-静态站</title>
     <meta name="description" content="其实本来不想写这篇的，因为这对于前端的入门开发者再简单不过了，只是因为最近看到一位DBA老哥为了生成图表各种折腾，又联想起我原来公司的DBA经常找我请教一些自动化流程如何用sql或者plsql实现，实在是忍不住了。业务报表或者运维报表的自动生成，在一些公司应该是基本操作，开发语言用java的、php">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】在plsql中通过几条简单的命令生成运维可视化图表html页面</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1640 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a> / 
+        <a href="/halo-SSG/categories/oracle">ORACLE</a> / 
         
-        <a href="/categories/aio">AIO项目(All in Oracle)</a>
+        <a href="/halo-SSG/categories/aio">AIO项目(All in Oracle)</a>
         
     </div>
     <div class="post-body">
@@ -283,7 +283,7 @@ select test_area_chart_func from dual;
 </code></pre>
 <h2 id="页面效果">页面效果</h2>
 <p><a href="https://www.darkathena.top/test/test_area_chart.html">https://www.darkathena.top/test/test_area_chart.html</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png" srcset="/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1200 1200w, /upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=400 400w, /upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1600 1600w, /upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png" srcset="/halo-SSG/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1200 1200w, /halo-SSG/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=400 400w, /halo-SSG/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1600 1600w, /halo-SSG/upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=800 800w"/><br/>
 实现原理就是调用开源的图表js组件<a href="https://echarts.apache.org/zh/index.html">echarts</a>，手动拼个html。</p>
 <p>上面这个函数也就随手一写，主要是验证其可行性，没有针对特殊场景做兼容开发。如果功能要更加全面的话，完全可以把各种选项参数化，封装成一个具有完整功能的plsql包。而且在12c以后也不需要使用字符串拼接json了，直接可以用json语法操作，甚至在21c版本还可以用dbms_mle功能调用js直接返回对应的图片。就算不是21c版本，在ORACLE的apex里写写简单的代码也是可以实现的,甚至还能直接做成动态刷新的页面。最后再搞个大屏显得高大上。</p>
 <h2 id="最后提个问题">最后提个问题</h2>
@@ -300,19 +300,19 @@ select test_area_chart_func from dual;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/aio">AIO</a>
+        <a class="tag" href="/halo-SSG/tags/aio">AIO</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/dbmscloufix20211207">&larr; 【ORACLE】骚操作，个人修改oracle官方dbms_cloud包来支持本地数据库导出数据到云存储</a>
+    <a href="/halo-SSG/archives/dbmscloufix20211207">&larr; 【ORACLE】骚操作，个人修改oracle官方dbms_cloud包来支持本地数据库导出数据到云存储</a>
     
     
-    <a href="/archives/dbms-mle-ext-pkg">【ORACLE】自定义dbms_mle扩展包，支持导入外部js模块 &rarr;</a>
+    <a href="/halo-SSG/archives/dbms-mle-ext-pkg">【ORACLE】自定义dbms_mle扩展包，支持导入外部js模块 &rarr;</a>
     
 </div>
 

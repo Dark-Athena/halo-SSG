@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】正则表达式次数符号"{}"在ORACLE和openGauss中的差异 - DA-技术分享-静态站</title>
     <meta name="description" content="一、前言 正则作为一种常用的字符串处理方式，在各种开发语言，甚至数据库中，都有自带的正则函数。但是正则函数有很多标准，不同标准对正则表达式的解析方式不一样，本次在迁移一个ORACLE数据库到openGauss时发现了一个关于 {}的差异点。 二、{}是做什么用的 在绝大部分的正则表达式规则中 {}表">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,30 +128,30 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】正则表达式次数符号"{}"在ORACLE和openGauss中的差异</h1>
     <div class="meta">
         
         <span>2024-12-28</span>
         
-        <span>287 阅读</span>
+        <span>288 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -205,8 +205,8 @@ select regexp_substr('aaaa${ }bbb','(\${ 1*})') from dual;
 如果 <code>{}</code>内的第一个字符是数字，则开始进入次数的解析逻辑，若解析不符合次数的规则，就报错。<br/>
 查看openGauss源码，发现这段逻辑来自1998年的PG源码，数十年来未曾变过。<br/>
 这里注意，此处并非BUG，只是正则标准不一致，我使用了7种开发语言来验证，发现JAVA和RUST中也同样是报错的，而PHP/JS/PYTHON/.NET/GO 中都不报错。</p>
-<p><img alt="image-ssmg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-ssmg.png" srcset="/upload/image-ssmg.png?width=1200 1200w, /upload/image-ssmg.png?width=400 400w, /upload/image-ssmg.png?width=1600 1600w, /upload/image-ssmg.png?width=800 800w"/></p>
-<p><img alt="image-woln.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-woln.png" srcset="/upload/image-woln.png?width=1200 1200w, /upload/image-woln.png?width=400 400w, /upload/image-woln.png?width=1600 1600w, /upload/image-woln.png?width=800 800w"/></p>
+<p><img alt="image-ssmg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ssmg.png" srcset="/halo-SSG/upload/image-ssmg.png?width=1200 1200w, /halo-SSG/upload/image-ssmg.png?width=400 400w, /halo-SSG/upload/image-ssmg.png?width=1600 1600w, /halo-SSG/upload/image-ssmg.png?width=800 800w"/></p>
+<p><img alt="image-woln.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-woln.png" srcset="/halo-SSG/upload/image-woln.png?width=1200 1200w, /halo-SSG/upload/image-woln.png?width=400 400w, /halo-SSG/upload/image-woln.png?width=1600 1600w, /halo-SSG/upload/image-woln.png?width=800 800w"/></p>
 <p>可以使用以下链接测试该正则表达式在不同开发语言中的表现<br/>
 <a href="https://regex101.com/r/APc3is/1">https://regex101.com/r/APc3is/1</a></p>
 <h1 id="四-相关源码">四、相关源码</h1>
@@ -366,17 +366,17 @@ ErrorCode = 600, SQLState = 42000, Details = OBE-00600: internal error code, arg
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/antlr4-part3-dev-with-java">&larr;  基于语法树的SQL自动改写工具开发系列（3）-使用JAVA进行简单SQL改写的开发实战</a>
+    <a href="/halo-SSG/archives/antlr4-part3-dev-with-java">&larr;  基于语法树的SQL自动改写工具开发系列（3）-使用JAVA进行简单SQL改写的开发实战</a>
     
     
-    <a href="/archives/mogdb-5.2.0-support-plsql-nested-subprogram">【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序 &rarr;</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-plsql-nested-subprogram">【MogDB】MogDB5.2.0重磅发布第十篇-支持PLSQL嵌套子程序 &rarr;</a>
     
 </div>
 

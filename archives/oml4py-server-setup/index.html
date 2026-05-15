@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行 - DA-技术分享-静态站</title>
     <meta name="description" content="前言在 oracle 数据库 21C（20C）版本中，ORACLE数据库加入了机器学习功能，叫OML，全称（Oracle machine learning），并且加入了对python语言的支持，组件名叫 oml4py。这个组件是部署在数据库服务器端，然后有客户端，可使用python连接数据库进行机器">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】在ORACLE数据库中启用机器学习功能（OML）以支持PYTHON脚本的运行</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>2369 阅读</span>
         
-        <a href="/categories/python">python</a> / 
+        <a href="/halo-SSG/categories/python">python</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -303,7 +303,7 @@ libgfortran.so.3: cannot open shared object file: No such file or directory
 <p>最后的最后，不要在生产环境使用21c！按大佬的说法，目前19c才是长期版本，下一个长期版本会是23c。</p>
 <h2 id="20211114更新">20211114更新</h2>
 <p>重新自己用ORACLE LINUX 8安装了21c，做成了docker，并微调了官方的安装脚本（脚本里直接强制指定参数的值），终于执行成功了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png" srcset="/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1200 1200w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=400 400w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1600 1600w, /upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png" srcset="/halo-SSG/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=400 400w, /halo-SSG/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=800 800w"/></p>
 <p>但是安装脚本中最后一个调用的文件pyqatmlcfg.sql，导入机器学习模型imp不成功，一开始我是把docker的数据库文件挂载到了windows本地，查询dba_directories时就报错</p>
 <blockquote>
 <p>ORA-12801: error signaled in parallel query server P000<br/>
@@ -356,19 +356,19 @@ dbca -slient -configurePluggableDatabase  -pdbName pdb1 -sourceDB cdb1 -configur
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/python">python</a>
+        <a class="tag" href="/halo-SSG/tags/python">python</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/pl4py">&larr; 【ORACLE】在oracle10g以上版本启用数据库plsql对python函数的支持（pl4py）</a>
+    <a href="/halo-SSG/archives/pl4py">&larr; 【ORACLE】在oracle10g以上版本启用数据库plsql对python函数的支持（pl4py）</a>
     
     
-    <a href="/archives/antlr4-sql-tablename">【python】使用Antlr4实现识别sql中的表或视图名 &rarr;</a>
+    <a href="/halo-SSG/archives/antlr4-sql-tablename">【python】使用Antlr4实现识别sql中的表或视图名 &rarr;</a>
     
 </div>
 

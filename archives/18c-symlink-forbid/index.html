@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】有关18c的一个很多文章都没提到的安全方面的变更-禁止软链接 - DA-技术分享-静态站</title>
     <meta name="description" content="">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】有关18c的一个很多文章都没提到的安全方面的变更-禁止软链接</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>913 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -227,7 +227,7 @@ Workaround:</p>
 </ul>
 <p>并且在18c预升级程序执行时，会有提示，当前数据库存在哪些软链接目录，请手工用真实路径重建。<br/>
 <a href="https://support.oracle.com/epmos/faces/DocumentDisplay?id=2380601.1">MOS Note: 2380601.1 (Database Preupgrade tool check list):</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png" srcset="/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1200 1200w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=400 400w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1600 1600w, /upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png" srcset="/halo-SSG/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1200 1200w, /halo-SSG/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=400 400w, /halo-SSG/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1600 1600w, /halo-SSG/upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=800 800w"/></p>
 <h2 id="疑惑">疑惑</h2>
 <p>"WARNING"、"MANUAL"，这么重要的事情，有关18c的新特性介绍文章里咋没见到呢。。。搜相关报错信息，国内几大技术网站里也没搜到。</p>
 <p>难道国内就没人用oracle做软链接下的文件读写操作？还是都停留在12c之前？</p>
@@ -248,17 +248,17 @@ ALTER SYSTEM SET "_kolfuseslf" = TRUE SCOPE=SPFILE;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/os-file-mgr-pkg">&larr; 【ORACLE】在数据库中对操作系统上的文件进行读写操作（解决18c软链接目录的问题）</a>
+    <a href="/halo-SSG/archives/os-file-mgr-pkg">&larr; 【ORACLE】在数据库中对操作系统上的文件进行读写操作（解决18c软链接目录的问题）</a>
     
     
-    <a href="/archives/21c-for-loop">【ORACLE】21c版本新特性之for...loop循环的增强 &rarr;</a>
+    <a href="/halo-SSG/archives/21c-for-loop">【ORACLE】21c版本新特性之for...loop循环的增强 &rarr;</a>
     
 </div>
 

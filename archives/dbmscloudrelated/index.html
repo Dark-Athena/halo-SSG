@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】关于dbms_cloud包机制的一些研究 - DA-技术分享-静态站</title>
     <meta name="description" content="前言参考https://oracle-base.com/articles/21c/dbms_cloud-package压了好久，准备开始写，发现有人发过类似的了，https://blog.csdn.net/stevensxiao/article/details/118578785但和我的操作有点不一">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】关于dbms_cloud包机制的一些研究</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1511 阅读</span>
         
-        <a href="/categories/cloud">云</a> / 
+        <a href="/halo-SSG/categories/cloud">云</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -218,40 +218,40 @@ alter session set current_schema=sys;
 <h2 id="创建wallet">创建wallet</h2>
 <p>由于我手头上没visa和万事达，没办法申请免费的oralce或aws对象存储。找了下国内的，现在面向个人的对象存储外网下行流量几乎全部收费，要么就是强制加广告的，只能先用下相对还算便宜的腾讯云cos了，也不一定能成功，毕竟网上没有ORACLE访问cos的文章。<br/>
 所以接下来就是根据腾讯云cos的证书来制作一个wallet</p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png" srcset="/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=1200 1200w, /upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=400 400w, /upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=1600 1600w, /upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=800 800w"/></p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png" srcset="/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=1200 1200w, /upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=400 400w, /upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=1600 1600w, /upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png" srcset="/halo-SSG/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=400 400w, /halo-SSG/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-99ecab3331bb455db8fcba4e4cd64c2a.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png" srcset="/halo-SSG/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=400 400w, /halo-SSG/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-cf42bb47dbeb4e248ba49a2636b44eff.png?width=800 800w"/></p>
 <p>下载证书后，打开wallet manager,点新建，<br/>
 输入口令，需要8位，这里测试，我口令设置成了 asdf1234,点击确定<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png" srcset="/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=1200 1200w, /upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=400 400w, /upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=1600 1600w, /upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png" srcset="/halo-SSG/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=400 400w, /halo-SSG/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-08ade3416c5b4d6db997f522cdb3ddc2.png?width=800 800w"/><br/>
 点否<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png" srcset="/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=1200 1200w, /upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=400 400w, /upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=1600 1600w, /upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png" srcset="/halo-SSG/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=400 400w, /halo-SSG/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-c9e89f4a6f8441a3bdf1fe4a2af4815b.png?width=800 800w"/><br/>
 操作，导入信任证书<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png" srcset="/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=1200 1200w, /upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=400 400w, /upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=1600 1600w, /upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png" srcset="/halo-SSG/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=400 400w, /halo-SSG/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-c62d5037ff9d416c9e917dad5bc39c72.png?width=800 800w"/><br/>
 选择包含证书的文件<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png" srcset="/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=1200 1200w, /upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=400 400w, /upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=1600 1600w, /upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png" srcset="/halo-SSG/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=400 400w, /halo-SSG/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-cd7e39d2fa364ca9a768833e28743783.png?width=800 800w"/><br/>
 注意，我这里只导入了两个证书，我之前在<a href="https://www.darkathena.top/archives/ssl-email">【AIO】使用ORACLE数据库存储过程发送加密email（SSL)</a>  这篇文章中说过，在12c以上版本，不要导入末级证书，否则会报错</p>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png" srcset="/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=1200 1200w, /upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=400 400w, /upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=1600 1600w, /upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png" srcset="/halo-SSG/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=400 400w, /halo-SSG/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-1aa96cf7803a419bb4e98e94006fede0.png?width=800 800w"/><br/>
 另存为，这里我保存在了 H:\wallet_cos</p>
 <p>然后，为了节省后面的操作，可以把自动登录给勾上，<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png" srcset="/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=1200 1200w, /upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=400 400w, /upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=1600 1600w, /upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png" srcset="/halo-SSG/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=400 400w, /halo-SSG/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-a7c38960651743f1a10c303c0bcb36a5.png?width=800 800w"/><br/>
 再保存，就可以关闭这个程序了，我们可以看到此时在这个文件夹下有4个文件（有时候只有两个，有两个lck是临时锁定文件，一般不用管）<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png" srcset="/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=1200 1200w, /upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=400 400w, /upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=1600 1600w, /upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png" srcset="/halo-SSG/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=400 400w, /halo-SSG/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-9bc920d349f042e6bddb7628ac4d1c34.png?width=800 800w"/></p>
 <p>测试证书是否有效</p>
 <pre><code class="language-sql">select utl_http.request(url             =&gt; 'https://first-1307489902.cos.ap-shanghai.myqcloud.com',
                         wallet_path     =&gt; 'file:H:\wallet_cos',
                         wallet_password =&gt; 'asdf1234')
   from dual;
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png" srcset="/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=1200 1200w, /upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=400 400w, /upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=1600 1600w, /upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png" srcset="/halo-SSG/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=400 400w, /halo-SSG/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-b195b3f88469415892206a1ab41518ad.png?width=800 800w"/><br/>
 能查出东西就行</p>
 <p>如果直接就开始上传文件的话，会提示<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png" srcset="/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=1200 1200w, /upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=400 400w, /upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=1600 1600w, /upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png" srcset="/halo-SSG/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=400 400w, /halo-SSG/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-3e719621b1a84914a189510c0c38797b.png?width=800 800w"/><br/>
 这个和之前说过的utl_http.set_wallet又有点不一样，这次dbms_cloud是把证书路径设置成了数据库的一个参数，需要使用alter命令进行设置</p>
 <pre><code class="language-sql">alter database property set ssl_wallet='H:\wallet_cos'
 </code></pre>
 <p>这是因为oracle干了件这样的事<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-60e22e806db94e6187983191ad022778.png" srcset="/upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=1200 1200w, /upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=400 400w, /upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=1600 1600w, /upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png" srcset="/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=1200 1200w, /upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=400 400w, /upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=1600 1600w, /upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-60e22e806db94e6187983191ad022778.png" srcset="/halo-SSG/upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=400 400w, /halo-SSG/upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-60e22e806db94e6187983191ad022778.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png" srcset="/halo-SSG/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=400 400w, /halo-SSG/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-43c42f49da064cfcb02fdeef0d0b9547.png?width=800 800w"/><br/>
 这是想说以后就只要做一个wallet了，啥证书都往这一个wallet里添加？这里先不评价这玩意。</p>
 <h2 id="创建认证">创建认证</h2>
 <p>然后还要创建一个登陆认证，这两个值是对象存储服务提供的，相当于加密的用户名和密码</p>
@@ -276,10 +276,10 @@ end;
 /
 </code></pre>
 <h2 id="上传失败开始研究">上传失败，开始研究</h2>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png" srcset="/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=1200 1200w, /upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=400 400w, /upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=1600 1600w, /upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png" srcset="/halo-SSG/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=400 400w, /halo-SSG/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-8420ba02955b49e3a6c9b81eca640109.png?width=800 800w"/></p>
 <p>提示，不支持的对象存储URI，emmm，调试下，看到底是哪里不对，然后一路跟踪到这里<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png" srcset="/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=1200 1200w, /upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=400 400w, /upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=1600 1600w, /upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=800 800w"/></p>
-<p>进了NO_DATA_FOUND了，因为dbms_cloud_store表里没数据（在打dbms_cloud_metadata.sql的时候，校验了CON_NAME必须是CDB$ROOT才会插表，可以手工再补上），但是根据这个逻辑看，就算把腾讯云cos加进去了，它也不支持，因为已经限定了必须是ORACLE/AMAZON/AZURE这三家。真不知道oracle官方竟然也有这种不考虑扩展的case when写法，甚至还直接按照厂家分开写了多个uri转换过程，离谱的是，还用强制的域名格式做则匹配来解析<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png" srcset="/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=1200 1200w, /upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=400 400w, /upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=1600 1600w, /upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=800 800w"/>。。。</p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png" srcset="/halo-SSG/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=400 400w, /halo-SSG/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-d9f20b4d71f3488e9ae4636cf0be1279.png?width=800 800w"/></p>
+<p>进了NO_DATA_FOUND了，因为dbms_cloud_store表里没数据（在打dbms_cloud_metadata.sql的时候，校验了CON_NAME必须是CDB$ROOT才会插表，可以手工再补上），但是根据这个逻辑看，就算把腾讯云cos加进去了，它也不支持，因为已经限定了必须是ORACLE/AMAZON/AZURE这三家。真不知道oracle官方竟然也有这种不考虑扩展的case when写法，甚至还直接按照厂家分开写了多个uri转换过程，离谱的是，还用强制的域名格式做则匹配来解析<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png" srcset="/halo-SSG/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=400 400w, /halo-SSG/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-dfd1dc65bc3146e8aa59d51eaf0bb661.png?width=800 800w"/>。。。</p>
 <p>那如果我直接把这官方代码改了，不知道能不能过？<br/>
 首先，得分析一下，这些代码到底在干啥，是不是都是有必要的？<br/>
 把dbms_cloud_request这个包大致代码都过了一下，发现都没啥特殊操作，就是常见的utl_http操作，针对每个厂家要求的api请求格式，各种转换组装请求包，然后再把包post出去，获得一个返回值。就这？</p>
@@ -304,7 +304,7 @@ end;
 </code></pre>
 <p>创建不会报错，然后直接查询，<br/>
 提示<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png" srcset="/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=1200 1200w, /upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=400 400w, /upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=1600 1600w, /upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png" srcset="/halo-SSG/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=400 400w, /halo-SSG/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-eb3553f83e934ec7b8b64aad866b43e2.png?width=800 800w"/></p>
 <p>还是和上面一样，不支持腾讯云cos，然后我们看下这个表的ddl</p>
 <pre><code class="language-sql">select dbms_metadata.get_ddl(object_type =&gt; 'TABLE',name =&gt;'EMP_EXT' ) FROM DUAL;
 
@@ -384,10 +384,10 @@ ORA-06512: 在 "SYS.DBMS_CLOUD", line 917
 ORA-06512: 在 "SYS.DBMS_CLOUD", line 2470
 </code></pre>
 <p>可能是由于这里，<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png" srcset="/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=1200 1200w, /upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=400 400w, /upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=1600 1600w, /upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png" srcset="/halo-SSG/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=400 400w, /halo-SSG/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-b5e864bfad0247a7ac649ec0b39e53c5.png?width=800 800w"/><br/>
 但阿里云不是宣称兼容么？到阿里云社区一搜<br/>
 <a href="https://developer.aliyun.com/ask/321872?spm=a2c6h.13066354.0.0.525633b5RSKe8R">https://developer.aliyun.com/ask/321872?spm=a2c6h.13066354.0.0.525633b5RSKe8R</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png" srcset="/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=1200 1200w, /upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=400 400w, /upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=1600 1600w, /upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png" srcset="/halo-SSG/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=400 400w, /halo-SSG/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-59312e6c13854b02b3e1e45f1cbf720b.png?width=800 800w"/><br/>
 有人.net也报了这个错，这锅得阿里背了.<br/>
 搜到来自各种工具同样的报错<br/>
 <a href="https://forum.duplicati.com/t/alibaba-cloud-oss-aliyun-error/2414">https://forum.duplicati.com/t/alibaba-cloud-oss-aliyun-error/2414</a><br/>
@@ -395,26 +395,26 @@ ORA-06512: 在 "SYS.DBMS_CLOUD", line 2470
 看样子这个问题已经很久了，我要去踢下阿里屁股了。</p>
 <p>AWS官方文档<br/>
 <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html">https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png" srcset="/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=1200 1200w, /upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=400 400w, /upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=1600 1600w, /upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png" srcset="/halo-SSG/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=1200 1200w, /halo-SSG/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=400 400w, /halo-SSG/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=1600 1600w, /halo-SSG/upload/2021/10/image-dfee2cd8fa304487be0a7b3138ff3500.png?width=800 800w"/></p>
 </div>
 </article>
     </div>
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/%E4%BA%91">云</a>
+        <a class="tag" href="/halo-SSG/tags/%E4%BA%91">云</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/win-oracle-193-to-1912">&larr; 【ORACLE】记录一次windows环境ORACLE19.3打补丁升到19.12版本</a>
+    <a href="/halo-SSG/archives/win-oracle-193-to-1912">&larr; 【ORACLE】记录一次windows环境ORACLE19.3打补丁升到19.12版本</a>
     
     
-    <a href="/archives/microsoft-clarity">【站长工具】推荐一个来自微软的网站页面访问分析工具Clarity（支持记录用户行为） &rarr;</a>
+    <a href="/halo-SSG/archives/microsoft-clarity">【站长工具】推荐一个来自微软的网站页面访问分析工具Clarity（支持记录用户行为） &rarr;</a>
     
 </div>
 

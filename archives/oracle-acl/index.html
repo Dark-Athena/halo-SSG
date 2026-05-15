@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【ORACLE】简单谈谈ORACLE数据库中的ACL配置 - DA-技术分享-静态站</title>
     <meta name="description" content="ORACLE数据库内可以通过调用内置的一些包对外部发起TCP通讯，比如UTL_HTTP/UTL_SMTP/UTL_TCP/UTL_INADDR .,但是为了保证安全，ORACLE数据库有ACL（Access Control List 访问控制列表）的配置，只有进行过对应正确的配置，才能成功向外发">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【ORACLE】简单谈谈ORACLE数据库中的ACL配置</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>2148 阅读</span>
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -159,7 +159,7 @@
 <div id="post-inner">
 
 <p>ORACLE数据库内可以通过调用内置的一些包对外部发起TCP通讯，比如UTL_HTTP/UTL_SMTP/UTL_TCP/UTL_INADDR等,但是为了保证安全，ORACLE数据库有ACL（Access Control List 访问控制列表）的配置，只有进行过对应正确的配置，才能成功向外发起TCP通讯；如果配置不对，在访问的时候肯能会报错“ORA-24247 网络访问被访问控制列表 (ACL) 拒绝”。<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png" srcset="/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1200 1200w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=400 400w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1600 1600w, /upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png" srcset="/halo-SSG/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1200 1200w, /halo-SSG/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=400 400w, /halo-SSG/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=1600 1600w, /halo-SSG/upload/2021/09/image-a6ae75f06f67491eb9e8547fd61bcb88.png?width=800 800w"/><br/>
 上图为通常情况下，使用dbms_network_acl_admin包配置ACL规则的步骤，其实在这个包还可以配置wallet证书，不需要在PL/SQL代码中再去指定wallet路径了。另外还可以配置ACE访问控制条目，但不在本篇的讨论范围内，也就不说了。<br/>
 在配置前，先查询一下两个视图</p>
 <pre><code class="language-sql">select * from dba_network_acls;
@@ -219,17 +219,17 @@ end;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/oracle-wallet">&larr; 【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</a>
+    <a href="/halo-SSG/archives/oracle-wallet">&larr; 【ORACLE】简单谈谈ORACLE中WALLET（钱夹）</a>
     
     
-    <a href="/archives/oracle-sql-part2">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part2 &rarr;</a>
+    <a href="/halo-SSG/archives/oracle-sql-part2">【ORACLE】收集一些较为少见但很有用的SQL函数及写法.part2 &rarr;</a>
     
 </div>
 

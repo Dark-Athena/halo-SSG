@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】用plpgsql实现sha256算法(踩坑填坑实录) - DA-技术分享-静态站</title>
     <meta name="description" content="在开发中，经常会使用类似MD5/ SHA-1/ SHA-2这样的hash算法来对数据进行处理，以防原始信息泄露，比如密码的存储。SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA256计算的支持。比如从oracle12c起，数据库内原生提供了DBMS_CRYPTO包和STA">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】用plpgsql实现sha256算法(踩坑填坑实录)</h1>
     <div class="meta">
@@ -151,9 +151,9 @@
         
         <span>1277 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a> / 
+        <a href="/halo-SSG/categories/opengauss">openGauss</a> / 
         
-        <a href="/categories/oracle">ORACLE</a>
+        <a href="/halo-SSG/categories/oracle">ORACLE</a>
         
     </div>
     <div class="post-body">
@@ -245,9 +245,9 @@ SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA
 <pre><code class="language-sql">select sha256.ENCRYPT('aa') ;
 --961b6dd3ede3cb8ecbaacbd68de040cd78eb2ed5889130cceb4c49268ea4d506
 </code></pre>
-<p><img alt="image-1651042932329" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/image-1651042932329.png" srcset="/upload/2022/04/image-1651042932329.png?width=1200 1200w, /upload/2022/04/image-1651042932329.png?width=400 400w, /upload/2022/04/image-1651042932329.png?width=1600 1600w, /upload/2022/04/image-1651042932329.png?width=800 800w"/><br/>
+<p><img alt="image-1651042932329" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/04/image-1651042932329.png" srcset="/halo-SSG/upload/2022/04/image-1651042932329.png?width=1200 1200w, /halo-SSG/upload/2022/04/image-1651042932329.png?width=400 400w, /halo-SSG/upload/2022/04/image-1651042932329.png?width=1600 1600w, /halo-SSG/upload/2022/04/image-1651042932329.png?width=800 800w"/><br/>
 然后在oracle中查询<br/>
-<img alt="image-1651042965558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/04/image-1651042965558.png" srcset="/upload/2022/04/image-1651042965558.png?width=1200 1200w, /upload/2022/04/image-1651042965558.png?width=400 400w, /upload/2022/04/image-1651042965558.png?width=1600 1600w, /upload/2022/04/image-1651042965558.png?width=800 800w"/><br/>
+<img alt="image-1651042965558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/04/image-1651042965558.png" srcset="/halo-SSG/upload/2022/04/image-1651042965558.png?width=1200 1200w, /halo-SSG/upload/2022/04/image-1651042965558.png?width=400 400w, /halo-SSG/upload/2022/04/image-1651042965558.png?width=1600 1600w, /halo-SSG/upload/2022/04/image-1651042965558.png?width=800 800w"/><br/>
 可以发现结果完全一致。</p>
 <p>但是，我发现个很严重的问题，上述的这个sql，我在oracle中查询只需要0.277秒，但是在openGauss中查询则需要3秒。<br/>
 猜测原因，一方面可能与我写的UTL_RAW包有关，毕竟不是用的原生c语言开发的；另一方面nocopy这个特性的确能提高性能；再者就是两个数据库运行的环境是存在差异的。</p>
@@ -265,19 +265,19 @@ SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/oracle">oracle</a>
+        <a class="tag" href="/halo-SSG/tags/oracle">oracle</a>
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-plsqldev-debug">&larr; 【ORACLE】谈一谈PLSQL DEVELOPER的调试（debug）功能</a>
+    <a href="/halo-SSG/archives/about-plsqldev-debug">&larr; 【ORACLE】谈一谈PLSQL DEVELOPER的调试（debug）功能</a>
     
     
-    <a href="/archives/about-analytic-functions">【ORACLE】谈一谈分析函数（窗口函数）的前世今生-那些可能不为人知的事 &rarr;</a>
+    <a href="/halo-SSG/archives/about-analytic-functions">【ORACLE】谈一谈分析函数（窗口函数）的前世今生-那些可能不为人知的事 &rarr;</a>
     
 </div>
 

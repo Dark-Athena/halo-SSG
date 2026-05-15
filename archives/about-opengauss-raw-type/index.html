@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】谈谈openGauss中的raw类型 - DA-技术分享-静态站</title>
     <meta name="description" content="在oracle数据库上进行开发的时候,经常会使用到raw类型,raw其实就是一段十六进制形式的二进制数据,最长长度和varchar2一致,都是32767个字节。在各种数据加解密或者数据传输时,使用二进制数据可以避免字符集异常或者特殊符号引起的程序错误。在postgresql(截止到当前最新的14版本">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】谈谈openGauss中的raw类型</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>1460 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -291,7 +291,7 @@
 </tbody>
 </table>
 <p>然后对照华为GaussDB的官方文档来看,可以发现文档里,这些函数绝大部分都没写清楚功能及测试案例,比如下面这四个函数,文档里的描述写的竟然都是一样的<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png" srcset="/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1200 1200w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=400 400w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1600 1600w, /upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png" srcset="/halo-SSG/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1200 1200w, /halo-SSG/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=400 400w, /halo-SSG/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1600 1600w, /halo-SSG/upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=800 800w"/></p>
 <p>但好在大部分函数的命令是参考的基本运算符,所以能看懂个大概。<br/>
 不过,绝对不能自以为是的以为这些函数的输出结果和你想的一样,稍不留神就会被坑了,所以我通过实际测试及结合看源代码,对这个函数列表整理了一份较为完整的说明,请重点留意下表中最后一列的注意事项</p>
 <h2 id="整理后的函数说明">整理后的函数说明</h2>
@@ -486,17 +486,17 @@
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-utl-raw-and-emulate-cal">&larr; 【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a>
+    <a href="/halo-SSG/archives/about-utl-raw-and-emulate-cal">&larr; 【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a>
     
     
-    <a href="/archives/opengauss-utl-url-pkg">【openGauss】我用plsql给openGauss手搓了一个UTL_URL包 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss-utl-url-pkg">【openGauss】我用plsql给openGauss手搓了一个UTL_URL包 &rarr;</a>
     
 </div>
 

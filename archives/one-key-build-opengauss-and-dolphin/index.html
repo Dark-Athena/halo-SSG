@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性 - DA-技术分享-静态站</title>
     <meta name="description" content="前两天写了一篇openGauss3.1关于mysql的相关特性，但由于openGauss官网提供下载的版本还是9月30号第一次发布的版本，很多特性都还没合入，所以不少爱好者不能轻易体验到。本文提供一个真正的一键编译openGauss并安装的脚本">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】一键编译openGauss3.1+dolphin,体验新增的mysql兼容特性</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>956 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -302,8 +302,8 @@ gsql -c "create user test_user password 'openGauss123';"
 <p>用mysql客户端连接openGauss，不过目前在mysql命令行客户端上无法返回执行结果，使用其他工具测试正常，比如mogeaver</p>
 <pre><code class="language-shell">mysql -P 3307 -u test_user -popenGauss123 -h 127.0.0.1 -D og_dolphin
 </code></pre>
-<p><img alt="image-1671948314560" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671948314560.png" srcset="/upload/2022/12/image-1671948314560.png?width=1200 1200w, /upload/2022/12/image-1671948314560.png?width=400 400w, /upload/2022/12/image-1671948314560.png?width=1600 1600w, /upload/2022/12/image-1671948314560.png?width=800 800w"/><br/>
-<img alt="image-1671948465169" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/12/image-1671948465169.png" srcset="/upload/2022/12/image-1671948465169.png?width=1200 1200w, /upload/2022/12/image-1671948465169.png?width=400 400w, /upload/2022/12/image-1671948465169.png?width=1600 1600w, /upload/2022/12/image-1671948465169.png?width=800 800w"/></p>
+<p><img alt="image-1671948314560" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671948314560.png" srcset="/halo-SSG/upload/2022/12/image-1671948314560.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671948314560.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671948314560.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671948314560.png?width=800 800w"/><br/>
+<img alt="image-1671948465169" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/12/image-1671948465169.png" srcset="/halo-SSG/upload/2022/12/image-1671948465169.png?width=1200 1200w, /halo-SSG/upload/2022/12/image-1671948465169.png?width=400 400w, /halo-SSG/upload/2022/12/image-1671948465169.png?width=1600 1600w, /halo-SSG/upload/2022/12/image-1671948465169.png?width=800 800w"/></p>
 <h2 id="%E7%8E%AF%E5%A2%83%E6%B8%85%E7%90%86%E5%91%BD%E4%BB%A4" tabindex="-1">环境清理命令</h2>
 <p>如果编译出错，或者源码有更新，想重新编译，可以执行下面的命令清理环境，会把之前的源码和数据库程序、数据都删掉</p>
 <pre><code class="language-shell">su - omm310
@@ -320,17 +320,17 @@ rm -rf /home/omm310
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-opengauss-client-encoding">&larr; 【openGauss】把应用开发中的设置客户端字符编码往细了说</a>
+    <a href="/halo-SSG/archives/about-opengauss-client-encoding">&larr; 【openGauss】把应用开发中的设置客户端字符编码往细了说</a>
     
     
-    <a href="/archives/opengauss310-mysql-compat">【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性 &rarr;</a>
+    <a href="/halo-SSG/archives/opengauss310-mysql-compat">【openGauss】浅试openGauss3.1.0中有关mysql兼容的部分特性 &rarr;</a>
     
 </div>
 

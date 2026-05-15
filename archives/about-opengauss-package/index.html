@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>【openGauss】谈一谈PostgreSQL及openGauss中的package - DA-技术分享-静态站</title>
     <meta name="description" content="经常在oracle中写plsql的应该都知道,oracle中使用package不仅仅是把多个函数或者过程整合到一起,它还具有一些其他的优点">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,30 +128,30 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>【openGauss】谈一谈PostgreSQL及openGauss中的package</h1>
     <div class="meta">
         
         <span>2022-01-18</span>
         
-        <span>1573 阅读</span>
+        <span>1574 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -217,21 +217,21 @@ end;
 <p>再查</p>
 <pre><code class="language-sql">select * from pg_proc x where LOWER(x.proname) like '%sleep%';
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png" srcset="/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1200 1200w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=400 400w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1600 1600w, /upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png" srcset="/halo-SSG/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=400 400w, /halo-SSG/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=800 800w"/><br/>
 通过drop再create,确认第二个行记录的确就是通过创建包来生成的一个过程,然后可以发现它的propackage和propackageid这两个字段和其他过程是有区别的。我猜测propackageid表示这个过程对应的包id,如果一个包里有多个过程,那么它们的propackageid应该是一样的,实测也证实的确如此。<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png" srcset="/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1200 1200w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=400 400w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1600 1600w, /upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png" srcset="/halo-SSG/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=400 400w, /halo-SSG/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=800 800w"/></p>
 <p>可是包名到哪去了？直觉告诉我,应该还有个视图或者表有记录包的信息,于是查</p>
 <pre><code class="language-sql">select * from pg_class where relname like '%package%'
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png" srcset="/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1200 1200w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=400 400w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1600 1600w, /upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png" srcset="/halo-SSG/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=400 400w, /halo-SSG/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=800 800w"/><br/>
 再查第一个表<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png" srcset="/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1200 1200w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=400 400w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1600 1600w, /upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png" srcset="/halo-SSG/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=400 400w, /halo-SSG/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=800 800w"/><br/>
 果然id是对应的,都是16387</p>
 <p>但问题又来了,在PostgreSQL中,pg_proc里的过程及函数,对于一个schema下同名且同参数的,是禁止同时存在多个的,具有唯一性,openGauss这个实现方式难道越过了这个限制么？</p>
 <p>答案是,没有。</p>
 <p>我翻了openGauss的官方文档<br/>
 <a href="https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html">https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png" srcset="/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1200 1200w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=400 400w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1600 1600w, /upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png" srcset="/halo-SSG/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1200 1200w, /halo-SSG/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=400 400w, /halo-SSG/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1600 1600w, /halo-SSG/upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=800 800w"/></p>
 <ol>
 <li>由于升级的限制，在V5R2C00版本中，即使在不同的Package间，也无法创建同名同参的存储过程。</li>
 <li>package只支持集中式，无法在分布式中使用。</li>
@@ -311,17 +311,17 @@ end dbms_lock;
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/about-oracle-charset">&larr; 【ORACLE】谈一谈Oracle数据库使用的字符集,不仅仅是乱码</a>
+    <a href="/halo-SSG/archives/about-oracle-charset">&larr; 【ORACLE】谈一谈Oracle数据库使用的字符集,不仅仅是乱码</a>
     
     
-    <a href="/archives/connect-to-oracle-cloud-adb">【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接 &rarr;</a>
+    <a href="/halo-SSG/archives/connect-to-oracle-cloud-adb">【ORACLE】教你怎么在Oracle Cloud上创建一个自治数据库,并通过客户端进行连接 &rarr;</a>
     
 </div>
 

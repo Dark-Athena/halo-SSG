@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>从pg_depend和pg_class开始了解MogDB/openGauss/postgresql的系统元数据设计 - DA-技术分享-静态站</title>
     <meta name="description" content="前言 学习任何一种数据库，必须要了解它的数据字典，这样有利于了解数据库的结构、解读部分日志、定位一些问题。PG/OG系数据库的系统元数据遵从一个统一的设计规则，可以让初学者快速入门。本文以MogDB为例，剖析一下PG/OG系数据库的系统元数据设计哲学。 一、pg_depend 先来看pg_depen">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/">DA-技术分享-静态站</a>
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
             <nav>
-                <a href="/">首页</a>
-                <a href="/archives/">文章归档</a>
-                <a href="/tags/">标签</a>
-                <a href="/moments/">记事本</a>
-                <a href="/online-tools/">在线工具</a>
-                <a href="/CV/">关于我</a>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
 <article>
     <h1>从pg_depend和pg_class开始了解MogDB/openGauss/postgresql的系统元数据设计</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>248 阅读</span>
         
-        <a href="/categories/opengauss">openGauss</a>
+        <a href="/halo-SSG/categories/opengauss">openGauss</a>
         
     </div>
     <div class="post-body">
@@ -171,17 +171,17 @@
 group by refobjid having count(1)&gt;1
 </code></pre>
 <p>classid均来自于pg_class.oid,我们先观察一下classid中的这些oid分别对应什么</p>
-<p><img alt="image-xlch.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-xlch.png" srcset="/upload/image-xlch.png?width=1200 1200w, /upload/image-xlch.png?width=400 400w, /upload/image-xlch.png?width=1600 1600w, /upload/image-xlch.png?width=800 800w"/></p>
+<p><img alt="image-xlch.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-xlch.png" srcset="/halo-SSG/upload/image-xlch.png?width=1200 1200w, /halo-SSG/upload/image-xlch.png?width=400 400w, /halo-SSG/upload/image-xlch.png?width=1600 1600w, /halo-SSG/upload/image-xlch.png?width=800 800w"/></p>
 <p><strong>pg_shdepend</strong>和<strong>pg_depend</strong>类似，但区别在于，<strong>pg_shdepend</strong>记录的是全局共享的依赖关系，是跨库的，比如用户和角色(pg_authid)；而<strong>pg_depend</strong>只记录本库的。注意这两者之间不是包含关系。</p>
 <p><strong>regclass</strong>是一个"​<strong>对象标识符类型</strong>",可以将oid转换成对应在<strong>pg_class</strong>的名称（MogDB 5.2版本中新增了<strong>regrole</strong>和<strong>regnamespace</strong>）。</p>
 <p>可以看到这里的classid，在pg_class中对应的都是系统元数据表，即classid表示的每一个表，都是一种对象所属的类。</p>
 <p>第二个字段objid，即为前面这个类下的一个对象id</p>
 <p>我们任意取一笔记录，来看怎么找到这个对象</p>
-<p><img alt="image-wpbx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-wpbx.png" srcset="/upload/image-wpbx.png?width=1200 1200w, /upload/image-wpbx.png?width=400 400w, /upload/image-wpbx.png?width=1600 1600w, /upload/image-wpbx.png?width=800 800w"/></p>
+<p><img alt="image-wpbx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-wpbx.png" srcset="/halo-SSG/upload/image-wpbx.png?width=1200 1200w, /halo-SSG/upload/image-wpbx.png?width=400 400w, /halo-SSG/upload/image-wpbx.png?width=1600 1600w, /halo-SSG/upload/image-wpbx.png?width=800 800w"/></p>
 <p>该行记录的系统类为1255,可以查到对应pg_proc；</p>
-<p><img alt="image-crxi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-crxi.png" srcset="/upload/image-crxi.png?width=1200 1200w, /upload/image-crxi.png?width=400 400w, /upload/image-crxi.png?width=1600 1600w, /upload/image-crxi.png?width=800 800w"/></p>
+<p><img alt="image-crxi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-crxi.png" srcset="/halo-SSG/upload/image-crxi.png?width=1200 1200w, /halo-SSG/upload/image-crxi.png?width=400 400w, /halo-SSG/upload/image-crxi.png?width=1600 1600w, /halo-SSG/upload/image-crxi.png?width=800 800w"/></p>
 <p>对象id为12560，那我们就去pg_proc里查oid=12560的记录,即可找到该对象是什么</p>
-<p><img alt="image-atdc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-atdc.png" srcset="/upload/image-atdc.png?width=1200 1200w, /upload/image-atdc.png?width=400 400w, /upload/image-atdc.png?width=1600 1600w, /upload/image-atdc.png?width=800 800w"/></p>
+<p><img alt="image-atdc.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-atdc.png" srcset="/halo-SSG/upload/image-atdc.png?width=1200 1200w, /halo-SSG/upload/image-atdc.png?width=400 400w, /halo-SSG/upload/image-atdc.png?width=1600 1600w, /halo-SSG/upload/image-atdc.png?width=800 800w"/></p>
 <p>以pg_depend进行管中窥豹，可以大致了解这些系统表的组织关系。</p>
 <h2 id="二pg_class"><strong>二、pg_class</strong></h2>
 <p>pg_depend里这些classid都是pg_class的某一行的oid，包括pg_class这个表本身的oid，也是relname=’pg_class’这一行的oid。</p>
@@ -189,9 +189,9 @@ group by refobjid having count(1)&gt;1
 <p>我们看下pg_class的表结构，由于该表的字段太多，本次我们只关注它有哪些对象，关键在relkind这个字段</p>
 <table><thead><tr><th>relkind</th><th>说明</th></tr></thead><tbody><tr><td>r</td><td>表示普通表</td></tr><tr><td>i</td><td>表示索引</td></tr><tr><td>I</td><td>表示分区表GLOBAL索引</td></tr><tr><td>S</td><td>表示序列</td></tr><tr><td>L</td><td>表示Large序列</td></tr><tr><td>v</td><td>表示视图</td></tr><tr><td>c</td><td>表示复合类型</td></tr><tr><td>t</td><td>表示TOAST表</td></tr><tr><td>f</td><td>表示外表</td></tr><tr><td>m</td><td>表示物化视图</td></tr></tbody></table>
 <p>可以看到，这里的种类其实都拥有类似于表（或叫relation）的结构，即拥有多个字段，不过比较特殊的是索引和复合类型这两者，这两者不能通过sql语句直接查里面的数据，而复合类型本身更是没有数据内容</p>
-<p><img alt="image-cxso.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-cxso.png" srcset="/upload/image-cxso.png?width=1200 1200w, /upload/image-cxso.png?width=400 400w, /upload/image-cxso.png?width=1600 1600w, /upload/image-cxso.png?width=800 800w"/></p>
+<p><img alt="image-cxso.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-cxso.png" srcset="/halo-SSG/upload/image-cxso.png?width=1200 1200w, /halo-SSG/upload/image-cxso.png?width=400 400w, /halo-SSG/upload/image-cxso.png?width=1600 1600w, /halo-SSG/upload/image-cxso.png?width=800 800w"/></p>
 <p>序列其实就是一张只有一行的表</p>
-<p><img alt="image-eunx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/upload/image-eunx.png" srcset="/upload/image-eunx.png?width=1200 1200w, /upload/image-eunx.png?width=400 400w, /upload/image-eunx.png?width=1600 1600w, /upload/image-eunx.png?width=800 800w"/></p>
+<p><img alt="image-eunx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-eunx.png" srcset="/halo-SSG/upload/image-eunx.png?width=1200 1200w, /halo-SSG/upload/image-eunx.png?width=400 400w, /halo-SSG/upload/image-eunx.png?width=1600 1600w, /halo-SSG/upload/image-eunx.png?width=800 800w"/></p>
 <p>在pg_attribute中，可以根据pg_class中的oid，查到该relation所包含的所有字段（包括隐藏字段和被删除字段），</p>
 <p>也就是说，理论上，在MogDB中，下面这条SQL应该是查不出记录的（原生postgresql支持零列的表，但是仍然包含隐藏字段）</p>
 <pre><code class="language-sql">select * from pg_class c where not exists 
@@ -219,19 +219,19 @@ group by refobjid having count(1)&gt;1
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/tags/opengauss">opengauss</a>
+        <a class="tag" href="/halo-SSG/tags/opengauss">opengauss</a>
         
-        <a class="tag" href="/tags/mogdb">mogdb</a>
+        <a class="tag" href="/halo-SSG/tags/mogdb">mogdb</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/archives/mogdb-5.2.0-support-plsql-dependencies">&larr; 【MogDB】MogDB5.2.0重磅发布第七篇-支持PLSQL编译依赖</a>
+    <a href="/halo-SSG/archives/mogdb-5.2.0-support-plsql-dependencies">&larr; 【MogDB】MogDB5.2.0重磅发布第七篇-支持PLSQL编译依赖</a>
     
     
-    <a href="/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战 &rarr;</a>
+    <a href="/halo-SSG/archives/antlr4-part2-dev-with-python">基于语法树的SQL自动改写工具开发系列（2）-使用PYTHON进行简单SQL改写的开发实战 &rarr;</a>
     
 </div>
 
