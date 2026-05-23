@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 - DA-技术分享-静态站</title>
+    <meta name="description" content="【postgresql】频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 如果某个应用程序设计成了频繁drop table /create table ,而且连的是postgresql数据库，这样有什么问题？在应用程序不改的情况下如何解决这个问题？ 一、核心问题">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<article>
+    <h1>频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路</h1>
+    <div class="meta">
+        
+        <span>2026-05-23</span>
+        
+        <span>8 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="postgresql频繁-dropcreate-table-在-postgresql-中的问题及解决思路">【postgresql】频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路</h1>
+<p>如果某个应用程序设计成了频繁drop table /create table ,而且连的是postgresql数据库，这样有什么问题？在应用程序不改的情况下如何解决这个问题？</p>
+<hr/>
+<h2 id="一核心问题分析">一、核心问题分析</h2>
+<h3 id="1-系统目录膨胀最关键的问题">1. 系统目录膨胀（最关键的问题）</h3>
+<p>PostgreSQL 的所有元数据都存储在系统目录表中（<code>pg_class</code>、<code>pg_attribute</code>、<code>pg_depend</code>、<code>pg_description</code> 等）。每次 DROP/CREATE TABLE：</p>
+<pre><code>CREATE TABLE t1 (...);  
+  → pg_class 新增 1 条记录（表本身）  
+  → pg_attribute 新增 N 条记录（每列一条）  
+  → pg_depend 新增多条（依赖关系）  
+  → pg_type 新增记录（行类型）  
+
+DROP TABLE t1;  
+  → 以上所有记录变为 dead tuple（死元组）  
+  → 不会立即物理删除，等待 VACUUM 清理
+</code></pre>
+<p>当频率很高时，<strong>dead tuple 的产生速度远超 autovacuum 的清理速度</strong>，导致：</p>
+<ul>
+<li>系统目录表持续膨胀，可能从几 MB 膨胀到几 GB</li>
+<li>目录扫描变慢，所有涉及元数据的操作都受影响</li>
+<li>查询 <code>information_schema</code>、<code>\d</code> 等元数据查询极慢</li>
+</ul>
+<h3 id="2-目录锁竞争">2. 目录锁竞争</h3>
+<p>DDL 操作持有 <code>AccessExclusiveLock</code>（最严格的锁），并且需要获取 <code>pg_class</code> 上的 <code>RowExclusiveLock</code>。高频 DDL 会造成：</p>
+<ul>
+<li>多个连接竞争目录行锁</li>
+<li>其他会话的查询规划阶段被阻塞（需要读取目录元数据）</li>
+</ul>
+<h3 id="3-relcache--catcache-反复失效">3. relcache / catcache 反复失效</h3>
+<pre><code class="language-sql">-- 每次 DDL 后，PostgreSQL 会发送 catalog invalidation 消息
+-- 所有其他会话必须重新加载相关缓存
+</code></pre>
+<p>高频 DDL 导致所有数据库会话不断重建缓存，消耗 CPU 和内存。</p>
+<h3 id="4-wal-日志量巨大">4. WAL 日志量巨大</h3>
+<p>每次 DDL 都产生大量 WAL 记录（目录修改需要写 WAL），增加：</p>
+<ul>
+<li>磁盘 I/O 压力</li>
+<li>如果有流复制，还会显著增加主从复制延迟</li>
+</ul>
+<h3 id="5-文件系统层面的开销">5. 文件系统层面的开销</h3>
+<pre><code>每次 CREATE TABLE → 在 $PGDATA/base/oid/ 下创建文件（每个 8KB block 一个文件）
+每次 DROP TABLE   → 标记文件删除，操作系统需要处理 unlink
+</code></pre>
+<p>高频操作会导致大量小文件的创建和删除，文件系统缓存和 inode 相关操作变慢。</p>
+<h3 id="6-事务-id-消耗与回卷风险">6. 事务 ID 消耗与回卷风险</h3>
+<p>每个 DDL 消耗一个事务 ID。长期高频运行会加速事务 ID 回卷（wraparound）的进程。</p>
+<hr/>
+<h2 id="二不改应用的解决方案">二、不改应用的解决方案</h2>
+<h3 id="方案-1激进调优-autovacuum-对系统目录的清理首选">方案 1：激进调优 autovacuum 对系统目录的清理（首选）</h3>
+<p>系统目录表本质上也是普通表，可以单独配置 autovacuum 参数：</p>
+<pre><code class="language-sql">-- 对关键目录表设置非常激进的 vacuum 参数
+ALTER TABLE pg_catalog.pg_class SET (
+    autovacuum_vacuum_scale_factor = 0.001,   -- 默认 0.1，改为 0.1% 即触发
+    autovacuum_analyze_scale_factor = 0.001,
+    autovacuum_vacuum_cost_delay = 0          -- 取消 cost-based throttling
+);
+
+ALTER TABLE pg_catalog.pg_attribute SET (
+    autovacuum_vacuum_scale_factor = 0.001,
+    autivacuum_analyze_scale_factor = 0.001,
+    autovacuum_vacuum_cost_delay = 0
+);
+
+ALTER TABLE pg_catalog.pg_depend SET (
+    autovacuum_vacuum_scale_factor = 0.001,
+    autovacuum_analyze_scale_factor = 0.001,
+    autovacuum_vacuum_cost_delay = 0
+);
+
+ALTER TABLE pg_catalog.pg_description SET (
+    autovacuum_vacuum_scale_factor = 0.001,
+    autovacuum_analyze_scale_factor = 0.001,
+    autovacuum_vacuum_cost_delay = 0
+);
+</code></pre>
+<p>同时全局调快 autovacuum：</p>
+<pre><code class="language-postgresql.conf">autovacuum_naptime = 10s                    # 默认 1min，缩短到 10s
+autovacuum_vacuum_cost_delay = 0            # 取消节流，全力清理
+maintenance_work_mem = 1GB                  # 加大 vacuum 工作内存
+autovacuum_work_mem = 1GB                   # 加大 autovacuum 工作内存
+</code></pre>
+<h3 id="方案-2定时手动-vacuum-系统目录">方案 2：定时手动 VACUUM 系统目录</h3>
+<p>通过 <code>pg_cron</code> 或操作系统 cron 定期执行：</p>
+<pre><code class="language-sql">-- 用 pg_cron，每分钟 vacuum 一次关键目录表
+SELECT cron.schedule('vacuum_catalog', '* * * * *', $$
+    VACUUM pg_catalog.pg_class;
+    VACUUM pg_catalog.pg_attribute;
+    VACUUM pg_catalog.pg_depend;
+    VACUUM pg_catalog.pg_type;
+    VACUUM pg_catalog.pg_description;
+$$);
+</code></pre>
+<p>或者在操作系统层面用 cron + psql：</p>
+<pre><code class="language-bash"># /etc/cron.d/pg_catalog_vacuum
+* * * * * postgres psql -d mydb -c "VACUUM pg_catalog.pg_class, pg_catalog.pg_attribute, pg_catalog.pg_depend, pg_catalog.pg_type;"
+</code></pre>
+<h3 id="方案-3使用-pg_catalog-的-fillfactor-调优">方案 3：使用 <code>pg_catalog</code> 的 fillfactor 调优</h3>
+<p>PostgreSQL 支持为系统目录设置 fillfactor，留更多空间给 HOT update：</p>
+<pre><code class="language-sql">ALTER TABLE pg_catalog.pg_class SET (fillfactor = 50);
+ALTER TABLE pg_catalog.pg_attribute SET (fillfactor = 50);
+ALTER TABLE pg_catalog.pg_depend SET (fillfactor = 50);
+</code></pre>
+<p>fillfactor 降低意味着每页留更多空闲空间，dead tuple 更新时更容易做 HOT update，减少索引膨胀。不过对于大量 DELETE（DROP TABLE 导致的删除），效果有限。</p>
+<h3 id="方案-4评估应用模式用触发器规则拦截改造">方案 4：评估应用模式，用触发器/规则拦截改造</h3>
+<p>虽然不改应用代码，但可以在数据库层面拦截 DDL：</p>
+<p><strong>思路 A：拦截并改造（用 event trigger）</strong></p>
+<pre><code class="language-sql">-- 创建事件触发器，在 DROP TABLE 时不真正删除，而是重命名/移到归档 schema
+CREATE OR REPLACE FUNCTION preserve_dropped_table() RETURNS event_trigger AS $$
+DECLARE
+    obj record;
+BEGIN
+    FOR obj IN SELECT * FROM pg_event_trigger_dropped_objects()
+    LOOP
+        IF obj.object_type = 'table' AND obj.schema_name = 'public' THEN
+            -- 这里无法阻止 drop，因为是 AFTER event
+            -- 但可以记录日志、清理关联资源等
+            RAISE NOTICE 'Table dropped: %.%', obj.schema_name, obj.object_name;
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE EVENT_TRIGGER log_dropped_tables
+    ON sql_drop
+    EXECUTE FUNCTION preserve_dropped_table();
+</code></pre>
+<blockquote>
+<p>注意：event trigger 是 <code>AFTER</code> 触发器，无法阻止 DROP。但可以配合其他机制使用。</p>
+</blockquote>
+<p><strong>思路 B：拦截 CREATE 并重定向（更高级）</strong></p>
+<pre><code class="language-sql">-- 在 session 级别设置 search_path，加上一个包含同名视图的 schema
+-- 应用以为自己在操作真实表，实际上可能被重定向
+</code></pre>
+<p>这需要根据具体应用模式来设计，不够通用。</p>
+<h3 id="方案-5连接池--并发控制">方案 5：连接池 + 并发控制</h3>
+<p>使用 PgBouncer 等连接池减少同时连接数，降低锁竞争：</p>
+<pre><code class="language-ini">; pgbouncer.ini
+[databases]
+mydb = host=127.0.0.1 port=5432 dbname=mydb
+
+[pgbouncer]
+pool_mode = transaction
+max_client_conn = 200
+default_pool_size = 20
+</code></pre>
+<h3 id="方案-6wal-和-checkpoint-调优">方案 6：WAL 和 checkpoint 调优</h3>
+<p>减少 DDL 带来的 WAL 压力：</p>
+<pre><code class="language-postgresql.conf">wal_level = minimal                       # 如不需要复制/备份，降低 WAL 级别
+max_wal_size = 16GB                       # 加大 WAL 上限
+checkpoint_timeout = 30min                # 拉长 checkpoint 间隔
+full_page_writes = off                    # 非生产环境可关闭（生产慎用）
+</code></pre>
+<h3 id="方案-7如果数据不重要使用-unlogged-表">方案 7：如果数据不重要——使用 UNLOGGED 表</h3>
+<p>如果应用允许（数据丢失可接受），可以在数据库层面使用模板表或者拦截建表过程。这比较 hack：</p>
+<pre><code class="language-sql">-- 修改 template0/template1 不现实，但可以用默认表空间策略
+-- 或者通过 hook（需要扩展，如 pgext）来将表设为 UNLOGGED
+</code></pre>
+<p>实际操作中较难不改应用就实现。</p>
+<h3 id="方案-8定期-reindex-系统目录">方案 8：定期 REINDEX 系统目录</h3>
+<pre><code class="language-sql">-- 阻塞性重建（需要排他锁，建议在低峰期执行）
+REINDEX TABLE pg_catalog.pg_class;
+REINDEX TABLE pg_catalog.pg_attribute;
+REINDEX TABLE pg_catalog.pg_depend;
+REINDEX TABLE pg_catalog.pg_type;
+
+-- 或者使用 CONCURRENTLY（PostgreSQL 12+，对目录表的支持有限）
+</code></pre>
+<hr/>
+<h2 id="三推荐的综合方案不改应用">三、推荐的综合方案（不改应用）</h2>
+<pre><code>┌──────────────────────────────────────────────────────┐
+│                  postgresql.conf 配置                  │
+├──────────────────────────────────────────────────────┤
+│  autovacuum_naptime = 10s                            │
+│  autovacuum_vacuum_cost_delay = 0                    │
+│  maintenance_work_mem = 2GB                          │
+│  autovacuum_work_mem = 2GB                           │
+│  checkpoint_timeout = 30min                          │
+│  max_wal_size = 16GB                                 │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│              系统目录表单独参数（init.sql）              │
+├──────────────────────────────────────────────────────┤
+│  对 pg_class / pg_attribute / pg_depend /            │
+│  pg_type / pg_description / pg_description           │
+│  设置 autovacuum_vacuum_scale_factor = 0.001         │
+│  设置 autovacuum_vacuum_cost_delay = 0               │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│              定时任务（pg_cron 或 OS cron）             │
+├──────────────────────────────────────────────────────┤
+│  每 1-5 分钟 VACUUM 关键系统目录表                     │
+│  每天低峰期 REINDEX 关键系统目录表                     │
+│  监控目录表大小，告警阈值                              │
+└──────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────┐
+│                   监控指标                             │
+├──────────────────────────────────────────────────────┤
+│  pg_class 行数和 dead tuple 比例                      │
+│  pg_attribute 行数和 dead tuple 比例                  │
+│  目录表的总大小（pg_total_relation_size）              │
+│  catalog cache miss 率（pg_stat_database）            │
+└──────────────────────────────────────────────────────┘
+</code></pre>
+<p>监控查询示例：</p>
+<pre><code class="language-sql">-- 查看目录表的膨胀情况
+SELECT 
+    schemaname, 
+    relname, 
+    n_live_tup, 
+    n_dead_tup,
+    CASE WHEN n_live_tup &gt; 0 
+         THEN round(n_dead_tup * 100.0 / n_live_tup, 2) 
+         ELSE 0 
+    END AS dead_pct,
+    pg_size_pretty(pg_total_relation_size(quote_ident(schemaname)||'.'||quote_ident(relname))) AS total_size
+FROM pg_stat_user_tables 
+WHERE schemaname = 'pg_catalog' 
+  AND relname IN ('pg_class','pg_attribute','pg_depend','pg_type')
+ORDER BY n_dead_tup DESC;
+</code></pre>
+<hr/>
+<h2 id="四根治思路">四、根治思路</h2>
+<p>如果上述优化仍不够，本质上是<strong>应用架构问题</strong>。最佳的改法（即使不改应用本身，也改基础设施）：</p>
+<ol>
+<li><strong>在应用和 PostgreSQL 之间加一个代理层</strong>（如自研或使用 <code>pgcat</code> 等），拦截 DDL，将 DROP/CREATE 改为 TRUNCATE + 重用表</li>
+<li><strong>换用内存表方案</strong>：如果数据是临时的，考虑用 Redis / Memcached 代替频繁建表</li>
+<li><strong>使用 schema 池化</strong>：预先创建多个 schema，每个 schema 预建好所有需要的表，应用轮换使用</li>
+</ol>
+<p>但核心结论是：<strong>不改应用的情况下，通过激进调优 autovacuum + 定时手动 VACUUM 系统目录 + 监控，是最实际的解法。</strong></p>
+<hr/>
+<blockquote>
+<p><strong>声明</strong>：以上为xiaomi mimo v2.5 pro的输出，不代表本人观点。</p>
+</blockquote>
+<blockquote>
+<p><strong>结语</strong>：实际项目中，vacuum很可能来不及处理这种高频的drop/create，而且因为每次删除创建的都是不同的表名，所以truncate也没意义。虽然频繁drop table/create table在其他数据库中也有问题（比如ORACLE的object_id会超），但是在postgresql中做这种操作对数据库的影响就极为严重。就算如已将ustore作为默认存储引擎的GaussDB，其元数据表依旧是astore，也是会遇到这个问题的。但正如AI回复，这个问题本质上是 "应用架构问题" ，或者说PG类内核的数据库就不是为了频繁drop table/create table做的底层设计。或许有其他PG的发行版有重构元数据的组织方式以及存储结构能解决此问题，但这种颠覆性修改注定难以和原版PG保持跟进。</p>
+</blockquote>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="/halo-SSG/tags/postgresql">postgresql</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="/halo-SSG/archives/Install-limbs-for-the-local-lmstudio-v2">&larr; 给本地的 LM Studio 装上手脚和眼睛</a>
+    
+    
+    <a href="/halo-SSG/archives/Build-Tools-Not-Conversations-How-I-Spent-700M-Free-Xiaomi-Mimo-Tokens">用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

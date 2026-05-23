@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>给本地的 LM Studio 装上手脚和眼睛 - DA-技术分享-静态站</title>
+    <meta name="description" content="给本地的 LM Studio 装上手脚和眼睛 LM Studio 官网下载安装后，默认只能进行对话——既不能搜索网络，也无法操作本地文件，更无法自动完成浏览器登录等操作。 但从 LM Studio 0.3.17 起，官方支持添加 MCP Server，通过配置不同的 MCP Server，即可赋予本">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<article>
+    <h1>给本地的 LM Studio 装上手脚和眼睛</h1>
+    <div class="meta">
+        
+        <span>2026-05-23</span>
+        
+        <span>6 阅读</span>
+        
+        <a href="/halo-SSG/categories/ai">AI</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="给本地的-lm-studio-装上手脚和眼睛">给本地的 LM Studio 装上手脚和眼睛</h1>
+<p>LM Studio 官网下载安装后，默认只能进行对话——既不能搜索网络，也无法操作本地文件，更无法自动完成浏览器登录等操作。</p>
+<p>但从 <strong>LM Studio 0.3.17</strong> 起，官方支持添加 MCP Server，通过配置不同的 MCP Server，即可赋予本地模型类似 Agent 的操作能力。</p>
+<hr/>
+<h2 id="我装了哪些-mcp">我装了哪些 MCP</h2>
+<p>目前我配置了 3 个 MCP Server：</p>
+<table><thead><tr><th>MCP</th><th>功能</th><th>备注</th></tr></thead><tbody><tr><td><code>web-search</code></td><td>网络搜索</td><td>需要先手动安装，见下文</td></tr><tr><td><code>playwright</code></td><td>模拟浏览器操作</td><td>需手动指定 Chrome 路径</td></tr><tr><td><code>filesystem</code></td><td>本地文件读写</td><td>需指定允许访问的路径</td></tr></tbody></table>
+<hr/>
+<h2 id="如何安装配置">如何安装配置</h2>
+<h3 id="第一步打开-mcp-配置入口">第一步：打开 MCP 配置入口</h3>
+<p>在 LM Studio 右侧找到 <strong>Install → Edit mcp.json</strong>，把 MCP 配置写入并保存。</p>
+<p><img alt="安装入口" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-rlnY.png" srcset="/halo-SSG/upload/image-rlnY.png?width=1200 1200w, /halo-SSG/upload/image-rlnY.png?width=400 400w, /halo-SSG/upload/image-rlnY.png?width=1600 1600w, /halo-SSG/upload/image-rlnY.png?width=800 800w"/></p>
+<h3 id="第二步写入配置">第二步：写入配置</h3>
+<p>下面是我使用的完整配置，供参考：</p>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "web-search": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\username\\mcp-servers\\web-search-mcp-0.3.2\\dist\\index.js"
+      ],
+      "env": {
+        "MAX_CONTENT_LENGTH": "10000",
+        "BROWSER_HEADLESS": "true",
+        "MAX_BROWSERS": "2",
+        "DEFAULT_TIMEOUT": "6000",
+        "BROWSER_FALLBACK_THRESHOLD": "3"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "env": {
+        "PLAYWRIGHT_MCP_EXECUTABLE_PATH": "C:\\Users\\username\\AppData\\Local\\ms-playwright\\chromium-1223\\chrome-win64\\chrome.exe"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\work\\lmstudio_room"
+      ]
+    }
+  }
+}
+</code></pre>
+<blockquote>
+<p><strong>说明：</strong> <code>web-search</code> 需要提前安装，参考：<a href="https://github.com/mrkrsl/web-search-mcp">web-search-mcp 项目地址</a></p>
+</blockquote>
+<h3 id="第三步启用所需的-mcp">第三步：启用所需的 MCP</h3>
+<p>配置保存后，在下方列表中开启需要的 MCP Server 即可。</p>
+<p><img alt="启用 MCP" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-yMHb.png" srcset="/halo-SSG/upload/image-yMHb.png?width=1200 1200w, /halo-SSG/upload/image-yMHb.png?width=400 400w, /halo-SSG/upload/image-yMHb.png?width=1600 1600w, /halo-SSG/upload/image-yMHb.png?width=800 800w"/></p>
+<hr/>
+<h2 id="使用效果">使用效果</h2>
+<p><strong>Playwright 模拟浏览器示例：</strong></p>
+<p><img alt="playwright 示例" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ricj.png" srcset="/halo-SSG/upload/image-ricj.png?width=1200 1200w, /halo-SSG/upload/image-ricj.png?width=400 400w, /halo-SSG/upload/image-ricj.png?width=1600 1600w, /halo-SSG/upload/image-ricj.png?width=800 800w"/></p>
+<p><strong>web-search + filesystem 组合使用示例：</strong></p>
+<p><img alt="组合使用 1" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-eZfb.png" srcset="/halo-SSG/upload/image-eZfb.png?width=1200 1200w, /halo-SSG/upload/image-eZfb.png?width=400 400w, /halo-SSG/upload/image-eZfb.png?width=1600 1600w, /halo-SSG/upload/image-eZfb.png?width=800 800w"/></p>
+<p><img alt="组合使用 2" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hnKv.png" srcset="/halo-SSG/upload/image-hnKv.png?width=1200 1200w, /halo-SSG/upload/image-hnKv.png?width=400 400w, /halo-SSG/upload/image-hnKv.png?width=1600 1600w, /halo-SSG/upload/image-hnKv.png?width=800 800w"/></p>
+<hr/>
+<h2 id="踩坑记录">踩坑记录</h2>
+<p>安装配置过程中有几个容易翻车的地方，提前说明：</p>
+<ol>
+<li>
+<p><strong>web-search 路径问题</strong>：按官方说明安装后，在 LM Studio 里可能提示启用失败，多半是路径没找对。建议在 MCP 配置里把 Node.js 可执行文件和脚本路径都写死（绝对路径），如上面配置所示。</p>
+</li>
+<li>
+<p><strong>playwright 找不到 Chrome</strong>：playwright 启用后，被调用时可能提示找不到 Chrome 或 Chromium。即使按 AI 给出的安装命令执行，依然会找不到——原因是 <code>@playwright/mcp@latest</code> 内部依赖的 playwright 版本与本地已安装的版本不一致，浏览器路径自然对不上。解决方法：在配置中通过 <code>PLAYWRIGHT_MCP_EXECUTABLE_PATH</code> 环境变量手动指定 Chrome 的实际路径。</p>
+</li>
+<li>
+<p><strong>filesystem 路径安全</strong>：<code>filesystem</code> 里要配置允许访问的目录，这是基本的安全防线，建议只开放专用工作目录，不要图省事直接填 <code>C:\</code> 或用户根目录。</p>
+</li>
+</ol>
+<hr/>
+<h2 id="一点感受">一点感受</h2>
+<p>和专业 Agent 工具（如 Codebuddy 这类）相比，LM Studio 加 MCP 的模式有个明显优势：<strong>token 消耗少、响应更快</strong>。某些 Agent 工具第一条请求就自带 100K+ 输入 token，而 LM Studio 走 MCP 干净得多，适合处理中等复杂度的本地任务。</p>
+<p>当然，涉及 Bash / PowerShell 等本地命令执行的高权限操作，我不建议交给 LM Studio 去做——它不是专业 Agent，安全防护做得比较简单，本质上只是在每次调用前弹一个确认框（或者干脆全部放行），风险可控性远不如专业工具。</p>
+<p>最后再强调一遍：<strong>网上的 MCP Server 是有安全风险的</strong>，安装前务必确认来源可信、代码逻辑合理。有些 MCP 本身不会执行异常操作，但可能存在漏洞，容易被恶意利用。谨慎为上。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="/halo-SSG/tags/ai">AI</a>
+        
+        <a class="tag" href="/halo-SSG/tags/LM-Studio">LM Studio</a>
+        
+        <a class="tag" href="/halo-SSG/tags/MCP">MCP</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="/halo-SSG/archives/duckdb-connect-oracle-gaussdb">&larr; 【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB</a>
+    
+    
+    <a href="/halo-SSG/archives/Issues-and-Solutions-for-Frequent-DROP-CREATE-TABLE-in-PostgreSQL">频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

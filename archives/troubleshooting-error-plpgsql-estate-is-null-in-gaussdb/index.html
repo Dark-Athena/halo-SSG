@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】排查报错"ERROR: Plpgsql estate is null" - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】排查报错"ERROR: Plpgsql estate is null" 背景 客户在 GaussDB 中执行一个上万行的匿名块时，遇到了 ERROR: Plpgsql estate is null 报错。通过手动加日志点位二分法，定位到报错 SQL 与子函数调用相关。单独调用子函数">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】排查报错"ERROR: Plpgsql estate is null"</h1>
+    <div class="meta">
+        
+        <span>2026-05-23</span>
+        
+        <span>6 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb排查报错error-plpgsql-estate-is-null">【GaussDB】排查报错"ERROR: Plpgsql estate is null"</h1>
+<h2 id="背景">背景</h2>
+<p>客户在 GaussDB 中执行一个上万行的匿名块时，遇到了 <code>ERROR: Plpgsql estate is null</code> 报错。通过手动加日志点位二分法，定位到报错 SQL 与子函数调用相关。单独调用子函数不会报错，因此需要进一步分析。</p>
+<h2 id="分析">分析</h2>
+<h3 id="数据库版本">数据库版本</h3>
+<p>GaussDB 506.0 SPC0500 集中式</p>
+<h3 id="业务背景">业务背景</h3>
+<p>该匿名块是应急业务脚本，用于在生产环境出现问题时执行完整业务逻辑。脚本内容从各存储过程复制展平，为减少重复代码，使用了子函数封装公共逻辑。从业务角度看，这种写法是合理的。</p>
+<h3 id="技术排查">技术排查</h3>
+<p>首先，定位报错位置。虽然可以通过加日志或使用 <code>DBE_UTILITY.FORMAT_ERROR_BACKTRACE()</code> 获取堆栈，但客户已找到出错 SQL，因此直接分析其特征。</p>
+<h4 id="简化用例">简化用例</h4>
+<pre><code class="language-sql">CREATE TABLE t_test_subfunction (a INT, b INT);
+CREATE TYPE ty_test_subfunction IS (a INT, b INT);
+CREATE TYPE tyt_test_subfunction IS TABLE OF ty_test_subfunction;
+
+DECLARE
+  l_tyt_test_subfunction tyt_test_subfunction;
+  FUNCTION subfunc (x IN INT) 
+  RETURN INT AS 
+  BEGIN 
+    RETURN 1; 
+  END;
+BEGIN
+  l_tyt_test_subfunction := tyt_test_subfunction();
+  l_tyt_test_subfunction.extend;
+  l_tyt_test_subfunction(1) := ty_test_subfunction(1,1);
+  
+  -- 下面这条语句报错 ERROR: Plpgsql estate is null
+  INSERT INTO t_test_subfunction 
+    SELECT subfunc(a), b FROM unnest_table(l_tyt_test_subfunction);
+END;
+/
+</code></pre>
+<h4 id="排查步骤">排查步骤</h4>
+<ol>
+<li><strong>子函数独立性</strong>：将子函数创建为独立函数后，不再报错 → 问题与子函数相关。</li>
+<li><strong>数据源影响</strong>：将 <code>unnest_table</code> 替换为实际表后，不再报错 → 问题与 <code>unnest_table</code> 相关。</li>
+<li><strong>子函数位置</strong>：将子函数从 SELECT 列表移至 WHERE 条件，仍然报错 → 与子函数位置无关。</li>
+<li><strong>语句类型</strong>：将 INSERT 改为 SELECT INTO，仍然报错 → 与数据修改无关。</li>
+<li><strong>SQL 上下文</strong>：将子函数调用改为简单变量赋值（不含 SQL），不再报错 → 问题仅出现在 SQL 中。</li>
+<li><strong>参数类型</strong>：将子函数入参从列改为常量或变量，不再报错 → 问题与入参为列时相关。</li>
+<li><strong>多表关联</strong>：再 JOIN 一个实际表，将子函数入参改为该表的列，仍然报错 → 只要存在 <code>unnest_table</code>，子函数入参为列就会触发问题。</li>
+<li><strong>SRF 函数扩展</strong>：移除 <code>unnest_table</code>，改为查询 <code>dbe_perf.statement</code>，仍然报错 → 问题不仅限于 <code>unnest_table</code>，所有 SRF 函数都会触发。</li>
+</ol>
+<h4 id="结论">结论</h4>
+<p>问题场景明确：<strong>在使用 SRF 函数的 SQL 中，如果调用了子函数且子函数入参包含列，则会报错 <code>ERROR: Plpgsql estate is null</code>。</strong></p>
+<h4 id="最小化复现用例">最小化复现用例</h4>
+<pre><code class="language-sql">DECLARE
+  l INT;
+  FUNCTION subfunc (x IN INT) RETURN INT AS 
+  BEGIN 
+    RETURN 1; 
+  END;
+BEGIN
+  SELECT count(1) INTO l 
+  FROM dbe_perf.statement 
+  WHERE subfunc(node_id) = 1;
+END;
+/
+</code></pre>
+<p>执行效果：</p>
+<pre><code class="language-sql">gaussdb=&gt; DECLARE
+gaussdb-&gt;   l INT;
+gaussdb-&gt;   FUNCTION subfunc (x IN INT) RETURN INT AS 
+gaussdb-&gt;   BEGIN 
+gaussdb$&gt;     RETURN 1; 
+gaussdb$&gt;   END;
+gaussdb$&gt; BEGIN
+gaussdb$&gt;   SELECT count(1) INTO l 
+gaussdb$&gt;   FROM dbe_perf.statement 
+gaussdb$&gt;   WHERE subfunc(node_id) = 1;
+gaussdb$&gt; END;
+gaussdb$&gt; /
+ERROR:  Plpgsql estate is null.
+CONTEXT:  SQL statement "select count(1) from dbe_perf.statement 
+where subfunc(node_id)=1"
+PL/pgSQL function inline_code_block line 8 at SQL statement
+gaussdb=&gt; 
+</code></pre>
+<h3 id="官方文档说明">官方文档说明</h3>
+<p>参考官方文档：<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.30/devg-cent/gaussdb-42-0896.html">GaussDB 子程序限制</a></p>
+<p>文档中提到：</p>
+<blockquote>
+<p>嵌套子程序不支持重载、不支持使用 SETOF。</p>
+</blockquote>
+<p>该描述存在歧义：是子程序不支持返回 SETOF，还是使用子程序的 SQL 中不能使用 SETOF？</p>
+<h3 id="与华为的沟通预期">与华为的沟通预期</h3>
+<p>我做过产品，完全知道这会是什么样的结果：</p>
+<ol>
+<li>认为报错是设计如此，文档已有提醒。</li>
+<li>承认文档描述不清，后续完善。</li>
+<li>承认报错信息不友好，后续版本改进。</li>
+<li>如需支持此功能，需提需求，但版本规划可能靠后。</li>
+</ol>
+<p>由于数据库版本已确定，非严重问题不会轻易变更版本，因此客户只能自行修改 SQL。</p>
+<h2 id="总结">总结</h2>
+<p>通过多轮测试，精准排查出 GaussDB 子函数的一个功能缺陷（暂无法确认为 BUG）。本文的排查思路希望能为读者提供参考和启发。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="/halo-SSG/tags/gaussdb">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="/halo-SSG/archives/duckdb-connect-oracle-gaussdb">【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

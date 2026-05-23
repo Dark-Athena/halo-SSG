@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地模型性能翻倍！qwen3.6-MTP测试 - DA-技术分享-静态站</title>
+    <meta name="description" content="本地模型性能翻倍！qwen3.6-MTP测试 前言 2026年5月17日，本地模型爱好者们迎来了一个喜大普奔的时刻，llama.cpp 的 #22763 终于合入，这意味着 MTP 正式在 llama.cpp 中可用了。 如果你不知道 MTP 是什么，可以自己去找资料，这里我只说最终效果： MTP ">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <nav>
+                <a href="/halo-SSG/">首页</a>
+                <a href="/halo-SSG/archives/">文章归档</a>
+                <a href="/halo-SSG/tags/">标签</a>
+                <a href="/halo-SSG/moments/">记事本</a>
+                <a href="/halo-SSG/online-tools/">在线工具</a>
+                <a href="/halo-SSG/CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<article>
+    <h1>本地模型性能翻倍！qwen3.6-MTP测试</h1>
+    <div class="meta">
+        
+        <span>2026-05-23</span>
+        
+        <span>6 阅读</span>
+        
+        <a href="/halo-SSG/categories/ai">AI</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="本地模型性能翻倍-qwen3-6-MTP测试">本地模型性能翻倍！qwen3.6-MTP测试</h1>
+<h2 id="前言">前言</h2>
+<p>2026年5月17日，本地模型爱好者们迎来了一个喜大普奔的时刻，llama.cpp 的 <a href="https://github.com/ggml-org/llama.cpp/pull/22673">#22763</a> 终于合入，这意味着 MTP 正式在 llama.cpp 中可用了。</p>
+<p>如果你不知道 MTP 是什么，可以自己去找资料，这里我只说最终效果：</p>
+<p><strong>MTP 能让本地模型在几乎没有精度损失的情况下，生成 token 的速度翻倍！</strong></p>
+<p>本文就来进行一下非专业测试，看看效果到底如何。</p>
+<blockquote>
+<p>⚠️ 注意：本文未使用任何基准测试，测试结果仅代表当前测试环境及本次测试场景的执行效果，不具有通用性。</p>
+</blockquote>
+<h2 id="测试环境">测试环境</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU/GPU</td>
+<td>AMD AI Max+ 395</td>
+</tr>
+<tr>
+<td>系统</td>
+<td>Windows 11</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>128GB（分给显存 64GB）</td>
+</tr>
+<tr>
+<td>llama.cpp 版本</td>
+<td>llama-b9190-bin-win-vulkan-x64</td>
+</tr>
+<tr>
+<td>量化级别</td>
+<td>Q4_K_XL（XL 版本比 M 和 S 慢一些，但更准确）</td>
+</tr>
+<tr>
+<td>思考模式</td>
+<td>关闭</td>
+</tr>
+</tbody>
+</table>
+<h3 id="测试模型">测试模型</h3>
+<ul>
+<li><a href="https://huggingface.co/unsloth/Qwen3.6-27B-GGUF">Qwen3.6-27B-GGUF</a></li>
+<li><a href="https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF">Qwen3.6-27B-MTP-GGUF</a></li>
+<li><a href="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF">Qwen3.6-35B-A3B-GGUF</a></li>
+<li><a href="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-MTP-GGUF">Qwen3.6-35B-A3B-MTP-GGUF</a></li>
+</ul>
+<h3 id="测试请求">测试请求</h3>
+<p>使用 curl 发起相同测试请求：</p>
+<pre><code class="language-bash">curl.exe -X POST "http://127.0.0.1:8001/v1/chat/completions"   -H "Content-Type: application/json"   -H "Authorization: Bearer sk-no-key-required"   -d '{"model":"test","messages":[{"role":"user","content":"生成一个端午节的网页，鼠标可以点击，有动效"}],"max_tokens":256000,"stream":false}'
+</code></pre>
+<h2 id="测试结果">测试结果</h2>
+<h3 id="Qwen3-6-35B-A3B-MoE-模型-">Qwen3.6-35B-A3B（MoE 模型）</h3>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>SPEC_DRAFT_N_MAX</th>
+<th>输出速度</th>
+<th>提升幅度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>非 MTP</td>
+<td>-</td>
+<td>52.77 t/s</td>
+<td>基准</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>2</td>
+<td>61.52 t/s</td>
+<td>+17%</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>3</td>
+<td>61.83 t/s</td>
+<td>+17%</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>4</td>
+<td>56.91 t/s</td>
+<td>+8%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>结论</strong>：35B-A3B 模型开到 SPEC_DRAFT_N_MAX=3 效果最佳，但提升幅度有限。（测出这个结果，我当时是很失望的，原本以为能破百）</p>
+<h3 id="Qwen3-6-27B-稠密模型-">Qwen3.6-27B（稠密模型）</h3>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>SPEC_DRAFT_N_MAX</th>
+<th>输出速度</th>
+<th>提升幅度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>非 MTP</td>
+<td>-</td>
+<td>11.79 t/s</td>
+<td>基准</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>2</td>
+<td>21.97 t/s</td>
+<td>+86%</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>3</td>
+<td>23.30 t/s</td>
+<td>+98%</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>4</td>
+<td>26.30 t/s</td>
+<td>+123%</td>
+</tr>
+<tr>
+<td>MTP</td>
+<td>5</td>
+<td>25.73 t/s</td>
+<td>+118%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>结论</strong>：27B 模型开到 SPEC_DRAFT_N_MAX=4 效果最佳，提升幅度相当可观！</p>
+<h3 id="汇总分析">汇总分析</h3>
+<p>在当前测试条件下：</p>
+<ul>
+<li><strong>27B 模型</strong>：SPEC_DRAFT_N_MAX=4 时速度最快</li>
+<li><strong>35B-A3B 模型</strong>：SPEC_DRAFT_N_MAX=3 时速度最快</li>
+</ul>
+<p>不过最近我看了不少其他人的测试，发现 SPEC_DRAFT_N_MAX 这个参数的大小，对于不同模型和不同的量化版本，以及不同长度的上下文，甚至在不同的硬件设备上，性能曲线都不一样：</p>
+<ul>
+<li>有的没提升</li>
+<li>有的甚至负提升</li>
+<li>有的能提升150%</li>
+<li>也有的开到1就已经是最高的性能了</li>
+</ul>
+<p>综合来看，<strong>SPEC_DRAFT_N_MAX=2 目前似乎是大多数人都认可的一个甜点位</strong>，不一定是性能最好，但可以无脑配置。</p>
+<blockquote>
+<p>💡 对于刚需使用者而言，如果真想获得最极致的性能，与其花时间去测试去调参数，还不如去买几张 N 卡划算得多。</p>
+</blockquote>
+<h2 id="GPU-利用率观察">GPU 利用率观察</h2>
+<p>测试时，意外发现 GPU 利用率有差异：</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>非 MTP 版本平均 GPU 利用率</th>
+<th>MTP 版本平均 GPU 利用率</th>
+<th>MTP 版本最高 GPU 利用率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.6-35B-A3B</td>
+<td>86%</td>
+<td>72%</td>
+<td>86%</td>
+</tr>
+<tr>
+<td>Qwen3.6-27B</td>
+<td>98%</td>
+<td>90%</td>
+<td>98%</td>
+</tr>
+</tbody>
+</table>
+<p>可以很明显地观察到：</p>
+<ol>
+<li>MTP 版本的 GPU 利用率相比非 MTP 版本有所下降</li>
+<li>但峰值是差不多的</li>
+<li>在 GPU 利用率下降的情况下，吐的 TOKEN 反而变多了</li>
+</ol>
+<p>从另一方面看，GPU 并没有火力全开，应该还有提升空间。</p>
+<p>从这个利用率的波形也能明显发现区别，明显是新增了不同类型的运算负载，这和MTP目前的实现方式有关，具体我就不展开了（其实是我也没研究透，怕说错...）<br/>
+<img alt="image-GteF.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-GteF.png" srcset="/halo-SSG/upload/image-GteF.png?width=1200 1200w, /halo-SSG/upload/image-GteF.png?width=400 400w, /halo-SSG/upload/image-GteF.png?width=1600 1600w, /halo-SSG/upload/image-GteF.png?width=800 800w"/><br/>
+<img alt="image-qkrs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qkrs.png" srcset="/halo-SSG/upload/image-qkrs.png?width=1200 1200w, /halo-SSG/upload/image-qkrs.png?width=400 400w, /halo-SSG/upload/image-qkrs.png?width=1600 1600w, /halo-SSG/upload/image-qkrs.png?width=800 800w"/></p>
+<h2 id="附-MTP-使用方式">附：MTP 使用方式</h2>
+<p>以 Windows AMD 显卡环境为例：</p>
+<h3 id="1--下载-MTP-模型">1. 下载 MTP 模型</h3>
+<p>下载 <a href="https://huggingface.co/unsloth/Qwen3.6-27B-MTP-GGUF">Qwen3.6-27B-MTP-GGUF</a></p>
+<blockquote>
+<p>💡 GGUF 并不能在原本的模型上直接开启 MTP，需要一个新的模型文件。建议通过 LM Studio 搜索下载，可以避免国内 HuggingFace 无法连接的问题。</p>
+</blockquote>
+<h3 id="2--下载-llama-cpp">2. 下载 llama.cpp</h3>
+<p>下载 <a href="https://github.com/ggml-org/llama.cpp/releases">llama.cpp b9180 或更高版本</a></p>
+<blockquote>
+<p>⚠️ 根据网友们反馈，目前 llama.cpp 的最新版性能反而不及<a href="https://github.com/ggml-org/llama.cpp/pull/22673">#22763</a>刚合并时的版本</p>
+</blockquote>
+<h3 id="3--解压安装包">3. 解压安装包</h3>
+<p>注意根据你的平台架构选择，这里我用的是 "Windows x64 (Vulkan)"</p>
+<blockquote>
+<p>⚠️ 至少这个时间点上，ROCm 在 Windows 上绝对不建议用于文本生成</p>
+</blockquote>
+<h3 id="4--创建启动脚本">4. 创建启动脚本</h3>
+<p>在 llama.cpp 解压后的目录里创建启动 bat 脚本（可根据需要自行调整参数）：</p>
+<pre><code class="language-cmd">@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+REM Run from this script's directory so relative executable paths always work.
+cd /d "%~dp0"
+
+REM =========================
+REM Model files (local paths)
+REM =========================
+set "MODEL_DIR=%USERPROFILE%\.lmstudio\models\unsloth\Qwen3.6-27B-MTP-GGUF"
+set "MODEL_FILE=%MODEL_DIR%\Qwen3.6-27B-UD-Q4_K_XL.gguf"
+set "MMPROJ_FILE=%MODEL_DIR%\mmproj-F32.gguf"
+
+REM =========================
+REM Server settings
+REM =========================
+set "HOST=127.0.0.1"
+set "PORT=8001"
+set "ALIAS=unsloth/Qwen3.6-27B-MTP-GGUF"
+set "CTX_SIZE=262144"
+set "N_GPU_LAYERS=999"
+set "BATCH_SIZE=2048"
+set "N_PARALLEL=1"
+
+REM Recommended non-thinking defaults from Unsloth guide.
+set "TEMP=0.7"
+set "TOP_P=0.8"
+set "TOP_K=20"
+set "MIN_P=0.00"
+set "PRESENCE_PENALTY=1.5"
+
+REM MTP settings:
+REM New flag (May 2026+) is --spec-type draft-mtp.
+REM Unsloth notes draft-n-max=2 often gives best real speed/acceptance tradeoff.
+set "SPEC_TYPE=draft-mtp"
+set "SPEC_DRAFT_N_MAX=2"
+
+REM Qwen3.6 reasoning mode control (new flag).
+REM Use off for non-thinking mode; change to on if needed.
+set "REASONING=off"
+
+REM Auto-detect multi-slot flags:
+REM   N_PARALLEL &gt; 1 =&gt; enable --kv-unified and --cache-idle-slots
+REM   N_PARALLEL = 1 =&gt; no extra flags (avoids "requires --kv-unified" warning)
+set "EXTRA_FLAGS="
+if %N_PARALLEL% GTR 1 (
+  set "EXTRA_FLAGS=--kv-unified --cache-idle-slots"
+)
+
+echo.
+echo [INFO] Starting llama-server for Qwen3.6 27B MTP...
+echo [INFO] Endpoint: http://%HOST%:%PORT%/v1
+echo [INFO] Model: %MODEL_FILE%
+echo [INFO] MMProj: %MMPROJ_FILE%
+echo.
+
+if not exist "%MODEL_FILE%" (
+  echo [ERROR] Model file not found:
+  echo         %MODEL_FILE%
+  exit /b 1
+)
+
+if not exist "%MMPROJ_FILE%" (
+  echo [ERROR] MMProj file not found:
+  echo         %MMPROJ_FILE%
+  exit /b 1
+)
+
+if not exist "llama-server.exe" (
+  echo [ERROR] llama-server.exe not found in:
+  echo         %CD%
+  exit /b 1
+)
+
+llama-server.exe ^
+  --host %HOST% ^
+  --port %PORT% ^
+  --model "%MODEL_FILE%" ^
+  --mmproj "%MMPROJ_FILE%" ^
+  --alias "%ALIAS%" ^
+  --gpu-layers %N_GPU_LAYERS% ^
+  --flash-attn on ^
+  --kv-offload ^
+  --batch-size %BATCH_SIZE% ^
+  --parallel %N_PARALLEL% ^
+  %EXTRA_FLAGS% ^
+  --ctx-size %CTX_SIZE% ^
+  --temp %TEMP% ^
+  --top-p %TOP_P% ^
+  --top-k %TOP_K% ^
+  --min-p %MIN_P% ^
+  --presence-penalty %PRESENCE_PENALTY% ^
+  --spec-type %SPEC_TYPE% ^
+  --spec-draft-n-max %SPEC_DRAFT_N_MAX% ^
+  --image-min-tokens 1024 ^
+  --reasoning %REASONING%
+
+set "EXIT_CODE=%ERRORLEVEL%"
+echo.
+echo [INFO] llama-server exited with code %EXIT_CODE%.
+exit /b %EXIT_CODE%
+</code></pre>
+<h3 id="5--启动服务">5. 启动服务</h3>
+<p>双击执行这个 bat 脚本即可。</p>
+<h3 id="6--API-测试">6. API 测试</h3>
+<pre><code class="language-bash">curl.exe -X POST "http://127.0.0.1:8001/v1/chat/completions"   -H "Content-Type: application/json"   -H "Authorization: Bearer sk-no-key-required"   -d '{"model":"unsloth/Qwen3.6-27B-MTP-GGUF","messages":[{"role":"user","content":"返回测试成功"}],"temperature":0.7,"max_tokens":256000}'
+</code></pre>
+<h3 id="其他MTP使用方案">其他MTP使用方案</h3>
+<ul>
+<li>如果你有 NVIDIA 显卡，或者是 AMD 显卡跑在 Linux 上，可以用 <strong>Unsloth Studio</strong>，这个软件已经把 MTP 都配置好了。</li>
+<li>截止本文发布，<strong>LM Studio 0.4.14 测试版</strong>（runtime vulkan llama.cpp 2.15.0 测试版）已经支持 MTP 了，只是我实测下来性能不如直接用llama.cpp。</li>
+</ul>
+<h2 id="最后说下">最后说下</h2>
+<p>这里绝不包含任何购买建议，只是个人感想：</p>
+<p>我这台AMD AI MAX+395 笔记本上个月一万多买的，现在京东已经涨到三万了。</p>
+<p><img alt="image-mbMD.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-mbMD.png" srcset="/halo-SSG/upload/image-mbMD.png?width=1200 1200w, /halo-SSG/upload/image-mbMD.png?width=400 400w, /halo-SSG/upload/image-mbMD.png?width=1600 1600w, /halo-SSG/upload/image-mbMD.png?width=800 800w"/></p>
+<p>真正用下来，显存的确是量大管饱，但显存带宽是远不及N卡和MAC的，模型测了一堆，快的模型蠢，聪明的模型慢，Qwen-27B算是最能打的了，只是11t/s的速度接到编程agent里实在太慢，有些agent还自带超时重试，这机器可顶不住并发，更别说预填充阶段那蜗牛一样的速度了。<br/>
+前一段时间MAC和N卡各种黑科技提升性能，AMD这边都不能用，我甚至一度想再重新组一台带N卡的服务器，但看到价格、体积、运行噪音，还是迟疑了。<br/>
+但现在有了MTP，跑Qwen-27B能有二十几个TOKEN每秒，这也算是真正能干活了。<br/>
+不过如果让我再选一次跑本地模型的机器，我可能会买N卡。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="/halo-SSG/tags/ai">AI</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="/halo-SSG/archives/Build-Tools-Not-Conversations-How-I-Spent-700M-Free-Xiaomi-Mimo-Tokens">&larr; 用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上</a>
+    
+    
+    <a href="/halo-SSG/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB">【GaussDB】讨论下for update游标加锁的设计 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

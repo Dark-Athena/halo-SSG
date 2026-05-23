@@ -6,6 +6,46 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】排查报错"ERROR: Plpgsql estate is null"</title>
+      <link>https://www.darkathena.top/archives/troubleshooting-error-plpgsql-estate-is-null-in-gaussdb</link>
+      <description>【GaussDB】排查报错"ERROR: Plpgsql estate is null" 背景 客户在 GaussDB 中执行一个上万行的匿名块时，遇到了 ERROR: Plpgsql estate is null 报错。通过手动加日志点位二分法，定位到报错 SQL 与子函数调用相关。单独调用子函数</description>
+      <pubDate>Sat, 23 May 2026 08:37:56 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB</title>
+      <link>https://www.darkathena.top/archives/duckdb-connect-oracle-gaussdb</link>
+      <description>【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB 前言 在数据迁移、数据比对、异构数据库运维等场景中，经常需要同时查询多个不同类型的数据库。DuckDB 作为一款嵌入式分析型数据库，支持通过扩展连接多种外部数据源。本文将演示如何在一条 SQL 中同时连接 Oracle 和 G</description>
+      <pubDate>Sat, 23 May 2026 08:37:47 +0000</pubDate>
+    </item>
+    <item>
+      <title>给本地的 LM Studio 装上手脚和眼睛</title>
+      <link>https://www.darkathena.top/archives/Install-limbs-for-the-local-lmstudio-v2</link>
+      <description>给本地的 LM Studio 装上手脚和眼睛 LM Studio 官网下载安装后，默认只能进行对话——既不能搜索网络，也无法操作本地文件，更无法自动完成浏览器登录等操作。 但从 LM Studio 0.3.17 起，官方支持添加 MCP Server，通过配置不同的 MCP Server，即可赋予本</description>
+      <pubDate>Sat, 23 May 2026 08:36:19 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路</title>
+      <link>https://www.darkathena.top/archives/Issues-and-Solutions-for-Frequent-DROP-CREATE-TABLE-in-PostgreSQL</link>
+      <description>【postgresql】频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 如果某个应用程序设计成了频繁drop table /create table ,而且连的是postgresql数据库，这样有什么问题？在应用程序不改的情况下如何解决这个问题？ 一、核心问题</description>
+      <pubDate>Sat, 23 May 2026 08:36:15 +0000</pubDate>
+    </item>
+    <item>
+      <title>用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上</title>
+      <link>https://www.darkathena.top/archives/Build-Tools-Not-Conversations-How-I-Spent-700M-Free-Xiaomi-Mimo-Tokens</link>
+      <description>用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上 前言 小米mimo百万亿Token创造者激励计划 ，活动截止到 2026年5月27日16:00 https://100t.xiaomimimo.com/ 我拿了7个亿，不是最高档位，有同事申请到了16个亿。虽然只能用</description>
+      <pubDate>Sat, 23 May 2026 08:35:51 +0000</pubDate>
+      <category>站长工具</category>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>本地模型性能翻倍！qwen3.6-MTP测试</title>
+      <link>https://www.darkathena.top/archives/qwen3.6-mtp-test-refined</link>
+      <description>本地模型性能翻倍！qwen3.6-MTP测试 前言 2026年5月17日，本地模型爱好者们迎来了一个喜大普奔的时刻，llama.cpp 的 #22763 终于合入，这意味着 MTP 正式在 llama.cpp 中可用了。 如果你不知道 MTP 是什么，可以自己去找资料，这里我只说最终效果： MTP </description>
+      <pubDate>Sat, 23 May 2026 08:35:10 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
       <title>【GaussDB】讨论下for update游标加锁的设计</title>
       <link>https://www.darkathena.top/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB</link>
       <description>【GaussDB】讨论下for update游标加锁的设计 背景 在 Oracle 中有一种常见用法：通过存储过程有条件地更新一张或多张表的数据。由于存储过程可能被并发调用，需要加锁防止并发执行。做法是定义一个游标，在查询语句末尾加上 FOR UPDATE，然后 OPEN 这个游标即实现加锁。至于后</description>
@@ -284,42 +324,6 @@ gsq</description>
       <link>https://www.darkathena.top/archives/how-sql-audit-tool</link>
       <description>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ 背景 围绕数据库做的通用工具有很多，其中有一种叫"SQL审核"，有很多用户期望使用"SQL审核"工具满足自己的需求，但实际用起来，发现并不是自己想要的。前一阵子我私下测试了好几个SQL审核软件，发现均无法满足某些客户的某</description>
       <pubDate>Mon, 24 Nov 2025 13:48:05 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】在duckdb中查询GaussDB的数据</title>
-      <link>https://www.darkathena.top/archives/query-gaussdb-with-duckdb</link>
-      <description>【GaussDB】在duckdb中查询GaussDB的数据 网上好像搜不到openGauss/GaussDB和duckdb配合使用的例子，我就自己来测了下。 环境说明 本文使用的数据库版本 duckdb 1.4.1 GaussDB 5.0.6.0.0 SPC0100 均在同一台虚拟机上，使用的CPU</description>
-      <pubDate>Mon, 27 Oct 2025 14:20:00 +0000</pubDate>
-    </item>
-    <item>
-      <title>【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像</title>
-      <link>https://www.darkathena.top/archives/docker-build-kylinv10sp3-image-includ-gaussdb-runtime</link>
-      <description>【Docker】定制化构建一个可以运行GaussDB的kylinv10sp3系统的docker镜像 背景 现在信创已经进行到白热化阶段了，为了赶国家2027年的任务，有不少开发</description>
-      <pubDate>Mon, 27 Oct 2025 14:11:04 +0000</pubDate>
-    </item>
-    <item>
-      <title>【YashanDB】单机版数据库升级测试</title>
-      <link>https://www.darkathena.top/archives/yashandb-upgrade-simple</link>
-      <description>【YashanDB】单机版数据库升级测试 背景 2025年8月22号，Yashan总算是通过了安全可靠认证，但是信创市场留给Yashan的份额已经不多了。第一份安可名单出来，很多客户连PoC测试都要求必须是安可名单的才给测试，所以第一批进入安可名单的厂商可以大范围采集真实的用户场景，然后改进自己的产</description>
-      <pubDate>Sun, 26 Oct 2025 09:04:27 +0000</pubDate>
-    </item>
-    <item>
-      <title>【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本</title>
-      <link>https://www.darkathena.top/archives/install-yashandb-unconventionally-and-1cmd-install-online</link>
-      <description>【YashanDB】如果不按文档步骤来装yashan数据库会是怎样的？内含在线一键安装脚本 完全按照文档装，遇到的问题会比较少，但可能对于原理的理解会较浅，而且遇到一些环境差异引起的安装故障也不好排查。所以我这次安装不完全按文档来，就凭感觉去做，看是否可以装成功，以及会遇到哪些问题。 环境信息 这次</description>
-      <pubDate>Sun, 26 Oct 2025 08:34:03 +0000</pubDate>
-    </item>
-    <item>
-      <title>【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案</title>
-      <link>https://www.darkathena.top/archives/A-High-Efficiency-Solution-for-Data-Consistency-Verification-Between-Oracle-and-openGauss-GaussDB</link>
-      <description>一种快速进行ORACLE和openGauss/GaussDB之间数据一致性核对的方案 背景 应用软件的信创改造中，在数据迁移后，对数据进行一致性核对是非常重要的一个环节。数据核对需要面对的考验有且不限于： 核对巨量数据的性能 异构数据库不同数据类型的统一格式化 源库和目标库可能使用不同的字符集 核对</description>
-      <pubDate>Sun, 31 Aug 2025 14:07:05 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题</title>
-      <link>https://www.darkathena.top/archives/gaussdb-autonomoustransaction-create-timeout-hang</link>
-      <description>【GaussDB】排查应用高可用切换出现数据库整体卡顿及报错自治事务无法创建的问题 背景 某客户在做应用程序的高可用切换测试，在应用程序中，收到了来自数据库的报错，不能创建自治事务 ERROR: autonomous transaction failed to create autonomous s</description>
-      <pubDate>Sun, 31 Aug 2025 13:56:48 +0000</pubDate>
     </item>
   </channel>
 </rss>
