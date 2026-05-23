@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>本地模型性能翻倍！qwen3.6-MTP测试 - DA-技术分享-静态站</title>
     <meta name="description" content="本地模型性能翻倍！qwen3.6-MTP测试 前言 2026年5月17日，本地模型爱好者们迎来了一个喜大普奔的时刻，llama.cpp 的 #22763 终于合入，这意味着 MTP 正式在 llama.cpp 中可用了。 如果你不知道 MTP 是什么，可以自己去找资料，这里我只说最终效果： MTP ">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <a class="site-title" href="../">DA-技术分享-静态站</a>
             <nav>
-                <a href="/halo-SSG/">首页</a>
-                <a href="/halo-SSG/archives/">文章归档</a>
-                <a href="/halo-SSG/tags/">标签</a>
-                <a href="/halo-SSG/moments/">记事本</a>
-                <a href="/halo-SSG/online-tools/">在线工具</a>
-                <a href="/halo-SSG/CV/">关于我</a>
+                <a href="../">首页</a>
+                <a href="./">文章归档</a>
+                <a href="../tags/">标签</a>
+                <a href="../moments/">记事本</a>
+                <a href="../online-tools/">在线工具</a>
+                <a href="../CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="./">&larr; 返回文章列表</a>
 <article>
     <h1>本地模型性能翻倍！qwen3.6-MTP测试</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>6 阅读</span>
         
-        <a href="/halo-SSG/categories/ai">AI</a>
+        <a href="../categories/ai/">AI</a>
         
     </div>
     <div class="post-body">
@@ -347,8 +347,8 @@
 </ol>
 <p>从另一方面看，GPU 并没有火力全开，应该还有提升空间。</p>
 <p>从这个利用率的波形也能明显发现区别，明显是新增了不同类型的运算负载，这和MTP目前的实现方式有关，具体我就不展开了（其实是我也没研究透，怕说错...）<br/>
-<img alt="image-GteF.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-GteF.png" srcset="/halo-SSG/upload/image-GteF.png?width=1200 1200w, /halo-SSG/upload/image-GteF.png?width=400 400w, /halo-SSG/upload/image-GteF.png?width=1600 1600w, /halo-SSG/upload/image-GteF.png?width=800 800w"/><br/>
-<img alt="image-qkrs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-qkrs.png" srcset="/halo-SSG/upload/image-qkrs.png?width=1200 1200w, /halo-SSG/upload/image-qkrs.png?width=400 400w, /halo-SSG/upload/image-qkrs.png?width=1600 1600w, /halo-SSG/upload/image-qkrs.png?width=800 800w"/></p>
+<img alt="image-GteF.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-GteF.png" srcset="../../upload/image-GteF.png?width=1200 1200w, ../../upload/image-GteF.png?width=400 400w, ../../upload/image-GteF.png?width=1600 1600w, ../../upload/image-GteF.png?width=800 800w"/><br/>
+<img alt="image-qkrs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-qkrs.png" srcset="../../upload/image-qkrs.png?width=1200 1200w, ../../upload/image-qkrs.png?width=400 400w, ../../upload/image-qkrs.png?width=1600 1600w, ../../upload/image-qkrs.png?width=800 800w"/></p>
 <h2 id="附-MTP-使用方式">附：MTP 使用方式</h2>
 <p>以 Windows AMD 显卡环境为例：</p>
 <h3 id="1--下载-MTP-模型">1. 下载 MTP 模型</h3>
@@ -483,7 +483,7 @@ exit /b %EXIT_CODE%
 <h2 id="最后说下">最后说下</h2>
 <p>这里绝不包含任何购买建议，只是个人感想：</p>
 <p>我这台AMD AI MAX+395 笔记本上个月一万多买的，现在京东已经涨到三万了。</p>
-<p><img alt="image-mbMD.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-mbMD.png" srcset="/halo-SSG/upload/image-mbMD.png?width=1200 1200w, /halo-SSG/upload/image-mbMD.png?width=400 400w, /halo-SSG/upload/image-mbMD.png?width=1600 1600w, /halo-SSG/upload/image-mbMD.png?width=800 800w"/></p>
+<p><img alt="image-mbMD.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-mbMD.png" srcset="../../upload/image-mbMD.png?width=1200 1200w, ../../upload/image-mbMD.png?width=400 400w, ../../upload/image-mbMD.png?width=1600 1600w, ../../upload/image-mbMD.png?width=800 800w"/></p>
 <p>真正用下来，显存的确是量大管饱，但显存带宽是远不及N卡和MAC的，模型测了一堆，快的模型蠢，聪明的模型慢，Qwen-27B算是最能打的了，只是11t/s的速度接到编程agent里实在太慢，有些agent还自带超时重试，这机器可顶不住并发，更别说预填充阶段那蜗牛一样的速度了。<br/>
 前一段时间MAC和N卡各种黑科技提升性能，AMD这边都不能用，我甚至一度想再重新组一台带N卡的服务器，但看到价格、体积、运行噪音，还是迟疑了。<br/>
 但现在有了MTP，跑Qwen-27B能有二十几个TOKEN每秒，这也算是真正能干活了。<br/>
@@ -494,17 +494,17 @@ exit /b %EXIT_CODE%
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/halo-SSG/tags/ai">AI</a>
+        <a class="tag" href="../tags/ai/">AI</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/halo-SSG/archives/Build-Tools-Not-Conversations-How-I-Spent-700M-Free-Xiaomi-Mimo-Tokens">&larr; 用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上</a>
+    <a href="Build-Tools-Not-Conversations-How-I-Spent-700M-Free-Xiaomi-Mimo-Tokens/">&larr; 用 AI 造工具，而不是聊天——我如何把7亿小米 Mimo Token 花在刀刃上</a>
     
     
-    <a href="/halo-SSG/archives/A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB">【GaussDB】讨论下for update游标加锁的设计 &rarr;</a>
+    <a href="A-Look-at-the-Locking-Design-of-FOR-UPDATE-Cursors-in-GaussDB/">【GaussDB】讨论下for update游标加锁的设计 &rarr;</a>
     
 </div>
 

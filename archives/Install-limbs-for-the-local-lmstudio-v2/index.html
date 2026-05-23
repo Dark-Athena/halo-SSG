@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>给本地的 LM Studio 装上手脚和眼睛 - DA-技术分享-静态站</title>
     <meta name="description" content="给本地的 LM Studio 装上手脚和眼睛 LM Studio 官网下载安装后，默认只能进行对话——既不能搜索网络，也无法操作本地文件，更无法自动完成浏览器登录等操作。 但从 LM Studio 0.3.17 起，官方支持添加 MCP Server，通过配置不同的 MCP Server，即可赋予本">
-    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="/halo-SSG/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
     <style>
         :root {
             --bg: #fff;
@@ -128,21 +128,21 @@
 <body>
     <header>
         <div class="container">
-            <a class="site-title" href="/halo-SSG/">DA-技术分享-静态站</a>
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
             <nav>
-                <a href="/halo-SSG/">首页</a>
-                <a href="/halo-SSG/archives/">文章归档</a>
-                <a href="/halo-SSG/tags/">标签</a>
-                <a href="/halo-SSG/moments/">记事本</a>
-                <a href="/halo-SSG/online-tools/">在线工具</a>
-                <a href="/halo-SSG/CV/">关于我</a>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
             </nav>
         </div>
     </header>
     <main>
         <div class="container">
             
-<a class="back-link" href="/halo-SSG/archives/">&larr; 返回文章列表</a>
+<a class="back-link" href="../">&larr; 返回文章列表</a>
 <article>
     <h1>给本地的 LM Studio 装上手脚和眼睛</h1>
     <div class="meta">
@@ -151,7 +151,7 @@
         
         <span>6 阅读</span>
         
-        <a href="/halo-SSG/categories/ai">AI</a>
+        <a href="../../categories/ai/">AI</a>
         
     </div>
     <div class="post-body">
@@ -169,7 +169,7 @@
 <h2 id="如何安装配置">如何安装配置</h2>
 <h3 id="第一步打开-mcp-配置入口">第一步：打开 MCP 配置入口</h3>
 <p>在 LM Studio 右侧找到 <strong>Install → Edit mcp.json</strong>，把 MCP 配置写入并保存。</p>
-<p><img alt="安装入口" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-rlnY.png" srcset="/halo-SSG/upload/image-rlnY.png?width=1200 1200w, /halo-SSG/upload/image-rlnY.png?width=400 400w, /halo-SSG/upload/image-rlnY.png?width=1600 1600w, /halo-SSG/upload/image-rlnY.png?width=800 800w"/></p>
+<p><img alt="安装入口" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-rlnY.png" srcset="../../upload/image-rlnY.png?width=1200 1200w, ../../upload/image-rlnY.png?width=400 400w, ../../upload/image-rlnY.png?width=1600 1600w, ../../upload/image-rlnY.png?width=800 800w"/></p>
 <h3 id="第二步写入配置">第二步：写入配置</h3>
 <p>下面是我使用的完整配置，供参考：</p>
 <pre><code class="language-json">{
@@ -212,14 +212,14 @@
 </blockquote>
 <h3 id="第三步启用所需的-mcp">第三步：启用所需的 MCP</h3>
 <p>配置保存后，在下方列表中开启需要的 MCP Server 即可。</p>
-<p><img alt="启用 MCP" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-yMHb.png" srcset="/halo-SSG/upload/image-yMHb.png?width=1200 1200w, /halo-SSG/upload/image-yMHb.png?width=400 400w, /halo-SSG/upload/image-yMHb.png?width=1600 1600w, /halo-SSG/upload/image-yMHb.png?width=800 800w"/></p>
+<p><img alt="启用 MCP" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-yMHb.png" srcset="../../upload/image-yMHb.png?width=1200 1200w, ../../upload/image-yMHb.png?width=400 400w, ../../upload/image-yMHb.png?width=1600 1600w, ../../upload/image-yMHb.png?width=800 800w"/></p>
 <hr/>
 <h2 id="使用效果">使用效果</h2>
 <p><strong>Playwright 模拟浏览器示例：</strong></p>
-<p><img alt="playwright 示例" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-ricj.png" srcset="/halo-SSG/upload/image-ricj.png?width=1200 1200w, /halo-SSG/upload/image-ricj.png?width=400 400w, /halo-SSG/upload/image-ricj.png?width=1600 1600w, /halo-SSG/upload/image-ricj.png?width=800 800w"/></p>
+<p><img alt="playwright 示例" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ricj.png" srcset="../../upload/image-ricj.png?width=1200 1200w, ../../upload/image-ricj.png?width=400 400w, ../../upload/image-ricj.png?width=1600 1600w, ../../upload/image-ricj.png?width=800 800w"/></p>
 <p><strong>web-search + filesystem 组合使用示例：</strong></p>
-<p><img alt="组合使用 1" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-eZfb.png" srcset="/halo-SSG/upload/image-eZfb.png?width=1200 1200w, /halo-SSG/upload/image-eZfb.png?width=400 400w, /halo-SSG/upload/image-eZfb.png?width=1600 1600w, /halo-SSG/upload/image-eZfb.png?width=800 800w"/></p>
-<p><img alt="组合使用 2" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="/halo-SSG/upload/image-hnKv.png" srcset="/halo-SSG/upload/image-hnKv.png?width=1200 1200w, /halo-SSG/upload/image-hnKv.png?width=400 400w, /halo-SSG/upload/image-hnKv.png?width=1600 1600w, /halo-SSG/upload/image-hnKv.png?width=800 800w"/></p>
+<p><img alt="组合使用 1" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-eZfb.png" srcset="../../upload/image-eZfb.png?width=1200 1200w, ../../upload/image-eZfb.png?width=400 400w, ../../upload/image-eZfb.png?width=1600 1600w, ../../upload/image-eZfb.png?width=800 800w"/></p>
+<p><img alt="组合使用 2" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-hnKv.png" srcset="../../upload/image-hnKv.png?width=1200 1200w, ../../upload/image-hnKv.png?width=400 400w, ../../upload/image-hnKv.png?width=1600 1600w, ../../upload/image-hnKv.png?width=800 800w"/></p>
 <hr/>
 <h2 id="踩坑记录">踩坑记录</h2>
 <p>安装配置过程中有几个容易翻车的地方，提前说明：</p>
@@ -245,21 +245,21 @@
     
     <div style="margin-top: 2em;">
         
-        <a class="tag" href="/halo-SSG/tags/ai">AI</a>
+        <a class="tag" href="../../tags/ai/">AI</a>
         
-        <a class="tag" href="/halo-SSG/tags/LM-Studio">LM Studio</a>
+        <a class="tag" href="../../tags/LM-Studio/">LM Studio</a>
         
-        <a class="tag" href="/halo-SSG/tags/MCP">MCP</a>
+        <a class="tag" href="../../tags/MCP/">MCP</a>
         
     </div>
     
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <a href="/halo-SSG/archives/duckdb-connect-oracle-gaussdb">&larr; 【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB</a>
+    <a href="../duckdb-connect-oracle-gaussdb/">&larr; 【DuckDB】一条 SQL 同时连接 Oracle 和 GaussDB</a>
     
     
-    <a href="/halo-SSG/archives/Issues-and-Solutions-for-Frequent-DROP-CREATE-TABLE-in-PostgreSQL">频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 &rarr;</a>
+    <a href="../Issues-and-Solutions-for-Frequent-DROP-CREATE-TABLE-in-PostgreSQL/">频繁 DROP/CREATE TABLE 在 PostgreSQL 中的问题及解决思路 &rarr;</a>
     
 </div>
 
