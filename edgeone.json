@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/*",
-      "destination": "/halo-SSG/:splat"
+      "source": "/halo-SSG/*",
+      "destination": "/:splat"
     }
   ]
 }
