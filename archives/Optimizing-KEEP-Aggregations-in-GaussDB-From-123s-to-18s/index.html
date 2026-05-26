@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】 keep聚合SQL 性能优化分析：从 123s 到 18s 的优化之路 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】 排序聚合SQL 性能优化分析：从 123s 到 18s 的优化之路 注：本文所有对象名及字段名均已做脱敏处理 一、业务背景与需求描述 1.1 业务场景 某金融交易系统需要查询每日行情数据，针对每个交易品种（asset_id），获取两个时间段的最新行情快照： 全日快照：在 upda">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】 keep聚合SQL 性能优化分析：从 123s 到 18s 的优化之路</h1>
+    <div class="meta">
+        
+        <span>2026-05-23</span>
+        
+        <span>18 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb-排序聚合sql-性能优化分析从-123s-到-18s-的优化之路">【GaussDB】 排序聚合SQL 性能优化分析：从 123s 到 18s 的优化之路</h1>
+<blockquote>
+<p>注：本文所有对象名及字段名均已做脱敏处理</p>
+</blockquote>
+<h2 id="一业务背景与需求描述">一、业务背景与需求描述</h2>
+<h3 id="11-业务场景">1.1 业务场景</h3>
+<p>某金融交易系统需要查询每日行情数据，针对每个交易品种（asset_id），获取两个时间段的最新行情快照：</p>
+<ul>
+<li><strong>全日快照</strong>：在 <code>update_time &lt;= '15:00:00'</code> 范围内，取 <code>seq_no</code> 最大的记录（当日收盘前最新数据）</li>
+<li><strong>早盘快照</strong>：在 <code>update_time &lt;= '09:00:00'</code> 范围内，取 <code>seq_no</code> 最大的记录（开盘前最新数据）</li>
+</ul>
+<p>需要返回的字段包括交易日期、品种ID、成交额、成交量、持仓量等。</p>
+<h3 id="12-数据规模">1.2 数据规模</h3>
+<ul>
+<li><strong>表</strong>：<code>data_ops.t_market_data_detail</code>（行情深度明细表）</li>
+<li><strong>全表数据量</strong>：约 15,198,348 行</li>
+<li><strong>过滤后数据量</strong>：约 15,189,573 行（特定交易日 + 时间范围 + 指定频道）</li>
+<li><strong>最终输出行数</strong>：约 2,355 行（按品种分组后的结果）</li>
+</ul>
+<h3 id="13-查询条件">1.3 查询条件</h3>
+<pre><code class="language-sql">trade_date = '20250627'
+update_time &lt;= '15:00:00'
+channel_id IN (100, 500, 1000, 5000)
+</code></pre>
+<h3 id="14-原始sql执行耗时对比">1.4 原始SQL执行耗时对比</h3>
+<table><thead><tr><th>ORACLE 19.10</th><th>GaussDB 506.0 SPC0500 集中式</th></tr></thead><tbody><tr><td>30s</td><td>123s</td></tr></tbody></table>
+<hr/>
+<h2 id="二初始-sql-分析方案-0">二、初始 SQL 分析（方案 0）</h2>
+<h3 id="21-原始-sql">2.1 原始 SQL</h3>
+<p>（作者评：写出这个SQL的是天才，褒义的那种）</p>
+<pre><code class="language-sql">SELECT MIN(trade_date) KEEP(dense_rank FIRST ORDER BY seq_no DESC NULLS LAST) AS trade_date,
+       MIN(asset_id) KEEP(dense_rank FIRST ORDER BY seq_no DESC NULLS LAST) AS asset_id,
+       MIN(amount) KEEP(dense_rank FIRST ORDER BY seq_no DESC NULLS LAST) AS amount,
+       MIN(qty) KEEP(dense_rank FIRST ORDER BY seq_no DESC NULLS LAST) AS qty,
+       MIN(oi_value) KEEP(dense_rank FIRST ORDER BY seq_no DESC NULLS LAST) AS oi_value,
+       MIN(qty) KEEP(dense_rank FIRST ORDER BY t2_seq_no DESC NULLS LAST) AS t2_qty,
+       MIN(amount) KEEP(dense_rank FIRST ORDER BY t2_seq_no DESC NULLS LAST) AS t2_amount
+FROM (SELECT seq_no,
+             CASE WHEN update_time &gt; '09:00:00' THEN NULL ELSE seq_no END AS t2_seq_no,
+             trade_date, asset_id, amount, qty, oi_value
+      FROM data_ops.t_market_data_detail s
+      WHERE trade_date = '20250627'
+        AND update_time &lt;= '15:00:00'
+        AND (channel_id = 1000 OR channel_id = 5000 OR channel_id = 100 OR channel_id = 500))
+GROUP BY asset_id;
+</code></pre>
+<h3 id="22-完整执行计划">2.2 完整执行计划</h3>
+<pre><code class="language-sql"> id |                   operation                   |   A-time   |    A-rows    |    E-rows    | Peak Memory | A-width | E-width |        E-costs         
+----+-----------------------------------------------+------------+--------------+--------------+-------------+---------+---------+------------------------
+ 1  | -&gt;  GroupAggregate                            | 123462.280 |         2355 |         2354 | 71kB        |         |     273 | 3241514.039..3659250.836
+ 2  |      -&gt;  Sort                                 |   68854.676 |    15189573 |    15189573 | 1048966kB   |         |      49 | 3241514.039..3279487.971
+ 3  |           -&gt;  Seq Scan on t_market_data_detail s | 16408.833 |    15189573 |    15189573 | 53kB        |         |      49 |   0.000..730253.225
+(3 rows)
+
+                                    Predicate Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 3 --Seq Scan on t_market_data_detail s
+     Filter: (((update_time)::text &lt;= '15:00:00'::text) AND ((trade_date)::text = '20250627'::text) AND ((channel_id = 100) OR (channel_id = 500) OR (channel_id = 1000) OR (channel_id = 5000))), (Expression Flatten optimized), (Predicates Reordered)
+     Rows Removed by Filter: 8775
+(3 rows)
+
+                                   Memory Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 2 --Sort
+       Sort Method: external merge  Disk: 938544kB
+(2 rows)
+
+
+================ Query Summary ================
+-----------------------------------------------
+Datanode executor start time: 0.179 ms
+Datanode executor run time: 123468.607 ms
+Datanode executor end time: 74.734 ms
+Planner runtime: 0.873 ms
+Query Id: 1946962414165264683
+Total runtime: 123543.548 ms
+(6 rows)
+</code></pre>
+<p><strong>总耗时：123,543 ms（约 2 分钟）</strong></p>
+<h5 id="执行计划摘要">执行计划摘要</h5>
+<table><thead><tr><th>节点</th><th>操作</th><th>实际耗时</th><th>行数</th></tr></thead><tbody><tr><td>1</td><td>GroupAggregate</td><td>123,462 ms</td><td>2,355</td></tr><tr><td>2</td><td>Sort</td><td>68,854 ms</td><td>15,189,573</td></tr><tr><td>3</td><td>Seq Scan</td><td>16,408 ms</td><td>15,189,573</td></tr></tbody></table>
+<h3 id="23-核心问题诊断">2.3 核心问题诊断</h3>
+<ol>
+<li><strong>全表顺序扫描</strong>：无任何索引可用，对近 1500 万行数据进行全表扫描</li>
+<li><strong>单次大排序</strong>：Sort 节点耗时 68.8s，使用外部归并排序，磁盘 I/O 达 <strong>938 MB</strong></li>
+<li><strong>KEEP 聚合函数开销</strong>：每个 KEEP 子句都需要在分组时维护有序状态，7 个 KEEP 表达式叠加计算成本极高</li>
+<li><strong>串行执行</strong>：未启用并行查询，单线程处理全部数据</li>
+</ol>
+<hr/>
+<h2 id="三优化方案演进">三、优化方案演进</h2>
+<h3 id="方案-1启用并行查询query_dop--4">方案 1：启用并行查询（query_dop = 4）</h3>
+<h4 id="31-优化措施">3.1 优化措施</h4>
+<pre><code class="language-sql">SET query_dop = 4;
+-- SQL 逻辑不变
+</code></pre>
+<h4 id="32-完整执行计划">3.2 完整执行计划</h4>
+<pre><code class="language-sql"> id |                    operation                   |            A-time             |    A-rows    |    E-rows    |   Peak Memory   |  A-width  | E-width |        E-costs         
+----+------------------------------------------------+-------------------------------+--------------+--------------+-----------------+-----------+---------+------------------------
+ 1  | -&gt;  Streaming(type: LOCAL GATHER dop: 1/4)     | [43143.728,43143.728]         |         2355 |         2354 | [136kB,136kB]   |           |     273 | 2837486.031..3255350.306
+ 2  |      -&gt; GroupAggregate                         | [42060.014,43116.415]         |         2355 |         2354 | [63kB,63kB]     |           |     273 | 2837486.031..3255222.828
+ 3  |           -&gt; Sort                              | [28888.504,29384.295]         |    15189573 |    15189573 | [261MB,263MB]   | [68,68]   |      49 | 2837486.031..2875459.963
+ 4  |              -&gt; Streaming(type: LOCAL REDISTRIBUTE dop: 4/4) | [18407.666,18551.991] |    15189573 |    15189573 | [134kB,134kB]   |           |      49 |   0.000..850777.167
+ 5  |                    -&gt; Seq Scan on t_market_data_detail s | [4196.041,4228.979]     |    15189573 |    15189573 | [46kB,46kB]     |           |      49 |   0.000..183563.306
+(5 rows)
+
+                                    Predicate Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 5 --Seq Scan on t_market_data_detail s
+     Filter: (((update_time)::text &lt;= '15:00:00'::text) AND ((trade_date)::text = '20250627'::text) AND ((channel_id = 100) OR (channel_id = 500) OR (channel_id = 1000) OR (channel_id = 5000))), (Expression Flatten Optimized), (Predicates Reordered)
+     Rows Removed by Filter: 8775
+(3 rows)
+
+                                   Memory Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+Sort Method: external merge  Memory: 1048576kB ~ 0kB
+3 --Sort
+       Sort Method: external merge  Disk: 231288kB ~ 231288kB
+(3 rows)
+
+                                 User Define Profiling
+---------------------------------------------------------------------------------------------------------------------------
+
+Segment Id: 1 Track name: Datanode build connection
+     (actual time=[0.000, 0.000], calls=[1, 1])
+Plan Node id: 1 Track name: Datanode start up stream thread
+     (actual time=[0.347, 0.347], calls=[1, 1]))
+(4 rows)
+
+
+================ Query Summary ================
+-----------------------------------------------
+Datanode executor start time: 1.041 ms
+Datanode executor run time: 43144.837 ms
+Datanode executor end time: 0.065 ms
+Planner runtime: 34.099 ms
+Query Id: 1946962414165247362
+Total runtime: 43145.962 ms
+(6 rows)
+</code></pre>
+<p><strong>总耗时：43,145 ms（约 43 秒）</strong></p>
+<h5 id="执行计划摘要-1">执行计划摘要</h5>
+<table><thead><tr><th>节点</th><th>操作</th><th>实际耗时</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>Streaming (LOCAL GATHER)</td><td>43,143 ms</td><td>并行结果汇聚</td></tr><tr><td>2</td><td>GroupAggregate</td><td>42,060~43,116 ms</td><td>4 个线程并行聚合</td></tr><tr><td>3</td><td>Sort</td><td>28,888~29,384 ms</td><td>每个线程排序约 1/4 数据</td></tr><tr><td>4</td><td>Streaming (LOCAL REDISTRIBUTE)</td><td>18,407~18,551 ms</td><td>数据重分布</td></tr><tr><td>5</td><td>Seq Scan</td><td>4,196~4,228 ms</td><td>并行扫描，每个线程约 4s</td></tr></tbody></table>
+<h4 id="33-效果分析">3.3 效果分析</h4>
+<ul>
+<li><strong>性能提升：65%</strong>（从 123s → 43s）</li>
+<li>磁盘排序量从 938MB 降至各线程约 231MB</li>
+<li>扫描时间从 16.4s 降至约 4.2s（接近理想的 4 倍加速比）</li>
+<li><strong>局限性</strong>：仍然需要全表扫描 + 大排序，KEEP 聚合函数的本质开销未解决</li>
+</ul>
+<hr/>
+<h3 id="方案-2distinct-on--覆盖索引重构">方案 2：DISTINCT ON + 覆盖索引重构</h3>
+<h4 id="34-优化思路">3.4 优化思路</h4>
+<p>将 KEEP 聚合改写为 PostgreSQL 特有的 <code>DISTINCT ON</code> 语法，同时创建覆盖索引避免回表。</p>
+<h4 id="35-ddl-变更">3.5 DDL 变更</h4>
+<pre><code class="language-sql">-- 创建测试表（数据副本）
+CREATE TABLE t_test_staging AS SELECT * FROM data_ops.t_market_data_detail;
+
+-- 创建覆盖索引：排序键 + 包含所有查询字段
+CREATE INDEX idx_opt_001 ON t_test_staging (asset_id, seq_no DESC)
+    INCLUDE (trade_date, amount, qty, oi_value, update_time, channel_id);
+</code></pre>
+<h4 id="36-sql-改写">3.6 SQL 改写</h4>
+<pre><code class="language-sql">SELECT a.asset_id, a.trade_date, a.amount, a.qty, a.oi_value, n.t2_qty, n.t2_amount
+FROM (SELECT DISTINCT ON (asset_id) asset_id, trade_date, amount, qty, oi_value
+      FROM t_test_staging
+      WHERE trade_date = '20250627' AND update_time &lt;= '15:00:00'
+        AND channel_id IN (100, 500, 1000, 5000)
+      ORDER BY asset_id, seq_no DESC NULLS LAST) a
+LEFT JOIN (SELECT DISTINCT ON (asset_id) asset_id, qty AS t2_qty, amount AS t2_amount
+           FROM t_test_staging
+           WHERE trade_date = '20250627' AND update_time &lt;= '09:00:00'
+             AND channel_id IN (100, 500, 1000, 5000)
+           ORDER BY asset_id, seq_no DESC NULLS LAST) n
+USING (asset_id);
+</code></pre>
+<h4 id="37-完整执行计划">3.7 完整执行计划</h4>
+<pre><code class="language-sql"> id |                                      operation                                       |   A-time   |    A-rows    | E-rows |  Peak Memory  | A-width | E-width |        E-costs         
+----+--------------------------------------------------------------------------------------+------------+--------------+--------+---------------+---------+---------+------------------------
+ 1  | -&gt; Hash Left Join (2, 5)                                                             |   40774.030|         2355 |      1 |          24kB |     204 |         | 1142568.006..1142570.563
+ 2  |    -&gt; Unique                                                                         |    33574.824|        2355 |      1 |          10kB |     182 |         |   571282.729..571285.264
+ 3  |         -&gt; Sort                                                                      |    30952.123|     15189573|    507 |      104896kB |     182 |         |   571282.729..571283.997
+ 4  |              -&gt; Index Only Scan using idx_opt_001 on t_test_staging                  |    12362.086|     15189573|    507 |         112kB |     182 |         |       0.000..571259.950
+ 5  |      -&gt; Hash                                                                         |     7125.826|        2355 |      1 |         427kB |     114 |         |   571285.274..571285.274
+ 6  |           -&gt; Subquery Scan on n                                                      |     7124.697|        2355 |      1 |          13kB |     114 |         |   571282.729..571285.274
+ 7  |                -&gt; Unique                                                             |     7123.976|        2355 |      1 |          10kB |     128 |         |   571282.729..571285.264
+ 8  |                     -&gt; Sort                                                          |     7123.138|        2373 |    507 |          3kB  |     128 |         |   571282.729..571283.997
+ 9  |                          -&gt; Index Only Scan using idx_opt_001 on t_test_staging      |     7112.291|        2373 |    507 |         112kB |     128 |         |       0.000..571259.950
+(9 rows)
+
+                                    Predicate Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 1 --Hash Left Join (2, 5)
+      Hash Cond: ((public.t_test_staging.asset_id)::text = (n.asset_id)::text), (Expression Flatten Optimized)
+ 4 --Index Only Scan using idx_opt_001 on t_test_staging
+     Filter: (((trade_date)::text = '20250627'::text) AND ((update_time)::text &lt;= '15:00:00'::text) AND (channel_id = ANY ('{100,500,1000,5000}'::numeric[]))), (Expression Flatten Optimizd), (Predicates Reordered)
+     Rows Removed by Filter: 8775
+ 9 --Index Only Scan using idx_opt_001 on t_test_staging
+     Filter: (((trade_date)::text = '20250627'::text) AND ((update_time)::text &lt;= '09:00:00'::text) AND (channel_id = ANY ('{100,500,1000,5000}'::numeric[]))), (Expression Flatten Optimizd), (Predicates Reordered)
+     Rows Removed by Filter: 15195975
+(8 rows)
+
+                                   Memory Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+3 --Sort
+       Sort Method: external merge  Disk: 804784kB
+Buckets: 32768 Batches: 1 Memory Usage: 124kB
+8 --Sort
+       Sort Method: quicksort  Memory: 319kB
+(5 rows)
+
+
+================ Query Summary ================
+-----------------------------------------------
+Datanode executor start time: 0.114 ms
+Datanode executor run time: 40775.241 ms
+Datanode executor end time: 0.047 ms
+Planner runtime: 0.770 ms
+Query Id: 1946962414165250608
+Total runtime: 40775.440 ms
+(6 rows)
+</code></pre>
+<p><strong>总耗时：40,775 ms（约 41 秒）</strong></p>
+<h5 id="执行计划摘要-2">执行计划摘要</h5>
+<table><thead><tr><th>节点</th><th>操作</th><th>实际耗时</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>Hash Left Join</td><td>40,774 ms</td><td>合并两个子查询结果</td></tr><tr><td>2-4</td><td>Unique/Sort/Index Only Scan（全日）</td><td>33,574 ms</td><td>覆盖索引扫描</td></tr><tr><td>5-9</td><td>Hash/Subquery/Unique/Sort/Index Only Scan（早盘）</td><td>7,125 ms</td><td>覆盖索引扫描</td></tr></tbody></table>
+<h4 id="38-效果分析">3.8 效果分析</h4>
+<ul>
+<li><strong>相比方案 0：提升 67%</strong>（从 123s → 41s）</li>
+<li><strong>Index Only Scan</strong>：完全通过索引获取数据，无需回表</li>
+<li><strong>逻辑拆分</strong>：将两个时间段的查询拆为独立子查询，早盘查询过滤后仅 2,373 行</li>
+<li><strong>局限性</strong>：仍然需要对全量数据进行 Sort（804MB 磁盘排序），未启用并行</li>
+</ul>
+<hr/>
+<h3 id="方案-3窗口函数--条件排名探索性尝试">方案 3：窗口函数 + 条件排名（探索性尝试）</h3>
+<h4 id="39-sql改写">3.9 SQL改写</h4>
+<pre><code class="language-sql">SELECT asset_id,
+       MAX(CASE WHEN rn_all = 1 THEN trade_date END) AS trade_date,
+       MAX(CASE WHEN rn_all = 1 THEN amount END) AS amount,
+       MAX(CASE WHEN rn_all = 1 THEN qty END) AS qty,
+       MAX(CASE WHEN rn_all = 1 THEN oi_value END) AS oi_value,
+       MAX(CASE WHEN rn_nine = 1 THEN qty END) AS t2_qty,
+       MAX(CASE WHEN rn_nine = 1 THEN amount END) AS t2_amount
+FROM (
+      SELECT asset_id, trade_date, amount, qty, oi_value,
+             -- 1 update_time&lt;=15:00 seq_no KEEP
+             ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY seq_no DESC NULLS LAST) AS rn_all,
+             -- 2 update_time&lt;=09:00 seq_no KEEPCASE
+             ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY CASE WHEN update_time &lt;= '09:00:00' THEN seq_no END DESC NULLS LAST) AS rn_nine
+      FROM (
+        SELECT asset_id, trade_date, amount, qty, oi_value, seq_no, update_time
+        FROM data_ops.t_market_data_detail
+        WHERE trade_date = '20250627'
+          AND update_time &lt;= '15:00:00'
+          AND channel_id IN (100, 500, 1000, 5000)
+      ) base
+    ) ranked
+GROUP BY asset_id;
+</code></pre>
+<h4 id="310-完整执行计划">3.10 完整执行计划</h4>
+<pre><code class="language-sql"> id |        operation       |   A-time   |    A-rows    |    E-rows    | Peak Memory | A-width | E-width |        E-costs         
+----+------------------------+------------+--------------+--------------+-------------+---------+---------+------------------------
+ 1  | -&gt; GroupAggregate      |  163316.589|         2355 |        2356 |        60kB |     243 |         | 6003628.088..6988339.898
+ 2  |      -&gt; windowAgg      |   155457.946|    15189573 |    15149050 |        32kB |      49 |         | 6003628.088..6344481.713
+ 3  |           -&gt; Sort      |   144296.753|    15189573 |    15149050 |      6557kB |      49 |         | 6003628.088..6041500.713
+ 4  |                  -&gt; windowAgg |   119080.339|    15189573 |    15149050 |        32kB |      49 |         | 3158506.822..3499360.447
+ 5  |                         -&gt; Sort |   107443.791|    15189573 |    15149050 |      6557kB |      49 |         | 3158506.822..3196379.447
+ 6  |                                -&gt; Seq Scan on t_market_data_detail |  21274.101|    15189573 |    15149050 |        4kB  |      49 |         |   0.000..654239.180
+(6 rows)
+
+                                    Predicate Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 6 --Seq Scan on t_market_data_detail
+     Filter: (((update_time)::text &lt;= '15:00:00'::text) AND ((trade_date)::text = '20250627'::text) AND (channel_id = ANY ('{100,500,1000,5000}'::numeric[]))), (Expression Flatten Optimizd), (Predicates Reordered)
+     Rows Removed by Filter: 8775
+(3 rows)
+
+                                   Memory Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+3 --Sort
+       Sort Method: external merge  Disk: 965808kB
+5 --Sort
+       Sort Method: external merge  Disk: 804920kB
+(4 rows)
+
+
+================ Query Summary ================
+-----------------------------------------------
+Datanode executor start time: 0.170 ms
+Datanode executor run time: 163319.509 ms
+Datanode executor end time: 60.965 ms
+Planner runtime: 0.911 ms
+Query Id: 1946962414165494361
+Total runtime: 163380.667 ms
+(6 rows)
+</code></pre>
+<p><strong>总耗时：163,380 ms（约 163 秒）</strong> ⚠️ <strong>性能最差</strong></p>
+<h5 id="执行计划摘要-3">执行计划摘要</h5>
+<table><thead><tr><th>节点</th><th>操作</th><th>实际耗时</th></tr></thead><tbody><tr><td>1</td><td>GroupAggregate</td><td>163,316 ms</td></tr><tr><td>2</td><td>WindowAgg</td><td>155,457 ms</td></tr><tr><td>3</td><td>Sort</td><td>144,296 ms</td></tr><tr><td>4</td><td>WindowAgg</td><td>119,080 ms</td></tr><tr><td>5</td><td>Sort</td><td>107,443 ms</td></tr><tr><td>6</td><td>Seq Scan</td><td>21,274 ms</td></tr></tbody></table>
+<h4 id="311-失败原因分析">3.11 失败原因分析</h4>
+<ul>
+<li><strong>双重窗口函数</strong>：需要两次独立排序，分别产生 965MB 和 804MB 的磁盘 I/O</li>
+<li><strong>全量数据排名</strong>：对 1500 万行逐行计算 ROW_NUMBER，然后外层再聚合</li>
+<li><strong>无并行、无索引</strong>：退化为最差的串行全表扫描模式</li>
+<li><strong>结论</strong>：此方案不适用于大数据量场景，窗口函数在数据量过大时开销显著</li>
+</ul>
+<hr/>
+<h3 id="方案-4两阶段聚合--反向查找最终最优方案">方案 4：两阶段聚合 + 反向查找（最终最优方案）⭐</h3>
+<h4 id="312-核心思路">3.12 核心思路</h4>
+<p><strong>"先找序列号，再查明细"</strong> —— 将问题分解为两个阶段：</p>
+<ol>
+<li><strong>第一阶段（聚合）</strong>：按品种分组，直接计算出每个品种在两个时间段的最大 <code>seq_no</code></li>
+<li><strong>第二阶段（回查）</strong>：用计算出的 <code>seq_no</code> 精确匹配原表，获取完整行数据</li>
+</ol>
+<h4 id="313-sql-实现">3.13 SQL 实现</h4>
+<pre><code class="language-sql">SELECT /*+set(query_dop 4)*/
+       asset_id,
+       MAX(CASE WHEN data_type = 'GROUP_09' THEN amount END) AS amount_09,
+       MAX(CASE WHEN data_type = 'GROUP_09' THEN qty END) AS qty_09,
+       MAX(CASE WHEN data_type = 'GROUP_15' THEN trade_date END) AS trade_date_15,
+       MAX(CASE WHEN data_type = 'GROUP_15' THEN amount END) AS amount_15,
+       MAX(CASE WHEN data_type = 'GROUP_15' THEN qty END) AS qty_15
+FROM (
+      SELECT o.asset_id, o.seq_no, o.trade_date, o.amount, o.qty, o.oi_value,
+             CASE
+                 WHEN o.seq_no = kp.max_seq_no_09 THEN 'GROUP_09'
+                 WHEN o.seq_no = kp.max_seq_no_15 THEN 'GROUP_15'
+             END AS data_type
+      FROM (
+        -- 第一阶段：聚合出每个品种的最大 seq_no
+        SELECT asset_id,
+               MAX(CASE WHEN update_time &lt;= '09:00:00' THEN seq_no END) AS max_seq_no_09,
+               MAX(seq_no) AS max_seq_no_15
+        FROM data_ops.t_market_data_detail
+        WHERE trade_date = '20250627'
+          AND update_time &lt;= '15:00:00'
+          AND channel_id IN (1000, 5000, 100, 500)
+        GROUP BY asset_id
+      ) kp
+      JOIN data_ops.t_market_data_detail o
+        ON o.asset_id = kp.asset_id
+        AND o.trade_date = '20250627'
+        AND o.channel_id IN (1000, 5000, 100, 500)
+        AND o.seq_no IN (kp.max_seq_no_09, kp.max_seq_no_15)
+     ) TargetRows
+GROUP BY asset_id;
+</code></pre>
+<h4 id="314-完整执行计划">3.14 完整执行计划</h4>
+<pre><code class="language-sql"> id |                            operation                           |            A-time             |    A-rows   | E-rows  |   Peak Memory   |  A-width  | E-width |        E-costs         
+----+----------------------------------------------------------------+-------------------------------+-------------+---------+-----------------+-----------+---------+------------------------
+ 1  | -&gt; Streaming(type: LOCAL GATHER dop: 1/4)                      | [18111.000,18111.000]         |        2355 |       3 | [134kB,134kB]   |           |     297 | 482084.094..482084.278
+ 2  |      -&gt; HashAggregate                                          | [18099.159,18104.285]         |        2355 |       3 | [377kB,393kB]   | [27,27]   |     297 | 482084.094..482084.102
+ 3  |           -&gt; Streaming(type: LOCAL REDISTRIBUTE dop: 4/4)      | [18093.913,18099.183]         |        4710 |       3 | [136kB,136kB]   |           |     105 | 203747.245..482084.047
+ 4  |                  -&gt; Hash Join (5,6)                            | [17880.987,18086.743]         |        4710 |       3 | [24kB,24kB]     |           |     105 | 203747.245..482083.833
+ 5  |                      -&gt; Seq Scan on t_market_data_detail o     | [3808.056,3887.799]           |   15191946 | 15196559| [41kB,41kB]     |           |      41 |   0.000..155058.039
+ 6  |                      -&gt; Hash                                  | [8385.531,8404.325]           |        9420 |    9392 | [419kB,419kB]   | [39,39]   |      75 | 203717.895..203717.895
+ 7  |                           -&gt; Streaming(type: BROADCAST dop: 4/4) | [8384.467,8403.213]      |        9420 |    9392 | [123kB,123kB]   |           |      75 | 202593.157..203717.895
+ 8  |                                -&gt; Subquery Scan on kp         | [8379.329,8386.988]           |        2355 |    2348 | [5kB,5kB]       |           |      75 | 202593.157..202622.507
+ 9  |                                      -&gt; HashAggregate         | [8379.154,8386.834]           |        2355 |    2348 | [178kB,182kB]   | [27,27]   |      89 | 202593.157..202599.027
+10  |                                           -&gt; Streaming(type: LOCAL REDISTRIBUTE dop: 4/4) | [8376.756,8384.340] |        9420 |    2348 | [114kB,114kB]   |           |      89 | 202432.420..202587.287
+11  |                                                  -&gt; HashAggregate | [7870.510,8379.085]       |        9420 |    2348 | [539kB,622kB]   | [27,27]   |      89 | 202432.420..202438.290
+12  |                                                       -&gt; Seq Scan on t_market_data_detail | [5167.157,5347.326] |   15189573 | 15149050| [37kB,37kB]     |           |      25 |   0.000..164559.795
+(12 rows)
+
+                                    Predicate Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+ 4 --Hash Join (5,6)
+      Hash Cond: ((o.asset_id)::text = (kp.asset_id)::text), (Expression Flatten Optimized)
+      Join Filter: (((o.seq_no = kp.max_seq_no_09) OR (o.seq_no = kp.max_seq_no_15)), (Expression Flatten Optimized)
+      Rows Removed by Join Filter: 15187236
+ 5 --Seq Scan on t_market_data_detail o
+     Filter: (((trade_date)::text = '20250627'::text) AND (channel_id = ANY ('{1000,5000,100,500}'::numeric[]))), (Expression Flatten Optimized), (Predicates Reordered)
+     Rows Removed by Filter: 6402
+12 --Seq Scan on t_market_data_detail
+     Filter: (((update_time)::text &lt;= '15:00:00'::text) AND ((trade_date)::text = '20250627'::text) AND (channel_id = ANY ('{1000,5000,100,500}'::numeric[]))), (Expression Flatten Optimiz
+d), (Predicates Reordered)
+     Rows Removed by Filter: 8775
+(10 rows)
+
+                                   Memory Information (identified by plan id)
+---------------------------------------------------------------------------------------------------------------------------
+
+6 --Hash
+       Max Buckets: 32768  Max Batches: 1  Max Memory Usage: 129kB
+       Min Buckets: 32768  Min Batches: 1  Min Memory Usage: 129kB
+(3 rows)
+
+                                 User Define Profiling
+---------------------------------------------------------------------------------------------------------------------------
+
+Segment Id: 1 Track name: Datanode build connection
+     (actual time=[0.000, 0.000], calls=[1, 1])
+Plan Node id: 1 Track name: Datanode start up stream thread
+     (actual time=[1.292, 1.292], calls=[1, 1]))
+(4 rows)
+
+
+================ Query Summary ================
+-----------------------------------------------
+Datanode executor start time: 2.436 ms
+Datanode executor run time: 18111.228 ms
+Datanode executor end time: 0.118 ms
+Planner runtime: 5.341 ms
+Query Id: 194696241416526033
+Total runtime: 18113.822 ms
+(6 rows)
+</code></pre>
+<p><strong>总耗时：18,113 ms（约 18 秒）</strong></p>
+<h5 id="执行计划摘要-4">执行计划摘要</h5>
+<table><thead><tr><th>节点</th><th>操作</th><th>实际耗时</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>Streaming (LOCAL GATHER)</td><td>18,111 ms</td><td>并行汇聚</td></tr><tr><td>2</td><td>HashAggregate</td><td>18,099~18,104 ms</td><td>最终聚合</td></tr><tr><td>3</td><td>Streaming (LOCAL REDISTRIBUTE)</td><td>18,093~18,099 ms</td><td>数据重分布</td></tr><tr><td>4</td><td>Hash Join</td><td>17,880~18,086 ms</td><td>两阶段 JOIN</td></tr><tr><td>5</td><td>Seq Scan (o)</td><td>3,808~3,887 ms</td><td>明细表并行扫描</td></tr><tr><td>6-12</td><td>Hash/Broadcast/Subquery/HashAggregate</td><td>5,167~8,404 ms</td><td>聚合阶段并行执行</td></tr></tbody></table>
+<h4 id="315-效果分析">3.15 效果分析</h4>
+<table><thead><tr><th>对比项</th><th>方案 0</th><th>方案 1</th><th>方案 2</th><th>方案 3</th><th><strong>方案 4</strong></th></tr></thead><tbody><tr><td>总耗时</td><td>123,543 ms</td><td>43,145 ms</td><td>40,775 ms</td><td>163,380 ms</td><td><strong>18,113 ms</strong></td></tr><tr><td>相对方案 0</td><td>100%</td><td>34.9%</td><td>33.0%</td><td>132.3%</td><td><strong>14.7%</strong></td></tr><tr><td>性能提升</td><td>-</td><td>65.1%</td><td>67.0%</td><td>-32.3%</td><td><strong>85.3%</strong></td></tr><tr><td>并行度</td><td>无</td><td>DOP=4</td><td>无</td><td>无</td><td>DOP=4</td></tr><tr><td>排序方式</td><td>外部归并(938MB)</td><td>外部归并(231MB×4)</td><td>外部归并(804MB)</td><td>外部归并(1.7GB)</td><td><strong>HashAggregate</strong></td></tr><tr><td>索引使用</td><td>无</td><td>无</td><td>Index Only</td><td>无</td><td>无需索引</td></tr></tbody></table>
+<hr/>
+<h2 id="四优化策略总结">四、优化策略总结</h2>
+<h3 id="41-关键优化点">4.1 关键优化点</h3>
+<h4 id="1避免大排序--用-hashaggregate-替代-sort">（1）避免大排序 —— 用 HashAggregate 替代 Sort</h4>
+<pre><code>方案 0/1/2/3：扫描 → 排序(磁盘) → 聚合    【瓶颈在排序】
+方案 4：      扫描 → HashAggregate → JOIN  【无大排序】
+</code></pre>
+<p>方案 4 的核心突破在于：<strong>第一阶段直接用 <code>MAX()</code> 聚合找到目标 seq_no，完全避免了排序操作</strong>。HashAggregate 的内存开销仅为几百 KB，远小于磁盘排序的数百 MB。</p>
+<h4 id="2减少数据流转量">（2）减少数据流转量</h4>
+<table><thead><tr><th>方案</th><th>排序/聚合的数据量</th><th>最终输出</th></tr></thead><tbody><tr><td>0/1/3</td><td>15,189,573 行（全量）</td><td>2,355 行</td></tr><tr><td>2</td><td>15,189,573 + 2,373 行</td><td>2,355 行</td></tr><tr><td><strong>4</strong></td><td><strong>2,355 行（聚合后）+ 最多 4,710 行（回查）</strong></td><td><strong>2,355 行</strong></td></tr></tbody></table>
+<p>方案 4 在第一阶段就将 1500 万行压缩为 2,355 个品种的最大 seq_no，第二阶段仅用这些 seq_no 精确回查，JOIN 后最多返回约 4,710 行。</p>
+<h4 id="3并行计算加速">（3）并行计算加速</h4>
+<p>方案 4 充分利用 GaussDB 的SMP能力：</p>
+<ul>
+<li><strong>LOCAL REDISTRIBUTE</strong>：将数据均匀分发到 4 个线程</li>
+<li><strong>BROADCAST</strong>：将小的聚合结果广播到所有线程</li>
+<li><strong>LOCAL GATHER</strong>：汇聚各线程的局部结果</li>
+</ul>
+<h4 id="4单次表扫描的设计哲学">（4）单次表扫描的设计哲学</h4>
+<p>虽然方案 4 在逻辑上"读了两遍表"（一次聚合 + 一次回查），但两遍扫描是并行分布在不同线程执行的，且第二遍扫描通过 Hash Join 的过滤条件大幅减少了有效数据量。相比方案 0/1 中排序带来的磁盘 I/O，两次内存友好的扫描反而更高效。</p>
+<h3 id="42-优化路径总结">4.2 优化路径总结</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│  初始状态：KEEP 聚合 + 全表扫描 + 大排序                     │
+│  耗时: 123s                                                  │
+│                           ↓                                 │
+│  第一步：启用并行 (query_dop=4)                              │
+│  效果: 123s → 43s（65% 提升）                                │
+│  分析: 并行有效但未解决排序瓶颈                               │
+│                           ↓                                 │
+│  第二步：DISTINCT ON + 覆盖索引（探索方向）                   │
+│  效果: 123s → 41s（67% 提升）                                │
+│  分析: Index Only Scan 有效，但仍需大排序                     │
+│                           ↓                                 │
+│  第三步：窗口函数（反面教材）                                 │
+│  效果: 123s → 163s（性能下降！）                              │
+│  分析: 双重窗口 + 双重排序 = 灾难                             │
+│                           ↓                                 │
+│  第四步：两阶段聚合 + 反向查找 ⭐                             │
+│  效果: 123s → 18s（85% 提升）                                │
+│  分析: HashAggregate 替代排序 + 并行 = 最优解                │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="43-通用优化建议">4.3 通用优化建议</h3>
+<ol>
+<li><strong>优先消除排序</strong>：对于 "取每组最大值对应行" 的场景，先用 <code>MAX()</code>/<code>MIN()</code> 聚合出目标键值，再回查明细，比直接排序更高效</li>
+<li><strong>KEEP/FIRST_VALUE 类函数的替代方案</strong>：当数据量大时，考虑用"先聚合后 JOIN"的模式替代</li>
+<li><strong>并行是基础优化</strong>：在 GaussDB 全表扫描性能相比ORACLE差很多， <code>query_dop</code> 是最直接的优化手段</li>
+<li><strong>覆盖索引有前提</strong>：Index Only Scan 虽好，但如果查询仍需大排序，收益有限；且维护索引有额外成本</li>
+<li><strong>窗口函数需谨慎</strong>：窗口函数在数据量超过内存容量时会产生大量磁盘 I/O，不适合作为大数据量的首选方案</li>
+<li><strong>通过执行计划验证假设</strong>：每次改写后务必用 <code>EXPLAIN ANALYZE</code> 验证实际效果，避免"理论上更好"但实际更差的情况</li>
+</ol>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../troubleshooting-error-plpgsql-estate-is-null-in-gaussdb/">【GaussDB】排查报错"ERROR: Plpgsql estate is null" &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

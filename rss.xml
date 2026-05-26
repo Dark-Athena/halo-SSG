@@ -6,6 +6,12 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】 keep聚合SQL 性能优化分析：从 123s 到 18s 的优化之路</title>
+      <link>https://www.darkathena.top/archives/Optimizing-KEEP-Aggregations-in-GaussDB-From-123s-to-18s</link>
+      <description>【GaussDB】 排序聚合SQL 性能优化分析：从 123s 到 18s 的优化之路 注：本文所有对象名及字段名均已做脱敏处理 一、业务背景与需求描述 1.1 业务场景 某金融交易系统需要查询每日行情数据，针对每个交易品种（asset_id），获取两个时间段的最新行情快照： 全日快照：在 upda</description>
+      <pubDate>Sat, 23 May 2026 16:00:09 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】排查报错"ERROR: Plpgsql estate is null"</title>
       <link>https://www.darkathena.top/archives/troubleshooting-error-plpgsql-estate-is-null-in-gaussdb</link>
       <description>【GaussDB】排查报错"ERROR: Plpgsql estate is null" 背景 客户在 GaussDB 中执行一个上万行的匿名块时，遇到了 ERROR: Plpgsql estate is null 报错。通过手动加日志点位二分法，定位到报错 SQL 与子函数调用相关。单独调用子函数</description>
@@ -318,12 +324,6 @@ gsq</description>
       <link>https://www.darkathena.top/archives/duckdb-marco-some-case</link>
       <description>【DuckDB】活用marco以兼容GaussDB的SQL执行 前言 前文有提到，有些复杂的分析型SQL在DuckDB上执行会比GaussDB上快，但实际应用场景中，GaussDB有些函数在DuckDB上并不支持，因此有时候会需要修改GaussDB的SQL,但如果一个某些函数用得非常多，入参还不一样</description>
       <pubDate>Mon, 24 Nov 2025 14:02:33 +0000</pubDate>
-    </item>
-    <item>
-      <title>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？</title>
-      <link>https://www.darkathena.top/archives/how-sql-audit-tool</link>
-      <description>测了一圈SQL审核软件后，我产生了一个疑问："SQL审核软件"应该是什么样的？ 背景 围绕数据库做的通用工具有很多，其中有一种叫"SQL审核"，有很多用户期望使用"SQL审核"工具满足自己的需求，但实际用起来，发现并不是自己想要的。前一阵子我私下测试了好几个SQL审核软件，发现均无法满足某些客户的某</description>
-      <pubDate>Mon, 24 Nov 2025 13:48:05 +0000</pubDate>
     </item>
   </channel>
 </rss>

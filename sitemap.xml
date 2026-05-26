@@ -15,6 +15,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/Optimizing-KEEP-Aggregations-in-GaussDB-From-123s-to-18s</loc>
+    <lastmod>2026-05-23</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/duckdb-connect-oracle-gaussdb</loc>
     <lastmod>2026-05-23</lastmod>
     <priority>0.8</priority>
