@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】会话里出现大量idle in transaction状态的问题排查 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】会话里出现大量idle in transaction状态的问题排查 背景 客户DBA给应用开发人员宣讲GaussDB数据库的idle in transaction会话的监控告警后，开发人员自查，发现在开发环境中存在大量的idle in transaction会话，一时恐慌，于是来找">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】会话里出现大量idle in transaction状态的问题排查</h1>
+    <div class="meta">
+        
+        <span>2026-05-29</span>
+        
+        <span>18 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb会话里出现大量idle-in-transaction状态的问题排查">【GaussDB】会话里出现大量idle in transaction状态的问题排查</h1>
+<h2 id="背景">背景</h2>
+<p>客户DBA给应用开发人员宣讲GaussDB数据库的idle in transaction会话的监控告警后，开发人员自查，发现在开发环境中存在大量的idle in transaction会话，一时恐慌，于是来找DBA帮忙排查是不是应用代码哪里写得有问题。</p>
+<p>数据库内核版本是 506.0 SPC0500 集中式。</p>
+<h2 id="检查应用">检查应用</h2>
+<p>应用软件使用的spring框架接mybaitis，连接使用基于DBCP修改的连接池，提取pg_stat_activity里idle in transaction会话最后执行的SQL，找到应用代码中出现的位置，发现并没有声明事务。<br/>
+在执行SQL的前后加上断点打印getautocommit的值，是 true。<br/>
+当时有怀疑是连接池上做了反射导致autocommit是假的，因为该客户项目要求连接默认为非自动提交。但后续确认了连接池并没有做相关修改。<br/>
+也怀疑了该SQL之前执行的其他任务有开启事务但没结束事务，由于应用代码比较复杂，而且是多线程的，不好排查。</p>
+<h2 id="抓包分析">抓包分析</h2>
+<p>指定客户端的端口进行网络抓包，得到客户端与数据库之间的所有交互内容。观察到在该查询SQL之前，的确有出现过start transaction的语句，但是有提交。服务端返回客户端会返回事务状态，很明显最后客户端查询SQL，服务端返回的事务状态是idle，但此时数据库中查询该会话的状态仍然是idle in transaction。</p>
+<p>难道是数据库有问题？</p>
+<h2 id="检查数据库">检查数据库</h2>
+<p>仔细观察pg_stat_activity视图，发现这个idle in transaction的会话和以前遇到的长得不太一样，它的xact_start是空的！就是说它没有事务开始时间！<br/>
+一个没有事务开始时间的会话，怎么可能是idle in transaction状态呢？而且此时它的pid是0。<br/>
+隐隐感觉与GaussDB的线程池模式有关，当一个会话执行完任务闲置时，pid就会置为0。</p>
+<p>手动在gsql中使用<code>start transaction</code>模拟开启一个事务,该会话状态为idle in transaction，xact_start不为空；然后执行commit，会话状态变为idle，xact_start变为空，一切正常。</p>
+<h2 id="编写java代码模拟">编写java代码模拟</h2>
+<p>使用非自动提交，依次执行一条简单查询和一个commit，断点跟踪，在查询执行后，会话状态为idle in transaction,xact_start不为空;commit后，会话状态变为idle，xact_start变为空，一切正常。</p>
+<h2 id="ai源码分析">AI源码分析</h2>
+<p>这次使用vscode里的claude code插件，模型配置为小米的mimo-2.5-pro。<br/>
+由于没有GaussDB源码，暂且只能尝试从openGauss源码里找出一些线索。</p>
+<blockquote>
+<p>User: 分析一下源码，在线程池模式enable_thread_pool开启的时候，是否可能存在有客户端会话xact_start为空但state为idle in transaction</p>
+<p>Claude: 我来分析一下这个问题，需要查找线程池模式下事务状态和xact_start的处理逻辑。</p>
+<p>分析完成。以下是详细结论：</p>
+<h2 id="结论存在这种可能性但只在特定条件下出现">结论：<strong>存在这种可能性</strong>，但只在特定条件下出现</h2>
+<h3 id="核心发现">核心发现</h3>
+<p>通过分析源码，<code>xact_start</code> 为空但 <code>state</code> 为 <code>idle in transaction</code> 的情况<strong>确实可能在线程池模式下发生</strong>，关键路径如下：</p>
+<h3 id="关键代码路径commit_pending-场景">关键代码路径（<code>commit_pending</code> 场景）</h3>
+<p>在扩展查询协议（PBE）中，当 <code>enable_beta_features = true</code> 且事务没有分配事务ID（只读事务）时，存在一个特殊的优化路径：</p>
+<p><strong><a href="src/gausskernel/process/tcop/postgres.cpp:5747">exec_sync_message()</a></strong> 中：</p>
+<pre><code class="language-cpp">if (u_sess-&gt;attr.attr_common.enable_beta_features &amp;&amp; 
+   GetTopTransactionIdIfAny() == InvalidTransactionId) {
+   u_sess-&gt;xact_cxt.commit_pending = true;  // 延迟提交！
+} else {
+   finish_xact_command();  // 正常提交
+}
+</code></pre>
+<p><strong><a href="src/gausskernel/process/tcop/postgres.cpp:9272">PostgresMain() 主循环</a></strong> 中的处理顺序：</p>
+<pre><code>步骤1 (line 9302-9304): 先报告状态
+   if (IsTransactionOrTransactionBlock()) {
+       pgstat_report_activity(STATE_IDLEINTRANSACTION, NULL);  // 设置状态为 idle in transaction
+   }
+
+步骤2 (line 9345): 发送 ReadyForQuery 给客户端
+
+步骤3 (line 9346-9348): 然后才提交事务（延迟提交）
+   if (u_sess-&gt;xact_cxt.commit_pending) {
+       finish_xact_command();  // → CommitTransaction() → pgstat_report_xact_timestamp(0) 清除 xact_start
+   }
+</code></pre>
+<h3 id="竞态窗口">竞态窗口</h3>
+<p>在<strong>步骤1到步骤3之间</strong>，存在一个时间窗口：</p>
+<ul>
+<li><code>state</code> 已经被设置为 <code>STATE_IDLEINTRANSACTION</code>（步骤1）</li>
+<li><code>xact_start</code> 还没有被清除（步骤3还没执行）</li>
+</ul>
+<p>在<strong>步骤3之后</strong>到<strong>下一次循环开始前</strong>：</p>
+<ul>
+<li><code>state</code> 仍然是 <code>STATE_IDLEINTRANSACTION</code>（未更新）</li>
+<li><code>xact_start</code> 已经被清除为 0</li>
+</ul>
+<p>这就是 <code>xact_start = NULL</code> 但 <code>state = idle in transaction</code> 的状态。</p>
+<h3 id="线程池模式的特殊性">线程池模式的特殊性</h3>
+<p>在线程池模式下，这个不一致性更容易被外部观察到：</p>
+<ol>
+<li>
+<p><strong>会话分离（Detach）</strong>：线程池中的会话在空闲时可以被分离（DetachSessionFromThread），分离时 <a href="src/gausskernel/process/postmaster/pgstat.cpp:3300">pgstat_couple_decouple_session</a> 只更新 <code>st_procpid</code> 和 <code>st_tid</code>，<strong>不会修改 <code>st_state</code> 和 <code>st_xact_start_timestamp</code></strong></p>
+</li>
+<li>
+<p><strong>状态持久化</strong>：会话的 BEEntry 中的状态在分离后仍然保留，如果在上述竞态窗口期间或之后查询 <code>pg_stat_activity</code>，就能观察到这个不一致状态</p>
+</li>
+<li>
+<p><strong>正常流程不存在此问题</strong>：在非 <code>commit_pending</code> 路径中，<code>finish_xact_command()</code> 在 <code>exec_sync_message()</code> 中立即调用，事务在状态报告之前就已经提交，<code>IsTransactionOrTransactionBlock()</code> 返回 false，状态会被正确设置为 <code>STATE_IDLE</code></p>
+</li>
+</ol>
+<h3 id="总结">总结</h3>
+<table><thead><tr><th>场景</th><th>是否存在不一致</th></tr></thead><tbody><tr><td>普通查询协议（Simple Query）</td><td>否</td></tr><tr><td>扩展查询协议 + <code>enable_beta_features = false</code></td><td>否</td></tr><tr><td>扩展查询协议 + <code>enable_beta_features = true</code> + 只读事务</td><td><strong>是</strong></td></tr><tr><td>上述场景 + 线程池模式</td><td><strong>是，且更容易被外部观察到</strong></td></tr></tbody></table>
+<p>User: 写一段能复现这个现象的java代码给我</p>
+<p>Claude: 根据前面的分析，复现的关键条件是：</p>
+<ol>
+<li>线程池模式开启</li>
+<li><code>enable_beta_features = on</code></li>
+<li>使用扩展查询协议（PreparedStatement）执行只读查询代码已写好，保存在 <code>c:\tmp\ReproduceXactStartNull.java</code>。</li>
+</ol>
+<h2 id="使用说明">使用说明</h2>
+<p><strong>前置条件</strong>（在 openGauss 服务端设置）：</p>
+<pre><code class="language-sql">-- 必须开启线程池
+enable_thread_pool = on
+
+-- 无需手动设置 enable_beta_features, 代码中已通过 SET 语句设置
+</code></pre>
+<p><strong>编译运行</strong>：</p>
+<pre><code class="language-bash"># 需要 openGauss JDBC 驱动 jar
+javac -cp opengauss-jdbc-xxx.jar ReproduceXactStartNull.java
+java -cp .:opengauss-jdbc-xxx.jar ReproduceXactStartNull
+</code></pre>
+<p><strong>修改代码中的连接信息</strong>（第38-40行）：</p>
+<pre><code class="language-java">private static final String URL      = "jdbc:opengauss://localhost:5432/postgres";
+private static final String USER     = "your_user";
+private static final String PASSWORD = "your_password";
+</code></pre>
+<h2 id="复现原理">复现原理</h2>
+<p>代码利用了前面分析中发现的竞态窗口：</p>
+<pre><code>exec_sync_message() 中:
+ enable_beta_features=true + 只读事务(无事务ID) → commit_pending = true
+
+PostgresMain 主循环中:
+ [步骤A] pgstat_report_activity(STATE_IDLEINTRANSACTION)   ← 先设状态
+ [步骤B] fn_send_ready_for_query()                          ← 客户端收到响应
+ [步骤C] finish_xact_command() → xact_start = 0             ← 后清 xact_start
+
+窗口: 步骤B~C之间, 监控连接查询可见 state='idle in transaction' + xact_start=NULL
+</code></pre>
+<p>由于窗口极小（微秒级），代码通过 10000 次循环不断尝试来命中。实际命中率取决于系统负载和线程调度，不一定每次都能复现。</p>
+</blockquote>
+<p>AI给的这个分析很有启发性。这个问题发生在pbe场景下，只有由于openGauss毕竟不是GaussDB，参数enable_beta_features的控制是不一样的。而且AI说不一定每次都复现，但实际应用代码执行几乎必现。</p>
+<p>于是继续</p>
+<blockquote>
+<p>User: 写一段能复现这个现象的java代码给我 。另外，我在另一个java的程序里，能百分百复现，但按你说的只是有概率，似乎并不一致</p>
+<p>Claude: 现在我理解了。关键发现是：这不是竞态窗口问题，而是持久性的状态不一致。</p>
+<p>finish_xact_command() 执行后，xact_start 被清零，但 state 再也没有被更新回 STATE_IDLE，一直保持 STATE_IDLEINTRANSACTION 直到下一条查询到来。所以监控查询始终能观察到这个不一致状态。</p>
+<p>我之前的代码有两个问题：</p>
+<p>setAutoCommit(false) 导致 JDBC 发送显式 BEGIN，事务块状态是 TBLOCK_INPROGRESS，CommitTransactionCommand 不会提交外层事务，xact_start 不会被清零<br/>
+这不是概率问题，改对了就是 100%<br/>
+Write c:\tmp\ReproduceXactStartNull.java<br/>
+151 lines</p>
+<pre><code class="language-java">import java.sql.*;
+
+/**
+* 复现 openGauss 线程池模式下 xact_start 为空但 state 为 'idle in transaction' 的现象
+*
+* 前提条件:
+*   1. openGauss 开启线程池模式: enable_thread_pool = on
+*   2. 设置 enable_beta_features = on (代码中已通过 SET 语句设置)
+*
+* 根因分析 (参见 src/gausskernel/process/tcop/postgres.cpp):
+*
+*   当 enable_beta_features=on 且 PBE 只读查询无 XID 时,
+*   exec_sync_message() (line 5755-5761) 设置 commit_pending=true 而非立即提交。
+*
+*   随后在 send_ready_for_query 块中 (line 9272-9348), 顺序为:
+*     [1] line 9304: pgstat_report_activity(STATE_IDLEINTRANSACTION)  ← 先设置状态
+*     [2] line 9345: 发送 ReadyForQuery 给客户端
+*     [3] line 9347: finish_xact_command()                           ← 后提交事务
+*         → CommitTransaction() → pgstat_report_xact_timestamp(0)   ← 清零 xact_start
+*
+*   关键: 步骤[3]之后, 没有任何代码将 state 更新回 STATE_IDLE!
+*   BEEntry 的 st_state 持久保持 STATE_IDLEINTRANSACTION, 直到下一条查询到来。
+*   这不是竞态窗口, 而是持久性的状态不一致, 任何时刻查询 pg_stat_activity 都能观察到。
+*
+* 为什么必须 autocommit=true:
+*   autocommit=false 时 JDBC 发送显式 BEGIN, 事务块状态为 TBLOCK_INPROGRESS,
+*   CommitTransactionCommand() 不会提交外层事务, xact_start 不会被清零。
+*   autocommit=true 时无显式 BEGIN, 事务块状态为 TBLOCK_STARTED,
+*   CommitTransactionCommand() 会完整提交事务并清零 xact_start, 但 state 不更新。
+*/
+public class ReproduceXactStartNull {
+
+   // ========== 请根据实际环境修改 ==========
+   private static final String URL      = "jdbc:opengauss://localhost:5432/postgres";
+   private static final String USER     = "your_user";
+   private static final String PASSWORD = "your_password";
+   // ========================================
+
+   public static void main(String[] args) throws Exception {
+       Connection conn1 = null;
+       Connection conn2 = null;
+
+       try {
+           conn1 = DriverManager.getConnection(URL, USER, PASSWORD);
+           conn2 = DriverManager.getConnection(URL, USER, PASSWORD);
+
+           // 检查线程池是否开启
+           boolean tpEnabled = isThreadPoolEnabled(conn2);
+           System.out.println("enable_thread_pool = " + (tpEnabled ? "on" : "off"));
+           if (!tpEnabled) {
+               System.err.println("警告: enable_thread_pool 未开启, 线程池模式下才能观察到完整现象");
+           }
+
+           // 关键: 开启 enable_beta_features 以触发 commit_pending 路径
+           conn1.createStatement().execute("SET enable_beta_features = on");
+
+           // 关键: 必须保持 autocommit=true (JDBC 默认值)
+           // autocommit=false 会让 JDBC 发送显式 BEGIN, 导致事务块状态变为 TBLOCK_INPROGRESS,
+           // CommitTransactionCommand() 不会提交外层事务, xact_start 不会被清零
+           conn1.setAutoCommit(true);
+
+           long sessionId = getSessionId(conn1);
+           System.out.println("目标会话 sessionid = " + sessionId);
+           System.out.println();
+
+           // 使用 PreparedStatement (扩展查询协议 PBE) 执行只读查询
+           // 这会触发 exec_sync_message() 中的 commit_pending 路径
+           PreparedStatement ps = conn1.prepareStatement("SELECT 1");
+           ResultSet rs1 = ps.executeQuery();
+           rs1.next();
+           rs1.close();
+           // 不关闭 ps, 复用 PreparedStatement
+
+           // 此时服务端已完成:
+           //   [1] pgstat_report_activity(STATE_IDLEINTRANSACTION)  -- state 设为 idle in transaction
+           //   [2] 发送 ReadyForQuery 给客户端
+           //   [3] finish_xact_command() -&gt; CommitTransaction() -&gt; xact_start 清零
+           //   但 state 从未更新回 STATE_IDLE, 持久保持 STATE_IDLEINTRANSACTION
+
+           // 从另一个连接查询 pg_stat_activity, 应该 100% 观察到不一致状态
+           System.out.println("执行一次查询后检查 pg_stat_activity:");
+           checkState(conn2, sessionId);
+
+           // 再执行几次, 每次都应该观察到同样的不一致
+           System.out.println("\n连续执行 5 次查询, 每次执行后检查:");
+           for (int i = 1; i &lt;= 5; i++) {
+               ResultSet rs = ps.executeQuery();
+               rs.next();
+               rs.close();
+
+               System.out.printf("  第 %d 次: ", i);
+               checkState(conn2, sessionId);
+           }
+
+           ps.close();
+
+       } finally {
+           if (conn1 != null) try { conn1.close(); } catch (SQLException ignored) {}
+           if (conn2 != null) try { conn2.close(); } catch (SQLException ignored) {}
+       }
+   }
+
+   /**
+    * 检查目标会话的 xact_start 和 state
+    */
+   private static void checkState(Connection monitorConn, long targetSessionId) throws SQLException {
+       Statement stmt = monitorConn.createStatement();
+       ResultSet rs = stmt.executeQuery(
+           "SELECT xact_start, state FROM pg_stat_activity " +
+           "WHERE sessionid = " + targetSessionId);
+
+       if (rs.next()) {
+           Timestamp xactStart = rs.getTimestamp("xact_start");
+           String state = rs.getString("state");
+
+           String xactStartStr = (xactStart == null) ? "NULL" : xactStart.toString();
+           System.out.printf("xact_start=%-28s state='%s'", xactStartStr, state);
+
+           if (xactStart == null &amp;&amp; "idle in transaction".equals(state)) {
+               System.out.print("  &lt;&lt;&lt; 命中: xact_start 为空但 state 为 idle in transaction");
+           }
+           System.out.println();
+       }
+       rs.close();
+       stmt.close();
+   }
+
+   private static long getSessionId(Connection conn) throws SQLException {
+       Statement stmt = conn.createStatement();
+       ResultSet rs = stmt.executeQuery(
+           "SELECT sessionid FROM pg_stat_activity WHERE pid = pg_backend_pid()");
+       if (!rs.next()) throw new SQLException("无法获取 sessionid");
+       long sid = rs.getLong("sessionid");
+       rs.close();
+       stmt.close();
+       return sid;
+   }
+
+   private static boolean isThreadPoolEnabled(Connection conn) throws SQLException {
+       Statement stmt = conn.createStatement();
+       ResultSet rs = stmt.executeQuery("SHOW enable_thread_pool");
+       boolean enabled = false;
+       if (rs.next()) {
+           enabled = "on".equalsIgnoreCase(rs.getString(1));
+       }
+       rs.close();
+       stmt.close();
+       return enabled;
+   }
+}
+</code></pre>
+<p>The code is updated. Let me provide a summary of the key changes and why.</p>
+<p>代码已更新。核心修正：</p>
+<p>之前的问题：用了 setAutoCommit(false)，JDBC 会发显式 BEGIN，事务块状态变成 TBLOCK_INPROGRESS。此时 CommitTransactionCommand() 只提交子命令不提交外层事务，xact_start 根本不会被清零。</p>
+<p>修正后：setAutoCommit(true)（JDBC 默认值），不发 BEGIN。事务块状态是 TBLOCK_STARTED，CommitTransactionCommand() 会完整提交事务并清零 xact_start，但 state 不会被更新回 STATE_IDLE。</p>
+<p>为什么是 100% 而非概率：这不是竞态窗口。finish_xact_command() 在 line 9347 执行完之后，xact_start=0 + state='idle in transaction' 这个不一致状态会持久保持，直到该会话收到下一条查询（pgstat_report_activity(STATE_RUNNING, ...) 被调用）。所以任何时候从另一个连接查 pg_stat_activity 都能观察到。</p>
+<p>预期输出类似：</p>
+<p>执行一次查询后检查 pg_stat_activity:<br/>
+xact_start=NULL                      state='idle in transaction'  &lt;&lt;&lt; 命中: xact_start 为空但 state 为 idle in transaction</p>
+</blockquote>
+<p>使用这个JAVA程序连接GaussDB执行，果然问题必现了。</p>
+<h2 id="初步小结遗留问题">初步小结+遗留问题</h2>
+<p>到此，已经可以初步判断是GaussDB的活动会话视图中state字段的值是有问题的了。虽然AI解析的不是GaussDB源码，但对于这个问题，不同内核执行路径得到相同结果的概率应该是很低的。</p>
+<p>刚好这个时候，华为那边对这个问题有了回应，说是PBE场景下，事务结束后显示的这个idle in transaction是显示问题，这个BUG在507版本已修复。</p>
+<p>但是我这边还有一个遗留问题，我把这个程序接入到我本地不同的GaussDB环境中，执行的结果竟然有差异！使用tpops标准部署的环境是可以复现问题的，会显示idle in transaction；但使用docker部署的环境无法复现问题，会话是正确的idle。</p>
+<p>我肉眼观察两个环境的参数差异，把我认为可能会影响这个事务状态的参数都调整成一致了，测试结果依然没变！</p>
+<h2 id="ai-gdb调试分析">AI gdb调试分析</h2>
+<p>我没什么办法了，直接把我本地的两个GaussDB环境给到 vscode copilot ，让 gpt-5.3-codex 去找这两个环境有什么差异。开始当然是对齐参数，可是把所有参数对齐后，结果还是保持不变，两个环境执行结果不一样。<br/>
+GPT观察了gaussdb进程的启动参数，发现有问题的进程参数里有-M;没有问题的进程参数里没有-M 。<br/>
+我本来不太认为会和这个参数有关，但想到以前做某些测试时，虽然都是单机启动，但加-M primary和不加，的确在一些功能上会有区别，索性就把我docker环境里的GaussDB启动命令里加上了-M primary 参数。结果真的复现问题了，会话显示为idle in transaction 。</p>
+<p>让GPT直接在这两个环境gdb调试gaussdb，尝试找出两个环境gaussdb内核执行的链路差异，果然还是找出来了。</p>
+<p>简单来说就是加不加-M参数启动，会影响绑定的worker线程类型,而不同类型的worker执行的函数调用时序及链路是不一样的。</p>
+<p>以下是GPT的诊断报告：</p>
+<blockquote>
+<h1 id="两环境同程序结果不一致完整诊断报告">两环境同程序结果不一致完整诊断报告</h1>
+<h2 id="1-问题定义">1. 问题定义</h2>
+<p>同一套 Java 复现程序、同版本 GaussDB 内核、关键 GUC 看起来一致，但两端行为稳定分叉：</p>
+<ul>
+<li>8000 端：<code>xact_start = NULL</code> 且 <code>state = 'idle in transaction'</code></li>
+<li>5432 端：<code>xact_start = NULL</code> 且 <code>state = 'idle'</code></li>
+</ul>
+<p>目标是定位服务端根因链路，而不是仅停留在现象层。</p>
+<h2 id="2-环境与入口事实">2. 环境与入口事实</h2>
+<h3 id="21-版本与核心参数">2.1 版本与核心参数</h3>
+<p>两端均显示：</p>
+<ul>
+<li><code>GaussDB Kernel 506.0.0.SPC0100 build e324981f</code></li>
+<li><code>enable_thread_pool = on</code></li>
+<li><code>support_extended_features = off</code></li>
+</ul>
+<h3 id="22-进程启动模式差异">2.2 进程启动模式差异</h3>
+<ul>
+<li>8000：<code>gaussdb ... -M pending</code></li>
+<li>5432：<code>gaussdb -D /opt/gaussdb/data</code>（无 <code>-M pending</code>）</li>
+</ul>
+<p>这是后续分支差异的第一触发条件。</p>
+<h2 id="3-复现与观测链路">3. 复现与观测链路</h2>
+<h3 id="31-复现方法">3.1 复现方法</h3>
+<ul>
+<li>使用 <code>ReproduceXactStartNull</code> + <code>gaussdbjdbc.jar</code></li>
+<li>采用 PBE 路径（<code>prepareThreshold=1</code>）</li>
+<li>双连接策略：连接1执行，连接2查 <code>pg_stat_activity</code></li>
+</ul>
+<h3 id="32-复现结论">3.2 复现结论</h3>
+<ul>
+<li>8000：高比例出现 <code>idle in transaction</code></li>
+<li>5432：稳定为 <code>idle</code></li>
+</ul>
+<h2 id="4-gdb-证据链">4. gdb 证据链</h2>
+<h3 id="41-关键函数与关键行">4.1 关键函数与关键行</h3>
+<p>主链路落在 <code>gs_process_command</code>：</p>
+<ul>
+<li>line11743 对应路径（偏向 simple-query 分支画像）</li>
+<li>line12568 附近路径（事务收尾链关键落点）</li>
+</ul>
+<h3 id="42-反汇编关键判定已验证">4.2 反汇编关键判定（已验证）</h3>
+<p>在 <code>gs_process_command +8246 ~ +8269</code> 附近：</p>
+<ol>
+<li>先调用 <code>xact_get_current_top_xid()</code></li>
+<li>再检查 TLS 字节位 <code>fs:0x65d8</code></li>
+<li>若条件成立，调用 <code>finish_xact_command()</code></li>
+<li>随后落到 line12568 对应位置继续</li>
+</ol>
+<h3 id="43-字段级映射关键">4.3 字段级映射（关键）</h3>
+<p>通过符号与结构偏移还原，<code>fs:0x65d8</code> 对应字段是：</p>
+<ul>
+<li><code>t_thrd.postgres_cxt.xact_started</code></li>
+</ul>
+<p>即：该路径是否调用 <code>finish_xact_command()</code>，与 <code>xact_started</code> 这个门控位直接相关。</p>
+<h2 id="5-定量对比证据">5. 定量对比证据</h2>
+<p>来自同步报文聚焦采样（Sync-focused gdb capture）：</p>
+<h3 id="51-8000含--m-pending">5.1 8000（含 <code>-M pending</code>）</h3>
+<ul>
+<li><code>firstchar=83</code>（Sync）命中：46</li>
+<li><code>line11743</code> 命中：34</li>
+<li><code>line12568</code> 命中：0</li>
+<li>角色命中：<code>role1=16</code>, <code>role2=64</code></li>
+</ul>
+<p>条件概率：</p>
+<ul>
+<li><code>P(line12568 | Sync) = 0.000</code></li>
+<li><code>P(line11743 | Sync) = 0.739</code></li>
+</ul>
+<h3 id="52-5432不含--m-pending">5.2 5432（不含 <code>-M pending</code>）</h3>
+<ul>
+<li><code>firstchar=83</code>（Sync）命中：72</li>
+<li><code>line11743</code> 命中：8</li>
+<li><code>line12568</code> 命中：36</li>
+<li>角色命中：<code>role1=0</code>, <code>role2=80</code></li>
+</ul>
+<p>条件概率：</p>
+<ul>
+<li><code>P(line12568 | Sync) = 0.500</code></li>
+<li><code>P(line11743 | Sync) = 0.111</code></li>
+</ul>
+<h2 id="6-完整根因判定">6. 完整根因判定</h2>
+<p><code>-M pending</code> 改变了后端执行上下文（线程角色与事务状态机门控状态），使得 Sync 阶段在 <code>gs_process_command</code> 内对 <code>t_thrd.postgres_cxt.xact_started</code> 所门控的事务收尾链命中模式不同：</p>
+<ul>
+<li>在 8000（<code>-M pending</code>）中，line12568 收尾链几乎不被命中，<code>finish_xact_command()</code> 不触发，表现为 <code>idle in transaction</code></li>
+<li>在 5432（非 pending）中，line12568 收尾链被稳定命中并触发事务收尾，表现为 <code>idle</code></li>
+</ul>
+<p>这不是 JDBC 输入差异，而是服务端模式驱动的分支选择差异。</p>
+<h2 id="7-结论摘要">7. 结论摘要</h2>
+<p>本问题的决定性差异不在 JDBC 报文本身，而在服务端启动模式引起的事务收尾门控状态差异。</p>
+<ul>
+<li>8000（<code>-M pending</code>）偏向“不收尾”画像 -&gt; <code>idle in transaction</code></li>
+<li>5432（非 pending）偏向“收尾”画像 -&gt; <code>idle</code></li>
+</ul>
+<h2 id="8--m-影响初始化与调度链路图">8. <code>-M</code> 影响初始化与调度链路图</h2>
+<pre><code class="language-mermaid">flowchart TD
+   A["进程启动 gaussdb"] --&gt; B["postmaster_main 解析命令行参数"]
+   B --&gt; C{"是否指定 -M 参数"}
+
+   C --&gt;|"是"| D1["解析 -M 值 例如 pending"]
+   C --&gt;|"否"| D2["采用默认模式"]
+
+   D1 --&gt; E1["set_server_mode(ServerMode) 写入模式状态"]
+   D2 --&gt; E2["set_server_mode(ServerMode) 写入默认模式状态"]
+
+   E1 --&gt; F["线程池与连接调度读取模式"]
+   E2 --&gt; F
+
+   F --&gt; FJ{"当前 ServerMode 是否为 pending/attach 类模式"}
+   FJ --&gt;|"是"| G1["ThreadPoolControler::stay_in_attach_mode 路径"]
+   FJ --&gt;|"否"| G2["ThreadPoolWorker::set/get_connect_node_mode 路径"]
+   G1 --&gt; H1["策略A attach优先 已绑定会话优先复用同类worker"]
+   G2 --&gt; H2["策略B connect-node模式 按当前连接节点类型分配worker"]
+
+   H1 --&gt; I1["分配结果A role2为主 但保留部分role1流量"]
+   H2 --&gt; I2["分配结果B role2集中 role1基本不参与"]
+   I1 --&gt; J0["后续主链汇合 backend_run -&gt; PostgresMain"]
+   I2 --&gt; J0
+   J0 --&gt; J["进入 gs_process_command Sync 分支"]
+   J --&gt; K["读取 t_thrd.postgres_cxt.xact_started"]
+   K --&gt; L{"xact_started + top xid 是否满足收尾条件"}
+
+   L --&gt;|"满足"| M["调用 finish_xact_command"]
+   L --&gt;|"不满足"| N["跳过 finish_xact_command"]
+
+   M --&gt; O["state 回到 idle"]
+   N --&gt; P["state 保持 idle in transaction"]
+
+   subgraph R1["分支A 指定 -M pending"]
+       R1A["角色分布混合 role1+role2"] --&gt; R1B["line11743画像更强 line12568趋近0"] --&gt; R1C["结果偏向 idle in transaction"]
+   end
+
+   subgraph R2["分支B 未指定 -M pending"]
+       R2A["角色分布集中 role2主导"] --&gt; R2B["line12568命中提升 收尾调用增多"] --&gt; R2C["结果偏向 idle"]
+   end
+
+   P --&gt; Z["可观测差异来自 参数模式-&gt;调度-&gt;上下文-&gt;收尾门控 链式传播"]
+   O --&gt; Z
+   R1C --&gt; Z
+   R2C --&gt; Z
+</code></pre>
+<h3 id="81-会话上下文初始化详细路径函数级">8.1 会话上下文初始化详细路径（函数级）</h3>
+<p>下面给出“会话上下文初始化路径差异”的明确函数链。</p>
+<ol>
+<li>
+<p>公共主链（两端都经过）</p>
+</li>
+</ol>
+<ul>
+<li>
+<p><code>postmaster_main</code></p>
+</li>
+<li>
+<p><code>ThreadPoolControler::stay_in_attach_mode</code> / <code>ThreadPoolWorker::set|get_connect_node_mode</code></p>
+</li>
+<li>
+<p><code>gauss_db_worker_thread_main&lt;knl_thread_role=X&gt;</code></p>
+</li>
+<li>
+<p><code>backend_run</code></p>
+</li>
+<li>
+<p><code>PostgresMain</code></p>
+</li>
+<li>
+<p><code>gs_process_command</code></p>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p>8000（<code>-M pending</code>）观察到的主路径画像</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>线程角色混合：<code>role2</code> 主导，同时存在 <code>role1</code> 命中（Sync 聚焦采样：<code>role1=16</code>, <code>role2=64</code>）</p>
+</li>
+<li>
+<p>在 <code>gs_process_command</code> 中更偏向 line11743 画像，line12568 基本不命中</p>
+</li>
+<li>
+<p>在 <code>+8246~+8269</code> 门控点更常走“跳过 <code>finish_xact_command</code>”分支</p>
+</li>
+</ul>
+<ol start="3">
+<li>
+<p>5432（无 <code>-M pending</code>）观察到的主路径画像</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>线程角色集中：<code>role2</code> 主导（Sync 聚焦采样：<code>role1=0</code>, <code>role2=80</code>）</p>
+</li>
+<li>
+<p>在 <code>gs_process_command</code> 中 line12568 命中显著升高</p>
+</li>
+<li>
+<p>在 <code>+8246~+8269</code> 门控点更常满足收尾条件并调用 <code>finish_xact_command</code></p>
+</li>
+</ul>
+<ol start="4">
+<li>
+<p>关键分歧点（你问的“路径为何不同”）</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>说明：路径A/路径B不是两条完全不同的“全链路函数序列”。<br/>
+差异主要发生在 <code>backend_run</code> 之前的 worker 角色与会话绑定/延续阶段；<br/>
+一旦进入 <code>backend_run -&gt; PostgresMain -&gt; gs_process_command</code>，后半段函数名是汇合且相同的。</p>
+</li>
+<li>
+<p>图中“worker attach/分配策略差异”的具体含义：<br/>
+在 <code>-M pending</code> 侧，调度更容易形成 role1+role2 混合分配；<br/>
+在非 pending 侧，调度更集中到 role2 主导分配。<br/>
+该角色分配差异是后续 line11743/line12568 命中分布差异的前置原因。</p>
+</li>
+<li>
+<p>分歧不在 SQL 文本，而在 <code>postmaster_main</code> 设置的模式状态被线程池调度路径读取后，<br/>
+进入了不同的 worker 会话绑定/延续路线（role 组合与上下文时序不同）</p>
+</li>
+<li>
+<p>该差异最终在 <code>gs_process_command</code> 的事务收尾门控点放大，体现为 <code>xact_started</code> 取值分布差异</p>
+</li>
+</ul>
+<h3 id="82-左右双泳道对比图">8.2 左右双泳道对比图</h3>
+<pre><code class="language-mermaid">flowchart TB
+   subgraph L[上泳道 8000 含 -M pending]
+       L1[postmaster_main 解析到 -M pending]
+       L2[set_server_mode pending]
+       L3[线程池调度读取模式]
+       L4[role1+role2 混合分配]
+       L5[backend_run -&gt; PostgresMain]
+       L6[gs_process_command Sync]
+       L7[xact_started 门控更常不满足]
+       L8[更多跳过 finish_xact_command]
+       L9[state 偏向 idle in transaction]
+       L1 --&gt; L2 --&gt; L3 --&gt; L4 --&gt; L5 --&gt; L6 --&gt; L7 --&gt; L8 --&gt; L9
+   end
+
+   subgraph R[下泳道 5432 无 -M pending]
+       R1[postmaster_main 默认模式]
+       R2[set_server_mode default]
+       R3[线程池调度读取模式]
+       R4[role2 主导分配]
+       R5[backend_run -&gt; PostgresMain]
+       R6[gs_process_command Sync]
+       R7[xact_started 门控更常满足]
+       R8[更多调用 finish_xact_command]
+       R9[state 偏向 idle]
+       R1 --&gt; R2 --&gt; R3 --&gt; R4 --&gt; R5 --&gt; R6 --&gt; R7 --&gt; R8 --&gt; R9
+   end
+
+   L9 --&gt; Z[统一结论 模式差异通过调度与上下文门控传导为状态分叉]
+   R9 --&gt; Z
+</code></pre>
+</blockquote>
+<p>截止到目前（20260530）为止，华为方面还没有找到为什么会出现有的环境是idle，有的环境是idle in transaction。</p>
+<h2 id="总结-1">总结</h2>
+<p>GaussDB这个state异常显示对数据库本身并没有什么影响，而且一般监控告警查未提交事务也是限定了事务开始时间超过一定范围的，xact_start为空的会话是不会触发告警的，所以几乎没什么影响。<br/>
+但是通过本次故障诊断，发现了就算数据库版本、运行环境、数据库GUC参数、部署形态完全一致时，数据库对于同一任务的执行行为也可能会由于启动命令是否加 -M primary参数 发生差异，所以之后本地模拟复现问题的时候，还是得注意一下数据库的启动命令是否一致。<br/>
+另外，让AI直接对GaussDB做gdb调试来定位复杂问题，看来也不是不行，只要能稳定复现问题场景。没源码的时候人工反编译断点定位找问题非常耗时间，但交给AI，效率极大提高了。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../oracle-website-add-others-authentication-factors-v2/">【ORACLE】添加短信以外的双因素认证方式 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

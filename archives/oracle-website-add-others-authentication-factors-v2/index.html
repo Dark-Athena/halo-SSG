@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【ORACLE】添加短信以外的双因素认证方式 - DA-技术分享-静态站</title>
+    <meta name="description" content="【ORACLE】添加短信以外的双因素认证方式 背景 自从ORACLE网站强制双因素认证后，有一些共用账号的网友叫苦不迭，每次登录都要短信验证码，但账号绑定的手机号又不是自己的。 但其实ORACLE除了短信验证码，还支持其他的双因素验证方式，比如邮箱和OTP。只是ORACLE把管理双因素验证的方式隐藏">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【ORACLE】添加短信以外的双因素认证方式</h1>
+    <div class="meta">
+        
+        <span>2026-05-29</span>
+        
+        <span>11 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="oracle添加短信以外的双因素认证方式">【ORACLE】添加短信以外的双因素认证方式</h1>
+<h2 id="背景">背景</h2>
+<p>自从ORACLE网站强制双因素认证后，有一些共用账号的网友叫苦不迭，每次登录都要短信验证码，但账号绑定的手机号又不是自己的。</p>
+<p>但其实ORACLE除了短信验证码，还支持其他的双因素验证方式，比如<strong>邮箱</strong>和<strong>OTP</strong>。只是ORACLE把管理双因素验证的方式隐藏得太深，而且非常不符合IT直觉——添加验证方式竟然不在账户管理页面。</p>
+<h2 id="操作步骤">操作步骤</h2>
+<h3 id="1-进入安全设置页面">1. 进入安全设置页面</h3>
+<p>我也不记得之前是点哪里点进去的了，但是保存了这个页面URL：</p>
+<p><a href="https://login-ext.identity.oraclecloud.com/ui/v1/myconsole?root=my-info&amp;my-info=my_profile_security">https://login-ext.identity.oraclecloud.com/ui/v1/myconsole?root=my-info&amp;my-info=my_profile_security</a></p>
+<p>可以先在ORACLE首页 <a href="https://www.oracle.com">https://www.oracle.com</a> 正常登录后再进这个页面，也可以直接在这个页面上登录。</p>
+<p><img alt="image-sIwh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-sIwh.png" srcset="../../upload/image-sIwh.png?width=1200 1200w, ../../upload/image-sIwh.png?width=400 400w, ../../upload/image-sIwh.png?width=1600 1600w, ../../upload/image-sIwh.png?width=800 800w"/></p>
+<h3 id="2-配置-mobile-appotp">2. 配置 Mobile App（OTP）</h3>
+<p>进入这个页面后，会显示当前有邮箱和手机号两种，第三个 <strong>Mobile App</strong> 是没有配置的。</p>
+<p>点击 Mobile App 进行配置，或者点击左边的 <strong>Actions → Add Mobile APP</strong>：</p>
+<p><img alt="image-qMzi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-qMzi.png" srcset="../../upload/image-qMzi.png?width=1200 1200w, ../../upload/image-qMzi.png?width=400 400w, ../../upload/image-qMzi.png?width=1600 1600w, ../../upload/image-qMzi.png?width=800 800w"/></p>
+<p><img alt="image-qasb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-qasb.png" srcset="../../upload/image-qasb.png?width=1200 1200w, ../../upload/image-qasb.png?width=400 400w, ../../upload/image-qasb.png?width=1600 1600w, ../../upload/image-qasb.png?width=800 800w"/></p>
+<h3 id="3-使用otp软件绑定">3. 使用OTP软件绑定</h3>
+<p>勾上 <strong>"Offline Mode or Use Another Authenticator App"</strong>，然后使用你的OTP软件扫描二维码，就添加到你的OTP软件里去了。</p>
+<p>在OTP软件里就可以生成对应的6位数验证码，填到网页上的输入框里，再点击 <strong>Verify</strong> 按钮即可。</p>
+<h3 id="4-设置为默认认证方式">4. 设置为默认认证方式</h3>
+<p>你把这种认证方式改为默认，在 <strong>Actions → Change Default</strong> 里选择一个就行。</p>
+<p>之后再去登录的时候，输入完密码后，就不需要短信验证码了，取而代之的是让你输入OTP上的验证码：</p>
+<p><img alt="image-vlcs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-vlcs.png" srcset="../../upload/image-vlcs.png?width=1200 1200w, ../../upload/image-vlcs.png?width=400 400w, ../../upload/image-vlcs.png?width=1600 1600w, ../../upload/image-vlcs.png?width=800 800w"/></p>
+<h2 id="注意事项">注意事项</h2>
+<p>如果没有勾上 <strong>"Offline Mode or Use Another Authenticator App"</strong>，就必须使用Oracle官方的 <strong>Oracle Mobile Authenticator App</strong>。</p>
+<blockquote>
+<p>⚠️ 注意：勾上和没勾上，两个二维码是不一样的。</p>
+</blockquote>
+<h2 id="什么是otp">什么是OTP？</h2>
+<p>可能有些伙伴还不知道OTP是什么，简单来说：</p>
+<ul>
+<li>这是一种<strong>公开的</strong>根据密钥生成验证码的算法</li>
+<li>每隔 <strong>30秒</strong> 生成一个新的验证码</li>
+<li>算法<strong>不需要联网</strong>，离线也能用</li>
+<li>你不需要下载专用软件，网上有非常多的免费OTP软件，下载一个就行</li>
+<li>很多需要OTP验证的网站密钥都可以添加到这一个OTP软件里去</li>
+</ul>
+<p>当然，很多公司的运维人员手机里早就有这种OTP软件了，用于堡垒机登录。</p>
+<h2 id="吐槽">吐槽</h2>
+<p>国内访问ORACLE服务依旧是各种卡，页面超时。但有时候要看几个MOS文档或者下载什么东西又不得不登录一下，光登录就可以卡你好几分钟，不知道ORACLE在国内的基础建设建到哪里去了。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/oracle/">oracle</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-idle-in-transaction-bug-analyze/">&larr; 【GaussDB】会话里出现大量idle in transaction状态的问题排查</a>
+    
+    
+    <a href="../Optimizing-KEEP-Aggregations-in-GaussDB-From-123s-to-18s/">【GaussDB】 keep聚合SQL 性能优化分析：从 123s 到 18s 的优化之路 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

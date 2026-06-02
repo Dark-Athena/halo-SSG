@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】会话里出现大量idle in transaction状态的问题排查</title>
+      <link>https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze</link>
+      <description>【GaussDB】会话里出现大量idle in transaction状态的问题排查 背景 客户DBA给应用开发人员宣讲GaussDB数据库的idle in transaction会话的监控告警后，开发人员自查，发现在开发环境中存在大量的idle in transaction会话，一时恐慌，于是来找</description>
+      <pubDate>Fri, 29 May 2026 13:51:34 +0000</pubDate>
+    </item>
+    <item>
+      <title>【ORACLE】添加短信以外的双因素认证方式</title>
+      <link>https://www.darkathena.top/archives/oracle-website-add-others-authentication-factors-v2</link>
+      <description>【ORACLE】添加短信以外的双因素认证方式 背景 自从ORACLE网站强制双因素认证后，有一些共用账号的网友叫苦不迭，每次登录都要短信验证码，但账号绑定的手机号又不是自己的。 但其实ORACLE除了短信验证码，还支持其他的双因素验证方式，比如邮箱和OTP。只是ORACLE把管理双因素验证的方式隐藏</description>
+      <pubDate>Fri, 29 May 2026 12:25:40 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】 keep聚合SQL 性能优化分析：从 123s 到 18s 的优化之路</title>
       <link>https://www.darkathena.top/archives/Optimizing-KEEP-Aggregations-in-GaussDB-From-123s-to-18s</link>
       <description>【GaussDB】 排序聚合SQL 性能优化分析：从 123s 到 18s 的优化之路 注：本文所有对象名及字段名均已做脱敏处理 一、业务背景与需求描述 1.1 业务场景 某金融交易系统需要查询每日行情数据，针对每个交易品种（asset_id），获取两个时间段的最新行情快照： 全日快照：在 upda</description>
@@ -312,18 +324,6 @@ gsq</description>
       <link>https://www.darkathena.top/archives/yashandb-ymp-install-test</link>
       <description>【YashanDB】数据迁移工具YMP安装测试 安装准备说明 安装时需要提前准备好ymp的包、yashan数据库的包、ORACLE客户端的包。 无论是使用内置库安装还是外置库安装，yashan数据库内核包都是需要的，因为就算使用外置库，ymp也需要内核包里的yasldr和exp 不按照文档来是失败的</description>
       <pubDate>Tue, 25 Nov 2025 13:50:31 +0000</pubDate>
-    </item>
-    <item>
-      <title>【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录</title>
-      <link>https://www.darkathena.top/archives/yashandb-oracle-sql-compat-test</link>
-      <description>【YashanDB】ORACLE-SQL/PLSQL兼容性测试记录 本文内容比较零散，正常兼容的就不提了，仅记录测试过程中一些需要注意的点ᦁ</description>
-      <pubDate>Tue, 25 Nov 2025 13:42:49 +0000</pubDate>
-    </item>
-    <item>
-      <title>【DuckDB】活用marco以兼容GaussDB的SQL执行</title>
-      <link>https://www.darkathena.top/archives/duckdb-marco-some-case</link>
-      <description>【DuckDB】活用marco以兼容GaussDB的SQL执行 前言 前文有提到，有些复杂的分析型SQL在DuckDB上执行会比GaussDB上快，但实际应用场景中，GaussDB有些函数在DuckDB上并不支持，因此有时候会需要修改GaussDB的SQL,但如果一个某些函数用得非常多，入参还不一样</description>
-      <pubDate>Mon, 24 Nov 2025 14:02:33 +0000</pubDate>
     </item>
   </channel>
 </rss>
