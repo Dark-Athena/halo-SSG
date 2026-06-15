@@ -6,6 +6,19 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题</title>
+      <link>https://www.darkathena.top/archives/gaussdb-coredump-vip-jdbc-keepalive-hang-half-socket</link>
+      <description>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题 现象 GaussDB集中式主备环境，有多个java应用使用vip连接数据库，数据库主节点由于某个bug触发了coredump，vip漂移到备库，备库升主，有部分应用报错后重连到了新主库，但另一部分java应用hang死</description>
+      <pubDate>Mon, 15 Jun 2026 12:53:02 +0000</pubDate>
+    </item>
+    <item>
+      <title>AMD AI MAX+395 跑 QWEN3.5-122B-A10B-MTP-Q4 实测</title>
+      <link>https://www.darkathena.top/archives/amd-ai-max-395-qwen3.5-122b-a10b-mtp-q4</link>
+      <description>AMD AI MAX+395 跑 QWEN3.5-122B-A10B-MTP-Q4 实测 之前有测了这个芯片跑QWEN3.6-27B和QWEN3.6-35B-A3B的MTP对比，《本地模型性能翻倍！qwen3.6-MTP测试》 但那两个模型体积小，还不如买两张二手前代甚至前前代的游戏N卡去跑，价格更</description>
+      <pubDate>Mon, 15 Jun 2026 12:52:55 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
       <title>【GaussDB】会话里出现大量idle in transaction状态的问题排查</title>
       <link>https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze</link>
       <description>【GaussDB】会话里出现大量idle in transaction状态的问题排查 背景 客户DBA给应用开发人员宣讲GaussDB数据库的idle in transaction会话的监控告警后，开发人员自查，发现在开发环境中存在大量的idle in transaction会话，一时恐慌，于是来找</description>
@@ -311,19 +324,6 @@ gsq</description>
       <description>【Oracle/GaussDB/MogDB】统一权限查询 背景 客户在系统下线流程中，有一步操作是锁定该系统对各个数据库登录的账号，但由于历史原因，没有完整记录每个数据库账号有哪些权限，导致有时关闭账号后，部分生产业务出现异常。现客户提出需求，期望从各个数据库中捞出所有用户的所有权限，以便后续关闭账</description>
       <pubDate>Sun, 30 Nov 2025 07:51:19 +0000</pubDate>
       <category>openGauss</category>
-    </item>
-    <item>
-      <title> 【Oracle】两个关于Hint的问题</title>
-      <link>https://www.darkathena.top/archives/oracle-hint-confusing</link>
-      <description>一、关于use_hash里的多个表名 很多人在使用use_hash的时候，认为是把需要hash join的两个表或多个表都放到这个hint中，就连ORACLE官方文档中的用例也似乎在表达这个意思。其实这种理解是不对的。 https://docs.oracle.com/en/database/orac</description>
-      <pubDate>Sun, 30 Nov 2025 07:46:56 +0000</pubDate>
-      <category>ORACLE</category>
-    </item>
-    <item>
-      <title>【YashanDB】数据迁移工具YMP安装测试</title>
-      <link>https://www.darkathena.top/archives/yashandb-ymp-install-test</link>
-      <description>【YashanDB】数据迁移工具YMP安装测试 安装准备说明 安装时需要提前准备好ymp的包、yashan数据库的包、ORACLE客户端的包。 无论是使用内置库安装还是外置库安装，yashan数据库内核包都是需要的，因为就算使用外置库，ymp也需要内核包里的yasldr和exp 不按照文档来是失败的</description>
-      <pubDate>Tue, 25 Nov 2025 13:50:31 +0000</pubDate>
     </item>
   </channel>
 </rss>

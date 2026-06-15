@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题 现象 GaussDB集中式主备环境，有多个java应用使用vip连接数据库，数据库主节点由于某个bug触发了coredump，vip漂移到备库，备库升主，有部分应用报错后重连到了新主库，但另一部分java应用hang死">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题</h1>
+    <div class="meta">
+        
+        <span>2026-06-15</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb分析gaussdb在coredump后部分应用连接假死的问题">【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题</h1>
+<h2 id="现象">现象</h2>
+<p>GaussDB集中式主备环境，有多个java应用使用vip连接数据库，数据库主节点由于某个bug触发了coredump，vip漂移到备库，备库升主，有部分应用报错后重连到了新主库，但另一部分java应用hang死在那，没有任何日志输出。</p>
+<h2 id="分析">分析</h2>
+<p>先收集数据库端故障发生的时序信息</p>
+<ol>
+<li>从原主节点gs_log里找到PANIC ，发生时间为 t</li>
+<li>原备库切换角色，成为新主，发生时间为t+1</li>
+<li>从新主节点cm_agent的日志找到up vip和修改listen_addresses的记录，发生时间为t+2</li>
+<li>从原主节点cm_agent的日志里找到 down vip 和修改listen_addresses 的记录，发生时间为 t+3</li>
+<li>观察原主节点的coredump文件，最后修改时间为t+4</li>
+<li>从原主节点gs_log观察到 ,t+5时刻原主已经成为新的备库</li>
+</ol>
+<table><thead><tr><th>时刻</th><th>原主节点</th><th>原备节点</th></tr></thead><tbody><tr><td>t</td><td>PANIC,开始coredump</td><td></td></tr><tr><td>t+1</td><td></td><td>成为新主</td></tr><tr><td>t+2</td><td></td><td>挂载vip,arping,修改listen_addresses（反复重试）</td></tr><tr><td>t+3</td><td>卸载vip,修改listen_addresses（反复重试）</td><td></td></tr><tr><td>t+4</td><td>coredump文件生成完成，进程退出</td><td></td></tr><tr><td>t+5</td><td>以备库身份重启，build 完成</td><td></td></tr></tbody></table>
+<p>由于机器的内存很大，coredump耗时非常长，所以原主进程退出也花了很长时间，虽然这不影响新主通过vip提供服务，但问题就发生在这个时序上。</p>
+<p>GaussDB进程退出时，操作系统会把该进程所有持有的句柄进行释放，就包括了所有的文件句柄和网络句柄，关闭网络句柄时，会向对端发送分手包，对端收到就能马上断开连接。但是这次问题时，在GaussDB进程退出时，vip早就被卸载了，所以分手包发不到客户端，服务端就退出了，但客户端连接还在。只要客户端不发起新的请求，客户端就无法感知服务端连接已断开。</p>
+<p>所以我们设想一个场景，客户端发起一个需要在服务端执行耗时很长的SQL（比如count大表，或者执行耗时很长的存储过程），此时服务端vip卸载，客户端还一直在等服务端的返回，而且期间客户端不会发送新包给服务端，如果客户端socketTimeout设置为0，客户端就一直卡在那了，应用的感觉就是hang住。</p>
+<p>这里就得提到一个从原版PG开始一直遗留到现在的一个问题，即postgresql的jdbc驱动中，tcpKeepAlive 这个参数是默认关闭的，GaussDB也延续了这个配置。</p>
+<p>只要开启了 tcpKeepAlive，客户端在等服务端返回sql结果期间，也会不断发送keepalive包探测连接是否正常。</p>
+<p>这个问题在gsql和libpq上不存在，因为libpq上的参数 keepalives 默认是打开的。</p>
+<h2 id="测试验证">测试验证</h2>
+<h3 id="环境准备">环境准备</h3>
+<p>这里我使用了三台机器:<br/>
+一台运行java程序，另外两台分别为GaussDB的主备节点<br/>
+192.168.163.131 java客户端<br/>
+192.168.163.118 GaussDB dn1<br/>
+192.168.163.119 GaussDB dn2<br/>
+192.168.163.140 GaussDB VIP</p>
+<p>用于测试的java程序,很简单，连接上去执行一个耗时很长的SQL</p>
+<pre><code class="language-java">import java.sql.*;
+public class testlongquery {
+  static final String urlString = "jdbc:gaussdb://192.168.163.140:8000/postgres?tcpKeepAlive=false";
+  static final String userName = "root";
+  static final String password = "Gaussdb@123";
+  /**
+ * @param args
+ * @throws Exception
+ */
+public static void main(String[] args) throws Exception {
+    Connection conn = DriverManager.getConnection(urlString, userName, password);
+    String query_sql1 = "select count(1) cnt from pg_class a,pg_class b,pg_class c" ;
+    PreparedStatement ps =conn.prepareStatement(query_sql1);
+    ResultSet rs =ps.executeQuery();
+    while (rs.next()){
+      System.out.println(rs.getString("cnt"));
+    }
+    ps.close();
+    conn.close();
+  }
+}
+</code></pre>
+<p>构造会coredump的任意SQL,这里使用了以前提过的GaussDB视图依赖问题<a href="https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a></p>
+<pre><code class="language-sql">set ddl_invalid_mode='invalid';
+set enable_force_create_obj=on;
+
+drop view if exists v_test_dep;
+drop package if exists pkg_test_dep;
+drop package if exists pkg_subtype;
+create or replace package pkg_subtype is 
+    subtype varchar_8 is varchar(8);
+end;
+/
+create or replace package pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8;
+end;
+/
+create or replace package body pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8 is
+    begin
+        return i::text;
+    end;
+end;
+/
+create or replace view v_test_dep as
+    select 1 from dual where pkg_test_dep.func('1')='1';
+create or replace package pkg_subtype is 
+    subtype varchar_8 is int;
+end;
+/
+
+select * from v_test_dep;
+</code></pre>
+<h3 id="测试步骤">测试步骤</h3>
+<ol>
+<li>在131java应用机器上监控netstat vip:8000端口</li>
+</ol>
+<pre><code class="language-bash">while true; do date; netstat -tunlpoa |grep 192.168.163.140:8000 ; sleep 1; done
+</code></pre>
+<ol start="2">
+<li>在两台GaussDB机器上监控java应用服务器的连接</li>
+</ol>
+<pre><code class="language-bash">while true; do date; netstat -tunlpoa |grep 192.168.163.131 ; sleep 1; done
+</code></pre>
+<ol start="4">
+<li>在java应用服务器机器上，编译并启动java程序</li>
+</ol>
+<pre><code class="language-bash">javac -cp .:gaussdbjdbc.jar  testlongquery.java
+java -cp .:gaussdbjdbc.jar testlongquery
+</code></pre>
+<p><img alt="企业微信截图_17814886196994-IRWA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814886196994-IRWA.png" srcset="../../upload/企业微信截图_17814886196994-IRWA.png?width=1200 1200w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=400 400w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=1600 1600w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=800 800w"/></p>
+<ol start="4">
+<li>使用gsql连接GaussDB主节点，执行coredump脚本</li>
+</ol>
+<pre><code class="language-bash">gsql -r -d postgres -p 8000 -f coredump.sql
+</code></pre>
+<p><img alt="image-xXiB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-xXiB.png" srcset="../../upload/image-xXiB.png?width=1200 1200w, ../../upload/image-xXiB.png?width=400 400w, ../../upload/image-xXiB.png?width=1600 1600w, ../../upload/image-xXiB.png?width=800 800w"/></p>
+<p>GaussDB发生failover，vip飘到新主库，应用服务器上java程序卡死，符合问题现象。</p>
+<p>可以观察到java应用服务器上的这个连接在sql发出去后就一直没有变化了，一直显示为 off(0.00/0/0)，必须关闭java应用才断开连接；而对应在原主库上的这个连接显示 FIN_WAIT1、probe，超时重试9次断开了</p>
+<p><img alt="image-TMGA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-TMGA.png" srcset="../../upload/image-TMGA.png?width=1200 1200w, ../../upload/image-TMGA.png?width=400 400w, ../../upload/image-TMGA.png?width=1600 1600w, ../../upload/image-TMGA.png?width=800 800w"/></p>
+<h3 id="jdbc开启keepalive再测">jdbc开启keepalive再测</h3>
+<p>再测试jdbc开keepalive的情况，把java程序里连接串上的tcpKeepAlive参数改成true，重新编译执行</p>
+<p><img alt="企业微信截图_17814887579578.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814887579578.png" srcset="../../upload/企业微信截图_17814887579578.png?width=1200 1200w, ../../upload/企业微信截图_17814887579578.png?width=400 400w, ../../upload/企业微信截图_17814887579578.png?width=1600 1600w, ../../upload/企业微信截图_17814887579578.png?width=800 800w"/></p>
+<p>可以看到长查询执行过程中，客户端会一直keepalive。<br/>
+然后执行coredump.sql来触发数据库coredump</p>
+<p><img alt="企业微信截图_17814888055876.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814888055876.png" srcset="../../upload/企业微信截图_17814888055876.png?width=1200 1200w, ../../upload/企业微信截图_17814888055876.png?width=400 400w, ../../upload/企业微信截图_17814888055876.png?width=1600 1600w, ../../upload/企业微信截图_17814888055876.png?width=800 800w"/></p>
+<p>在原主库coredump后，java很快就报错退出了</p>
+<pre><code class="language-java">[root@ky10-sp3 javatest]# java -cp .:gaussdbjdbc.jar testlongquery
+Exception in thread "main" com.huawei.gaussdb.jdbc.util.PSQLException: [192.168.163.131:49050/192.168.163.140:8000] socket is not closed; Urgent packet sent to backend successfully; An I/O error occurred while sending to the backend.detail:EOF Exception;
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.handleIoException(QueryExecutorImpl.java:5044)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:1354)
+        at com.huawei.gaussdb.jdbc.core.v3.TracedQueryExecutorImpl.execute(TracedQueryExecutorImpl.java:92)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.runQueryExecutor(PgStatement.java:737)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.executeInternal(PgStatement.java:690)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.execute(PgStatement.java:497)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:209)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.executeQuery(PgPreparedStatement.java:146)
+        at testlongquery.main(testlongquery.java:20)
+Caused by: java.io.EOFException: EOF Exception
+        at com.huawei.gaussdb.jdbc.core.PGStream.receiveChar(PGStream.java:409)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:4151)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:1322)
+        ... 7 more
+</code></pre>
+<h2 id="注意事项">注意事项</h2>
+<p>需要注意的是，JDBC参数socketTimeout会影响连接正常时的长查询，对于执行存储过程的业务是不安全的，因此一般不建议配置，除非是那种数据库执行失败也无所谓的应用系统。</p>
+<p>另外，由于java是在11版本起才支持配置 tcpKeepAlive 的超时时间和重试次数 ( <a href="https://bugs.openjdk.org/browse/JDK-8203194?page=com.atlassian.streams.streams-jira-plugin%3Aactivity-stream-issue-tab">Add support for per Socket configuration of TCP keepalive</a> )，所以jdbc驱动仅仅只能支持开启或者关闭 tcpKeepAlive ,无法配置超时时间和重试次数，只能靠操作系统来处理，但 tcpKeepAlive 这个功能也不是所有操作系统都支持的，比如在windows上这个配置就没有效果。所以吧，现状如此，也不能说为什么jdbc驱动不加这keepalive的超时和重试配置了。</p>
+<p>但为什么POSTGRESQL的JDBC驱动要默认关闭 tcpKeepAlive 呢？有一个说法是，keepalive虽然开销少，但早期CPU和网络配置都很低，如果遇上连接池很大的应用，闲置的时候会产生大量的keepalive包，使本来就紧缺的硬件资源产生了大量不必要的开销。然后后续版本为了兼容性，就一直延续下来了。另外，按照PG学院派的思路，应用端假死检测，应该由应用程序自身的健壮性来保证。</p>
+<p>另外，GaussDB执行failover的这个过程会有很多自动化步骤，而且很多都是并行或异步的，在数据库负载特征不一样时，不同步骤耗时不一样，会导致处理时序上的差异。因此本文测试仅代表当前环境，测试结果不代表真实生产环境。比如某些环境的应用端开了 tcpKeepAlive 后,也有可能会卡一段时间，但至少不会一直卡那无法自动恢复了。</p>
+<p>想要避免这个问题，其实还有一种方式，就是不使用vip，而是配置使用多ip连接，这样就不会出现vip卸载后，旧主节点无法发送断开信号到客户端的问题了：</p>
+<pre><code class="language-java">jdbc:gaussdb://192.168.163.118:8000,192.168.163.119:8000/postgres?targetServerType=master
+</code></pre>
+<h2 id="总结">总结</h2>
+<p>虽然开启tcpKeepAlive解决了本文中发生的应用假死问题，但这并不代表我就推荐你去开启tcpKeepAlive，因为这只是头痛医头脚痛医脚的手段罢了。</p>
+<p>在应用系统设计中，不能仅考虑应用软件自身的代码逻辑，数据库、操作系统、中间件以及CPU、内存、磁盘、网络等硬件，甚至包括操作应用软件的人，同样都属于整个应用系统的一部分。虽然说现代应用架构从设计上都是尽量解耦的，但涉及到跨组件或者跨设备故障时，依然可能发生不可控的影响。因此这就要求应用架构师具备各方面的综合能力，能设计出好的架构，以规避或减轻任何故障带来的不良影响。</p>
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../amd-ai-max-395-qwen3.5-122b-a10b-mtp-q4">AMD AI MAX+395 跑 QWEN3.5-122B-A10B-MTP-Q4 实测 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
