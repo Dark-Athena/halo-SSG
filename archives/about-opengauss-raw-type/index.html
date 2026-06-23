@@ -149,7 +149,7 @@
         
         <span>2022-02-06</span>
         
-        <span>1473 阅读</span>
+        <span>1474 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -291,7 +291,7 @@
 </tbody>
 </table>
 <p>然后对照华为GaussDB的官方文档来看,可以发现文档里,这些函数绝大部分都没写清楚功能及测试案例,比如下面这四个函数,文档里的描述写的竟然都是一样的<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png" srcset="../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1200 1200w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=400 400w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1600 1600w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png" srcset="../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1600 1600w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=800 800w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=1200 1200w, ../../upload/2022/02/image-569a62112a4a44cfa7ab38e72e34947f.png?width=400 400w"/></p>
 <p>但好在大部分函数的命令是参考的基本运算符,所以能看懂个大概。<br/>
 不过,绝对不能自以为是的以为这些函数的输出结果和你想的一样,稍不留神就会被坑了,所以我通过实际测试及结合看源代码,对这个函数列表整理了一份较为完整的说明,请重点留意下表中最后一列的注意事项</p>
 <h2 id="整理后的函数说明">整理后的函数说明</h2>
@@ -480,6 +480,7 @@
 <li>raw在内核中其实也是相当于bytea进行的处理,可以使用到c语言的内存指令操作,一般会比字符串要处理得快。<br/>
 但是如果不是用上述函数,而是用其他函数来处理raw,就会先隐式的转换成text再进行处理,这点尤其要注意,不仅执行效率会有变化,而且得到的结果可能会和预期不一致,比如使用length或substring函数时就和处理bytea类型时不一样</li>
 </ol>
+
 </div>
 </article>
     </div>

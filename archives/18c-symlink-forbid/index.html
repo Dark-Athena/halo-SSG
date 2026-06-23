@@ -149,7 +149,7 @@
         
         <span>2021-11-29</span>
         
-        <span>921 阅读</span>
+        <span>928 阅读</span>
         
         <a href="../../categories/oracle/">ORACLE</a>
         
@@ -227,7 +227,7 @@ Workaround:</p>
 </ul>
 <p>并且在18c预升级程序执行时，会有提示，当前数据库存在哪些软链接目录，请手工用真实路径重建。<br/>
 <a href="https://support.oracle.com/epmos/faces/DocumentDisplay?id=2380601.1">MOS Note: 2380601.1 (Database Preupgrade tool check list):</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png" srcset="../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1200 1200w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=400 400w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1600 1600w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png" srcset="../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1600 1600w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=800 800w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=1200 1200w, ../../upload/2021/11/image-cc7df9a9b8c94249846878ee4bbac112.png?width=400 400w"/></p>
 <h2 id="疑惑">疑惑</h2>
 <p>"WARNING"、"MANUAL"，这么重要的事情，有关18c的新特性介绍文章里咋没见到呢。。。搜相关报错信息，国内几大技术网站里也没搜到。</p>
 <p>难道国内就没人用oracle做软链接下的文件读写操作？还是都停留在12c之前？</p>
@@ -242,6 +242,7 @@ ALTER SYSTEM SET "_kolfuseslf" = TRUE SCOPE=SPFILE;
 <h2 id="附检查哪些目录是软链接的脚本">附:检查哪些目录是软链接的脚本</h2>
 <pre><code class="language-sql">@?/rdbms/admin/utldirsymlink.sql
 </code></pre>
+
 </div>
 </article>
     </div>

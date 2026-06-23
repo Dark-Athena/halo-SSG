@@ -149,7 +149,7 @@
         
         <span>2022-05-14</span>
         
-        <span>1491 阅读</span>
+        <span>1496 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a> / 
         
@@ -222,7 +222,7 @@ oracle的文本类型varchar2只能操作32767的字节长度，而管道符和c
 </table>
 <p>首先从大小上来说，BLOB/CLOB在ORACLE里为4GB，而openGauss里只有约1GB；ORACLE里RAW只有32767字节长度，而openGauss里却保持和BLOB一样的接近1GB。感觉可以这么理解，在openGauss里，BLOB可以完全和RAW互相转换，TEXT和CLOB也可以互相转换。<br/>
 并且我刚好在源码里翻到了这段<br/>
-<img alt="image-1652535811810" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/05/image-1652535811810.png" srcset="../../upload/2022/05/image-1652535811810.png?width=1200 1200w, ../../upload/2022/05/image-1652535811810.png?width=400 400w, ../../upload/2022/05/image-1652535811810.png?width=1600 1600w, ../../upload/2022/05/image-1652535811810.png?width=800 800w"/></p>
+<img alt="image-1652535811810" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/05/image-1652535811810.png" srcset="../../upload/2022/05/image-1652535811810.png?width=1600 1600w, ../../upload/2022/05/image-1652535811810.png?width=800 800w, ../../upload/2022/05/image-1652535811810.png?width=1200 1200w, ../../upload/2022/05/image-1652535811810.png?width=400 400w"/></p>
 <pre><code class="language-sql">CREATE CAST (BLOB AS RAW) WITHOUT FUNCTION AS IMPLICIT;
 CREATE CAST (RAW AS BLOB) WITHOUT FUNCTION AS IMPLICIT;
 
@@ -273,7 +273,7 @@ from pg_type where typname in ('raw','blob','bytea')
 从上面这个表里可以得知，raw类型可以用rawsend来转换成bytea，见下面这个sql</p>
 <pre><code class="language-sql">select '1234ff'::raw,length('1234ff'::raw),length(rawsend('1234ff'::raw))
 </code></pre>
-<p><img alt="image-1652537676026" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/05/image-1652537676026.png" srcset="../../upload/2022/05/image-1652537676026.png?width=1200 1200w, ../../upload/2022/05/image-1652537676026.png?width=400 400w, ../../upload/2022/05/image-1652537676026.png?width=1600 1600w, ../../upload/2022/05/image-1652537676026.png?width=800 800w"/></p>
+<p><img alt="image-1652537676026" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/05/image-1652537676026.png" srcset="../../upload/2022/05/image-1652537676026.png?width=1600 1600w, ../../upload/2022/05/image-1652537676026.png?width=800 800w, ../../upload/2022/05/image-1652537676026.png?width=1200 1200w, ../../upload/2022/05/image-1652537676026.png?width=400 400w"/></p>
 <p>可以看到，如果我们直接对RAW类型使用length，得出来的长度其实是其十六进制字符串的长度，是个错误的值，而转换成bytea后，再用length，长度才正确。其他诸如substr函数均是如此，这里就不演示了。<br/>
 然后就是BLOB类型，我不确定这里是开发人员有意为之或是其他什么原因，竟然把blob的send函数写成了byteasend，用这个函数去查blob类型是会报错的,因为不存在一个"byteasend(blob)"这样的函数</p>
 <blockquote>
@@ -311,6 +311,7 @@ end;
 <p>当然，也可以使用compat-tools组件。目前compat-tools已经加入了utl_raw及dbms_lob这两个包，欢迎大家测试使用<br/>
 <a href="https://gitee.com/enmotech/compat-tools" target="_blank">https://gitee.com/enmotech/compat-tools</a></p>
 <p>注：本篇文章纯属个人研究的一些记录，其中如有疏漏，请联系本人改正，感谢。</p>
+
 </div>
 </article>
     </div>

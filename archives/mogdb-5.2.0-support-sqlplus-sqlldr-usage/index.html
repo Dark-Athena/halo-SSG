@@ -149,7 +149,7 @@
         
         <span>2024-10-18</span>
         
-        <span>168 阅读</span>
+        <span>174 阅读</span>
         
         <a href="../categories/opengauss/">openGauss</a>
         
@@ -356,14 +356,15 @@ Elapsed time was:     0 s
 C:\test&gt;
 </code></pre>
 <h2 id="四-和ORACLE执行的效果对比">四、和ORACLE执行的效果对比</h2>
-<p><img alt="image-plgs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-plgs.png" srcset="../../upload/image-plgs.png?width=1200 1200w, ../../upload/image-plgs.png?width=400 400w, ../../upload/image-plgs.png?width=1600 1600w, ../../upload/image-plgs.png?width=800 800w"/></p>
-<p><img alt="image-sozv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-sozv.png" srcset="../../upload/image-sozv.png?width=1200 1200w, ../../upload/image-sozv.png?width=400 400w, ../../upload/image-sozv.png?width=1600 1600w, ../../upload/image-sozv.png?width=800 800w"/></p>
-<p><img alt="image-drtq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-drtq.png" srcset="../../upload/image-drtq.png?width=1200 1200w, ../../upload/image-drtq.png?width=400 400w, ../../upload/image-drtq.png?width=1600 1600w, ../../upload/image-drtq.png?width=800 800w"/></p>
+<p><img alt="image-plgs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-plgs.png" srcset="../../upload/image-plgs.png?width=1600 1600w, ../../upload/image-plgs.png?width=800 800w, ../../upload/image-plgs.png?width=1200 1200w, ../../upload/image-plgs.png?width=400 400w"/></p>
+<p><img alt="image-sozv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-sozv.png" srcset="../../upload/image-sozv.png?width=1600 1600w, ../../upload/image-sozv.png?width=800 800w, ../../upload/image-sozv.png?width=1200 1200w, ../../upload/image-sozv.png?width=400 400w"/></p>
+<p><img alt="image-drtq.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-drtq.png" srcset="../../upload/image-drtq.png?width=1600 1600w, ../../upload/image-drtq.png?width=800 800w, ../../upload/image-drtq.png?width=1200 1200w, ../../upload/image-drtq.png?width=400 400w"/></p>
 <h2 id="五-总结">五、总结</h2>
 <p>本文所列出的功能，在windows上的sqlplus和gsql、sqlldr和gs_loader的最终执行效果几乎完全一致。甚至如果本地没有sqlplus/sqlldr，把gsql.exe/gs_loader.exe改成sqlplus.exe/sqlldr.exe，批处理的脚本几乎不用改，可以把MogDB当成ORACLE去执行这些脚本。</p>
 <p>当然，其实也可以看到，有一些运维常用命令在这个版本中的gsql并没有支持，比如 <code>exit</code>退出客户端，<code>conn</code>的完整指令 <code>connect</code>,<code>execute</code>的缩写 <code>exec</code>。实现这些并不麻烦，只要选择了使用MogDB，后续都可能实现。</p>
 <p>MogDB通过"像素级模仿"，兼容了sqlplus/sqlldr的这部分典型用法，对于部分依赖于sqlplus/sqlldr的客户实现了windows端运维的无损切换。</p>
 <p>无论是底层原理，还是这种周边工具的使用细节，MogDB致力打造一个让原有ORACLE用户能真正意义上无缝切换的国产数据库。</p>
+
 </div>
 </article>
     </div>

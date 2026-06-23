@@ -149,7 +149,7 @@
         
         <span>2024-11-15</span>
         
-        <span>217 阅读</span>
+        <span>225 阅读</span>
         
     </div>
     <div class="post-body">
@@ -446,6 +446,7 @@ testdb=&gt;
 后面有时间再单独介绍这个功能。</p>
 <h2 id="总结">总结</h2>
 <p>其实openGauss相比原生postgresql，在内存的优化上的确也做了不少工作，比如<code>global plancache</code>–全局计划缓存、<code>global syscache</code>–全局系统缓存（数据字典），而且将PG的进程模型改为线程模型，避免了这种内存上下文在进程间频繁交换导致的性能问题。MogDB 5.2.0实现了<code>global plsql cache</code>，并默认开启，这对于拥有重度存储过程代码的ORACLE应用迁移到国产数据库，具有非常深刻的意义。</p>
+
 </div>
 </article>
     </div>

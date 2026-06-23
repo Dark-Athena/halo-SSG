@@ -149,7 +149,7 @@
         
         <span>2021-08-04</span>
         
-        <span>1133 阅读</span>
+        <span>1137 阅读</span>
         
         <a href="../../categories/aio/">AIO项目(All in Oracle)</a>
         
@@ -159,7 +159,7 @@
 <div id="post-inner">
 
 <p>从oracle 10g版本起，添加了schedule job功能，该功能支持调用操作系统命令<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png" srcset="../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1200 1200w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=400 400w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1600 1600w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png" srcset="../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1600 1600w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=800 800w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=1200 1200w, ../../upload/2021/08/image-e800a86638574644b4f4f61658a2955a.png?width=400 400w"/><br/>
 所以我们可以做个这样的尝试，<br/>
 将要执行的操作系统命令通过utl_file包生成一个.bat文件，然后通过schedule job来执行这个bat文件,<br/>
 举个例子，如果我们想要定时重启windows上的时间时间同步服务，在cmd下是执行</p>
@@ -224,6 +224,7 @@ end;
 3.由于是在oracle数据库执行的对应的操作系统用户下创建的操作系统进程，所以其他的操作系统用户是无法看到对应的操作命令执行窗口的<br/>
 4.建议在存储过程正式执行前，确保生成的bat文件内容的正确性</p>
 <p>另外，还可以通过调用java再调用操作系统命令，但是授权会比较麻烦，网上可以搜索到比较完整的资料，这里就不赘述了。</p>
+
 </div>
 </article>
     </div>

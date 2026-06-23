@@ -150,7 +150,7 @@
         
         <span>2024-09-14</span>
         
-        <span>126 阅读</span>
+        <span>131 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -346,6 +346,7 @@ select JOB_ID,
 <p>但是ORACLE中的listagg函数，拼接后长度的长度不能超过4000，超过会报错，而且wm_concat函数本身就不是ORACLE提供给用户使用的函数，ORACLE也不推荐使用，wm_concat的排序和distinct也会有问题（可能有些人用的时候压根就没打算要排序，直接从网上复制了就用了）。</p>
 <p>所以能理解开发者们为什么要借用xml函数写一个这么拗的语句。</p>
 <p>按本文的方式，把<code>getclobval</code>去掉改成用<code>XMLSerialize</code>函数来转换成clob，是否会遇到listagg的4000字节超长报错的问题呢？答案是不会报错，大家可以自己通过实验尝试一下</p>
+
 </div>
 </article>
     </div>

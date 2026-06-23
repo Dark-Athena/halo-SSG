@@ -149,7 +149,7 @@
         
         <span>2026-05-14</span>
         
-        <span>37 阅读</span>
+        <span>42 阅读</span>
         
     </div>
     <div class="post-body">
@@ -269,6 +269,7 @@ COMMIT;
 <h2 id="总结">总结</h2>
 <table><thead><tr><th align="left">行为</th><th align="center">Oracle</th><th align="center">PostgreSQL /GaussDB/ openGauss更新前</th><th align="center">openGauss更新后</th></tr></thead><tbody><tr><td align="left"><code>OPEN FOR UPDATE</code> 游标时加锁</td><td align="center">✅</td><td align="center">❌</td><td align="center">✅</td></tr><tr><td align="left"><code>FETCH</code> 时加锁</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td align="left"><code>CLOSE</code> 游标时释放锁</td><td align="center">❌（事务结束才释放）</td><td align="center">❌（事务结束才释放）</td><td align="center">❌（事务结束才释放）</td></tr><tr><td align="left"><code>OPEN</code> 时建立快照</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr></tbody></table>
 <p>国产数据库为了做 Oracle 兼容性，可以学 Oracle 一样在打开游标时就加锁；但应时刻保持清醒——<strong>哪些设计是好的，哪些设计是有问题的</strong>。兼容不等于照搬，理解背后的原理才能做出正确的技术决策。</p>
+
 </div>
 </article>
     </div>

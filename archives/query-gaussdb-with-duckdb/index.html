@@ -149,7 +149,7 @@
         
         <span>2025-10-27</span>
         
-        <span>147 阅读</span>
+        <span>159 阅读</span>
         
     </div>
     <div class="post-body">
@@ -321,7 +321,7 @@ SQL 错误: IO Error: Postgres scanner - out of buffer in ReadInteger
 </a></p>
 <p>这个参数在duckdb官方文档上还没看到(20251021)<br/>
 <a href="https://duckdb.org/docs/stable/core_extensions/postgres#settings">https://duckdb.org/docs/stable/core_extensions/postgres#settings</a></p>
-<p><img alt="image-fgra.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-fgra.png" srcset="../../upload/image-fgra.png?width=1200 1200w, ../../upload/image-fgra.png?width=400 400w, ../../upload/image-fgra.png?width=1600 1600w, ../../upload/image-fgra.png?width=800 800w"/></p>
+<p><img alt="image-fgra.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-fgra.png" srcset="../../upload/image-fgra.png?width=1600 1600w, ../../upload/image-fgra.png?width=800 800w, ../../upload/image-fgra.png?width=1200 1200w, ../../upload/image-fgra.png?width=400 400w"/></p>
 <p>设置一下参数再查询，的确可以了</p>
 <pre><code class="language-sql">set pg_use_text_protocol=true;
 </code></pre>
@@ -1719,6 +1719,7 @@ public class GaussDBAllocationService {
 <h2 id="总结">总结</h2>
 <p>duckdb本身的定位就是嵌入式分析型数据库，利用内存中的列式存储和向量化查询，简化非常多的算子，以实现高效的复杂SQL查询性能。把一些复杂的分析型的SQL从GaussDB转到duckdb中执行，实测的确能大幅减少执行耗时,不过这毕竟存在数据传输，如果源表数据量极大，那么数据传输的时间仍然是不可忽略的。另外，业务形态若是频繁地执行单行DML，也不适合使用duckdb。<br/>
 最后贴一下duckdb官网的 <a href="https://duckdb.org/why_duckdb">为什么选择DuckDB</a></p>
+
 </div>
 </article>
     </div>

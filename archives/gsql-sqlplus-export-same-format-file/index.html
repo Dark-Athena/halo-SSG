@@ -149,7 +149,7 @@
         
         <span>2022-10-21</span>
         
-        <span>727 阅读</span>
+        <span>731 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -221,8 +221,8 @@ gsql命令的参数，定位是个日志文件,只会显示执行的sql命令、
 <li>sqlplus里指定列宽，只能针对所有数字类型列或明确的列名，不能直接统一所有列的列宽，动态解析列名然后再轮一下列名来设置，代码又有点复杂了</li>
 </ol>
 <p>下面是多次测试中，较为接近的两种效果了，但文本差异对比估计还是完全对应不上（gsql自带的美化效果此时反而成了自定义的累赘）<br/>
-<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image.png" srcset="../../upload/2022/10/image.png?width=1200 1200w, ../../upload/2022/10/image.png?width=400 400w, ../../upload/2022/10/image.png?width=1600 1600w, ../../upload/2022/10/image.png?width=800 800w"/><br/>
-<img alt="image-1666330878436" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image-1666330878436.png" srcset="../../upload/2022/10/image-1666330878436.png?width=1200 1200w, ../../upload/2022/10/image-1666330878436.png?width=400 400w, ../../upload/2022/10/image-1666330878436.png?width=1600 1600w, ../../upload/2022/10/image-1666330878436.png?width=800 800w"/></p>
+<img alt="image" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image.png" srcset="../../upload/2022/10/image.png?width=1600 1600w, ../../upload/2022/10/image.png?width=800 800w, ../../upload/2022/10/image.png?width=1200 1200w, ../../upload/2022/10/image.png?width=400 400w"/><br/>
+<img alt="image-1666330878436" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image-1666330878436.png" srcset="../../upload/2022/10/image-1666330878436.png?width=1600 1600w, ../../upload/2022/10/image-1666330878436.png?width=800 800w, ../../upload/2022/10/image-1666330878436.png?width=1200 1200w, ../../upload/2022/10/image-1666330878436.png?width=400 400w"/></p>
 <p>其实我做了很多种尝试，发现最麻烦的是两个问题，</p>
 <ol>
 <li>列宽无法做成一致，两个工具都没提供全局列宽的设定方式</li>
@@ -341,7 +341,7 @@ select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_
 <pre><code class="language-bash">gsql -r -Uuser -Wpassword -f gsql_check.sql
 </code></pre>
 <h3 id="%E8%BE%93%E5%87%BA%E6%95%88%E6%9E%9C%E5%AF%B9%E6%AF%94" tabindex="-1">输出效果对比</h3>
-<p><img alt="image-1666334068461" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image-1666334068461.png" srcset="../../upload/2022/10/image-1666334068461.png?width=1200 1200w, ../../upload/2022/10/image-1666334068461.png?width=400 400w, ../../upload/2022/10/image-1666334068461.png?width=1600 1600w, ../../upload/2022/10/image-1666334068461.png?width=800 800w"/></p>
+<p><img alt="image-1666334068461" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/10/image-1666334068461.png" srcset="../../upload/2022/10/image-1666334068461.png?width=1600 1600w, ../../upload/2022/10/image-1666334068461.png?width=800 800w, ../../upload/2022/10/image-1666334068461.png?width=1200 1200w, ../../upload/2022/10/image-1666334068461.png?width=400 400w"/></p>
 <p>可以发现，两个工具跑出来的文本文件完全一致，且要素齐全，文本对比工具没有找到任何一处文本差异！</p>
 <p><strong>注：</strong></p>
 <ol>
@@ -349,6 +349,7 @@ select * from f_check_sql_query('select count(*) cnt, sum(col2) sum_col2 from t_
 <li>json_object(*)仅在oracle19c及以上可用；如果是12c-18c，得用dbms_sql或者xml相关函数来获取列名动态拼接才能使用json_object,因为必须显示指定字段名；如果是更老的11g，就没这个函数了，连json串本身都得手动拼接，或者用第三方的pljson组件；继续往前，如果是8i，dbms_sql也没了，只能用xml相关函数来获取列名了</li>
 <li>部分函数的返回格式，两个数据库会存在区别，建议避开不一样的格式，或者针对不一样格式的函数，再嵌套个格式化的函数处理</li>
 </ol>
+
 </div>
 </article>
     </div>

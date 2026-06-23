@@ -149,7 +149,7 @@
         
         <span>2025-05-20</span>
         
-        <span>209 阅读</span>
+        <span>211 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -273,6 +273,7 @@ ORA-01719: OR 或 IN 操作数中不允许外部联接运算符 (+)
 <p>目前openGauss系中，仅<strong>MogDB 5.2</strong>及<strong>VastBase v3.0 build8</strong>支持(+)和or一起使用。另外，非openGauss/PG系的<strong>yashan</strong>也不支持。</p>
 <h2 id="总结">总结</h2>
 <p>其实类似这样的情况，不止这一个场景，ORACLE有很多语法限制不能使用，但是很多情况下是对SQL优化器处理后的校验。但我们知道，ORACLE的同一个SQL是可能产生不同的执行计划的，而且不同的SQL也可能产生相同的执行计划，ORACLE在优化器处理后进行校验，那么就有可能出现对同一条SQL有时候报错有时候不报错。而openGauss在优化器处理前进行校验，虽然让某些能有正确执行路径的SQL也报错了，但不会出现一会儿报错一会儿不报错的情况。</p>
+
 </div>
 </article>
     </div>

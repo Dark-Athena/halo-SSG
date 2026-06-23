@@ -149,7 +149,7 @@
         
         <span>2026-05-23</span>
         
-        <span>32 阅读</span>
+        <span>34 阅读</span>
         
     </div>
     <div class="post-body">
@@ -395,6 +395,7 @@ ORDER BY n_dead_tup DESC;
 <blockquote>
 <p><strong>结语</strong>：实际项目中，vacuum很可能来不及处理这种高频的drop/create，而且因为每次删除创建的都是不同的表名，所以truncate也没意义。虽然频繁drop table/create table在其他数据库中也有问题（比如ORACLE的object_id会超），但是在postgresql中做这种操作对数据库的影响就极为严重。就算如已将ustore作为默认存储引擎的GaussDB，其元数据表依旧是astore，也是会遇到这个问题的。但正如AI回复，这个问题本质上是 "应用架构问题" ，或者说PG类内核的数据库就不是为了频繁drop table/create table做的底层设计。或许有其他PG的发行版有重构元数据的组织方式以及存储结构能解决此问题，但这种颠覆性修改注定难以和原版PG保持跟进。</p>
 </blockquote>
+
 </div>
 </article>
     </div>

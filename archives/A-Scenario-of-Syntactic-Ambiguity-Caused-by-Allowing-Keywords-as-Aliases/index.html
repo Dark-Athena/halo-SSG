@@ -149,7 +149,7 @@
         
         <span>2024-12-16</span>
         
-        <span>216 阅读</span>
+        <span>224 阅读</span>
         
     </div>
     <div class="post-body">
@@ -158,10 +158,10 @@
 
 <h2 id="前言">前言</h2>
 <p>最近在看SQL语法解析器，发现了antlr4提供的PlSql语法树存在一个BUG，然后我顺着这个BUG，构造了一条SQL，在ORACLE执行，如下</p>
-<p><img alt="image-ghns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ghns.png" srcset="../../upload/image-ghns.png?width=1200 1200w, ../../upload/image-ghns.png?width=400 400w, ../../upload/image-ghns.png?width=1600 1600w, ../../upload/image-ghns.png?width=800 800w"/></p>
+<p><img alt="image-ghns.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ghns.png" srcset="../../upload/image-ghns.png?width=1600 1600w, ../../upload/image-ghns.png?width=800 800w, ../../upload/image-ghns.png?width=1200 1200w, ../../upload/image-ghns.png?width=400 400w"/></p>
 <p>然后神奇的事情出现了，这个查询竟然没有返回行！t1表左关联t2，而且对t1表没有过滤条件，那么无论如何t1表中的数据应该是全部展现的！<br/>
 然后有人可能认为ORACLE就是这样的，但下面这个图的出现可能会让人瞬间抓狂！</p>
-<p><img alt="image-nzct.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-nzct.png" srcset="../../upload/image-nzct.png?width=1200 1200w, ../../upload/image-nzct.png?width=400 400w, ../../upload/image-nzct.png?width=1600 1600w, ../../upload/image-nzct.png?width=800 800w"/></p>
+<p><img alt="image-nzct.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-nzct.png" srcset="../../upload/image-nzct.png?width=1600 1600w, ../../upload/image-nzct.png?width=800 800w, ../../upload/image-nzct.png?width=1200 1200w, ../../upload/image-nzct.png?width=400 400w"/></p>
 <p>两条长得完全一样的SQL，就是简单的两个表关联查询，竟然出现了结果不一致的情况！</p>
 <h2 id="起因">起因</h2>
 <p>在客户应用迁移到某国产数据库中，有一条类似这样的SQL</p>
@@ -299,6 +299,7 @@ select * from t1 left join t2 on id=ids;
 </code></pre>
 <h2 id="总结">总结</h2>
 <p>虽然在国内的实际生产应用中，这里出现俄文的 <code>е</code>，概率是极低的，但养成良好的开发习惯，不过于依赖ORACLE这种宽松的SQL标准，比如别名就得加 <code>as</code>，不要使用关键字作为标识符，不要混用 <code>join</code>和 <code>(+)</code>等，这样能在异构数据库兼容改造时，省去不少麻烦。</p>
+
 </div>
 </article>
     </div>

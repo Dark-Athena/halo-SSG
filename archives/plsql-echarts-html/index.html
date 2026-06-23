@@ -149,7 +149,7 @@
         
         <span>2021-12-02</span>
         
-        <span>1651 阅读</span>
+        <span>1653 阅读</span>
         
         <a href="../../categories/oracle/">ORACLE</a> / 
         
@@ -283,7 +283,7 @@ select test_area_chart_func from dual;
 </code></pre>
 <h2 id="页面效果">页面效果</h2>
 <p><a href="https://www.darkathena.top/test/test_area_chart.html">https://www.darkathena.top/test/test_area_chart.html</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png" srcset="../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1200 1200w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=400 400w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1600 1600w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png" srcset="../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1600 1600w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=800 800w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=1200 1200w, ../../upload/2021/12/image-b3ae9a5240d843748bab5d1513908e36.png?width=400 400w"/><br/>
 实现原理就是调用开源的图表js组件<a href="https://echarts.apache.org/zh/index.html">echarts</a>，手动拼个html。</p>
 <p>上面这个函数也就随手一写，主要是验证其可行性，没有针对特殊场景做兼容开发。如果功能要更加全面的话，完全可以把各种选项参数化，封装成一个具有完整功能的plsql包。而且在12c以后也不需要使用字符串拼接json了，直接可以用json语法操作，甚至在21c版本还可以用dbms_mle功能调用js直接返回对应的图片。就算不是21c版本，在ORACLE的apex里写写简单的代码也是可以实现的,甚至还能直接做成动态刷新的页面。最后再搞个大屏显得高大上。</p>
 <h2 id="最后提个问题">最后提个问题</h2>
@@ -294,6 +294,7 @@ select test_area_chart_func from dual;
 </blockquote>
 <p>我尝试自己开发各种工具来补齐IT部门工作中的短板，当时的确是没有开发人员，只能自己上（吐槽一下，近十万员工的公司连开发都找不到。。。），所以咨询、设计、开发、运维一个人“全栈”了。而实践证明，懂运维的人开发的运维工具，会比不经常运维的开发人员开发出来的工具用起来更顺手。</p>
 <p>所以我对这个问题的回答是，DBA们利用空闲时间去多掌握一门对自己工作有帮助的技能，何乐而不为呢？</p>
+
 </div>
 </article>
     </div>

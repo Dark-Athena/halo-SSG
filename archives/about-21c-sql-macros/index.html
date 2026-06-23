@@ -149,7 +149,7 @@
         
         <span>2021-11-18</span>
         
-        <span>1826 阅读</span>
+        <span>1832 阅读</span>
         
         <a href="../../categories/oracle/">ORACLE</a>
         
@@ -170,7 +170,7 @@
 </blockquote>
 <p>这个解释还是很难看出到底有什么用，那就看看官方的例子吧</p>
 <h2 id="标量-表达式">标量 表达式</h2>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png" srcset="../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=1200 1200w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=400 400w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=1600 1600w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=800 800w"/></p>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png" srcset="../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=1600 1600w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=800 800w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=1200 1200w, ../../upload/2021/11/image-d2910f6758d04164bf95aeff1f6aebb1.png?width=400 400w"/></p>
 <p>乍一看，还是个函数，但是这里最重要的一个词是"Rewritten as ",即“重写 为”。我为什么说这个最重要呢，因为这个词才是sql宏和普通函数的最大区别。</p>
 <p>使用ORACLE自带的一些函数时，它会有原生的优化机制，效率会比使用同等效果的自定义函数要好。比如官方的这个例子，如果我们用普通的函数写法，应该是这个样子的</p>
 <pre><code class="language-sql">create function clip2(lo varchar2,x varchar2,hi varchar2) 
@@ -229,7 +229,7 @@ select  now() from dual;
 <p>sql宏除了上面这种写法，还可以用在from后面，当成表或视图来用。</p>
 <h2 id="表-表达式">表 表达式</h2>
 <p>官方的例子<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png" srcset="../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=1200 1200w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=400 400w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=1600 1600w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png" srcset="../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=1600 1600w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=800 800w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=1200 1200w, ../../upload/2021/11/image-2cd1cbe5927b41b6a0fde48a8208997c.png?width=400 400w"/></p>
 <p>同样也是重写sql，但是这个例子并不让人觉得惊奇，这和我平时写个视图有什么不同？</p>
 <p>but，还是经常写sql报表的人，尤其是被sql视图简洁但效率低的矛盾折磨的人，可能会马上想到，既然它是个函数，里面的sql也是个字符串，那我是不是可以用传进去的参数来拼字符串，而且还可以把这个参数放在任意我想要的位置？</p>
 <p>比如，假设我们有个这样的sql,统计每个department的salary，并且展现出这个department的名称</p>
@@ -290,8 +290,8 @@ end;
 select * from dept_sal_macro(20);
 </code></pre>
 <p>看看视图和sql宏的执行计划<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png" srcset="../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=1200 1200w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=400 400w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=1600 1600w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=800 800w"/><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png" srcset="../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=1200 1200w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=400 400w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=1600 1600w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png" srcset="../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=1600 1600w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=800 800w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=1200 1200w, ../../upload/2021/11/image-02bd7559251442e6a8d234ef1add562a.png?width=400 400w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png" srcset="../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=1600 1600w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=800 800w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=1200 1200w, ../../upload/2021/11/image-a69ed3e431b64a5e91c123829e8802db.png?width=400 400w"/><br/>
 孰优孰劣，一目了然。</p>
 <h2 id="错误用法或者说局限-">错误用法（或者说局限 ？）</h2>
 <p>既然它也是个函数的形式，自然就会想到一些其他的写法了，但我实测发现，sql宏传入的参数，不能作为对象名或者字段名，而且传入的参数，并不能直接被引用！</p>
@@ -369,7 +369,7 @@ COUNTRY_ID
 MYSQL中有一个函数，叫"ifnull",对应的其实就是oracl的"nvl",说移植，肯定要考虑这个函数，但实际上，ORACLE的SQL宏竟然无法支持完整移植这个函数作为SQL宏！</p>
 <p>有些人看完上面的文章，应该会说这不很简单么，但一写代码就发现，咦，我这传入参数应该写什么类型的？</p>
 <p>在ORACLE的标准函数里，nvl实际上有二十多个<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png" srcset="../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=1200 1200w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=400 400w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=1600 1600w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png" srcset="../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=1600 1600w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=800 800w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=1200 1200w, ../../upload/2021/11/image-f1dc8d72066b43a1aab906e9691fd262.png?width=400 400w"/><br/>
 不同的NVL函数分别对应不同的参数类型，比如varchar2/number/date等，但是这种同名但参数类型不同的函数，只能写在package里面，这要如何实现？先写个包试试看看吧</p>
 <pre><code class="language-sql">create or replace package CUX_STANDARD is
 
@@ -410,6 +410,7 @@ COMMISSION_PCT	STATE_PROVINCE
 </code></pre>
 <p>然而这仅仅只能说明包里也可以使用SQL宏，但你依旧无法只用一个“IFNULL”来使用sql宏，用anydata这种类型也解决不了这个问题，同义词也无法执向包中的函数，至于再包一层函数，那又失去了使用SQL宏的意义。前面也说过了，普通的自定义函数效率不如数据库自带函数好。</p>
 <p>不知道ORACLE接下来打算怎么解决这个问题</p>
+
 </div>
 </article>
     </div>

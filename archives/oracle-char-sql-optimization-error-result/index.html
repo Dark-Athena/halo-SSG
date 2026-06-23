@@ -149,7 +149,7 @@
         
         <span>2025-03-04</span>
         
-        <span>221 阅读</span>
+        <span>226 阅读</span>
         
         <a href="../../categories/oracledb/">ORACLE数据库</a>
         
@@ -341,6 +341,7 @@ select count(rpad(object_name ,2000,' ')) from dba_objects x ;
 <h2 id="总结">总结</h2>
 <p>总体来说，我之前对于char类型的分析是没有问题的，但是本文的场景是叠加了ORACLE的优化器的问题，因此出现了一些新的现象。<br/>
 如非必要，建议还是不要再用CHAR类型了，ORACLE自己这么几十年都还没把char类型玩明白，更不要谈使用者是否能用好这个类型了。</p>
+
 </div>
 </article>
     </div>

@@ -149,7 +149,7 @@
         
         <span>2021-08-12</span>
         
-        <span>1201 阅读</span>
+        <span>1205 阅读</span>
         
         <a href="../../categories/aio/">AIO项目(All in Oracle)</a>
         
@@ -368,7 +368,7 @@ end;
 /
 </code></pre>
 <p>效果如下<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png" srcset="../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1200 1200w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=400 400w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1600 1600w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=800 800w"/></p>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png" srcset="../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1600 1600w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=800 800w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=1200 1200w, ../../upload/2021/08/image-4b30f373fe0e47dcaaf8a5bbf01f4d11.png?width=400 400w"/></p>
 <h3 id="四缺陷">四、缺陷</h3>
 <p>这段程序是我有一年农历大年三十晚上到春节凌晨的那几个小时写的，因为是纯字符串的处理复杂处理，必须一次性搞定，否则就容易忘了中间某几步的参数会变成啥样。现在回头看，短时间很难完整的在脑海里进行模拟运行了，当然后期还是要进行一些优化，因为现在还有些SQL不能成功转换，要求已经写在代码中的注释内了</p>
 <blockquote>
@@ -385,7 +385,7 @@ end;
 */ /*/*/ FROM dual
 </code></pre>
 <p>咋一看以为语法有问题，实际还真没问题，可以执行<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png" srcset="../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1200 1200w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=400 400w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1600 1600w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png" srcset="../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1600 1600w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=800 800w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=1200 1200w, ../../upload/2021/08/image-9d6d0b6872c6498c8f143826caede8c3.png?width=400 400w"/><br/>
 像这种sql不能一开始就合成一行，因为“--”的后面是注释，但也不全是，因为“--”可能在“/* */”内，另外“/*”也不一定就代表注释开始，“/* */”不成对也可能是正常的。</p>
 <p>当时断断续续研究了3天左右，没搞定，也没时间研究了，所以当时就放那没管了，不过这个版本使用率还是很高的，毕竟这样查数据不用在工具上切换数据库了，想象假设有几百个数据库，把DBLINK的名字写个游标，循环跑或者多线程跑，每次都只用传个SQL进去就能把数据都获取到，还可以直接insert到本地的表，一步到位，多舒坦~</p>
 <p>之后如果有优化会在我的GITHUB上进行更新<br/>
@@ -403,6 +403,7 @@ end;
 <a href="https://www.xuebuyuan.com/1019319.html">https://www.xuebuyuan.com/1019319.html</a><br/>
 还有这篇文章，就是使用我前面所说的在数据字典中匹配的方式，如果有字段名和表名一样的，就会找错<br/>
 <a href="https://blog.csdn.net/weixin_42542420/article/details/116322502">https://blog.csdn.net/weixin_42542420/article/details/116322502</a></p>
+
 </div>
 </article>
     </div>

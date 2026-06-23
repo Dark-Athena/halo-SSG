@@ -149,7 +149,7 @@
         
         <span>2021-10-11</span>
         
-        <span>2385 阅读</span>
+        <span>2389 阅读</span>
         
         <a href="../../categories/python/">python</a> / 
         
@@ -303,7 +303,7 @@ libgfortran.so.3: cannot open shared object file: No such file or directory
 <p>最后的最后，不要在生产环境使用21c！按大佬的说法，目前19c才是长期版本，下一个长期版本会是23c。</p>
 <h2 id="20211114更新">20211114更新</h2>
 <p>重新自己用ORACLE LINUX 8安装了21c，做成了docker，并微调了官方的安装脚本（脚本里直接强制指定参数的值），终于执行成功了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png" srcset="../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1200 1200w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=400 400w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1600 1600w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png" srcset="../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1600 1600w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=800 800w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=1200 1200w, ../../upload/2021/11/image-e041bf805b5b4d6490156663355a7e4e.png?width=400 400w"/></p>
 <p>但是安装脚本中最后一个调用的文件pyqatmlcfg.sql，导入机器学习模型imp不成功，一开始我是把docker的数据库文件挂载到了windows本地，查询dba_directories时就报错</p>
 <blockquote>
 <p>ORA-12801: error signaled in parallel query server P000<br/>
@@ -350,6 +350,7 @@ dbca -slient -configurePluggableDatabase  -pdbName pdb1 -sourceDB cdb1 -configur
 但实测，<br/>
 第一种装完后无法执行python函数，和我第一次报错一样<br/>
 第二种安装时提示[FATAL] [DBT-15311] Container database is not configured with OML4Py.</p>
+
 </div>
 </article>
     </div>

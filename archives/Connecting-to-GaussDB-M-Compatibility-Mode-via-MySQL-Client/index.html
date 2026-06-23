@@ -149,7 +149,7 @@
         
         <span>2025-08-23</span>
         
-        <span>166 阅读</span>
+        <span>174 阅读</span>
         
     </div>
     <div class="post-body">
@@ -201,7 +201,7 @@ gs_guc reload -I all -N all -c "m_format_dev_version='s2'"
 <hr/>
 <h2 id="连接测试">连接测试</h2>
 <h3 id="初始连接问题">初始连接问题</h3>
-<p><img alt="image-grwl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-grwl.png" srcset="../../upload/image-grwl.png?width=1200 1200w, ../../upload/image-grwl.png?width=400 400w, ../../upload/image-grwl.png?width=1600 1600w, ../../upload/image-grwl.png?width=800 800w"/><br/>
+<p><img alt="image-grwl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-grwl.png" srcset="../../upload/image-grwl.png?width=1600 1600w, ../../upload/image-grwl.png?width=800 800w, ../../upload/image-grwl.png?width=1200 1200w, ../../upload/image-grwl.png?width=400 400w"/><br/>
 使用MySQL客户端连接时出现报错：</p>
 <blockquote>
 <p><strong>错误信息：</strong> <code>plat_compat_b_conn_handshake, handshake error.</code></p>
@@ -287,15 +287,15 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
 <p>多了两个参数，逐步测试：</p>
 <h4 id="步骤1添加-usesslfalse">步骤1：添加 useSSL=false</h4>
 <p>先加一个 <code>useSSL=false</code> 参数测试。<br/>
-<img alt="image-kjpz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-kjpz.png" srcset="../../upload/image-kjpz.png?width=1200 1200w, ../../upload/image-kjpz.png?width=400 400w, ../../upload/image-kjpz.png?width=1600 1600w, ../../upload/image-kjpz.png?width=800 800w"/><br/>
+<img alt="image-kjpz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-kjpz.png" srcset="../../upload/image-kjpz.png?width=1600 1600w, ../../upload/image-kjpz.png?width=800 800w, ../../upload/image-kjpz.png?width=1200 1200w, ../../upload/image-kjpz.png?width=400 400w"/><br/>
 <strong>结果：</strong> 出现了和mogeaver一样的报错。</p>
 <h4 id="步骤2添加-allowpublickeyretrievaltrue">步骤2：添加 allowPublicKeyRetrieval=true</h4>
 <p>再把另一个参数也加上去 <code>allowPublicKeyRetrieval=true</code>。<br/>
-<img alt="image-mrai.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-mrai.png" srcset="../../upload/image-mrai.png?width=1200 1200w, ../../upload/image-mrai.png?width=400 400w, ../../upload/image-mrai.png?width=1600 1600w, ../../upload/image-mrai.png?width=800 800w"/><br/>
+<img alt="image-mrai.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-mrai.png" srcset="../../upload/image-mrai.png?width=1600 1600w, ../../upload/image-mrai.png?width=800 800w, ../../upload/image-mrai.png?width=1200 1200w, ../../upload/image-mrai.png?width=400 400w"/><br/>
 <strong>结果：</strong> ✅ 执行成功了！</p>
 <h4 id="验证其他客户端">验证其他客户端</h4>
 <p>在mogeaver里也加上这个参数 <code>allowPublicKeyRetrieval=true</code>。<br/>
-<img alt="image-jlyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-jlyz.png" srcset="../../upload/image-jlyz.png?width=1200 1200w, ../../upload/image-jlyz.png?width=400 400w, ../../upload/image-jlyz.png?width=1600 1600w, ../../upload/image-jlyz.png?width=800 800w"/><br/>
+<img alt="image-jlyz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-jlyz.png" srcset="../../upload/image-jlyz.png?width=1600 1600w, ../../upload/image-jlyz.png?width=800 800w, ../../upload/image-jlyz.png?width=1200 1200w, ../../upload/image-jlyz.png?width=400 400w"/><br/>
 <strong>结果：</strong> ✅ 也连接成功了！</p>
 <blockquote>
 <p><strong>说明：</strong> 但是mogeaver里的useSSL为true，之所以没有报错，是因为mogeaver里还自动加上了<code>enabledTLSProtocols=TLSv1,TLSv1.1,TLSv1.2</code></p>
@@ -310,7 +310,7 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
 <h2 id="常见问题及解决">常见问题及解决</h2>
 <p>如果是普通的测试人员，测到这里，就会认为连接测试这一项已经测试通过了，但是换几个不同的环境里的GaussDB去测，还可能会出现这样的报错：</p>
 <h3 id="问题access-denied-for-user">问题：Access denied for user</h3>
-<p><img alt="image-itil.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-itil.png" srcset="../../upload/image-itil.png?width=1200 1200w, ../../upload/image-itil.png?width=400 400w, ../../upload/image-itil.png?width=1600 1600w, ../../upload/image-itil.png?width=800 800w"/></p>
+<p><img alt="image-itil.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-itil.png" srcset="../../upload/image-itil.png?width=1600 1600w, ../../upload/image-itil.png?width=800 800w, ../../upload/image-itil.png?width=1200 1200w, ../../upload/image-itil.png?width=400 400w"/></p>
 <blockquote>
 <p><strong>错误信息：</strong> <code>Access denied for user</code></p>
 </blockquote>
@@ -374,6 +374,7 @@ Caused by: javax.net.ssl.SSLHandshakeException: No appropriate protocol (protoco
 <li><a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00b">《设置密码安全策略》</a></li>
 <li><a href="https://support.huawei.com/carrier/docview?nid=DOC1101458028&amp;path=PBI1-253383977/PBI1-23710112/PBI1-23710137/PBI1-256197501&amp;partNo=k00e">《使用RSA加密登录密码》</a></li>
 </ul>
+
 </div>
 </article>
     </div>

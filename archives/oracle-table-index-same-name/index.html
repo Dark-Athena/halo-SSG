@@ -150,7 +150,7 @@
         
         <span>2024-07-21</span>
         
-        <span>160 阅读</span>
+        <span>166 阅读</span>
         
     </div>
     <div class="post-body">
@@ -357,6 +357,7 @@
 <p>A table and an index can have the same name because they are in a different namespace. A table and a procedure <em>cannot</em> have the same name, because they are in the same namespace.</p>
 </blockquote>
 <p>这样就可以理解，oracle对命名空间的区分，是基于语法，或者说是基于场景的，比如你永远不可能<code>select * from 索引</code> ，所以索引名可以和表名重名，对用户使用更友好。而PG系的命名空间，是根据<code>类</code>来区分的，从数据库内核原理上看，这样的设计更标准，拓展性更强。</p>
+
 </div>
 </article>
     </div>

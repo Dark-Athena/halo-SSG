@@ -5,6 +5,16 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/DiffusionGemma-on-ai-max-395-test</loc>
+    <lastmod>2026-06-23</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-plan-trace-analyze-predpush</loc>
+    <lastmod>2026-06-23</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/gaussdb-coredump-vip-jdbc-keepalive-hang-half-socket</loc>
     <lastmod>2026-06-15</lastmod>
     <priority>0.8</priority>

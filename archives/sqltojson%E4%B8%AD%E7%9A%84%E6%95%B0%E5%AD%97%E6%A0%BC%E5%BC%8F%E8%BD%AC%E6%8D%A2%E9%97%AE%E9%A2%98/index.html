@@ -149,7 +149,7 @@
         
         <span>2021-08-09</span>
         
-        <span>1028 阅读</span>
+        <span>1035 阅读</span>
         
         <a href="../../categories/aio/">AIO项目(All in Oracle)</a>
         
@@ -236,11 +236,11 @@ not(starts-with(.,'-0.' )))
 <h2></h2>
 <p>但是，这个问题其实还没完，因为这个json库还有其他问题，开发者会进行不定期更新，每次我这边数据库里对这个包进行更新时，还要自己手动修复这个bug，所以我把这个问题及解决方案提交给了这个json库的开发者<br/>
 <a href="https://github.com/pljson/pljson/issues/237">https://github.com/pljson/pljson/issues/237</a><br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png" srcset="../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1200 1200w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=400 400w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1600 1600w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png" srcset="../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1600 1600w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=800 800w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=1200 1200w, ../../upload/2021/08/image-351b80fce8644e4d800089293503bf7b.png?width=400 400w"/><br/>
 然后这个问题终于在之后的版本中得到了修复。</p>
 <h2></h2>
 <p>但是还有但是，我提交的这个问题后面，又有另一个人提了另一个问题<br/>
-<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png" srcset="../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1200 1200w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=400 400w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1600 1600w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=800 800w"/><br/>
+<img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png" srcset="../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1600 1600w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=800 800w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=1200 1200w, ../../upload/2021/08/image-66df83b19db64fe69c27f8000baa257d.png?width=400 400w"/><br/>
 大概意思就是如果把数字字符集改成德国的，这个修复方案就还是不行，所以这个开发者后面又改了一版。</p>
 <p>至此，这个问题应该算是正式解决了，但是，没错，还有个但是。</p>
 <h2></h2>
@@ -252,6 +252,7 @@ not(starts-with(.,'-0.' )))
 </blockquote>
 <p>比如同义词 json_util_pkg 指向到 pljson_util_pkg， jsonlist指向到 pljsonlist，乍看下貌似没有什么问题，但实际在创建这批同义词的时候，会发现新版本的json库文件中，不存在pljson_value.type.decl.sql和 pljson_value.type.impl.sql这两个文件，也就是说，新版不存在“json_value”这个type对象，于是我又提了个bug。<a href="https://github.com/pljson/pljson/issues/203">https://github.com/pljson/pljson/issues/203</a></p>
 <p>但是我后来自己仔细研究，发现新版json库中，的确没有任何一个地方使用了“json_value”，比较新老代码，老的用json_value的地方，在新的里面，改成了pljson_element，所以只要创建json_value 指向pljson_element的同义词即可解决这个问题。而这个作者貌似没有提到这个，我也没管了，直接把github上这个问题关了，反正未来ORACLE12C以上都只能用新版的了，老版本的不能再继续使用。</p>
+
 </div>
 </article>
     </div>

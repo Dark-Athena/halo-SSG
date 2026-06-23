@@ -149,7 +149,7 @@
         
         <span>2021-11-10</span>
         
-        <span>1505 阅读</span>
+        <span>1513 阅读</span>
         
         <a href="../../categories/oracle/">ORACLE</a>
         
@@ -197,7 +197,7 @@ insert into test_add_col values('1');
 alter table TEST_ADD_COL add b date default date'2021-11-10' not null;
 </code></pre>
 <p>结果是<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png" srcset="../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1200 1200w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=400 400w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1600 1600w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png" srcset="../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1600 1600w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=800 800w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=1200 1200w, ../../upload/2021/11/image-25918c7759344a589a255a7bf8661ed2.png?width=400 400w"/><br/>
 可以看到加字段这个动作被此表的dml会话操作给锁了，然后继续</p>
 <pre><code class="language-sql">--会话C
 insert into test_add_col values('1');
@@ -269,6 +269,7 @@ ddl_lock_timeout                     integer     0
 </code></pre>
 <p>参数没问题，</p>
 <p>但是，这个特性在11g的前后都有变化，暂不确定是不是21c版本才这样，需要有10g/11g/12c的环境来测试一下，目前内存和硬盘都有点吃紧，等以后给电脑升级下配置再试。</p>
+
 </div>
 </article>
     </div>

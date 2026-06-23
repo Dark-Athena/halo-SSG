@@ -153,7 +153,7 @@ SQL> select 123木头人">
         
         <span>2025-08-20</span>
         
-        <span>155 阅读</span>
+        <span>158 阅读</span>
         
         <a href="../../categories/oracledb/">ORACLE数据库</a>
         
@@ -305,6 +305,7 @@ SQL&gt; select 36e-36e from dual;
 <p>这种特殊的分词规则在Oracle官方文档中是没有提及的，国产数据库把这个规则做进去，我猜要么是在客户处遇到了这种场景，要么就是研究了开源的词法规则（比如antlr4的PlSql），否则谁会想到在字面量这么基础简单的使用上，Oracle还埋了特殊规则。</p>
 <h2 id="总结">总结</h2>
 <p>回到本文标题， <code>select 123木头人 from dual</code> 在ORACLE里真能run起来，返回列名为"木头人"，值为"123",看似没有报错，但这种特殊分词规则隐藏了巨大的隐患，实际开发过程中不建议使用，使用列别名的场景还是加<code>as</code>为好，比如 <code>select 123 as 木头人 from dual</code>。</p>
+
 </div>
 </article>
     </div>

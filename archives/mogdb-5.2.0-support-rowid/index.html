@@ -149,7 +149,7 @@
         
         <span>2024-10-14</span>
         
-        <span>188 阅读</span>
+        <span>195 阅读</span>
         
         <a href="../categories/opengauss/">openGauss</a>
         
@@ -882,6 +882,7 @@ MogDB=#
 </div><h2 id="五、总结">五、总结</h2>
 <p>PG/OG系最佳的rowid实现方案，在astore下必然无法实现，所以OG系的ustore应该是当下最佳实现方案，但ustore仍然还需要一段时间来进行市场验证。因此MogDB5.2.0在astore下实现的这个rowid，在一众PG/OG系的解决方案里，属于是一种全新的方案了，这种方案不仅没有让DML性能下降，又可以比同样DML性能没有下降的其他数据库支持更多的场景，是PG/OG系中已知的目前唯一一款在astore下没有新增物理字段又同时支持了这5个rowid使用场景的数据库。</p>
 <p>声明：本文不涉及任何商业行为，仅对自测结果进行客观陈述，如果觉得有不妥当，请联系本人进行修改 <a href="mailto:darkathena@qq.com">darkathena@qq.com</a></p>
+
 </div>
 </article>
     </div>

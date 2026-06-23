@@ -6,6 +6,19 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测</title>
+      <link>https://www.darkathena.top/archives/DiffusionGemma-on-ai-max-395-test</link>
+      <description>同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测 扩散模型 vs 自回归模型 常见的LLM大多是自回归模型，简单来说就是词语接龙，根据前面的文本猜测下一个最可能出现的词语；而扩散模型和自回归模型那种词语接龙的方式不一样，扩散模型不是一个字一个字地吐，而</description>
+      <pubDate>Tue, 23 Jun 2026 13:12:07 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>【GaussDB】Plan Trace 深度分析-CPlan 与 GPlan 谓词推入差异的完整复现与解读</title>
+      <link>https://www.darkathena.top/archives/gaussdb-plan-trace-analyze-predpush</link>
+      <description>GaussDB Plan Trace 深度分析 CPlan 与 GPlan 谓词推入差异的完整复现与解读 基于 GaussDB Kernel 506.0.0.SPC0100 实际测试 | 2026 年 6 月 这可能是你能看到的第一篇公开的、包含真实解读GaussDB Plan Trace的文章。 </description>
+      <pubDate>Tue, 23 Jun 2026 12:57:04 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题</title>
       <link>https://www.darkathena.top/archives/gaussdb-coredump-vip-jdbc-keepalive-hang-half-socket</link>
       <description>【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题 现象 GaussDB集中式主备环境，有多个java应用使用vip连接数据库，数据库主节点由于某个bug触发了coredump，vip漂移到备库，备库升主，有部分应用报错后重连到了新主库，但另一部分java应用hang死</description>
@@ -310,19 +323,6 @@ gsq</description>
       <link>https://www.darkathena.top/archives/From-sqlplus-to-gsql-Migrating-and-Adapting-the-Shell-Script-for-Executing-SQL-Files</link>
       <description>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造 背景 在客户应用系统中，有一套shell脚本来操作ORACLE数据库执行业务存储过程，现数据库需要迁移到GaussDB,因此这套shell脚本也要进行移植改写 原始代码demo 存储过程定义 cre</description>
       <pubDate>Thu, 01 Jan 2026 13:44:36 +0000</pubDate>
-      <category>openGauss</category>
-    </item>
-    <item>
-      <title>【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到</title>
-      <link>https://www.darkathena.top/archives/gaussdb-index-skip-scan-vacuum-not-found-data-bug</link>
-      <description>【GaussDB】执行索引跳扫时如果遇到该索引正在执行autovacuum，可能会导致数据查询不到 现场问题现象 数据库版本：506.0.0SPC0100 串行业务： 开启事务，对表A执行delete全表，然后一次性插入一批数据，提交事务 对表A执行skip index scan查询，条件值取自表A</description>
-      <pubDate>Thu, 04 Dec 2025 13:49:00 +0000</pubDate>
-    </item>
-    <item>
-      <title>【Oracle/GaussDB/MogDB】统一权限查询</title>
-      <link>https://www.darkathena.top/archives/oracle-gaussdb-mogdb-union-privilege-query</link>
-      <description>【Oracle/GaussDB/MogDB】统一权限查询 背景 客户在系统下线流程中，有一步操作是锁定该系统对各个数据库登录的账号，但由于历史原因，没有完整记录每个数据库账号有哪些权限，导致有时关闭账号后，部分生产业务出现异常。现客户提出需求，期望从各个数据库中捞出所有用户的所有权限，以便后续关闭账</description>
-      <pubDate>Sun, 30 Nov 2025 07:51:19 +0000</pubDate>
       <category>openGauss</category>
     </item>
   </channel>

@@ -149,7 +149,7 @@
         
         <span>2022-04-27</span>
         
-        <span>1295 阅读</span>
+        <span>1300 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a> / 
         
@@ -245,9 +245,9 @@ SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA
 <pre><code class="language-sql">select sha256.ENCRYPT('aa') ;
 --961b6dd3ede3cb8ecbaacbd68de040cd78eb2ed5889130cceb4c49268ea4d506
 </code></pre>
-<p><img alt="image-1651042932329" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/04/image-1651042932329.png" srcset="../../upload/2022/04/image-1651042932329.png?width=1200 1200w, ../../upload/2022/04/image-1651042932329.png?width=400 400w, ../../upload/2022/04/image-1651042932329.png?width=1600 1600w, ../../upload/2022/04/image-1651042932329.png?width=800 800w"/><br/>
+<p><img alt="image-1651042932329" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/04/image-1651042932329.png" srcset="../../upload/2022/04/image-1651042932329.png?width=1600 1600w, ../../upload/2022/04/image-1651042932329.png?width=800 800w, ../../upload/2022/04/image-1651042932329.png?width=1200 1200w, ../../upload/2022/04/image-1651042932329.png?width=400 400w"/><br/>
 然后在oracle中查询<br/>
-<img alt="image-1651042965558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/04/image-1651042965558.png" srcset="../../upload/2022/04/image-1651042965558.png?width=1200 1200w, ../../upload/2022/04/image-1651042965558.png?width=400 400w, ../../upload/2022/04/image-1651042965558.png?width=1600 1600w, ../../upload/2022/04/image-1651042965558.png?width=800 800w"/><br/>
+<img alt="image-1651042965558" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/04/image-1651042965558.png" srcset="../../upload/2022/04/image-1651042965558.png?width=1600 1600w, ../../upload/2022/04/image-1651042965558.png?width=800 800w, ../../upload/2022/04/image-1651042965558.png?width=1200 1200w, ../../upload/2022/04/image-1651042965558.png?width=400 400w"/><br/>
 可以发现结果完全一致。</p>
 <p>但是，我发现个很严重的问题，上述的这个sql，我在oracle中查询只需要0.277秒，但是在openGauss中查询则需要3秒。<br/>
 猜测原因，一方面可能与我写的UTL_RAW包有关，毕竟不是用的原生c语言开发的；另一方面nocopy这个特性的确能提高性能；再者就是两个数据库运行的环境是存在差异的。</p>
@@ -259,6 +259,7 @@ SHA-2中的SHA256，安全性比MD5更高，因此很多数据库增加了对SHA
 <h2 id="%E5%90%8E%E8%AE%B0" tabindex="-1">后记</h2>
 <p>20220428更新：<br/>
 基于最新的mogdb3.0.0测试版进行了下适配，发现只需要修改nocopy 和 to_number里的’0x’两处地方即可,并且查询时长小于0.01s!</p>
+
 </div>
 </article>
     </div>

@@ -149,7 +149,7 @@
         
         <span>2026-01-10</span>
         
-        <span>89 阅读</span>
+        <span>94 阅读</span>
         
     </div>
     <div class="post-body">
@@ -551,6 +551,7 @@ ANONYMOUS BLOCK EXECUTE
 2.加上hint <code>/*+use_cplan*/</code> ,使其每次都强制走cplan</p>
 <p>上面两种推荐用1，即去掉from dual 的方式，这样性能最好，但如果的确是要查询表或者into多个变量的情况，则只能使用加hint的方式了。</p>
 <p>但是，最理想的代码，还是不要出现这种类型转换，无论是表里的数据作为参数还是使用变量作为参数，只要值可能为不能转换成数字的字符串，就不要尝试去对其转换成数字！</p>
+
 </div>
 </article>
     </div>

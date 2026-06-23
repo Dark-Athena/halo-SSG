@@ -149,7 +149,7 @@
         
         <span>2026-05-23</span>
         
-        <span>385 阅读</span>
+        <span>438 阅读</span>
         
         <a href="../categories/ai/">AI</a>
         
@@ -347,8 +347,8 @@
 </ol>
 <p>从另一方面看，GPU 并没有火力全开，应该还有提升空间。</p>
 <p>从这个利用率的波形也能明显发现区别，明显是新增了不同类型的运算负载，这和MTP目前的实现方式有关，具体我就不展开了（其实是我也没研究透，怕说错...）<br/>
-<img alt="image-GteF.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-GteF.png" srcset="../../upload/image-GteF.png?width=1200 1200w, ../../upload/image-GteF.png?width=400 400w, ../../upload/image-GteF.png?width=1600 1600w, ../../upload/image-GteF.png?width=800 800w"/><br/>
-<img alt="image-qkrs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-qkrs.png" srcset="../../upload/image-qkrs.png?width=1200 1200w, ../../upload/image-qkrs.png?width=400 400w, ../../upload/image-qkrs.png?width=1600 1600w, ../../upload/image-qkrs.png?width=800 800w"/></p>
+<img alt="image-GteF.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-GteF.png" srcset="../../upload/image-GteF.png?width=1600 1600w, ../../upload/image-GteF.png?width=800 800w, ../../upload/image-GteF.png?width=1200 1200w, ../../upload/image-GteF.png?width=400 400w"/><br/>
+<img alt="image-qkrs.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-qkrs.png" srcset="../../upload/image-qkrs.png?width=1600 1600w, ../../upload/image-qkrs.png?width=800 800w, ../../upload/image-qkrs.png?width=1200 1200w, ../../upload/image-qkrs.png?width=400 400w"/></p>
 <h2 id="附-MTP-使用方式">附：MTP 使用方式</h2>
 <p>以 Windows AMD 显卡环境为例：</p>
 <h3 id="1--下载-MTP-模型">1. 下载 MTP 模型</h3>
@@ -483,11 +483,12 @@ exit /b %EXIT_CODE%
 <h2 id="最后说下">最后说下</h2>
 <p>这里绝不包含任何购买建议，只是个人感想：</p>
 <p>我这台AMD AI MAX+395 笔记本上个月一万多买的，现在京东已经涨到三万了。</p>
-<p><img alt="image-mbMD.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-mbMD.png" srcset="../../upload/image-mbMD.png?width=1200 1200w, ../../upload/image-mbMD.png?width=400 400w, ../../upload/image-mbMD.png?width=1600 1600w, ../../upload/image-mbMD.png?width=800 800w"/></p>
+<p><img alt="image-mbMD.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-mbMD.png" srcset="../../upload/image-mbMD.png?width=1600 1600w, ../../upload/image-mbMD.png?width=800 800w, ../../upload/image-mbMD.png?width=1200 1200w, ../../upload/image-mbMD.png?width=400 400w"/></p>
 <p>真正用下来，显存的确是量大管饱，但显存带宽是远不及N卡和MAC的，模型测了一堆，快的模型蠢，聪明的模型慢，Qwen-27B算是最能打的了，只是11t/s的速度接到编程agent里实在太慢，有些agent还自带超时重试，这机器可顶不住并发，更别说预填充阶段那蜗牛一样的速度了。<br/>
 前一段时间MAC和N卡各种黑科技提升性能，AMD这边都不能用，我甚至一度想再重新组一台带N卡的服务器，但看到价格、体积、运行噪音，还是迟疑了。<br/>
 但现在有了MTP，跑Qwen-27B能有二十几个TOKEN每秒，这也算是真正能干活了。<br/>
 不过如果让我再选一次跑本地模型的机器，我可能会买N卡。</p>
+
 </div>
 </article>
     </div>

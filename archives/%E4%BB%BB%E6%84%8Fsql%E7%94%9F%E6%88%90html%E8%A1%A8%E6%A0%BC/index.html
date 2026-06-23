@@ -149,7 +149,7 @@
         
         <span>2021-08-08</span>
         
-        <span>1105 阅读</span>
+        <span>1108 阅读</span>
         
         <a href="../../categories/aio/">AIO项目(All in Oracle)</a>
         
@@ -253,7 +253,7 @@ end;
 &lt;/body&gt;
 &lt;/html&gt;
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png" srcset="../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1200 1200w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=400 400w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1600 1600w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png" srcset="../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1600 1600w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=800 800w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=1200 1200w, ../../upload/2021/08/image-51d43e06e97f4cfd823211880c76d470.png?width=400 400w"/></p>
 <p>原来只是在前面加了一段css样式，所以我们在生成的时候，直接把这整段都拼到前面去就好了，或者也可以换其他的样式，比如</p>
 <pre><code class="language-html">&lt;style type="text/css"&gt;
              body {font:10pt Arial,Helvetica,sans-serif; color:black; background:White;}
@@ -265,7 +265,7 @@ end;
              a {font:9pt Arial,Helvetica,sans-serif; color:#663300; background:#ffffff; margin-top:0pt; margin-bottom:0pt; vertical-align:top;}
              &lt;/style&gt;
 </code></pre>
-<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png" srcset="../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1200 1200w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=400 400w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1600 1600w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=800 800w"/></p>
+<p><img alt="" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png" srcset="../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1600 1600w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=800 800w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=1200 1200w, ../../upload/2021/08/image-acbb06d4aa804991bd2e8d79caf6c0cf.png?width=400 400w"/></p>
 <p>那么基本思路都理清了，的确是可以实现的，然后我参考以上逻辑写了一个函数，调用时只需要传入sql查询语句即可返回对应的html代码字符串，比如</p>
 <pre><code class="language-plsql">l_html:=SQL_TO_HTML('select name ,id from table')；
 </code></pre>
@@ -276,6 +276,7 @@ end;
 最后，由于这个函数遍历了sql查询结果中的每一个值，速度会比较慢，因此不建议将数据结果太大的sql传入来生成。</p>
 <h2 id="20211028-更新">20211028 更新</h2>
 <p><a href="https://www.darkathena.top/archives/oraclesqltohtmlxlst">【ORACLE】在数据库中使用xml和xlst来实现sql查询转换成HTML表格</a></p>
+
 </div>
 </article>
     </div>

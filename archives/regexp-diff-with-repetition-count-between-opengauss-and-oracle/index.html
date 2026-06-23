@@ -149,7 +149,7 @@
         
         <span>2024-12-28</span>
         
-        <span>325 阅读</span>
+        <span>330 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -205,8 +205,8 @@ select regexp_substr('aaaa${ }bbb','(\${ 1*})') from dual;
 如果 <code>{}</code>内的第一个字符是数字，则开始进入次数的解析逻辑，若解析不符合次数的规则，就报错。<br/>
 查看openGauss源码，发现这段逻辑来自1998年的PG源码，数十年来未曾变过。<br/>
 这里注意，此处并非BUG，只是正则标准不一致，我使用了7种开发语言来验证，发现JAVA和RUST中也同样是报错的，而PHP/JS/PYTHON/.NET/GO 中都不报错。</p>
-<p><img alt="image-ssmg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ssmg.png" srcset="../../upload/image-ssmg.png?width=1200 1200w, ../../upload/image-ssmg.png?width=400 400w, ../../upload/image-ssmg.png?width=1600 1600w, ../../upload/image-ssmg.png?width=800 800w"/></p>
-<p><img alt="image-woln.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-woln.png" srcset="../../upload/image-woln.png?width=1200 1200w, ../../upload/image-woln.png?width=400 400w, ../../upload/image-woln.png?width=1600 1600w, ../../upload/image-woln.png?width=800 800w"/></p>
+<p><img alt="image-ssmg.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ssmg.png" srcset="../../upload/image-ssmg.png?width=1600 1600w, ../../upload/image-ssmg.png?width=800 800w, ../../upload/image-ssmg.png?width=1200 1200w, ../../upload/image-ssmg.png?width=400 400w"/></p>
+<p><img alt="image-woln.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-woln.png" srcset="../../upload/image-woln.png?width=1600 1600w, ../../upload/image-woln.png?width=800 800w, ../../upload/image-woln.png?width=1200 1200w, ../../upload/image-woln.png?width=400 400w"/></p>
 <p>可以使用以下链接测试该正则表达式在不同开发语言中的表现<br/>
 <a href="https://regex101.com/r/APc3is/1">https://regex101.com/r/APc3is/1</a></p>
 <h1 id="四-相关源码">四、相关源码</h1>
@@ -360,6 +360,7 @@ ErrorCode = 600, SQLState = 42000, Details = OBE-00600: internal error code, arg
 <p>该段业务程序是在做模板字符串处理，系统中配置了多个字符串模板，模板中使用<code>${1}</code> <code>${2}</code>这样的标记作为填充值的占位符。如果使用占位符使用到了 <code>${11}</code> ，则<code>(\$\{1*\})</code>也能匹配上，导致结果错误。所以准确的做法应该为<code>(\$\{1\})</code>,即不应该有这个<code>*</code>，此时想替换第几个参数均能正确匹配。而为什么之前的业务代码中会有这个<code>*</code>，我猜想大概是当时的开发人员写的<code>(\${1})</code>匹配不到想要的数据时，发现加一个<code>*</code>就能匹配上，就这么用下去了，而该套系统多年以来，从未有超过9个参数的模板，因此该BUG一直未被人发现，直到进行本次国产化改造才挖出来。</p>
 <h1 id="七-总结">七、总结</h1>
 <p>有很多所谓的"标准功能"，在不同的环境下有不同的"标准"，这些"标准"各有各的准则，经过多年的发展，很难强求其一致性。就连正则表达式这样常用的功能都有不同的标准，就不要指望ANSI SQL能让任意相同语句在每个数据库中执行结果完全一致了。在去O的过程中，经常能发现以往很多写得不标准的应用代码，此时正是好机会将这些代码变得更加规范。</p>
+
 </div>
 </article>
     </div>

@@ -149,7 +149,7 @@
         
         <span>2026-01-25</span>
         
-        <span>67 阅读</span>
+        <span>76 阅读</span>
         
     </div>
     <div class="post-body">
@@ -280,6 +280,7 @@ gaussdb=#
 <p>因为date相关的表达式在不同GUC参数配置下会对应到不同的表达式，而上面这些函数的易变性可以调整，就增加了影响结果的因素。</p>
 <h2 id="总结">总结</h2>
 <p>如果习惯了之前openGauss/GaussDB版本把date处理成timestamp(0)，则建议在506.0版本中关闭mapping_date_to_datea，因为这些行为变化实在太多了，可能现有应用程序代码要排查的点太多。但如果是刚开始使用这个版本，可以开启mapping_date_to_datea，这样至少日期相减得数字的这个最常见的兼容性问题就不用纠结了。</p>
+
 </div>
 </article>
     </div>

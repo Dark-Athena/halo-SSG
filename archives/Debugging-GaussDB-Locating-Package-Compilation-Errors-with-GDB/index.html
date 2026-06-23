@@ -149,7 +149,7 @@
         
         <span>2025-08-21</span>
         
-        <span>135 阅读</span>
+        <span>146 阅读</span>
         
     </div>
     <div class="post-body">
@@ -504,6 +504,7 @@ MogDB=#
 <h2 id="总结">总结</h2>
 <p>本次触发 <code>ERROR: Failed to query the 323 type in the cache.</code>这个报错的直接原因是创建的package和package body中，有个procedure的参数in/out方向不匹配导致。虽然客户代码的确有问题，但根本原因还是数据库有BUG，未将这种异常场景检查出来。</p>
 <p>想要深入排查国产数据库使用中的问题，学会使用gdb是必不可少的。我曾参与过不少国产数据库PoC,亲眼看到各个数据库厂家的技术人员在客户现场都曾用过gdb调试来定位问题。虽然大部分排行靠前的国产数据库都基本已经稳定应用在各行各业了，但是仍要注意一些不起眼的小角落是否还有虫子。</p>
+
 </div>
 </article>
     </div>

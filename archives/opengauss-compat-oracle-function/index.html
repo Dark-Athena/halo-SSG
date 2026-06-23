@@ -149,7 +149,7 @@
         
         <span>2021-12-28</span>
         
-        <span>1552 阅读</span>
+        <span>1556 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -377,7 +377,7 @@ UNISTR</p>
 </table>
 <h2 id="%E5%BE%85%E7%A0%94%E7%A9%B6%E9%97%AE%E9%A2%98" tabindex="-1">待研究问题</h2>
 <ol>
-<li>ratio_to_report不是常规的聚合函数,而是开窗函数,需要写c++函数,目前暂不确定是否需要重新编译数据库。2022-01-02,参考源码中avg的聚合及lag的默认值取法,修改最终函数为当前窗口当前值除以汇总<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png" srcset="../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1200 1200w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=400 400w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1600 1600w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=800 800w"/>但单独编译的时候一堆error,主要不清楚应该去掉哪些依赖,毕竟源码就像个蜘蛛网；如果编译整个数据库这动作又太大了,所以暂时放弃这个函数。</li>
+<li>ratio_to_report不是常规的聚合函数,而是开窗函数,需要写c++函数,目前暂不确定是否需要重新编译数据库。2022-01-02,参考源码中avg的聚合及lag的默认值取法,修改最终函数为当前窗口当前值除以汇总<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png" srcset="../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1600 1600w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=800 800w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=1200 1200w, ../../upload/2022/01/image-79b54000b56842379d0baaebb5ea07aa.png?width=400 400w"/>但单独编译的时候一堆error,主要不清楚应该去掉哪些依赖,毕竟源码就像个蜘蛛网；如果编译整个数据库这动作又太大了,所以暂时放弃这个函数。</li>
 <li>峰度和偏度,在网上找的公式和oracle计算出来的不一样,暂不清楚公式.2022-01-03凌晨睡不着，在国外网站上搜到一个用excel手动计算偏度的案例，已实测和oracle计算一致</li>
 <li>BFILENAME的两个参数,目录和文件名,其中目录这个对象在pg里没有,达不到100%复刻,可以使用pg_read_binary_file这个函数,传入文件全路径达到同样的效果。但需要使用初始化账号，这个可以通过由初始化账号建立使用本账号权限的函数，来实现访问</li>
 </ol>
@@ -386,6 +386,7 @@ UNISTR</p>
 </blockquote>
 <h2 id="%E9%A1%B9%E7%9B%AE%E4%BB%A3%E7%A0%81%E4%B8%8B%E8%BD%BD" tabindex="-1">项目代码下载</h2>
 <p><a href="https://gitee.com/darkathena/opengauss-oracle" target="_blank">https://gitee.com/darkathena/opengauss-oracle</a></p>
+
 </div>
 </article>
     </div>

@@ -149,7 +149,7 @@
         
         <span>2025-11-24</span>
         
-        <span>82 阅读</span>
+        <span>85 阅读</span>
         
     </div>
     <div class="post-body">
@@ -163,7 +163,7 @@
 答案是的确可以,DuckDB虽然不具备创建复杂的PLSQL函数的能力，但是支持创建宏(macro)</p>
 <p>官网文档：<a href="https://duckdb.org/docs/stable/sql/statements/create_macro">https://duckdb.org/docs/stable/sql/statements/create_macro</a></p>
 <h2 id="宏macro的语法">宏(macro)的语法</h2>
-<p><img alt="image-trea.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-trea.png" srcset="../../upload/image-trea.png?width=1200 1200w, ../../upload/image-trea.png?width=400 400w, ../../upload/image-trea.png?width=1600 1600w, ../../upload/image-trea.png?width=800 800w"/><br/>
+<p><img alt="image-trea.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-trea.png" srcset="../../upload/image-trea.png?width=1600 1600w, ../../upload/image-trea.png?width=800 800w, ../../upload/image-trea.png?width=1200 1200w, ../../upload/image-trea.png?width=400 400w"/><br/>
 官网的语法图有点粗糙了，语法路径没有写全，需要看后面的例子才知道支持哪些用法，所以我重新画了个完整的语法图。</p>
 <pre><code>CreateMacro
  ::=
@@ -172,7 +172,7 @@ CREATE ( 'OR REPLACE' )? ( TEMPORARY | TEMP )? ( 'IF NOT EXISTS' )?
 (','  ( '(' (param-name (param-datatype)? (':= default-value')?)? (','  (param-name (param-datatype)? (':= default-value')?)?)* ')' ) AS ( TABLE query | expr)  )* ';'
 </code></pre>
 <p>这里是用 <a href="https://www.bottlecaps.de/rr/ui">https://www.bottlecaps.de/rr/ui</a> 在线生成的效果</p>
-<p><img alt="image-ggfz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ggfz.png" srcset="../../upload/image-ggfz.png?width=1200 1200w, ../../upload/image-ggfz.png?width=400 400w, ../../upload/image-ggfz.png?width=1600 1600w, ../../upload/image-ggfz.png?width=800 800w"/></p>
+<p><img alt="image-ggfz.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ggfz.png" srcset="../../upload/image-ggfz.png?width=1600 1600w, ../../upload/image-ggfz.png?width=800 800w, ../../upload/image-ggfz.png?width=1200 1200w, ../../upload/image-ggfz.png?width=400 400w"/></p>
 <p>接下来解读一下这个语法</p>
 <ol>
 <li>最简单的主干是 <code>create macro macro_name () as expr;</code> 和 <code>create macro macro_name () as table query;</code> 这两种形式，其实这就意味着它是有两种宏：标量宏和表宏。<br/>
@@ -296,6 +296,7 @@ ORACLE 21c是于 2020 年 12 月 8 日发布，而duckdb的宏最早可以追溯
 <p>另外，<code>create macro</code>目前并不属于ANSI sql,在《ISO/IEC 9075-2:2023(E)》中搜不到“macro”。</p>
 <h2 id="总结">总结</h2>
 <p>duckdb的宏能做一些简单的自定义函数，虽然不支持pl/sql，但是由于其是真正的宏，灵活度非常高，能支持重载，还可以支持聚合，能大大减少其他数据库SQL放到duckdb上执行的改造成本。</p>
+
 </div>
 </article>
     </div>

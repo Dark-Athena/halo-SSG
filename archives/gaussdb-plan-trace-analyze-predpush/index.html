@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】Plan Trace 深度分析-CPlan 与 GPlan 谓词推入差异的完整复现与解读 - DA-技术分享-静态站</title>
+    <meta name="description" content="GaussDB Plan Trace 深度分析 CPlan 与 GPlan 谓词推入差异的完整复现与解读 基于 GaussDB Kernel 506.0.0.SPC0100 实际测试 | 2026 年 6 月 这可能是你能看到的第一篇公开的、包含真实解读GaussDB Plan Trace的文章。 ">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】Plan Trace 深度分析-CPlan 与 GPlan 谓词推入差异的完整复现与解读</h1>
+    <div class="meta">
+        
+        <span>2026-06-23</span>
+        
+        <span>4 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb-plan-trace-深度分析">GaussDB Plan Trace 深度分析</h1>
+<p><strong>CPlan 与 GPlan 谓词推入差异的完整复现与解读</strong></p>
+<p>基于 GaussDB Kernel 506.0.0.SPC0100 实际测试 | 2026 年 6 月<br/>
+这可能是你能看到的第一篇公开的、包含真实解读GaussDB Plan Trace的文章。</p>
+<hr/>
+<h2 id="目录">目录</h2>
+<ul>
+<li>一、背景与问题现象</li>
+<li>二、测试用例设计</li>
+<li>三、Plan Trace 获取方法</li>
+<li>四、CPlan 与 GPlan 执行计划对比</li>
+<li>五、Plan Trace 深度解读——基数估算阶段</li>
+<li>六、路径生成与参数化路径——核心差异解析</li>
+<li>七、Hint 对谓词推入的影响</li>
+<li>八、成本模型详解</li>
+<li>九、CPlan 到 GPlan 的自动切换机制</li>
+<li>十、查询重写阶段分析</li>
+<li>十一、Join 搜索顺序分析</li>
+<li>十二、完整可复现步骤与总结</li>
+<li>十三、总结与建议</li>
+</ul>
+<hr/>
+<h2 id="一背景与问题现象">一、背景与问题现象</h2>
+<h3 id="11-问题来源">1.1 问题来源</h3>
+<p>先看一个比较有意思的案例。在某次 GaussDB 性能排查中，一条 PBE（Prepare-Bind-Execute）模式的 INSERT ... SELECT 语句，前 5 次执行使用 CPlan（Custom Plan），执行计划中 T3 表的扫描只使用了 3 个索引条件；但第 6 次执行时，优化器自动切换到 GPlan（Generic Plan），T3 的索引条件突然多了一个 join 条件的推入，成本从 660 骤降到 270。</p>
+<p>也就是说，同一条 SQL，仅仅因为执行次数触发了 CPlan 到 GPlan 的切换，执行计划就发生了质的变化。更关键的是，GPlan 的执行计划明显更优——谓词推入让 T3 的索引扫描更精确，减少了不必要的行过滤。</p>
+<p>问题来了：为什么 CPlan 不做谓词推入？GPlan 又是怎么做到的？这个问题涉及到 GaussDB 优化器中 PBE 场景下参数化路径（Parameterized Path）的选择逻辑，值得深入分析。</p>
+<h3 id="12-现象描述">1.2 现象描述</h3>
+<p>以下是简化后的 SQL 结构（字段名和对象名已脱敏）：</p>
+<pre><code class="language-sql">PREPARE ptdemo_trace AS
+INSERT INTO fee_calculation_result
+  (biz_date, market_code, clearing_group,
+   contract_code, side_flag, hedge_type,
+   discount_pct, fee_rate, fee_per_lot)
+SELECT $1, t1.market_code, t1.clearing_group,
+       t2.contract_code,
+       t1.side_flag, t1.hedge_type,
+       t1.discount_pct, t1.fee_rate, t1.fee_per_lot
+FROM trade_position_record t1,
+     contract_specification t2,
+     active_contract_snapshot t3
+WHERE t1.market_code = t2.market_code
+  AND t1.clearing_group = t2.clearing_group
+  AND t1.market_code = t3.market_code
+  AND t1.clearing_group = t3.clearing_group
+  AND t1.asset_code = t2.asset_code
+  AND t1.series_code = t2.base_series
+  AND t1.biz_date = t2.biz_date
+  AND t2.contract_code = t3.contract_code
+  AND t3.lifecycle_stage IN ('0','1','2')
+  AND t1.market_code = $2
+  AND t1.asset_code = $3
+  AND t1.clearing_group = $4
+  AND t1.series_code = $5
+  AND t1.cycle_tag = $6
+  AND t1.biz_date = $7
+  AND t3.biz_date = $8;
+</code></pre>
+<p>这条 SQL 涉及三表 Join（t1-t2-t3），所有表都有索引，连接方式被 Hint 限制为 NestLoop（关闭了 Hash Join 和 Merge Join）。核心差异在于 t2 和 t3 之间的连接条件 <code>t2.contract_code = t3.contract_code</code> 的处理方式：</p>
+<table><thead><tr><th>模式</th><th>T3 索引条件 (Index Cond)</th><th>连接条件处理</th></tr></thead><tbody><tr><td>CPlan</td><td>biz_date, market_code, clearing_group（3 个）</td><td>t2.contract_code = t3.contract_code 作为 Join Filter</td></tr><tr><td>GPlan</td><td>biz_date, market_code, clearing_group, contract_code（4 个）</td><td>t2.contract_code = t3.contract_code 推入 Index Cond</td></tr></tbody></table>
+<h3 id="13-测试环境">1.3 测试环境</h3>
+<table><thead><tr><th>项目</th><th>值</th></tr></thead><tbody><tr><td>数据库版本</td><td>GaussDB Kernel 506.0.0.SPC0100 (build e324981f)</td></tr><tr><td>构建日期</td><td>2025-04-27</td></tr><tr><td>操作系统</td><td>kylin v10 sp3 x86_64</td></tr><tr><td>连接端口</td><td>8000</td></tr><tr><td>Schema</td><td>ptdemo</td></tr></tbody></table>
+<hr/>
+<h2 id="二测试用例设计">二、测试用例设计</h2>
+<h3 id="21-表结构设计">2.1 表结构设计</h3>
+<p>为了完整复现这个现象，我在 GaussDB 中创建了全新的测试 Schema（ptdemo），4 张表完全使用新的命名，避免与原始生产环境中的对象名产生任何关联。</p>
+<h4 id="211-trade_position_record交易持仓记录对应原始-t1">2.1.1 trade_position_record（交易持仓记录，对应原始 t1）</h4>
+<pre><code class="language-sql">CREATE TABLE ptdemo.trade_position_record (
+  id            SERIAL PRIMARY KEY,
+  biz_date      VARCHAR(8)   NOT NULL,
+  market_code   VARCHAR(16)  NOT NULL,
+  clearing_group VARCHAR(16) NOT NULL,
+  asset_code    VARCHAR(16)  NOT NULL,
+  series_code   VARCHAR(16)  NOT NULL,
+  cycle_tag     NUMERIC      NOT NULL,
+  side_flag     CHAR(1),
+  hedge_type    VARCHAR(4),
+  discount_pct  NUMERIC(8,4),
+  fee_rate      NUMERIC(12,8),
+  fee_per_lot   NUMERIC(12,4)
+);
+
+CREATE INDEX idx_tpr_main ON ptdemo.trade_position_record
+  (biz_date, market_code, clearing_group,
+   asset_code, series_code, cycle_tag);
+</code></pre>
+<h4 id="212-contract_specification合约规格对应原始-t2">2.1.2 contract_specification（合约规格，对应原始 t2）</h4>
+<pre><code class="language-sql">CREATE TABLE ptdemo.contract_specification (
+  id            SERIAL PRIMARY KEY,
+  biz_date      VARCHAR(8)   NOT NULL,
+  market_code   VARCHAR(16)  NOT NULL,
+  clearing_group VARCHAR(16) NOT NULL,
+  asset_code    VARCHAR(16)  NOT NULL,
+  base_series   VARCHAR(16)  NOT NULL,
+  contract_code VARCHAR(32)  NOT NULL
+);
+
+CREATE INDEX idx_cs_baseseries ON ptdemo.contract_specification
+  (biz_date, base_series);
+</code></pre>
+<h4 id="213-active_contract_snapshot活跃合约快照对应原始-t3">2.1.3 active_contract_snapshot（活跃合约快照，对应原始 t3）</h4>
+<pre><code class="language-sql">CREATE TABLE ptdemo.active_contract_snapshot (
+  id              SERIAL PRIMARY KEY,
+  biz_date        VARCHAR(8)   NOT NULL,
+  market_code     VARCHAR(16)  NOT NULL,
+  clearing_group  VARCHAR(16) NOT NULL,
+  contract_code   VARCHAR(32)  NOT NULL,
+  lifecycle_stage VARCHAR(1)   NOT NULL
+);
+
+CREATE INDEX idx_acs_main ON ptdemo.active_contract_snapshot
+  (biz_date, market_code, clearing_group,
+   contract_code);
+</code></pre>
+<h4 id="214-fee_calculation_result费用计算结果目标表">2.1.4 fee_calculation_result（费用计算结果，目标表）</h4>
+<pre><code class="language-sql">CREATE TABLE ptdemo.fee_calculation_result (
+  id              SERIAL PRIMARY KEY,
+  biz_date        VARCHAR(8),
+  market_code     VARCHAR(16),
+  clearing_group  VARCHAR(16),
+  contract_code   VARCHAR(32),
+  side_flag       CHAR(1),
+  hedge_type      VARCHAR(4),
+  discount_pct    NUMERIC(8,4),
+  fee_rate        NUMERIC(12,8),
+  fee_per_lot     NUMERIC(12,4)
+);
+</code></pre>
+<h3 id="22-数据量与分布">2.2 数据量与分布</h3>
+<p>数据量按照原始场景的比例关系设置，足以复现谓词推入差异即可，没必要搞几百万行。</p>
+<pre><code class="language-sql">INSERT INTO ptdemo.trade_position_record (biz_date, market_code, clearing_group, asset_code, series_code, volume, fee_rate, fee_per_lot, cycle_tag, contract_type, side_flag, hedge_type, discount_pct)
+SELECT 
+    CASE WHEN (i % 670 = 0) THEN '20250616' ELSE '20250615' END,
+    CASE (i % 3) WHEN 0 THEN 'MARKET_1' WHEN 1 THEN 'MARKET_3' ELSE 'MARKET_2' END,
+    'GROUP' || LPAD((i % 47 + 1)::text, 4, '0'),
+    'ASSET' || LPAD((i % 74 + 1)::text, 4, '0'),
+    'SERIES' || LPAD((i % 1079 + 1)::text, 5, '0'),
+    (i % 1000),
+    0.00001234,
+    1.50,
+    1,
+    'OPT',
+    CASE (i % 2) WHEN 0 THEN 'BUY' ELSE 'SELL' END,
+    CASE (i % 3) WHEN 0 THEN 'SPEC' WHEN 1 THEN 'HEDGE' ELSE 'ARB' END,
+    0.95
+FROM generate_series(1, 100000) as i;
+
+INSERT INTO ptdemo.contract_specification (biz_date, market_code, clearing_group, asset_code, contract_code, base_series, lifecycle_stage)
+SELECT 
+    CASE WHEN (i % 670 = 0) THEN '20250616' ELSE '20250615' END,
+    CASE (i % 3) WHEN 0 THEN 'MARKET_1' WHEN 1 THEN 'MARKET_3' ELSE 'MARKET_2' END,
+    'GROUP' || LPAD((i % 47 + 1)::text, 4, '0'),
+    'ASSET' || LPAD((i % 74 + 1)::text, 4, '0'),
+    'CONTRACT' || LPAD((i % 10000 + 1)::text, 6, '0'),
+    'SERIES' || LPAD((i % 1079 + 1)::text, 5, '0'),
+    CASE (i % 3) WHEN 0 THEN '0' WHEN 1 THEN '1' ELSE '2' END
+FROM generate_series(1, 500000) as i;
+
+INSERT INTO ptdemo.active_contract_snapshot (biz_date, market_code, clearing_group, contract_code, lifecycle_stage, settlement_status)
+SELECT 
+    CASE WHEN (i % 100 = 0) THEN '20250616' ELSE '20250615' END,
+    CASE (i % 3) WHEN 0 THEN 'MARKET_1' WHEN 1 THEN 'MARKET_3' ELSE 'MARKET_2' END,
+    'GROUP' || LPAD((i % 47 + 1)::text, 4, '0'),
+    'CONTRACT' || LPAD((i % 10000 + 1)::text, 6, '0'),
+    CASE (i % 3) WHEN 0 THEN '0' WHEN 1 THEN '1' ELSE '2' END,
+    'SETTLED'
+FROM generate_series(1, 10000) as i;
+</code></pre>
+<table><thead><tr><th>表名</th><th>行数</th><th>说明</th></tr></thead><tbody><tr><td>trade_position_record</td><td>100000</td><td>10 万行，主表</td></tr><tr><td>contract_specification</td><td>500,000</td><td>50 万行，合约规格</td></tr><tr><td>active_contract_snapshot</td><td>10,000</td><td>1 万行，活跃合约</td></tr><tr><td>fee_calculation_result</td><td>0</td><td>空表，INSERT 目标</td></tr></tbody></table>
+<p>数据生成使用 generate_series 批量插入，market_code 有 3 个值（MARKET_1/MARKET_2/MARKET_3），clearing_group 约 47 个值，asset_code 约 84 个值。这样保证了 MCV（Most Common Values）统计信息有实际意义，优化器能够利用这些统计数据做选择性估算。</p>
+<h3 id="23-关键-guc-参数">2.3 关键 GUC 参数</h3>
+<p>测试中显式设置了以下参数，用于控制计划缓存模式并关闭 Hash/Merge Join，强制使用 NestLoop：</p>
+<pre><code class="language-sql">-- CPlan 模式
+SET plan_cache_mode = force_custom_plan;  -- 值为 2
+SET enable_hashjoin = off;
+SET enable_mergejoin = off;
+SET enable_nestloop = on;
+SET enable_plan_trace = on;
+
+-- GPlan 模式
+SET plan_cache_mode = force_generic_plan;  -- 值为 1
+-- 其余参数不变
+</code></pre>
+<p>这里特意通过 <code>plan_cache_mode</code> 强制控制 CPlan/GPlan 切换，而不是等待 6 次自动切换，原因后面会解释。</p>
+<hr/>
+<h2 id="三plan-trace-获取方法">三、Plan Trace 获取方法</h2>
+<h3 id="31-什么是-plan-trace">3.1 什么是 Plan Trace</h3>
+<p>GaussDB 的 Plan Trace 是优化器在生成执行计划过程中留下的详细日志，记录了从查询重写、基数估算、路径生成到最终计划选择的每一个决策点。与 EXPLAIN 输出的执行计划不同，Plan Trace 记录的是优化器"思考"的过程，而不是最终的结论。</p>
+<p>打个比方：EXPLAIN 告诉你优化器选了什么，Plan Trace 告诉你优化器为什么这么选，以及它还考虑过哪些备选方案。</p>
+<h3 id="32-获取-plan-trace-的正确方式">3.2 获取 Plan Trace 的正确方式</h3>
+<p>正确的获取步骤如下：</p>
+<pre><code class="language-sql">-- 步骤 1：开启 Plan Trace
+SET enable_plan_trace = on;
+
+-- 步骤 2：正常执行 SQL（同一 session 中）
+PREPARE ptdemo_trace AS
+  INSERT INTO ... SELECT ... FROM ...;
+EXECUTE ptdemo_trace('20250616', 'MARKET_1', 'ASSET0001',
+                     'GROUP0001', 'SERIES00001', 1,
+                     '20250615', '20250616');
+
+-- 步骤 3：查看 Plan Trace（需先开启 x 展开模式）
+\x
+SELECT * FROM gs_my_plan_trace
+  ORDER BY modifydate DESC LIMIT 1;
+</code></pre>
+<p>有几个注意点：</p>
+<ul>
+<li>PREPARE 和 EXECUTE 必须在同一个 session 中执行，否则 Prepare 的句柄在 session 间不保留。</li>
+<li><code>\x</code> 必须先开启，否则 plan_trace 字段的展开内容会被截断，看不到完整的 trace 信息。</li>
+<li>gs_my_plan_trace 视图中，plan_trace 字段包含了完整的优化器决策过程，包括 key_guc、query_rewrite、optpath_set_base_rel_sizes 等多个阶段。</li>
+</ul>
+<h3 id="33-plan-trace-的核心阶段">3.3 Plan Trace 的核心阶段</h3>
+<p>一份完整的 Plan Trace 包含以下关键阶段（按执行顺序排列）：</p>
+<table><thead><tr><th>阶段标识</th><th>含义</th></tr></thead><tbody><tr><td><code>[key_guc]</code></td><td>记录本次查询涉及的关键 GUC 参数值</td></tr><tr><td><code>[query_block_1]</code></td><td>查询块信息，包含完整的 SQL 文本</td></tr><tr><td><code>[query_rewrite]</code></td><td>查询重写阶段，记录各重写规则的执行情况</td></tr><tr><td><code>[optpath_set_base_rel_sizes]</code></td><td>基数估算阶段，计算各表的行数估算</td></tr><tr><td><code>[optpath_set_rel_pathlist]</code></td><td>路径生成阶段，为每张表生成可用的访问路径</td></tr><tr><td><code>[optpath_make_rel_from_joinlist]</code></td><td>Join 搜索阶段，确定表连接顺序和方式</td></tr><tr><td><code>[optpath_add_paths_to_joinrel]</code></td><td>为 Join 关系添加路径，计算 Join 成本</td></tr></tbody></table>
+<p>本文分析的重点是路径生成阶段和 Join 搜索阶段——这两个阶段决定了谓词是否被推入。</p>
+<hr/>
+<h2 id="四cplan-与-gplan-执行计划对比">四、CPlan 与 GPlan 执行计划对比</h2>
+<h3 id="41-cplan-执行计划">4.1 CPlan 执行计划</h3>
+<p>先看 CPlan 的执行计划（<code>plan_cache_mode = force_custom_plan</code>）：</p>
+<pre><code>Insert on fee_calculation_result (cost=0.00..660.35 rows=1 width=54)
+  -&gt;  Nested Loop (cost=0.00..660.35 rows=1 width=54)
+        Join Filter: ((t2.contract_code)::text = (t3.contract_code)::text)
+        -&gt;  Nested Loop (cost=0.00..658.05 rows=1 width=54)
+              -&gt;  Index Scan using idx_tpr_main on trade_position_record t1
+                    (cost=0.00..2.29 rows=1 width=70)
+                    Index Cond: (biz_date = *** AND market_code = ***
+                      AND clearing_group = *** AND series_code = ***
+                      AND asset_code = *** AND cycle_tag = ***)
+              -&gt;  Index Scan using idx_cs_baseseries on contract_specification t2
+                    (cost=0.00..655.74 rows=1 width=60)
+                    Index Cond: (biz_date = *** AND base_series = ***)
+                    Filter: (asset_code = *** AND clearing_group = ***
+                      AND market_code = ***)
+        -&gt;  Index Scan using idx_acs_main on active_contract_snapshot t3
+              (cost=0.00..2.29 rows=1 width=29)
+              Index Cond: (biz_date = *** AND market_code = ***
+                AND clearing_group = ***)
+              Filter: (lifecycle_stage = ANY(***))
+</code></pre>
+<p>注意看 T3（active_contract_snapshot）的 Index Cond：只有 biz_date、market_code、clearing_group 三个条件。<code>t2.contract_code = t3.contract_code</code> 这个 join 条件没有出现在 Index Cond 中，而是作为外层 Nested Loop 的 Join Filter 存在。</p>
+<p>也就是说，T3 的索引扫描只能过滤到 market_code + clearing_group + biz_date 这个粒度，然后对返回的每一行再做 Join Filter 判断。如果这个粒度下返回的行数比较多，Join Filter 的过滤成本就不容忽视。</p>
+<h3 id="42-gplan-执行计划">4.2 GPlan 执行计划</h3>
+<p>再看 GPlan（<code>plan_cache_mode = force_generic_plan</code>）：</p>
+<pre><code>Insert on fee_calculation_result (cost=0.00..270.78 rows=1 width=54)
+  -&gt;  Nested Loop (cost=0.00..270.78 rows=1 width=54)
+        -&gt;  Nested Loop (cost=0.00..268.48 rows=1 width=54)
+              -&gt;  Index Scan using idx_tpr_main on trade_position_record t1
+                    (cost=0.00..2.29 rows=1 width=70)
+                    Index Cond: (biz_date = ($7) AND market_code = ($2)
+                      AND clearing_group = ($4) AND series_code = ($5)
+                      AND asset_code = ($3) AND cycle_tag = $6)
+              -&gt;  Index Scan using idx_cs_baseseries on contract_specification t2
+                    (cost=0.00..266.17 rows=1 width=60)
+                    Index Cond: (biz_date = ($7) AND base_series = ($5))
+                    Filter: (asset_code = ($3) AND clearing_group = ($4)
+                      AND market_code = ($2))
+        -&gt;  Index Scan using idx_acs_main on active_contract_snapshot t3
+              (cost=0.00..2.30 rows=1 width=29)
+              Index Cond: (biz_date = ($8) AND market_code = ($2)
+                AND clearing_group = ($4)
+                AND contract_code = (t2.contract_code))
+              Filter: (lifecycle_stage = ANY(***))
+</code></pre>
+<p>关键差异来了：T3 的 Index Cond 中多了 <code>contract_code = (t2.contract_code)</code>。这个条件就是 join 条件 <code>t2.contract_code = t3.contract_code</code> 被推入到了 T3 的索引扫描中。</p>
+<p>不仅如此，整个执行计划中没有任何 Join Filter。所有连接条件都被推入到了内层表的索引扫描中。这意味着每次 T3 的索引扫描都能精确地定位到特定的 contract_code，而不是扫描一个范围后再过滤。</p>
+<h3 id="43-核心差异对比">4.3 核心差异对比</h3>
+<table><thead><tr><th>对比项</th><th>CPlan</th><th>GPlan</th></tr></thead><tbody><tr><td>T3 Index Cond 数量</td><td>3 个条件</td><td>4 个条件</td></tr><tr><td>join 条件处理</td><td>Join Filter</td><td>推入 Index Cond</td></tr><tr><td>T3 扫描选择性</td><td>粗粒度（market+group+date）</td><td>精确（多了 contract_code）</td></tr><tr><td>总成本</td><td>660.35</td><td>270.78</td></tr><tr><td>成本差异</td><td>基准</td><td>降低约 59%</td></tr></tbody></table>
+<p>从 660 到 270，成本下降了将近 60%。在实际生产环境中，如果数据量更大、T3 的基数更高，这个差异会被进一步放大。</p>
+<h3 id="44-还有个有趣的现象">4.4 还有个有趣的现象</h3>
+<p>细心的读者可能已经注意到了：CPlan 中参数值被替换为 <code>***</code>（脱敏显示），而 GPlan 中保留了 <code>$2</code>、<code>$3</code> 等参数占位符。这不是显示问题，而是反映了 CPlan 和 GPlan 的本质区别：</p>
+<ul>
+<li><strong>CPlan</strong> 在每次执行时，会先将参数的实际值代入 SQL 中，再进行优化。优化器看到的是具体的值（如 <code>MARKET_1</code>、<code>GROUP0001</code>），因此可以精确匹配 MCV 统计信息。</li>
+<li><strong>GPlan</strong> 不代入参数值，优化器看到的是 <code>$2</code>、<code>$3</code> 等占位符。估算选择性时，只能使用 NDV（Number of Distinct Values）和均匀分布假设，而无法利用 MCV。</li>
+</ul>
+<p>按理说，CPlan 有更精确的统计信息，应该生成更好的计划。但恰恰在这个案例中，CPlan 反而没有做谓词推入。为什么会这样？答案在 Plan Trace 里。</p>
+<hr/>
+<h2 id="五plan-trace-深度解读基数估算阶段">五、Plan Trace 深度解读——基数估算阶段</h2>
+<h3 id="50-cplan-与-gplan-的-plan-trace-完整内容">5.0 CPlan 与 GPlan 的 Plan Trace 完整内容</h3>
+<p>由于输出内容太长，三百多KB，文章里就不直接贴完整内容了，完整内容另见以下两个链接：<br/>
+<a href="/attachment/plan_trace_cplan.txt">plan_trace_cplan.txt</a><br/>
+<a href="/attachment/plan_trace_gplan.txt">plan_trace_gplan.txt</a></p>
+<h3 id="51-cplan-与-gplan-的-key_guc-差异">5.1 CPlan 与 GPlan 的 key_guc 差异</h3>
+<p>先看两者 Plan Trace 开头的 [key_guc] 段，这是最直接的差异：</p>
+<table><thead><tr><th>GUC 参数</th><th>CPlan</th><th>GPlan</th></tr></thead><tbody><tr><td>plan_cache_mode</td><td>2 (force_custom_plan)</td><td>1 (force_generic_plan)</td></tr><tr><td>enable_hashjoin</td><td>0 (off)</td><td>0 (off)</td></tr><tr><td>enable_mergejoin</td><td>0 (off)</td><td>0 (off)</td></tr><tr><td>enable_nestloop</td><td>1 (on)</td><td>1 (on)</td></tr><tr><td>random_page_cost</td><td>4.000</td><td>4.000</td></tr><tr><td>default_statistics_target</td><td>100</td><td>100</td></tr><tr><td>enable_pbe_optimization</td><td>0</td><td>0</td></tr></tbody></table>
+<p>除了 <code>plan_cache_mode</code>，其余参数完全一致。这说明参数差异不是根因，真正的差异来自优化器在处理参数值时的不同策略。</p>
+<h3 id="52-cplan-的基数估算利用-mcv">5.2 CPlan 的基数估算——利用 MCV</h3>
+<p>在 CPlan 模式下，参数值已经被替换为具体值（如 <code>MARKET_1</code>、<code>GROUP0001</code>），优化器在 [adt_var_eq_const] 阶段可以精确匹配 MCV 统计信息。以 t1.market_code 为例：</p>
+<pre><code>[adt_var_eq_const]
+col_base_info: trade_position_record, market_code, =
+has_analyze_stats: true
+has_mcv: true
+matched_mcv: true, mcv:0.335500
+end method: adt_var_eq_const, return: 0.335500
+</code></pre>
+<p><code>matched_mcv: true</code> 表示参数值 <code>MARKET_1</code> 在 market_code 列的 MCV 列表中找到了匹配，选择率为 0.3355（即 <code>MARKET_1</code> 约占 33.55% 的行）。这就是 CPlan 的优势——精确的选择性估算。</p>
+<p>对比 t1.series_code 的情况：</p>
+<pre><code>[adt_var_eq_const]
+col_base_info: trade_position_record, series_code, =
+has_analyze_stats: true
+has_mcv: true
+matched_mcv: false
+calculate selec: selec = 1.0 - sumcommon - stanullfrac,
+  0.908333,0.091667,0.000000
+The origin distinct value is 1079.000000.
+After using poisson model with ntuples=113571.000000
+  and ration=0.011967
+  The new distinct value is 772.802894
+estimated_selec_gt_the_least_selec: true,
+  use the least common selec: 0.001167
+end method: adt_var_eq_const, return: 0.001167
+</code></pre>
+<p><code>matched_mcv: false</code>——参数值 <code>SERIES00001</code> 不在 MCV 列表中，优化器退回到 Poisson 模型估算，最终使用了最小公共选择率 0.001167。</p>
+<h3 id="53-gplan-的基数估算使用-ndv">5.3 GPlan 的基数估算——使用 NDV</h3>
+<p>GPlan 看不到具体的参数值，只能使用 NDV（去重值数量）和均匀分布假设。对于等值条件，选择性估算公式为：</p>
+<p><span class="math math-inline">selec = \frac{1}{NDV}</span></p>
+<p>GPlan 同样经历了 [adt_var_eq_const] 阶段，但由于参数是占位符 <code>$n</code>，无法匹配 MCV，一律使用 NDV 估算。这导致 GPlan 的选择性估算往往不如 CPlan 精确——但也正是因为这种"模糊性"，GPlan 反而更倾向于使用参数化路径（Parameterized Path），从而实现了谓词推入。</p>
+<h3 id="54-基数估算汇总">5.4 基数估算汇总</h3>
+<p>以下汇总三张表在两种模式下的行数估算结果：</p>
+<table><thead><tr><th>表</th><th>实际行数</th><th>CPlan 估算</th><th>GPlan 估算</th></tr></thead><tbody><tr><td>trade_position_record</td><td>113,571</td><td>1</td><td>1</td></tr><tr><td>contract_specification</td><td>500,000</td><td>1 (446 from idx)</td><td>1 (446 from idx)</td></tr><tr><td>active_contract_snapshot</td><td>10,000</td><td>1</td><td>1</td></tr></tbody></table>
+<p>有趣的是，两种模式下三张表的估算行数都是 1（即精确匹配到单行），差异主要体现在连接阶段的路径选择上。CPlan 中 contract_specification 的索引扫描估算返回 446 行（Index Scan tuples=446），因为 idx_cs_baseseries 索引只包含 (biz_date, base_series) 两列，其余过滤条件只能作为 Filter。</p>
+<hr/>
+<h2 id="六路径生成与参数化路径核心差异解析">六、路径生成与参数化路径——核心差异解析</h2>
+<h3 id="61-什么是参数化路径">6.1 什么是参数化路径</h3>
+<p>要理解 CPlan 和 GPlan 的差异，必须先理解"参数化路径"（Parameterized Path）这个概念。</p>
+<p>在 NestLoop Join 中，外层表的每一行都会驱动内层表的扫描。如果内层表的索引扫描条件中包含外层表的列（即 join 条件），那么内层表的索引扫描就可以"参数化"——每次扫描时，使用外层表当前行的实际值作为索引条件的一部分。这就是参数化路径。</p>
+<p>回到我们的案例，T3 的索引 idx_acs_main 包含 (biz_date, market_code, clearing_group, contract_code) 四列。如果 <code>t2.contract_code</code> 能被推入 T3 的索引条件，那么 T3 的索引扫描就从"范围扫描 + 过滤"变成了"精确点查"，效率大幅提升。</p>
+<p>能不能推入，取决于优化器是否生成了参数化路径（hasparam=1），以及在 Join 阶段是否选择了这条参数化路径。</p>
+<h3 id="62-t3-的路径生成对比">6.2 T3 的路径生成对比</h3>
+<p>在 [optpath_set_rel_pathlist] 阶段，优化器为 T3（active_contract_snapshot）生成了多条候选路径。关键差异在于参数化路径的命运：</p>
+<h4 id="621-cplan参数化路径未被接受">6.2.1 CPlan：参数化路径未被接受</h4>
+<pre><code>-- CPlan 中 T3 的参数化路径 (pathid=9)
+IndexScan(5:active_contract_snapshot )
+  pathid=00000009 hasparam=1 indexname=idx_acs_main
+  rows=1 multiple=1.000000 tuples=1.00
+  selec=0.00000001 ml=1 iscost=1 lossy=0 uidx=0
+  cost=0.00..2.30
+
+-- 对比：非参数化路径 (pathid=8)
+IndexScan(5:active_contract_snapshot )
+  pathid=00000008 hasparam=0 indexname=idx_acs_main
+  rows=1 multiple=1.000000 tuples=1.00
+  selec=0.00007066 ml=1 iscost=1 lossy=0 uidx=0
+  cost=0.00..2.29
+
+-- 优化器的判断：
+A new path is not accepted with cost = 0.000000 .. 2.296250
+  old pathid=00000008
+  Cost = Equal | PathKeys = OldBetter | BMS = OldBetter
+</code></pre>
+<p>在 CPlan 中，T3 的参数化路径（pathid=9）和非参数化路径（pathid=8）的成本几乎一样（2.30 vs 2.29）。但优化器比较后认为，非参数化路径的 PathKeys 和 BMS（BitmapSet）更优，因此拒绝了参数化路径。</p>
+<p>也就是说，CPlan 认为不需要参数化路径——因为 CPlan 已经知道具体的参数值，它"自信"地认为使用已知的 biz_date + market_code + clearing_group 三个条件就足够精确了。</p>
+<h4 id="622-gplan参数化路径被接受">6.2.2 GPlan：参数化路径被接受</h4>
+<pre><code>-- GPlan 中 T3 的参数化路径 (pathid=9)
+IndexScan(5:active_contract_snapshot )
+  pathid=00000009 hasparam=1 indexname=idx_acs_main
+  rows=1 multiple=1.000000 tuples=1.00
+  selec=0.00000035 ml=1 iscost=1 lossy=0 uidx=0
+  cost=0.00..2.30
+
+A new path is accepted with cost = 0.000000 .. 2.296250
+  rows=1.000000
+</code></pre>
+<p>GPlan 中，同样的参数化路径被接受了。原因是 GPlan 不知道参数的具体值，它需要更多的条件才能确保选择性。于是参数化路径成为了最优选择。</p>
+<h3 id="63-三表-join-的路径选择">6.3 三表 Join 的路径选择</h3>
+<p>路径生成阶段的差异，在三表 Join 阶段被进一步放大。</p>
+<h4 id="631-gplan-的三表-join成本低">6.3.1 GPlan 的三表 Join（成本低）</h4>
+<pre><code>-- 三表 joinrel: (b 3 4 5)
+-- 使用参数化路径 pathid=9 的 NestLoop
+NestLoop(3:trade_position_record 4:contract_specification
+  5:active_contract_snapshot)
+  pathid=00000036 hasparam=0
+  cost=0.00..270.78
+  trace_id=#2##5##15##9##36#
+  -- ^^^ 注意这里的 #9 是参数化路径！
+
+-- 对比：使用非参数化路径 pathid=8 的 NestLoop
+NestLoop(...)
+  pathid=00000035 cost=0.00..288.51
+  trace_id=#2##5##15##8##35#
+  -- ^^^ #8 是非参数化路径，成本更高
+</code></pre>
+<p>GPlan 中，使用参数化路径（#9）的三表 Join 成本为 270.78，明显优于非参数化路径（#8）的 288.51。优化器果断选择了参数化路径。</p>
+<p>成本的差异来自 T2 的索引扫描：在 GPlan 中，T2（contract_specification）使用 idx_cs_baseseries 索引估算返回 446 行，这意味着外层 Nested Loop 会驱动 T3 扫描 446 次。每次 T3 扫描如果能用 contract_code 精确定位（参数化路径），就避免了在大范围结果集上做 Join Filter。</p>
+<h4 id="632-cplan-的三表-join成本高">6.3.2 CPlan 的三表 Join（成本高）</h4>
+<pre><code>-- 三表 joinrel: (b 3 4 5)
+-- 使用非参数化路径 pathid=8 的 NestLoop
+NestLoop(3:trade_position_record 4:contract_specification
+  5:active_contract_snapshot)
+  pathid=00000037 hasparam=0
+  cost=0.00..660.35
+  trace_id=#2##5##15##8##37#
+  -- ^^^ #8 是非参数化路径
+
+-- 参数化路径路径未进入候选
+-- cost_b 从 655.74 飙升到 660.35
+</code></pre>
+<p>CPlan 中，由于参数化路径在单表阶段就被拒绝了，三表 Join 只能使用非参数化路径（#8），成本高达 660.35。T2 的索引扫描估算同样返回 446 行，但 T3 每次扫描只能用 3 个条件，无法精确到 contract_code。</p>
+<p>这里的关键在于 CPlan 中 T2 的成本估算。CPlan 使用了具体的参数值，T2 通过 idx_cs_baseseries 扫描的成本估算为 655.74（比 GPlan 的 266.17 高得多）。这是因为 CPlan 的选择性估算方式不同，导致了完全不同的 T2 扫描成本，进而影响了 Join 阶段的决策。</p>
+<h3 id="64-差异根因总结">6.4 差异根因总结</h3>
+<p>回到之前的问题：为什么 CPlan 不做谓词推入？现在可以给出一个清晰的回答了：</p>
+<ul>
+<li>CPlan 在路径生成阶段，为 T3 生成了参数化路径（hasparam=1），但由于 CPlan 已经用具体值做了精确的选择性估算，非参数化路径的成本已经足够低，优化器认为没有必要使用参数化路径，于是将其拒绝。</li>
+<li>GPlan 不知道具体参数值，选择性估算依赖 NDV 和均匀分布，因此更倾向于使用参数化路径来弥补选择性估算的不足。参数化路径被保留，并在三表 Join 阶段被选中。</li>
+<li>讽刺的是，CPlan 拥有更精确的统计信息，反而做出了"更差"的计划选择。GPlan 用"粗略"的估算，反而选出了更优的计划。这其实不矛盾——精确的估算让 CPlan 过于"自信"，忽略了参数化路径在 NestLoop 场景下的优势。</li>
+</ul>
+<hr/>
+<h2 id="七hint-对谓词推入的影响">七、Hint 对谓词推入的影响</h2>
+<h3 id="71-predpushforce-hint-的作用">7.1 predpushforce Hint 的作用</h3>
+<p>测试SQL 中包含一个 Hint：<code>/*+ Set(rewrite_rule predpushforce) */</code>。这个 Hint 的作用是强制启用谓词推入重写规则。</p>
+<p>我分别测试了带 Hint 和不带 Hint 两种场景，结果如下：</p>
+<table><thead><tr><th>模式</th><th>Hint</th><th>T3 Index Cond</th><th>总成本</th></tr></thead><tbody><tr><td>CPlan</td><td>有 predpushforce</td><td>3 个条件</td><td>660.35</td></tr><tr><td>CPlan</td><td>无 predpushforce</td><td>3 个条件</td><td>660.35</td></tr><tr><td>GPlan</td><td>有 predpushforce</td><td>4 个条件</td><td>270.78</td></tr><tr><td>GPlan</td><td>无 predpushforce</td><td>4 个条件</td><td>270.78</td></tr></tbody></table>
+<p>有意思的是，在这个案例中，<code>predpushforce</code> Hint 对执行计划没有任何影响。无论是 CPlan 还是 GPlan，加不加 Hint，结果都一样。</p>
+<h3 id="72-为什么-hint-没起作用">7.2 为什么 Hint 没起作用</h3>
+<p>查看 Plan Trace 的 [query_rewrite] 阶段，可以看到无论是否有 <code>predpushforce</code> Hint，查询重写阶段的输出都完全相同——所有重写规则执行后，SQL 文本没有任何变化。</p>
+<p>这说明 <code>predpushforce</code> Hint 作用于查询重写阶段的谓词推入重写规则，但在这个案例中，谓词推入的差异不是发生在查询重写阶段，而是发生在路径生成和 Join 搜索阶段。优化器是否推入谓词，取决于路径选择的决策，而不是查询重写规则。</p>
+<p>因此，<code>predpushforce</code> Hint 无法改变 CPlan 不做谓词推入的事实。这是一个容易被忽视的误区——很多人以为加个 Hint 就能解决所有谓词推入问题，但实际上 Hint 的作用范围是有限的。</p>
+<h3 id="73-query-rewrite-阶段的-hint-差异">7.3 Query Rewrite 阶段的 Hint 差异</h3>
+<p>虽然 <code>predpushforce</code> 没有影响最终结果，但它在 Plan Trace 的 SQL 文本中是可见的。对比两者 [query_block_1] 中的 SQL：</p>
+<ul>
+<li>有 Hint 的 CPlan：<code>INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on) Set(rewrite_rule predpushforce)*/ INTO ...</code></li>
+<li>无 Hint 的 GPlan：<code>INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/ INTO ...</code></li>
+</ul>
+<p>Hint 被正确解析并附加到了 SQL 文本中，但并没有在查询重写阶段产生实际效果。这也从侧面说明，谓词推入在这个场景下是由路径选择逻辑控制的，而不是查询重写逻辑。</p>
+<hr/>
+<h2 id="八成本模型详解">八、成本模型详解</h2>
+<h3 id="81-nestloop-join-的成本计算">8.1 NestLoop Join 的成本计算</h3>
+<p>GaussDB 的 NestLoop Join 成本公式可以简化为：</p>
+<p><span class="math math-inline">Cost_{NL} = Cost_{outer} + N_{outer} \times Cost_{inner\_rescan} + C_{filter}</span></p>
+<p>其中：</p>
+<ul>
+<li><span class="math math-inline">Cost_{outer}</span>：外层表的总扫描成本</li>
+<li><span class="math math-inline">N_{outer}</span>：外层表估算返回的行数</li>
+<li><span class="math math-inline">Cost_{inner\_rescan}</span>：内层表每次重新扫描的成本（rescan）</li>
+<li><span class="math math-inline">C_{filter}</span>：Join Filter 的 CPU 过滤成本</li>
+</ul>
+<p>在 Plan Trace 中，每个 NestLoop 的成本计算过程记录在 [optcost_initial_cost_nestloop] 和 [optcost_final_cost_nestloop] 中。以 GPlan 中 T1-T2 的 Join 为例：</p>
+<pre><code>[optcost_initial_cost_nestloop]
+  inner_pathid,5 outer_pathid,2
+  inner_start_cost,0.000000 inner_total_cost,266.170327
+  outer_start_cost,0.000000 outer_total_cost,2.295000
+  outer_path_rows,1.000000
+  cal: inner_rescan_start_cost,0.000000
+  cal: inner_rescan_total_cost,266.170327
+  cal: inner_run_cost = inner_total_cost - inner_start_cost
+    266.170327
+  cal: startup_cost += outer_start_cost + inner_start_cost
+    0.000000
+  cal: run_cost += outer_total_cost - outer_start_cost
+    2.295000
+  cal: run_cost += inner_run_cost 268.465327
+  Initial nestloop cost: startup_cost: 0.000000,
+    total_cost: 268.465327
+</code></pre>
+<p>可以看到，NestLoop 的初始成本就是外层成本 + 内层成本。由于外层 T1 只返回 1 行（精确匹配 6 个索引列），内层 T2 只需扫描一次，所以 T1-T2 Join 的成本为 2.30 + 266.17 = 268.48。</p>
+<h3 id="82-cplan-与-gplan-的-t2-成本差异">8.2 CPlan 与 GPlan 的 T2 成本差异</h3>
+<p>最显著的差异在 T2（contract_specification）的索引扫描成本上：</p>
+<table><thead><tr><th>模式</th><th>索引选择率</th><th>估算行数</th><th>扫描成本</th></tr></thead><tbody><tr><td>CPlan</td><td>0.000893</td><td>446</td><td>655.74</td></tr><tr><td>GPlan</td><td>0.000893</td><td>446</td><td>266.17</td></tr></tbody></table>
+<p>索引选择率和估算行数完全相同，但扫描成本差距巨大（655.74 vs 266.17）。这是因为两者的 <code>ml</code>（Macrolanczos 相关性因子）和 <code>pages_fetched</code>（预取页数）不同。</p>
+<p>具体来说，CPlan 的 <code>pages_fetched=429</code>，而 GPlan 的 <code>pages_fetched</code> 少得多。这是因为 CPlan 使用了具体的参数值，优化器对数据物理分布的估算更加"保守"（或者说更悲观），认为需要读取更多的数据页。</p>
+<pre><code>-- CPlan: T2 btcostestimate
+cal: tuples_fetched=ml,429.000000
+cal: page_io_cost = (correlation^2) * (min_IO_cost - max_IO_cost)
+  + max_IO_cost,640.157549,0.747873
+  run_cost += page_io_cost, 647.935047,640.157549
+-- total_cost = 655.74
+
+-- GPlan: T2 btcostestimate
+-- 类似计算但 pages_fetched 更低
+-- total_cost = 266.17
+</code></pre>
+<p>CPlan 中 T2 的高扫描成本（655.74）直接导致了三表 Join 的总成本居高不下（660.35）。而 GPlan 中 T2 的低扫描成本（266.17）为参数化路径的采纳创造了条件——当 T2 成本已经足够低时，T3 使用参数化路径的边际收益就更容易体现出来。</p>
+<h3 id="83-为什么成本差异如此之大">8.3 为什么成本差异如此之大</h3>
+<p>这里的核心问题是：同样的索引、同样的选择率，为什么 CPlan 的 IO 成本估算比 GPlan 高这么多？</p>
+<p>我只能猜想，这可能跟 CPlan 和 GPlan 在 <code>adt_genericcostestimate</code> 阶段的 <code>ml</code>（Macrolanczos）估算差异有关。<code>ml</code> 因子基于列的物理存储相关性（correlation）计算，而 CPlan 在使用具体参数值时，可能影响了 correlation 的使用方式，导致 pages_fetched 的估算偏高。</p>
+<p>具体到源码层面的原因，目前没有更详细的文档介绍。Plan Trace 中记录了 correlation 值（CPlan 约 0.747873，GPlan 类似），但 ml 的最终计算过程在 trace 中没有展开。这个只能留待后续进一步分析。</p>
+<hr/>
+<h2 id="九cplan-到-gplan-的自动切换机制">九、CPlan 到 GPlan 的自动切换机制</h2>
+<h3 id="91-plan_cache_mode-参数">9.1 plan_cache_mode 参数</h3>
+<p>GaussDB 通过 <code>plan_cache_mode</code> 参数控制 PBE 场景下的计划选择策略：</p>
+<table><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>force_custom_plan (2)</td><td>始终使用 CPlan，每次执行都重新生成计划</td></tr><tr><td>force_generic_plan (1)</td><td>始终使用 GPlan，使用参数化通用计划</td></tr><tr><td>auto (0, 默认)</td><td>前 5 次使用 CPlan，第 6 次评估是否切换到 GPlan</td></tr></tbody></table>
+<p>在默认的 <code>auto</code> 模式下，GaussDB 会在前 5 次执行时使用 CPlan，第 6 次起评估是否切换到 GPlan。评估的依据是历史执行计划的"稳定性"——如果多次 CPlan 的执行计划差异不大，就认为参数对计划影响较小，可以安全地切换到 GPlan 以节省计划生成开销。（其实还有APLAN，放进来就太复杂了，容易绕晕，本文暂不考虑）</p>
+<h3 id="92-自动切换的触发条件">9.2 自动切换的触发条件</h3>
+<p>在 <code>auto</code> 模式下，第 6 次执行时，GaussDB 会检查计划缓存中的已有计划。如果满足以下条件，就会触发 GPlan 生成：</p>
+<ul>
+<li>执行次数达到 5 次（硬阈值）</li>
+<li>已有的 CPlan 执行计划之间没有显著差异</li>
+<li>参数值的分布相对稳定</li>
+</ul>
+<p>一旦切换到 GPlan，后续执行会复用 GPlan，直到计划缓存被清空或 SQL 结构发生变化。</p>
+<p>这就是原始案例中"前 5 次 CPlan 没有谓词推入，第 6 次 GPlan 谓词推入"的完整机制。不是 SQL 变了，不是统计数据变了，而是计划选择策略变了。</p>
+<h3 id="93-自动切换的潜在风险">9.3 自动切换的潜在风险</h3>
+<p>这个机制本身是合理的——在参数对计划影响不大的场景下，GPlan 可以减少计划生成的 CPU 开销。但在我们的案例中，CPlan 和 GPlan 的执行计划差异巨大（成本相差 59%），自动切换可能导致性能突然下降或提升。</p>
+<p>如果 CPlan 的计划总是比 GPlan 好（或者反过来），那自动切换就完全没有意义，不如直接固定一种模式。问题恰恰在于，不同的 SQL、不同的数据分布，CPlan 和 GPlan 哪个更优是不确定的。GaussDB 的 <code>auto</code> 模式本质上是一种"赌博"——赌 GPlan 不会比 CPlan 差太多。</p>
+<p>因此，对于性能敏感的场景，建议显式设置 <code>plan_cache_mode</code>，而不是依赖自动切换。如果你通过 Plan Trace 分析发现 CPlan 和 GPlan 的计划差异较大，更应该固定使用较优的那种模式。</p>
+<hr/>
+<h2 id="十查询重写阶段分析">十、查询重写阶段分析</h2>
+<h3 id="101-查询重写的各个阶段">10.1 查询重写的各个阶段</h3>
+<p>Plan Trace 中的 [query_rewrite] 段记录了查询重写的完整过程。GaussDB 的查询重写包含以下阶段（按执行顺序）：</p>
+<table><thead><tr><th>阶段</th><th>含义</th></tr></thead><tbody><tr><td>Before rewrite</td><td>原始 SQL 文本</td></tr><tr><td>After const params replace</td><td>常量参数替换</td></tr><tr><td>After CTE substitution</td><td>CTE 替换</td></tr><tr><td>After replace empty join tree</td><td>空 Join 树替换</td></tr><tr><td>After multi count distinct rewrite</td><td>多 COUNT(DISTINCT) 重写</td></tr><tr><td>After window function CSE</td><td>窗口函数公共子表达式消除</td></tr><tr><td>After sublink pullup having</td><td>子链接上拉（HAVING 相关）</td></tr><tr><td>After sublink outer join elimination</td><td>子链接外连接消除</td></tr><tr><td>After sublink pullup</td><td>子链接上拉</td></tr><tr><td>After order by reduce</td><td>ORDER BY 化简</td></tr><tr><td>After soft constraint removal</td><td>软约束消除</td></tr><tr><td>After or extension</td><td>OR 扩展</td></tr><tr><td>After inline set returing functions</td><td>内联集合返回函数</td></tr><tr><td>After lazyagg</td><td>延迟聚合</td></tr><tr><td>After simple subquery pull up</td><td>简单子查询上拉</td></tr><tr><td>After group by push down</td><td>GROUP BY 下推</td></tr><tr><td>After simple union all flatten</td><td>简单 UNION ALL 扁平化</td></tr><tr><td>After preprocess rownum</td><td>ROWNUM 预处理</td></tr><tr><td>After preprocess expressions</td><td>表达式预处理</td></tr><tr><td>After having qual rewrite</td><td>HAVING 条件重写</td></tr><tr><td>After join elimination</td><td>Join 消除</td></tr><tr><td>After merge into false qual conversion</td><td>MERGE INTO 虚假条件转换</td></tr></tbody></table>
+<h3 id="102-cplan-与-gplan-的重写差异">10.2 CPlan 与 GPlan 的重写差异</h3>
+<p>对比 CPlan 和 GPlan 的 [query_rewrite] 阶段，发现一个非常有趣的事实：所有阶段的输出都完全相同。无论是否有 <code>predpushforce</code> Hint，无论 CPlan 还是 GPlan，查询重写阶段的输出都没有变化。</p>
+<p>这意味着，谓词推入的差异不是查询重写导致的。查询重写阶段只是对 SQL 文本做语法层面的变换，而谓词是否推入是在后续的路径生成和 Join 搜索阶段决定的。</p>
+<p>这也解释了为什么 <code>predpushforce</code> Hint 在这个场景下无效——该 Hint 作用于查询重写阶段的 <code>predpushforce</code> 重写规则，但查询重写阶段并没有改变 SQL 的结构（因为 SQL 本身已经是"最简"形式了，没有可以推入的子查询或视图）。真正的谓词推入是由路径选择逻辑在运行时决定的。</p>
+<h3 id="103-hint-在-sql-中的呈现">10.3 Hint 在 SQL 中的呈现</h3>
+<p>虽然 Hint 不影响重写结果，但它在 Plan Trace 中是可见的。有 <code>predpushforce</code> Hint 的 SQL 在 [query_block_1] 和所有重写阶段中都会携带 <code>Set(rewrite_rule predpushforce)</code> 标记。这可以帮助我们确认 Hint 是否被正确解析。</p>
+<p>无 Hint 的 GPlan SQL 中只有 <code>Set(enable_hashjoin off) Set(enable_nestloop on)</code> 两个 Hint，少了 <code>predpushforce</code>。但最终结果相同，再次证明了这个 Hint 在此场景下不起作用。</p>
+<hr/>
+<h2 id="十一join-搜索顺序分析">十一、Join 搜索顺序分析</h2>
+<h3 id="111-动态规划-join-搜索">11.1 动态规划 Join 搜索</h3>
+<p>GaussDB 使用动态规划算法搜索最优的 Join 顺序。在 Plan Trace 中，这个过程记录在 [optpath_dp_join_search] 阶段。对于三表 Join（T1、T2、T3），优化器会枚举所有可能的 Join 顺序和连接方式。</p>
+<h3 id="112-两表-join-候选">11.2 两表 Join 候选</h3>
+<p>优化器首先枚举所有两表组合：</p>
+<ul>
+<li>T1-T2（trade_position_record + contract_specification）</li>
+<li>T1-T3（trade_position_record + active_contract_snapshot）</li>
+<li>T2-T3（contract_specification + active_contract_snapshot）</li>
+</ul>
+<p>由于只允许 NestLoop，每种组合只有一种连接方式。优化器计算每种组合的最低成本路径。以 CPlan 为例，T1-T2 的最低成本路径为 658.05（使用 T1 索引扫描 + T2 索引扫描的 NestLoop）。</p>
+<h3 id="113-三表-join-的路径枚举">11.3 三表 Join 的路径枚举</h3>
+<p>在三表 Join 阶段，优化器考虑了以下 Join 顺序：</p>
+<ul>
+<li>(T1-T2)-T3：先 Join T1 和 T2，再与 T3 Join</li>
+<li>(T1-T3)-T2：先 Join T1 和 T3，再与 T2 Join</li>
+<li>(T2-T3)-T1：先 Join T2 和 T3，再与 T1 Join</li>
+</ul>
+<p>对于每种 Join 顺序，优化器会枚举内外层关系。以 (T1-T2)-T3 为例：</p>
+<ul>
+<li>外层为 (T1-T2)，内层为 T3：这是最终被选择的方案</li>
+<li>外层为 T3，内层为 (T1-T2)：成本通常更高</li>
+</ul>
+<p>在 CPlan 中，(T1-T2)-T3 的最低成本为 660.35。在 GPlan 中，同样的 Join 顺序最低成本为 270.78。</p>
+<p>成本的差异主要来自：</p>
+<ul>
+<li>T2 的索引扫描成本：CPlan 655.74 vs GPlan 266.17（相差约 390）</li>
+<li>T3 是否使用参数化路径：CPlan 的参数化路径在单表阶段被拒绝，GPlan 保留了参数化路径</li>
+</ul>
+<p>这两项差异叠加，导致了总成本 660 vs 270 的巨大差距。</p>
+<h3 id="114-join-顺序与参数化路径的关系">11.4 Join 顺序与参数化路径的关系</h3>
+<p>参数化路径的生效有一个前提条件：被推入的列必须来自"已经可用的"外层表。在我们的案例中，<code>t2.contract_code</code> 被推入 T3 的 Index Cond，前提是 T2 已经在 T3 的外层执行完毕。</p>
+<p>如果 Join 顺序是 (T1-T3)-T2，那么 T3 的外层是 T1，T1 没有 contract_code 列，自然无法推入。只有 (T1-T2)-T3 的顺序，T3 的外层是 (T1-T2) Join 结果，其中包含 T2 的 contract_code，才能推入。</p>
+<p>这解释了为什么 Join 顺序的选择如此重要——它决定了哪些参数化路径是可用的。优化器的动态规划算法会枚举所有顺序，但在 CPlan 模式下，即使 (T1-T2)-T3 的顺序是最优的，T3 的参数化路径也因为在单表阶段被拒绝而无法使用。</p>
+<hr/>
+<h2 id="十二完整可复现步骤">十二、完整可复现步骤</h2>
+<h3 id="121-环境准备">12.1 环境准备</h3>
+<pre><code class="language-sql">-- 1. 创建 Schema
+CREATE SCHEMA ptdemo;
+
+-- 2. 创建表（见第二章表结构）
+-- 3. 创建索引（见第二章索引定义）
+-- 4. 插入测试数据（见第二章数据量与分布）
+-- 5. 执行 ANALYZE 收集统计信息
+ANALYZE ptdemo.trade_position_record;
+ANALYZE ptdemo.contract_specification;
+ANALYZE ptdemo.active_contract_snapshot;
+</code></pre>
+<h3 id="122-复现-cplan-现象">12.2 复现 CPlan 现象</h3>
+<pre><code class="language-sql">-- 同一 session 中执行
+\x
+SET enable_plan_trace = on;
+SET plan_cache_mode = force_custom_plan;
+SET enable_hashjoin = off;
+SET enable_mergejoin = off;
+SET enable_nestloop = on;
+
+PREPARE ptdemo_trace_c AS
+  INSERT INTO ptdemo.fee_calculation_result
+    (biz_date, market_code, clearing_group,
+     contract_code, side_flag, hedge_type,
+     discount_pct, fee_rate, fee_per_lot)
+  SELECT $1, t1.market_code, t1.clearing_group,
+         t2.contract_code,
+         t1.side_flag, t1.hedge_type,
+         t1.discount_pct, t1.fee_rate, t1.fee_per_lot
+  FROM ptdemo.trade_position_record t1,
+       ptdemo.contract_specification t2,
+       ptdemo.active_contract_snapshot t3
+  WHERE t1.market_code = t2.market_code
+    AND t1.clearing_group = t2.clearing_group
+    AND t1.market_code = t3.market_code
+    AND t1.clearing_group = t3.clearing_group
+    AND t1.asset_code = t2.asset_code
+    AND t1.series_code = t2.base_series
+    AND t1.biz_date = t2.biz_date
+    AND t2.contract_code = t3.contract_code
+    AND t3.lifecycle_stage IN ('0','1','2')
+    AND t1.market_code = $2
+    AND t1.asset_code = $3
+    AND t1.clearing_group = $4
+    AND t1.series_code = $5
+    AND t1.cycle_tag = $6
+    AND t1.biz_date = $7
+    AND t3.biz_date = $8;
+
+EXECUTE ptdemo_trace_c('20250616','MARKET_1','ASSET0001',
+  'GROUP0001','SERIES00001',1,'20250615','20250616');
+
+-- 查看 Plan Trace
+SELECT plan_trace FROM gs_my_plan_trace
+  ORDER BY modifydate DESC LIMIT 1;
+</code></pre>
+<h3 id="123-复现-gplan-现象">12.3 复现 GPlan 现象</h3>
+<pre><code class="language-sql">-- 切换到 GPlan 模式（需重新 PREPARE）
+DEALLOCATE ALL;
+SET plan_cache_mode = force_generic_plan;
+SET enable_plan_trace = on;
+
+PREPARE ptdemo_trace_g AS
+  -- (同上 SQL)
+
+EXECUTE ptdemo_trace_g('20250616','MARKET_1','ASSET0001',
+  'GROUP0001','SERIES00001',1,'20250615','20250616');
+
+SELECT plan_trace FROM gs_my_plan_trace
+  ORDER BY modifydate DESC LIMIT 1;
+</code></pre>
+<p>执行后，对比两份 Plan Trace 中 T3（active_contract_snapshot）的 Index Cond 和总成本，即可确认 CPlan 无谓词推入（cost=660）、GPlan 有谓词推入（cost=270）的现象。</p>
+<hr/>
+<h2 id="十三总结与建议">十三、总结与建议</h2>
+<h3 id="131-现象总结">13.1 现象总结</h3>
+<p>经过完整的 Plan Trace 分析，CPlan 与 GPlan 谓词推入差异的根因可以概括为以下链条：</p>
+<ol>
+<li>CPlan 在路径生成阶段，由于已知具体参数值，对 T3 生成的参数化路径（hasparam=1）被判定为"不优于"非参数化路径，从而被拒绝。</li>
+<li>GPlan 不知道具体参数值，更依赖参数化路径来弥补选择性估算的不足，因此保留了 T3 的参数化路径。</li>
+<li>在三表 Join 阶段，GPlan 选择了参数化路径，将 <code>t2.contract_code = t3.contract_code</code> 推入 T3 的 Index Cond，避免了 Join Filter，成本从 660 降到 270。</li>
+<li>CPlan 的 T2 索引扫描成本估算偏高（655.74 vs 266.17），进一步放大了与 GPlan 的差距。</li>
+<li><code>predpushforce</code> Hint 对此场景无效，因为差异发生在路径选择阶段而非查询重写阶段。</li>
+</ol>
+<h3 id="132-实用建议">13.2 实用建议</h3>
+<p>回到开头的那个案例，如果你的生产环境中也遇到了类似的 CPlan/GPlan 计划差异问题，以下建议供参考：</p>
+<table><thead><tr><th>建议</th><th>说明</th></tr></thead><tbody><tr><td>固定 plan_cache_mode</td><td>如果通过 Plan Trace 分析发现 CPlan 和 GPlan 计划差异较大，显式设置 force_custom_plan 或 force_generic_plan，避免自动切换带来不确定性（或者使用use_cplan/use_glan的hint）</td></tr><tr><td>善用 Plan Trace 排查</td><td>遇到复杂性能问题不要只看 EXPLAIN，用 gs_my_plan_trace 查看优化器的完整决策过程，特别是路径生成和 Join 搜索阶段</td></tr><tr><td>注意参数化路径</td><td>NestLoop 场景下，参数化路径是性能的关键。检查索引是否覆盖了 Join 条件列，确保参数化路径能够被生成和使用</td></tr><tr><td>Hint 不是万能的</td><td>predpushforce Hint 只作用于查询重写阶段。如果差异来自路径选择，需要通过调整索引结构或 GUC 参数来影响</td></tr><tr><td>关注统计信息质量</td><td>ANALYZE 的质量和频率直接影响 CPlan 的估算准确性。统计信息越精确，CPlan 越有可能做出正确决策</td></tr></tbody></table>
+<h3 id="133-plan-trace-分析方法论">13.3 Plan Trace 分析方法论</h3>
+<p>最后总结一下 Plan Trace 的分析方法论。面对一份陌生的 Plan Trace，建议按以下顺序分析：</p>
+<ol>
+<li>先看 [key_guc]：确认影响计划的关键参数值。</li>
+<li>再看执行计划（plan 字段）：快速了解最终的计划结构和成本。</li>
+<li>然后看 [query_rewrite]：确认是否有重写规则改变了 SQL 结构。</li>
+<li>重点看 [optpath_set_rel_pathlist]：逐表分析路径生成过程，特别关注 hasparam（是否参数化）和 cost。</li>
+<li>接着看 [optpath_add_paths_to_joinrel]：分析 Join 阶段的路径选择，找出成本最低的路径和它使用的 trace_id 链。</li>
+<li>最后回到成本公式：理解每个 cost 数字的来源，判断优化器的估算是否合理。</li>
+</ol>
+<p>按这个方法论，Plan Trace 就不再是一堆晦涩的日志，而是一份清晰的"优化器决策报告"。</p>
+<hr/>
+<blockquote>
+<p>以上内容均为AI自动测试自动生成，先对原始plantrace文本使用本地离线模型进行脱敏处理，然后使用wps灵犀claw进行执行测试、分析、报告编写。</p>
+<p>客户原始场景是在一个事务中，先往一个表插入大量当天的数据，然后使用多表关联的结果insert到另一个表，由于前者插入后没有进行统计信息收集，统计信息认为没有这天的数据，而多表关联的sql又带了当天的过滤条件，因此cplan的nestloop时，没有把索引的所有可用字段进行推入，导致了实际执行时进行了大量的Filter，性能非常差。而gplan并不知道条件值是多少，索引的所有字段都推入进去了。所以在此场景下反直觉地出现了gplan表现比cplan更佳。AI自动生成的测试用例和原始场景有点儿区别，但是的确出现了cplan和gplan的谓词推入差异。</p>
+</blockquote>
+<h3 id="134-plan-trace-的意义">13.4 Plan Trace 的意义</h3>
+<p>Plan Trace能更精细地分析执行计划，这个自不用再提，在现在这个AI AGENT时代，对于一款非开源数据库而言，尽管这个Plan Trace的输出对于人类阅读非常不友好，但AI是能读的，完全可以想象AI AGENT能借助这个Plan Trace来进行自动化的SQL性能分析和优化，这会比只看explain的输出要更准确。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../DiffusionGemma-on-ai-max-395-test/">&larr; 同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测</a>
+    
+    
+    <a href="../gaussdb-coredump-vip-jdbc-keepalive-hang-half-socket/">【GaussDB】分析GaussDB在coredump后，部分应用连接假死的问题 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

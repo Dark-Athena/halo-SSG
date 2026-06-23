@@ -149,7 +149,7 @@
         
         <span>2026-01-02</span>
         
-        <span>79 阅读</span>
+        <span>84 阅读</span>
         
     </div>
     <div class="post-body">
@@ -310,6 +310,7 @@ D select * from unnest_table(array[1,2,3]);
 </code></pre>
 <p>但是这只是ORACLE的行为，在duckdb和postgresql就不一样了，如果里面有使用unnest这样的函数（这种函数甚至可以自定义创建）,那么你在不确定原始数据的内容时，根本不知道这个sql会返回多少行，而且由于一行变多行，很可能引入意料之外的join笛卡尔积。</p>
 <p>但是换个角度想想，既然能接受 <strong>聚合函数</strong>的存在，为什么就不能有<strong>展开</strong>/<strong>分散</strong> 函数呢？聚合是多行变一行，分散是一行变多行，想到这里便释然了。</p>
+
 </div>
 </article>
     </div>

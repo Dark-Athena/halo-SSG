@@ -149,7 +149,7 @@
         
         <span>2026-06-15</span>
         
-        <span>0 阅读</span>
+        <span>17 阅读</span>
         
     </div>
     <div class="post-body">
@@ -255,22 +255,22 @@ select * from v_test_dep;
 <pre><code class="language-bash">javac -cp .:gaussdbjdbc.jar  testlongquery.java
 java -cp .:gaussdbjdbc.jar testlongquery
 </code></pre>
-<p><img alt="企业微信截图_17814886196994-IRWA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814886196994-IRWA.png" srcset="../../upload/企业微信截图_17814886196994-IRWA.png?width=1200 1200w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=400 400w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=1600 1600w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=800 800w"/></p>
+<p><img alt="企业微信截图_17814886196994-IRWA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814886196994-IRWA.png" srcset="../../upload/企业微信截图_17814886196994-IRWA.png?width=1600 1600w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=800 800w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=1200 1200w, ../../upload/企业微信截图_17814886196994-IRWA.png?width=400 400w"/></p>
 <ol start="4">
 <li>使用gsql连接GaussDB主节点，执行coredump脚本</li>
 </ol>
 <pre><code class="language-bash">gsql -r -d postgres -p 8000 -f coredump.sql
 </code></pre>
-<p><img alt="image-xXiB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-xXiB.png" srcset="../../upload/image-xXiB.png?width=1200 1200w, ../../upload/image-xXiB.png?width=400 400w, ../../upload/image-xXiB.png?width=1600 1600w, ../../upload/image-xXiB.png?width=800 800w"/></p>
+<p><img alt="image-xXiB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-xXiB.png" srcset="../../upload/image-xXiB.png?width=1600 1600w, ../../upload/image-xXiB.png?width=800 800w, ../../upload/image-xXiB.png?width=1200 1200w, ../../upload/image-xXiB.png?width=400 400w"/></p>
 <p>GaussDB发生failover，vip飘到新主库，应用服务器上java程序卡死，符合问题现象。</p>
 <p>可以观察到java应用服务器上的这个连接在sql发出去后就一直没有变化了，一直显示为 off(0.00/0/0)，必须关闭java应用才断开连接；而对应在原主库上的这个连接显示 FIN_WAIT1、probe，超时重试9次断开了</p>
-<p><img alt="image-TMGA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-TMGA.png" srcset="../../upload/image-TMGA.png?width=1200 1200w, ../../upload/image-TMGA.png?width=400 400w, ../../upload/image-TMGA.png?width=1600 1600w, ../../upload/image-TMGA.png?width=800 800w"/></p>
+<p><img alt="image-TMGA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-TMGA.png" srcset="../../upload/image-TMGA.png?width=1600 1600w, ../../upload/image-TMGA.png?width=800 800w, ../../upload/image-TMGA.png?width=1200 1200w, ../../upload/image-TMGA.png?width=400 400w"/></p>
 <h3 id="jdbc开启keepalive再测">jdbc开启keepalive再测</h3>
 <p>再测试jdbc开keepalive的情况，把java程序里连接串上的tcpKeepAlive参数改成true，重新编译执行</p>
-<p><img alt="企业微信截图_17814887579578.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814887579578.png" srcset="../../upload/企业微信截图_17814887579578.png?width=1200 1200w, ../../upload/企业微信截图_17814887579578.png?width=400 400w, ../../upload/企业微信截图_17814887579578.png?width=1600 1600w, ../../upload/企业微信截图_17814887579578.png?width=800 800w"/></p>
+<p><img alt="企业微信截图_17814887579578.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814887579578.png" srcset="../../upload/企业微信截图_17814887579578.png?width=1600 1600w, ../../upload/企业微信截图_17814887579578.png?width=800 800w, ../../upload/企业微信截图_17814887579578.png?width=1200 1200w, ../../upload/企业微信截图_17814887579578.png?width=400 400w"/></p>
 <p>可以看到长查询执行过程中，客户端会一直keepalive。<br/>
 然后执行coredump.sql来触发数据库coredump</p>
-<p><img alt="企业微信截图_17814888055876.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814888055876.png" srcset="../../upload/企业微信截图_17814888055876.png?width=1200 1200w, ../../upload/企业微信截图_17814888055876.png?width=400 400w, ../../upload/企业微信截图_17814888055876.png?width=1600 1600w, ../../upload/企业微信截图_17814888055876.png?width=800 800w"/></p>
+<p><img alt="企业微信截图_17814888055876.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/企业微信截图_17814888055876.png" srcset="../../upload/企业微信截图_17814888055876.png?width=1600 1600w, ../../upload/企业微信截图_17814888055876.png?width=800 800w, ../../upload/企业微信截图_17814888055876.png?width=1200 1200w, ../../upload/企业微信截图_17814888055876.png?width=400 400w"/></p>
 <p>在原主库coredump后，java很快就报错退出了</p>
 <pre><code class="language-java">[root@ky10-sp3 javatest]# java -cp .:gaussdbjdbc.jar testlongquery
 Exception in thread "main" com.huawei.gaussdb.jdbc.util.PSQLException: [192.168.163.131:49050/192.168.163.140:8000] socket is not closed; Urgent packet sent to backend successfully; An I/O error occurred while sending to the backend.detail:EOF Exception;
@@ -300,6 +300,7 @@ Caused by: java.io.EOFException: EOF Exception
 <h2 id="总结">总结</h2>
 <p>虽然开启tcpKeepAlive解决了本文中发生的应用假死问题，但这并不代表我就推荐你去开启tcpKeepAlive，因为这只是头痛医头脚痛医脚的手段罢了。</p>
 <p>在应用系统设计中，不能仅考虑应用软件自身的代码逻辑，数据库、操作系统、中间件以及CPU、内存、磁盘、网络等硬件，甚至包括操作应用软件的人，同样都属于整个应用系统的一部分。虽然说现代应用架构从设计上都是尽量解耦的，但涉及到跨组件或者跨设备故障时，依然可能发生不可控的影响。因此这就要求应用架构师具备各方面的综合能力，能设计出好的架构，以规避或减轻任何故障带来的不良影响。</p>
+
 </div>
 </article>
     </div>
@@ -313,7 +314,7 @@ Caused by: java.io.EOFException: EOF Exception
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <span></span>
+    <a href="../gaussdb-plan-trace-analyze-predpush/">&larr; 【GaussDB】Plan Trace 深度分析-CPlan 与 GPlan 谓词推入差异的完整复现与解读</a>
     
     
     <a href="../amd-ai-max-395-qwen3.5-122b-a10b-mtp-q4">AMD AI MAX+395 跑 QWEN3.5-122B-A10B-MTP-Q4 实测 &rarr;</a>

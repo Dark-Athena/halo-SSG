@@ -149,7 +149,7 @@
         
         <span>2021-10-05</span>
         
-        <span>1585 阅读</span>
+        <span>1593 阅读</span>
         
         <a href="../../categories/python/">python</a>
         
@@ -172,7 +172,7 @@
 <p>所以我就想到了干脆自己用python写个简单的。</p>
 <h2 id="分析">分析</h2>
 <p>1.首先，halo是有api的，只要在博客设置里开启了api功能并设置了api_access_key，就可以使用halo提供的各种api了<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png" srcset="../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1200 1200w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=400 400w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1600 1600w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png" srcset="../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1600 1600w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=800 800w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=1200 1200w, ../../upload/2021/10/image-f85a3f860a1e4cfebb1a72f0c5513097.png?width=400 400w"/></p>
 <p>API文档 <a href="https://api.halo.run/">https://api.halo.run/</a></p>
 <p>2.先获取文章列表，可以通过 /api/content/posts? 这个接口，设定size为一个很大的值，至少要等于在halo博客中发布的文章数，这样就可以不分页，一次性获取所有的文章列表</p>
 <p>3.解析出每一篇的文章的 article_id 和 title，这里可以把自己不想同步的文章去掉</p>
@@ -290,6 +290,7 @@ except Exception as e:
 <p>先保存登录csdn的cookie文件，然后把以上代码中的参数12345项都修改好后，直接执行即可</p>
 <h2 id="最后">最后</h2>
 <p>之后还会考虑写同步到博客园和itpub的代码，再看有没有什么办法能集成到halo后台界面里</p>
+
 </div>
 </article>
     </div>

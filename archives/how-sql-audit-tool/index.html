@@ -149,7 +149,7 @@
         
         <span>2025-11-24</span>
         
-        <span>109 阅读</span>
+        <span>113 阅读</span>
         
     </div>
     <div class="post-body">
@@ -489,7 +489,7 @@ if (!metaDataCache.tableExists(tableName)) {
 <h3 id="分阶段实施计划">分阶段实施计划</h3>
 <p><strong>第一阶段：基础 SQL 解析（2 个月）</strong><br/>
 核心目标是构建 SQL 语法解析能力，采用 ANTLR4 生成 SQL 词法/语法解析器，基于 Visitor 模式开发自定义节点处理器，实现语法树（AST）的构建与 SQL 文本改写能力。此阶段需完成基础配置框架搭建，参考 SQLFluff 与 Schemalint 的实现流程，在项目根目录创建配置文件（如 <code>.sqlfluff</code> 或 <code>schemalintrc.js</code>），指定方言（dialect）、缩进规则、排除规则（exclude_rules）等关键参数，并支持通过命令行工具（如 <code>npx schemalint</code>）执行基础解析校验[<a href="https://blog.csdn.net/gitblog_00888/article/details/151298941">14</a>][<a href="https://blog.csdn.net/gitblog_01062/article/details/142243832">18</a>][<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>]。</p>
-<p><img alt="image-wrtv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-wrtv.png" srcset="../../upload/image-wrtv.png?width=1200 1200w, ../../upload/image-wrtv.png?width=400 400w, ../../upload/image-wrtv.png?width=1600 1600w, ../../upload/image-wrtv.png?width=800 800w"/></p>
+<p><img alt="image-wrtv.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-wrtv.png" srcset="../../upload/image-wrtv.png?width=1600 1600w, ../../upload/image-wrtv.png?width=800 800w, ../../upload/image-wrtv.png?width=1200 1200w, ../../upload/image-wrtv.png?width=400 400w"/></p>
 <p><strong>第二阶段：PL/SQL 支持扩展（3 个月）</strong><br/>
 重点突破 PL/SQL 语法的解析难题，具体实施步骤包括：首先利用 ANTLR4 生成 PL/SQL 专用词法分析器、语法解析器及访问器；其次通过解析器提取 PL/SQL 块的 body 规则及依赖关系，并单独测试 PL/SQL 规则对代码块的解析有效性；最后需解决语法合并冲突，将提取的 PL/SQL 规则和令牌整合至现有 C 语法框架中，特别注意处理命名空间冲突问题[<a href="https://blog.csdn.net/wwwwwwgame/article/details/144807378">22</a>][<a href="https://github.com/antlr/antlr4/discussions/4170">23</a>]。</p>
 <p><strong>第三阶段：语义分析模块开发（2 个月）</strong><br/>
@@ -787,6 +787,7 @@ INTEGER (1 个变量):
 <p>应用开发人员完全可以用结队编程以及代码评审等方式来确保代码的质量，但是DBA们往往认为应用开发人员对数据库理解不足，很容易写出不好的代码，导致发生生产事故，锅给谁？一边说着DBA无法替代，一边又不去了解业务细节也不去学习开发语言。或许相比SQL审核工具，需要的更可能是一个对数据库理解很深刻而且又懂业务应用开发的人来进行代码上库的评审（这里的"库"指代码仓库，不是数据库）。这样的人我不认为是运维DBA角色，这应该就是高级开发人员。所以如果真要有个什么工具来使这个评审提质提效，那也应该是这个高级开发人员来指导这个工具的开发。</p>
 <p>至于我用AI做的这次尝试，暂时也不会推进了，后面基本都是苦力活了。验证下来PLSQL的审查根本不存在任何技术不可行的问题，而国内市面上没有出现好的PLSQL审核工具，纯粹是错误的人在错误的时间遇上了另一个错误的人做了一件错误的事。</p>
 <p>这篇文章对一些人群和一些软件开发厂商可能有所冒犯，但事实就是如此。聪明人应该会从我这篇文章里学到一些东西然后马上行动，其他人想喷就喷吧。</p>
+
 </div>
 </article>
     </div>

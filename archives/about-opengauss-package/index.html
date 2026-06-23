@@ -149,7 +149,7 @@
         
         <span>2022-01-18</span>
         
-        <span>1592 阅读</span>
+        <span>1594 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -217,21 +217,21 @@ end;
 <p>再查</p>
 <pre><code class="language-sql">select * from pg_proc x where LOWER(x.proname) like '%sleep%';
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png" srcset="../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1200 1200w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=400 400w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1600 1600w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png" srcset="../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1600 1600w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=800 800w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=1200 1200w, ../../upload/2022/01/image-c5c97530dc754bc59492f33c63e019c8.png?width=400 400w"/><br/>
 通过drop再create,确认第二个行记录的确就是通过创建包来生成的一个过程,然后可以发现它的propackage和propackageid这两个字段和其他过程是有区别的。我猜测propackageid表示这个过程对应的包id,如果一个包里有多个过程,那么它们的propackageid应该是一样的,实测也证实的确如此。<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png" srcset="../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1200 1200w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=400 400w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1600 1600w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png" srcset="../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1600 1600w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=800 800w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=1200 1200w, ../../upload/2022/01/image-6475f24cdeb8423e9756c0d2fbb27132.png?width=400 400w"/></p>
 <p>可是包名到哪去了？直觉告诉我,应该还有个视图或者表有记录包的信息,于是查</p>
 <pre><code class="language-sql">select * from pg_class where relname like '%package%'
 </code></pre>
-<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png" srcset="../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1200 1200w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=400 400w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1600 1600w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=800 800w"/><br/>
+<p><img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png" srcset="../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1600 1600w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=800 800w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=1200 1200w, ../../upload/2022/01/image-55e41323ce694dfca1ad9ea62c70c9ac.png?width=400 400w"/><br/>
 再查第一个表<br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png" srcset="../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1200 1200w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=400 400w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1600 1600w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=800 800w"/><br/>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png" srcset="../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1600 1600w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=800 800w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=1200 1200w, ../../upload/2022/01/image-5652ff431044486e9d35bdc0e3edec3e.png?width=400 400w"/><br/>
 果然id是对应的,都是16387</p>
 <p>但问题又来了,在PostgreSQL中,pg_proc里的过程及函数,对于一个schema下同名且同参数的,是禁止同时存在多个的,具有唯一性,openGauss这个实现方式难道越过了这个限制么？</p>
 <p>答案是,没有。</p>
 <p>我翻了openGauss的官方文档<br/>
 <a href="https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html">https://opengauss.org/zh/docs/2.1.0/docs/Developerguide/CREATE-PACKAGE.html</a><br/>
-<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png" srcset="../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1200 1200w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=400 400w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1600 1600w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=800 800w"/></p>
+<img alt="image.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png" srcset="../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1600 1600w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=800 800w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=1200 1200w, ../../upload/2022/01/image-eb51283cd2044f28b5a523da109d117e.png?width=400 400w"/></p>
 <ol>
 <li>由于升级的限制，在V5R2C00版本中，即使在不同的Package间，也无法创建同名同参的存储过程。</li>
 <li>package只支持集中式，无法在分布式中使用。</li>
@@ -305,6 +305,7 @@ end dbms_lock;
 <p>另外,这种方式创建的包,无法和目前官方的<a href="https://gitee.com/enmotech/compat-tools">compat_tools</a>兼容,因为compat_tools是用新建一个包就建一个schema的方式写的,而这也违背了第9点。</p>
 <h2 id="四总结">四、总结</h2>
 <p>整体来看,增加package的支持给openGauss带来了不小的优势,可以让熟悉package开发的人员迅速上手来进行业务系统逻辑代码的研发。但是受限于pg的内核,目前看上去openGauss只是在sql解析阶段来兼容了package的创建及使用语法,在后台仍旧是转换成一个个单独的过程来执行,并没有创造一种新的对象,由此带来了官方文档中那一系列限制,这是在未来开发使用中需要注意的。</p>
+
 </div>
 </article>
     </div>

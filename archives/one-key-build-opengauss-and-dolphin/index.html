@@ -149,7 +149,7 @@
         
         <span>2022-12-25</span>
         
-        <span>973 阅读</span>
+        <span>978 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -302,8 +302,8 @@ gsql -c "create user test_user password 'openGauss123';"
 <p>用mysql客户端连接openGauss，不过目前在mysql命令行客户端上无法返回执行结果，使用其他工具测试正常，比如mogeaver</p>
 <pre><code class="language-shell">mysql -P 3307 -u test_user -popenGauss123 -h 127.0.0.1 -D og_dolphin
 </code></pre>
-<p><img alt="image-1671948314560" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/12/image-1671948314560.png" srcset="../../upload/2022/12/image-1671948314560.png?width=1200 1200w, ../../upload/2022/12/image-1671948314560.png?width=400 400w, ../../upload/2022/12/image-1671948314560.png?width=1600 1600w, ../../upload/2022/12/image-1671948314560.png?width=800 800w"/><br/>
-<img alt="image-1671948465169" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/12/image-1671948465169.png" srcset="../../upload/2022/12/image-1671948465169.png?width=1200 1200w, ../../upload/2022/12/image-1671948465169.png?width=400 400w, ../../upload/2022/12/image-1671948465169.png?width=1600 1600w, ../../upload/2022/12/image-1671948465169.png?width=800 800w"/></p>
+<p><img alt="image-1671948314560" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/12/image-1671948314560.png" srcset="../../upload/2022/12/image-1671948314560.png?width=1600 1600w, ../../upload/2022/12/image-1671948314560.png?width=800 800w, ../../upload/2022/12/image-1671948314560.png?width=1200 1200w, ../../upload/2022/12/image-1671948314560.png?width=400 400w"/><br/>
+<img alt="image-1671948465169" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/2022/12/image-1671948465169.png" srcset="../../upload/2022/12/image-1671948465169.png?width=1600 1600w, ../../upload/2022/12/image-1671948465169.png?width=800 800w, ../../upload/2022/12/image-1671948465169.png?width=1200 1200w, ../../upload/2022/12/image-1671948465169.png?width=400 400w"/></p>
 <h2 id="%E7%8E%AF%E5%A2%83%E6%B8%85%E7%90%86%E5%91%BD%E4%BB%A4" tabindex="-1">环境清理命令</h2>
 <p>如果编译出错，或者源码有更新，想重新编译，可以执行下面的命令清理环境，会把之前的源码和数据库程序、数据都删掉</p>
 <pre><code class="language-shell">su - omm310
@@ -314,6 +314,7 @@ userdel omm310
 rm -rf /opt/omm310
 rm -rf /home/omm310
 </code></pre>
+
 </div>
 </article>
     </div>

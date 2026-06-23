@@ -149,7 +149,7 @@
         
         <span>2024-11-04</span>
         
-        <span>354 阅读</span>
+        <span>359 阅读</span>
         
     </div>
     <div class="post-body">
@@ -396,6 +396,7 @@ CREATE OR REPLACE TYPE TY_TEST AS OBJECT(COL1 INT,COL2 VARCHAR(20));
 <p>20241204更新：后面找了这个项目的一些单子，发现是需要手动执行一次<code>python transformGrammar.py</code>命令来自动转换一下，参考这个单子 <a href="https://github.com/antlr/grammars-v4/issues/4338">https://github.com/antlr/grammars-v4/issues/4338</a></p>
 <h2 id="四、总结">四、总结</h2>
 <p>antlr4很强大,我们可以借助其语法树的能力，实现精准的语法改写，当然前提是我们要先想好怎么去改写，然后才能编写对应的规则。这种方式虽然比正则替换要慢很多，但是对于大量复杂的存储过程而言，使用语法树进行改写的方式无疑比正则替换更加可靠。使用高级开发语言还可以连接数据库获取元数据来推断被引用的对象类型和属性，来进行更加个性化的复杂逻辑改写。</p>
+
 </div>
 </article>
     </div>

@@ -150,7 +150,7 @@
         
         <span>2024-10-19</span>
         
-        <span>212 阅读</span>
+        <span>215 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -297,7 +297,7 @@ Datum dtoi8(PG_FUNCTION_ARGS)
 </blockquote>
 <p>这里是按照常规的算法进行四舍五入的，但结果竟然和银行家算法一样。</p>
 <p>看到这里我一下犯了迷糊，理所当然的认为一定会走到这个rint，但后来根据openGauss社区专家的指点，实际上这里调用的是 <code>std::rint(float)</code>，c++内置的一个标准函数，而这个函数就是使用的银行家算法！</p>
-<p><img alt="85bb206f2d90efee4de5638cff15d12.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/85bb206f2d90efee4de5638cff15d12.png" srcset="../../upload/85bb206f2d90efee4de5638cff15d12.png?width=1200 1200w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=400 400w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=1600 1600w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=800 800w"/></p>
+<p><img alt="85bb206f2d90efee4de5638cff15d12.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/85bb206f2d90efee4de5638cff15d12.png" srcset="../../upload/85bb206f2d90efee4de5638cff15d12.png?width=1600 1600w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=800 800w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=1200 1200w, ../../upload/85bb206f2d90efee4de5638cff15d12.png?width=400 400w"/></p>
 <h2 id="三-扩展">三、扩展</h2>
 <p>既然已经定位到了原理，于是我们回到ORACLE看看，不精确的浮点类型在ORACLE的表现是怎样的？其实ORACLE也有这种浮点类型，叫binary_float和binary_double，这两个类型不能在sql中使用，只能在plsql中使用，我们写个简单的例子在ORACLE进行测试</p>
 <pre><code class="language-sql">declare
@@ -351,6 +351,7 @@ end;
 当然，我们可以认为这个用例的用法是不合理的，正常情况下小数转换成整数应该使用函数来处理，而不是通过类型转换。也可能之前从来没有人这么用过，所以ORACLE一直没发现存在这个问题。</p>
 <p>于是回到最开始的问题上，openGauss/postgresql和ORACLE表现不一致，究竟谁是对的，或许我们永远都无法找到准确答案，这只能算是一种行为差异，并且都可以解释得通。但在看到ORACLE换个方式出现了第三种结果，甚至还出现了整数类型显示小数这种奇葩BUG时，ORACLE的权威性陡然下降。</p>
 <p>为了避免这种问题，建议无论在用什么数据库时，对于类型转换，还是慎重一些为好</p>
+
 </div>
 </article>
     </div>

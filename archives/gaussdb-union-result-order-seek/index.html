@@ -149,7 +149,7 @@
         
         <span>2026-01-21</span>
         
-        <span>59 阅读</span>
+        <span>61 阅读</span>
         
         <a href="../../categories/opengauss/">openGauss</a>
         
@@ -391,6 +391,7 @@ from t_sales group by rollup(transdate);
 <li>不同数据库对UNION是否排序、如何排序的行为是不一样的，如果使用了UNION，且对顺序有要求，一定要使用order by，order by可以接列名、列序号、decode/nvl等函数表达式,还可以指定null在前还是在后，无论想要什么顺序都是可以排的。e.g.<code>order by decode(colname,'合计','2','1')</code></li>
 <li>如果rollup/cube/grouping能满足当前汇总行的需求，则推荐用rollup/cube/grouping，避免表的多次扫描，性能会更好，但要注意其查询结果在不同数据库不同版本上可能存在差异。</li>
 </ol>
+
 </div>
 </article>
     </div>

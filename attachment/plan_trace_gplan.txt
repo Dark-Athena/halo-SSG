@@ -1,0 +1,1992 @@
+DEALLOCATE ALL
+SET
+SET
+SET
+SET
+SET
+SET
+SET
+PREPARE
+INSERT 0 0
+Expanded display is on.
+-[ RECORD 1 ]---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+query_id   | e42bcdb8388657565d7a64799e00bec9
+query      | EXECUTE ptdemo_trace_g('20250616', 'SHFE', 'ASSET0001', 'GROUP0001', 'SERIES00001', 1, '20250615', '20250616');
+plan       | Datanode Name: dn_6001_6002_6003
+           | Insert on fee_calculation_result  (cost=0.00..270.78 rows=1 width=54)
+           |   ->  Nested Loop  (cost=0.00..270.78 rows=1 width=54)
+           |         ->  Nested Loop  (cost=0.00..268.48 rows=1 width=54)
+           |               ->  Index Scan using idx_tpr_main on trade_position_record t1  (cost=0.00..2.29 rows=1 width=70)
+           |                     Index Cond: (((biz_date)::text = ($7)::text) AND ((market_code)::text = ($2)::text) AND ((clearing_group)::text = ($4)::text) AND ((series_code)::text = ($5)::text) AND ((asset_code)::text = ($3)::text) AND (cycle_tag = $6))
+           |               ->  Index Scan using idx_cs_baseseries on contract_specification t2  (cost=0.00..266.17 rows=1 width=60)
+           |                     Index Cond: (((biz_date)::text = ($7)::text) AND ((base_series)::text = ($5)::text))
+           |                     Filter: (((asset_code)::text = ($3)::text) AND ((clearing_group)::text = ($4)::text) AND ((market_code)::text = ($2)::text))
+           |         ->  Index Scan using idx_acs_main on active_contract_snapshot t3  (cost=0.00..2.30 rows=1 width=29)
+           |               Index Cond: (((biz_date)::text = ($8)::text) AND ((market_code)::text = ($2)::text) AND ((clearing_group)::text = ($4)::text) AND ((contract_code)::text = (t2.contract_code)::text))
+           |               Filter: ((lifecycle_stage)::text = ANY ('***'::text[]))
+           | 
+           | 
+plan_trace | [key_guc]
+           | enable_pbe_optimization=0
+           | plan_cache_mode=1
+           | random_page_cost=4.000
+           | enable_hashjoin=0
+           | enable_mergejoin=0
+           | enable_nestloop=1
+           | enable_seqscan=1
+           | effective_cache_size=524288
+           | work_mem=32768
+           | default_statistics_target=100
+           | cost_param=0
+           | =[key_guc]=
+           | 
+           | [optplan_subquery_planner]
+           | 
+           | [query_block_1]
+           | INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | =[query_block_1]=
+           | 
+           | [query_rewrite]
+           | Debug query rewrite stage[Before rewrite]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After const params replace ]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After CTE substitution]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After replace empty join tree]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After multi count distinct rewrite]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After window function Common Subexpression Elimination]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After sublink pullup having]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After sublink outer join elimination]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After sublink pullup]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After order by reduce]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After soft constraint removal]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After or extension]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After inline set returing functions]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After lazyagg]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After simple subquery pull up]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After group by push down]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After simple union all flatten]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After preprocess rownum]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After preprocess expressions]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After having qual rewrite]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After join elimination]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | Debug query rewrite stage[After merge into false qual conversion]: INSERT /*+ Set(enable_hashjoin off) Set(enable_nestloop on)*/INTO ptdemo.fee_calculation_result (biz_date, market_code, clearing_group, contract_code, side_flag, hedge_type, discount_pct, fee_rate, fee_per_lot) SELECT $1 AS "?column?", t1.market_code, t1.clearing_group, t2.contract_code, t1.side_flag, t1.hedge_type, t1.discount_pct, t1.fee_rate, t1.fee_per_lot FROM ptdemo.trade_position_record t1, ptdemo.contract_specification t2, ptdemo.active_contract_snapshot t3 WHERE t1.market_code::text = t2.market_code::text AND t1.clearing_group::text = t2.clearing_group::text AND t1.market_code::text = t3.market_code::text AND t1.clearing_group::text = t3.clearing_group::text AND t1.asset_code::text = t2.asset_code::text AND t1.series_code::text = t2.base_series::text AND t1.biz_date::text = t2.biz_date::text AND t2.contract_code::text = t3.contract_code::text AND (t3.lifecycle_stage::text = ANY (ARRAY['0'::character varying, '1'::character varying, '2'::character varying]::text[])) AND t1.market_code::text = $2::text AND t1.asset_code::text = $3::text AND t1.clearing_group::text = $4::text AND t1.series_code::text = $5::text AND t1.cycle_tag = $6 AND t1.biz_date::text = $7::text AND t3.biz_date::text = $8::text
+           | =[query_rewrite]=
+           | 
+           | [OptOptNonSpj|process]
+           | 
+           | [optplan_query_planner]
+           | 
+           | [optpath_make_one_rel]
+           | 
+           | [optpath_set_base_rel_sizes]
+           | The origin distinct value is 3.000000. After multiply by selectivity with adjust_ratio=1.000000,                                        the new distinct value is 3.000000
+           | The origin distinct value is 47.000000. After using poisson model with ntuples=113571.000000 and ration=0.333333                                        The new distinct value is 47.000000
+           | The origin distinct value is 74.000000. After using poisson model with ntuples=113571.000000 and ration=0.021277                                        The new distinct value is 74.000000
+           | The origin distinct value is 1079.000000. After using poisson model with ntuples=113571.000000 and ration=0.013514                                      The new distinct value is 818.809412
+           | The origin distinct value is 2.000000. After using poisson model with ntuples=113571.000000 and ration=0.001221                                         The new distinct value is 2.000000
+           | The origin distinct value is 1.000000. After using poisson model with ntuples=113571.000000 and ration=0.001221                                         The new distinct value is 1.000000
+           | The origin distinct value is 3.000000. After multiply by selectivity with adjust_ratio=1.000000,                                        the new distinct value is 3.000000
+           | The origin distinct value is 47.000000. After using poisson model with ntuples=500000.000000 and ration=0.333333                                        The new distinct value is 47.000000
+           | The origin distinct value is 74.000000. After using poisson model with ntuples=500000.000000 and ration=0.021277                                        The new distinct value is 74.000000
+           | The origin distinct value is 1079.000000. After using poisson model with ntuples=500000.000000 and ration=0.013514                                      The new distinct value is 1076.941998
+           | The origin distinct value is 2.000000. After using poisson model with ntuples=500000.000000 and ration=0.000929                                         The new distinct value is 2.000000
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333300
+           | end method: adt_var_eq_const, return: 0.333300
+           | =[adt_var_eq_const]=
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333400
+           | end method: adt_var_eq_const, return: 0.333400
+           | =[adt_var_eq_const]=
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333300
+           | end method: adt_var_eq_const, return: 0.333300
+           | =[adt_var_eq_const]=
+           | The origin distinct value is 3.000000. After multiply by selectivity with adjust_ratio=1.000000,                                        the new distinct value is 3.000000
+           | The origin distinct value is 47.000000. After using poisson model with ntuples=10000.000000 and ration=0.333333                                         The new distinct value is 47.000000
+           | The origin distinct value is 2.000000. After using poisson model with ntuples=10000.000000 and ration=0.021277                                  The new distinct value is 2.000000
+           | =[optpath_set_base_rel_sizes]=
+           | 
+           | [optpath_set_base_rel_pathlists]
+           | 
+           | [optpath_set_rel_pathlist]
+           | 
+           | [optbase_create_seqscan_path]
+           | method_initial_state: pathid,1
+           | =[optbase_create_seqscan_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 15986.275000;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         SeqScan(3:trade_position_record ) pathid=00000001 hasparam=0 rows=1 multiple=1.000000 tuples=113571.00 rpages=13147.00 ipages=-1.00 selec=-1.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..15986.27 hint 0 traceid=#1#
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optpath_create_index_paths]
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_tpr_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_get_index_paths]-[common_path]
+           | 
+           | [optcost_evaluate_index]
+           | input: loop_count,1.000000
+           | stats_info: data_pages,13147.000000 data_tuples,113571.000000 index_pages,11559.000000 index_tuples=113571.000000
+           | 
+           | [btcostestimate]
+           | cal: num_sa_scans,1.000000
+           | cal: num_index_tuples=btree_selectivity * index_tuples,0.005044,0.000000,113571.000000
+           | cal: num_index_tuples = rint(num_index_tuples / num_sa_scans),0.000000
+           | 
+           | [adt_genericcostestimate]
+           | input: loop_count,1.000000 num_index_tuples,0.000000 index_total_pages,11559.000000
+           | cal: num_sa_scans,1.000000 idx_local_tupls,113571.000000
+           | cal: index_selectivity,0.000000 
+           | cal: num_index_tuples=index_selectivity * index_tuples,0.005044,0.000000,113571.000000
+           | cal: num_index_tuples=rint(num_index_tuples / num_sa_scans),0.000000
+           | cal: num_index_pages=ceil(num_index_tuples/idx_local_tupls * index_total_pages),1.000000
+           | cal: num_scans=num_sa_scans * loop_count,1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: index_total_cost=num_index_pages * spc_random_page_cost,1.007500
+           | cal: index_total_cost += num_index_tuples * num_sa_scans * (cpu_index_tuple_cost + qual_op_cost),1.027500
+           | cal: index_total_cost += num_sa_scans * 100.0 * cpu_operator_cost,1.277500
+           | =[adt_genericcostestimate]=
+           | =[btcostestimate]=
+           | cal: startup_cost += index_startup_cost,0.000000,0.000000
+           | cal: run_cost += (index_total_cost - index_startup_cost),1.277500,1.277500
+           | cal: tuples_fetched=index_selectivity * data_tuples,1.000000,0.000000
+           | cal: pages_fetched=ml,1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: max_IO_cost = pages_fetched * spc_random_page_cost,1.007500
+           | cal: pages_fetched = ceil(index_selectivity * data_pages),1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: min_IO_cost = Min(min_IO_cost, max_IO_cost),1.007500
+           | cal: page_io_cost = (correlation * correlation) * (min_IO_cost - max_IO_cost) + max_IO_cost,1.007500,0.747467, run_cost += page_io_cost, 2.285000,1.007500
+           | cal: startup_cost += qpqual_cost.startup,0.000000,0.000000
+           | cal: tuple_cpu_cost = cpu_per_tuple * tuples_fetched,0.010000
+           | cal: run_cost += tuple_cpu_cost,2.295000,0.010000
+           | summary: startup_cost,0.000000 total_cost,2.295000 pages_fetched: 1.000000
+           | =[optcost_evaluate_index]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 2.295000;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         IndexScan(3:trade_position_record ) pathid=00000002 hasparam=0 indexname=idx_tpr_main rows=1 multiple=1.000000 tuples=1.00 rpages=1.00 ipages=1.00 selec=0.00000004 ml=1 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..2.29 hint 0 traceid=#2#
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_get_index_paths]-[common_path]=
+           | 
+           | [optbase_create_bitmap_heap_path]
+           | method_initial_state: 3
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 1.277750, runCost: 4.025000
+           | Computing IndexScanCost: pagesFetched: 1.000000, tuples_fetched: 1.000000, index_selectivity: 0.000000, index_total_cost: 1.277750, loopCount: 1.000000, T: 13147.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | =[optbase_create_bitmap_heap_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is not accepted with cost = 1.277750 .. 5.302750;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         BitmapHeapScan(3:trade_position_record ) pathid=00000003 hasparam=0 rows=1 multiple=1.000000 tuples=1.00 rpages=1.00 ipages=0.00 selec=0.00000004 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=1.28..5.30 hint 0 traceid=#2##3#
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000002    Cost = OldBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_create_index_paths]=
+           | 
+           | [optpath_create_tidscan_paths]
+           | =[optpath_create_tidscan_paths]=
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 3)
+           | cheapest startup: 0.000000, 15986.275000, hint_value: 0
+           | cheapest total: 0.000000, 2.295000, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (3:trade_position_record ): rows=1, width=70, multiple=1.000000
+           |         baserestrictinfo: unknown expr = unknown expr(norm_selec=0.333333, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.021277, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.013514, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.000927, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.500000, outer_selec=-1.000000), t1.cycle_tag = unknown expr(norm_selec=1.000000, outer_selec=-1.000000)
+           |         path list:pathid=2 pathid=1 
+           |         cheapest startup path:pathid=1 
+           |         cheapest total path:pathid=2 
+           | }
+           | 
+           | =[optpath_set_rel_pathlist]=
+           | 
+           | [optpath_set_rel_pathlist]
+           | 
+           | [optbase_create_seqscan_path]
+           | method_initial_state: pathid,4
+           | =[optbase_create_seqscan_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 16570.000000;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         SeqScan(4:contract_specification ) pathid=00000004 hasparam=0 rows=1 multiple=1.000000 tuples=500000.00 rpages=5320.00 ipages=-1.00 selec=-1.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16570.00 hint 0 traceid=#4#
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optpath_create_index_paths]
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_cs_baseseries, 0
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_cs_baseseries, 0
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_cs_baseseries, 0
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_cs_baseseries, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_cs_baseseries, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_get_index_paths]-[common_path]
+           | 
+           | [optcost_evaluate_index]
+           | input: loop_count,1.000000
+           | stats_info: data_pages,5320.000000 data_tuples,500000.000000 index_pages,2760.000000 index_tuples=500000.000000
+           | 
+           | [btcostestimate]
+           | cal: num_sa_scans,1.000000
+           | cal: num_index_tuples=btree_selectivity * index_tuples,231.696015,0.000463,500000.000000
+           | cal: num_index_tuples = rint(num_index_tuples / num_sa_scans),232.000000
+           | 
+           | [adt_genericcostestimate]
+           | input: loop_count,1.000000 num_index_tuples,232.000000 index_total_pages,2760.000000
+           | cal: num_sa_scans,1.000000 idx_local_tupls,500000.000000
+           | cal: index_selectivity,0.000463 
+           | cal: num_index_pages=ceil(num_index_tuples/idx_local_tupls * index_total_pages),2.000000
+           | cal: num_scans=num_sa_scans * loop_count,1.000000
+           | Estimating random page cost = 1.015000 with sql_beta_feature = RAND_COST_OPT.
+           | cal: index_total_cost=num_index_pages * spc_random_page_cost,2.030000
+           | cal: index_total_cost += num_index_tuples * num_sa_scans * (cpu_index_tuple_cost + qual_op_cost),4.350000
+           | cal: index_total_cost += num_sa_scans * 100.0 * cpu_operator_cost,4.600000
+           | =[adt_genericcostestimate]=
+           | =[btcostestimate]=
+           | cal: startup_cost += index_startup_cost,0.000000,0.000000
+           | cal: run_cost += (index_total_cost - index_startup_cost),4.600000,4.600000
+           | cal: tuples_fetched=index_selectivity * data_tuples,232.000000,0.000463
+           | cal: pages_fetched=ml,228.000000
+           | Estimating random page cost = 2.546078 with sql_beta_feature = RAND_COST_OPT.
+           | cal: max_IO_cost = pages_fetched * spc_random_page_cost,580.505746
+           | cal: pages_fetched = ceil(index_selectivity * data_pages),3.000000
+           | Estimating random page cost = 1.022500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: min_IO_cost = Min(min_IO_cost, max_IO_cost),3.022500
+           | cal: page_io_cost = (correlation * correlation) * (min_IO_cost - max_IO_cost) + max_IO_cost,257.511067,0.747873, run_cost += page_io_cost, 262.111067,257.511067
+           | cal: startup_cost += qpqual_cost.startup,0.000000,0.000000
+           | cal: tuple_cpu_cost = cpu_per_tuple * tuples_fetched,4.060000
+           | cal: run_cost += tuple_cpu_cost,266.171067,4.060000
+           | summary: startup_cost,0.000000 total_cost,266.171067 pages_fetched: 3.000000
+           | =[optcost_evaluate_index]=
+           | 
+           | [optbase_add_path]
+           | An old path is removed with cost = 0.000000 .. 16570.000000;  rows = 1.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000004    Cost = NewBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | A new path is accepted with cost = 0.000000 .. 266.171067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         IndexScan(4:contract_specification ) pathid=00000005 hasparam=0 indexname=idx_cs_baseseries rows=1 multiple=1.000000 tuples=232.00 rpages=3.00 ipages=2.00 selec=0.00046339 ml=1 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..266.17 hint 0 traceid=#5#
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_get_index_paths]-[common_path]=
+           | 
+           | [optbase_create_bitmap_heap_path]
+           | method_initial_state: 6
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 4.600250, runCost: 775.618547
+           | Computing IndexScanCost: pagesFetched: 228.000000, tuples_fetched: 232.000000, index_selectivity: 0.000463, index_total_cost: 4.600250, loopCount: 1.000000, T: 5320.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | =[optbase_create_bitmap_heap_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is not accepted with cost = 4.600250 .. 780.218797;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         BitmapHeapScan(4:contract_specification ) pathid=00000006 hasparam=0 rows=1 multiple=1.000000 tuples=232.00 rpages=228.00 ipages=0.00 selec=0.00046339 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=4.60..780.22 hint 0 traceid=#5##6#
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000005    Cost = OldBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_create_index_paths]=
+           | 
+           | [optpath_create_tidscan_paths]
+           | =[optpath_create_tidscan_paths]=
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 4)
+           | cheapest startup: 0.000000, 266.171067, hint_value: 0
+           | cheapest total: 0.000000, 266.171067, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (4:contract_specification ): rows=1, width=60, multiple=1.000000
+           |         baserestrictinfo: unknown expr = unknown expr(norm_selec=0.333333, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.021277, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.013514, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.000927, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.500000, outer_selec=-1.000000)
+           |         path list:pathid=5 
+           |         cheapest startup path:pathid=5 
+           |         cheapest total path:pathid=5 
+           | }
+           | 
+           | =[optpath_set_rel_pathlist]=
+           | 
+           | [optpath_set_rel_pathlist]
+           | 
+           | [optbase_create_seqscan_path]
+           | method_initial_state: pathid,7
+           | =[optbase_create_seqscan_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 299.500000;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         SeqScan(5:active_contract_snapshot ) pathid=00000007 hasparam=0 rows=35 multiple=1.000000 tuples=10000.00 rpages=87.00 ipages=-1.00 selec=-1.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..299.50 hint 0 traceid=#7#
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optpath_create_index_paths]
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_acs_main, 0
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_acs_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_acs_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_acs_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_get_index_paths]-[common_path]
+           | 
+           | [optcost_evaluate_index]
+           | input: loop_count,1.000000
+           | stats_info: data_pages,87.000000 data_tuples,10000.000000 index_pages,112.000000 index_tuples=10000.000000
+           | 
+           | [btcostestimate]
+           | cal: num_sa_scans,1.000000
+           | cal: num_index_tuples=btree_selectivity * index_tuples,35.460993,0.003546,10000.000000
+           | cal: num_index_tuples = rint(num_index_tuples / num_sa_scans),35.000000
+           | 
+           | [adt_genericcostestimate]
+           | input: loop_count,1.000000 num_index_tuples,35.000000 index_total_pages,112.000000
+           | cal: num_sa_scans,1.000000 idx_local_tupls,10000.000000
+           | cal: index_selectivity,0.003546 
+           | cal: num_index_pages=ceil(num_index_tuples/idx_local_tupls * index_total_pages),1.000000
+           | cal: num_scans=num_sa_scans * loop_count,1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: index_total_cost=num_index_pages * spc_random_page_cost,1.007500
+           | cal: index_total_cost += num_index_tuples * num_sa_scans * (cpu_index_tuple_cost + qual_op_cost),1.445000
+           | cal: index_total_cost += num_sa_scans * 100.0 * cpu_operator_cost,1.695000
+           | =[adt_genericcostestimate]=
+           | =[btcostestimate]=
+           | cal: startup_cost += index_startup_cost,0.000000,0.000000
+           | cal: run_cost += (index_total_cost - index_startup_cost),1.695000,1.695000
+           | cal: tuples_fetched=index_selectivity * data_tuples,35.000000,0.003546
+           | cal: pages_fetched=ml,30.000000
+           | Estimating random page cost = 1.224579 with sql_beta_feature = RAND_COST_OPT.
+           | cal: max_IO_cost = pages_fetched * spc_random_page_cost,36.737372
+           | cal: pages_fetched = ceil(index_selectivity * data_pages),1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: min_IO_cost = Min(min_IO_cost, max_IO_cost),1.007500
+           | cal: page_io_cost = (correlation * correlation) * (min_IO_cost - max_IO_cost) + max_IO_cost,17.415659,0.735372, run_cost += page_io_cost, 19.110659,17.415659
+           | cal: startup_cost += qpqual_cost.startup,0.000000,0.000000
+           | cal: tuple_cpu_cost = cpu_per_tuple * tuples_fetched,0.481250
+           | cal: run_cost += tuple_cpu_cost,19.591909,0.481250
+           | summary: startup_cost,0.000000 total_cost,19.591909 pages_fetched: 1.000000
+           | =[optcost_evaluate_index]=
+           | 
+           | [optbase_add_path]
+           | An old path is removed with cost = 0.000000 .. 299.500000;  rows = 35.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000007    Cost = NewBetter        |       PathKeys = NewBetter    |          BMS = Equal          |         Rows = Equal   
+           | }
+           | A new path is accepted with cost = 0.000000 .. 19.591909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         IndexScan(5:active_contract_snapshot ) pathid=00000008 hasparam=0 indexname=idx_acs_main rows=35 multiple=1.000000 tuples=35.00 rpages=1.00 ipages=1.00 selec=0.00354610 ml=1 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..19.59 hint 0 traceid=#8#
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_get_index_paths]-[common_path]=
+           | 
+           | [optpath_match_clause_to_index]
+           | index_matched: idx_acs_main, 1
+           | =[optpath_match_clause_to_index]=
+           | 
+           | [optpath_consider_index_join_clauses]-[parameterized_path]
+           | 
+           | [optpath_get_index_paths]-[common_path]
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333300
+           | end method: adt_var_eq_const, return: 0.333300
+           | =[adt_var_eq_const]=
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333400
+           | end method: adt_var_eq_const, return: 0.333400
+           | =[adt_var_eq_const]=
+           | 
+           | [adt_var_eq_const]
+           | col_base_info: active_contract_snapshot, lifecycle_stage, =
+           | has_analyze_stats: true
+           | has_mcv: true
+           | matched_mcv: true, mcv:0.333300
+           | end method: adt_var_eq_const, return: 0.333300
+           | =[adt_var_eq_const]=
+           | The origin distinct value is 3.000000. After using poisson model with ntuples=10000.000000 and ration=0.021277                                  The new distinct value is 3.000000
+           | The origin distinct value is 47.000000. After using poisson model with ntuples=10000.000000 and ration=0.333333                                         The new distinct value is 47.000000
+           | The origin distinct value is 2.000000. After using poisson model with ntuples=10000.000000 and ration=0.021277                                  The new distinct value is 2.000000
+           | 
+           | [optcost_evaluate_index]
+           | input: loop_count,1.000000
+           | stats_info: data_pages,87.000000 data_tuples,10000.000000 index_pages,112.000000 index_tuples=10000.000000
+           | 
+           | [btcostestimate]
+           | cal: num_sa_scans,1.000000
+           | cal: num_index_tuples=btree_selectivity * index_tuples,0.003546,0.000000,10000.000000
+           | cal: num_index_tuples = rint(num_index_tuples / num_sa_scans),0.000000
+           | 
+           | [adt_genericcostestimate]
+           | input: loop_count,1.000000 num_index_tuples,0.000000 index_total_pages,112.000000
+           | cal: num_sa_scans,1.000000 idx_local_tupls,10000.000000
+           | cal: index_selectivity,0.000000 
+           | cal: num_index_tuples=index_selectivity * index_tuples,0.003546,0.000000,10000.000000
+           | cal: num_index_tuples=rint(num_index_tuples / num_sa_scans),0.000000
+           | cal: num_index_pages=ceil(num_index_tuples/idx_local_tupls * index_total_pages),1.000000
+           | cal: num_scans=num_sa_scans * loop_count,1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: index_total_cost=num_index_pages * spc_random_page_cost,1.007500
+           | cal: index_total_cost += num_index_tuples * num_sa_scans * (cpu_index_tuple_cost + qual_op_cost),1.022500
+           | cal: index_total_cost += num_sa_scans * 100.0 * cpu_operator_cost,1.272500
+           | =[adt_genericcostestimate]=
+           | =[btcostestimate]=
+           | cal: startup_cost += index_startup_cost,0.000000,0.000000
+           | cal: run_cost += (index_total_cost - index_startup_cost),1.272500,1.272500
+           | cal: tuples_fetched=index_selectivity * data_tuples,1.000000,0.000000
+           | cal: pages_fetched=ml,1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: max_IO_cost = pages_fetched * spc_random_page_cost,1.007500
+           | cal: pages_fetched = ceil(index_selectivity * data_pages),1.000000
+           | Estimating random page cost = 1.007500 with sql_beta_feature = RAND_COST_OPT.
+           | cal: min_IO_cost = Min(min_IO_cost, max_IO_cost),1.007500
+           | cal: page_io_cost = (correlation * correlation) * (min_IO_cost - max_IO_cost) + max_IO_cost,1.007500,0.735372, run_cost += page_io_cost, 2.280000,1.007500
+           | cal: startup_cost += qpqual_cost.startup,0.000000,0.000000
+           | cal: tuple_cpu_cost = cpu_per_tuple * tuples_fetched,0.016250
+           | cal: run_cost += tuple_cpu_cost,2.296250,0.016250
+           | summary: startup_cost,0.000000 total_cost,2.296250 pages_fetched: 1.000000
+           | =[optcost_evaluate_index]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 2.296250;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         IndexScan(5:active_contract_snapshot ) pathid=00000009 hasparam=1 indexname=idx_acs_main rows=1 multiple=1.000000 tuples=1.00 rpages=1.00 ipages=1.00 selec=0.00000035 ml=1 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..2.30 hint 0 traceid=#9#
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_get_index_paths]-[common_path]=
+           | =[optpath_consider_index_join_clauses]-[parameterized_path]=
+           | 
+           | [optbase_create_bitmap_heap_path]
+           | method_initial_state: 10
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 1.703750, runCost: 67.893930
+           | Computing IndexScanCost: pagesFetched: 30.000000, tuples_fetched: 35.000000, index_selectivity: 0.003546, index_total_cost: 1.703750, loopCount: 1.000000, T: 87.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | =[optbase_create_bitmap_heap_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is not accepted with cost = 1.703750 .. 69.597680;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         BitmapHeapScan(5:active_contract_snapshot ) pathid=00000010 hasparam=0 rows=35 multiple=1.000000 tuples=35.00 rpages=30.00 ipages=0.00 selec=0.00354610 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=1.70..69.60 hint 0 traceid=#8##10#
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000008    Cost = OldBetter        |       PathKeys = OldBetter    |          BMS = Equal          |         Rows = Equal   
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 1.272750, runCost: 4.023750
+           | Computing IndexScanCost: pagesFetched: 1.000000, tuples_fetched: 1.000000, index_selectivity: 0.000000, index_total_cost: 1.272750, loopCount: 1.000000, T: 87.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 1.703750, runCost: 67.893930
+           | Computing IndexScanCost: pagesFetched: 30.000000, tuples_fetched: 35.000000, index_selectivity: 0.003546, index_total_cost: 1.703750, loopCount: 1.000000, T: 87.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | 
+           | [optbase_create_bitmap_heap_path]
+           | method_initial_state: 13
+           | 
+           | [optcost_evaluate_bitmapheapscan]
+           | Computing IndexScanCost: startupCost: 1.272750, runCost: 4.023750
+           | Computing IndexScanCost: pagesFetched: 1.000000, tuples_fetched: 1.000000, index_selectivity: 0.000000, index_total_cost: 1.272750, loopCount: 1.000000, T: 87.000000
+           | =[optcost_evaluate_bitmapheapscan]=
+           | =[optbase_create_bitmap_heap_path]=
+           | 
+           | [optbase_add_path]
+           | A new path is not accepted with cost = 1.272750 .. 5.296500;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         BitmapHeapScan(5:active_contract_snapshot ) pathid=00000013 hasparam=1 rows=35 multiple=1.000000 tuples=1.00 rpages=1.00 ipages=0.00 selec=0.00000035 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=1.27..5.30 hint 0 traceid=#9##13#
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000009    Cost = OldBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_create_index_paths]=
+           | 
+           | [optpath_create_tidscan_paths]
+           | =[optpath_create_tidscan_paths]=
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 5)
+           | cheapest startup: 0.000000, 19.591909, hint_value: 0
+           | cheapest total: 0.000000, 19.591909, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (5:active_contract_snapshot ): rows=35, width=29, multiple=1.000000
+           |         baserestrictinfo: unknown expr(norm_selec=1.000000, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.333333, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.021277, outer_selec=-1.000000), unknown expr = unknown expr(norm_selec=0.500000, outer_selec=-1.000000)
+           |         path list:pathid=9 pathid=8 
+           |         cheapest startup path:pathid=8 
+           |         cheapest total path:pathid=8 
+           | }
+           | 
+           | =[optpath_set_rel_pathlist]=
+           | =[optpath_set_base_rel_pathlists]=
+           | 
+           | [optpath_make_rel_from_joinlist]
+           | 
+           | [optspj_join_search]
+           | 
+           | [optpath_dp_join_search]
+           | joinrel: (b 3 4)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(3:trade_position_record ) Inner_rel :(4:contract_specification )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(4:contract_specification ) pathid=00000014 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..266.18 hint 0  subpathid=00000005 traceid=#14#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,5 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,266.171067 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,266.171067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.171067, 266.171067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 266.171067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 268.466067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 268.466067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,15 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:268.466067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 268.476067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 268.476067
+           | cost_k: 2.305000, cost_b: 266.171067
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 268.476067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000015 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0 trace_id=#2##5##15#           clauses:  outerpathid=00000002 innerpathid=00000005
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,14 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,266.176067 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.176067, 266.176067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 268.471067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 268.471067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,16 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:268.471067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 268.481067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 268.481067
+           | cost_k: 2.305000, cost_b: 266.176067
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 268.481067 v.s. 0.000000 ..  268.476067
+           | A new path is not accepted with cost = 0.000000 .. 268.481067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000016 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0 trace_id=#2##14##16#          clauses:  outerpathid=00000002 innerpathid=00000014
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000015    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,5 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,266.171067 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,266.171067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.171067, 266.171067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 266.171067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16252.446067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16252.446067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,17 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:16252.446067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16252.456067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16252.456067
+           | cost_k: 15986.285000, cost_b: 266.171067
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 16252.456067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000017 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16252.46 hint 0 trace_id=#1##5##17#         clauses:  outerpathid=00000001 innerpathid=00000005
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,14 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,266.176067 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.176067, 266.176067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16252.451067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16252.451067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,18 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:16252.451067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16252.461067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16252.461067
+           | cost_k: 15986.285000, cost_b: 266.176067
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 16252.461067 v.s. 0.000000 ..  16252.456067
+           | A new path is not accepted with cost = 0.000000 .. 16252.461067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000018 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16252.46 hint 0 trace_id=#1##14##18#        clauses:  outerpathid=00000001 innerpathid=00000014
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000017    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(4:contract_specification ) Inner_rel :(3:trade_position_record )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(3:trade_position_record ) pathid=00000019 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..2.30 hint 0  subpathid=00000002 traceid=#19#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,2 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,2.295000 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.295000
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.295000, 2.295000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.295000
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 268.466067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 268.466067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,20 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:268.466067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 268.476067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 268.476067
+           | cost_k: 266.181067, cost_b: 2.295000
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 268.476067 v.s. 0.000000 ..  268.476067
+           | A new path is not accepted with cost = 0.000000 .. 268.476067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000020 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0 trace_id=#5##2##20#           clauses:  outerpathid=00000005 innerpathid=00000002
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000015    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,19 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,2.300000 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.300000, 2.300000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 268.471067
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 268.471067
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,21 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:268.471067 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 268.481067,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 268.481067
+           | cost_k: 266.181067, cost_b: 2.300000
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 268.481067 v.s. 0.000000 ..  268.476067
+           | A new path is not accepted with cost = 0.000000 .. 268.481067;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification ) pathid=00000021 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0 trace_id=#5##19##21#          clauses:  outerpathid=00000005 innerpathid=00000019
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000015    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | joinrel: (b 3 5)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(3:trade_position_record ) Inner_rel :(5:active_contract_snapshot )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(5:active_contract_snapshot ) pathid=00000022 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..19.77 hint 0  subpathid=00000008 traceid=#22#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,8 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,19.591909 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,19.591909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.591909, 19.591909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 19.591909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 21.886909
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 21.886909
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,23 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:21.886909 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 22.236909,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 22.236909
+           | cost_k: 2.645000, cost_b: 19.591909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 22.236909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000023 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..22.24 hint 0 trace_id=#2##8##23#         clauses:  outerpathid=00000002 innerpathid=00000008
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,22 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,19.766909 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.766909, 19.766909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 22.061909
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 22.061909
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,24 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:22.061909 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 22.411909,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 22.411909
+           | cost_k: 2.645000, cost_b: 19.766909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 22.411909 v.s. 0.000000 ..  22.236909
+           | A new path is not accepted with cost = 0.000000 .. 22.411909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000024 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..22.41 hint 0 trace_id=#2##22##24#        clauses:  outerpathid=00000002 innerpathid=00000022
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000023    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,8 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,19.591909 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,19.591909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.591909, 19.591909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 19.591909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16005.866909
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16005.866909
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,25 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:16005.866909 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16006.216909,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16006.216909
+           | cost_k: 15986.625000, cost_b: 19.591909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 16006.216909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000025 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16006.22 hint 0 trace_id=#1##8##25#      clauses:  outerpathid=00000001 innerpathid=00000008
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,22 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,19.766909 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.766909, 19.766909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16006.041909
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16006.041909
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,26 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:16006.041909 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16006.391909,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16006.391909
+           | cost_k: 15986.625000, cost_b: 19.766909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 16006.391909 v.s. 0.000000 ..  16006.216909
+           | A new path is not accepted with cost = 0.000000 .. 16006.391909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000026 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16006.39 hint 0 trace_id=#1##22##26#     clauses:  outerpathid=00000001 innerpathid=00000022
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000025    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(5:active_contract_snapshot ) Inner_rel :(3:trade_position_record )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(3:trade_position_record ) pathid=00000027 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..2.30 hint 0  subpathid=00000002 traceid=#27#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,2 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,2.295000 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.295000
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.295000, 2.295000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.295000
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 21.886909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 99.916908
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 99.916908
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,28 outer_path_rows,35.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:99.916908 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 100.266908,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 100.266908
+           | cost_k: 2.864769, cost_b: 0.000000
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 100.266908;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000028 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..100.27 hint 0 trace_id=#8##2##28#        clauses:  outerpathid=00000008 innerpathid=00000002
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,27 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,2.300000 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.300000, 2.300000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 21.891909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 21.976909
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 21.976909
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,29 outer_path_rows,35.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:21.976909 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 22.326909,0.350000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 22.326909
+           | cost_k: 0.572269, cost_b: 2.297500
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | An old path is removed with cost = 0.000000 .. 22.236909;  rows = 35.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000023    Cost = Equal            |       PathKeys = NewBetter    |          BMS = Equal          |         Rows = Equal   
+           | }
+           | An old path is removed with cost = 0.000000 .. 100.266908;  rows = 35.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000028    Cost = NewBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | A new path is accepted with cost = 0.000000 .. 22.326909;  rows = 35.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  5:active_contract_snapshot ) pathid=00000029 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..22.33 hint 0 trace_id=#8##27##29#        clauses:  outerpathid=00000008 innerpathid=00000027
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | The origin distinct value is 9990.000000. After using poisson model with ntuples=500000.000000 and ration=0.000929                                      The new distinct value is 453.630423
+           | joinrel: (b 4 5)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(4:contract_specification ) Inner_rel :(5:active_contract_snapshot )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(5:active_contract_snapshot ) pathid=00000030 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..19.77 hint 0  subpathid=00000008 traceid=#30#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,8 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,19.591909 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,19.591909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.591909, 19.591909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 19.591909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 285.762976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 285.762976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,31 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:285.762976 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 286.200476,0.437500
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 286.200476
+           | cost_k: 266.608567, cost_b: 19.591909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 286.200476;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(4:contract_specification  5:active_contract_snapshot ) pathid=00000031 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..286.20 hint 0 trace_id=#5##8##31#        clauses: unknown expr = unknown expr(norm_selec=0.002203, outer_selec=-1.000000) outerpathid=00000005 innerpathid=00000008
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,9 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,2.296250 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.296250
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.296250, 2.296250, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.296250
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 268.467317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 268.467317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,32 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:268.467317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 268.477317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 268.477317
+           | cost_k: 266.181067, cost_b: 2.296250
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | An old path is removed with cost = 0.000000 .. 286.200476;  rows = 1.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000031    Cost = NewBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | A new path is accepted with cost = 0.000000 .. 268.477317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(4:contract_specification  5:active_contract_snapshot ) pathid=00000032 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0 trace_id=#5##9##32#        clauses:  outerpathid=00000005 innerpathid=00000009
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,30 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,19.766909 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.766909, 19.766909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 285.937976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 285.937976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000032, Precheck drop new path: startup_cost = 0.000000;  total_cost = 285.937976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(5:active_contract_snapshot ) Inner_rel :(4:contract_specification )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(4:contract_specification ) pathid=00000033 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..266.18 hint 0  subpathid=00000005 traceid=#33#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,5 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,266.171067 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,266.171067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.171067, 266.171067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 266.171067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 285.762976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 9335.579261
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 9335.579261
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000032, Precheck drop new path: startup_cost = 0.000000;  total_cost = 9335.579261
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,33 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,266.176067 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.176067, 266.176067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 285.767976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 285.852976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 285.852976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000032, Precheck drop new path: startup_cost = 0.000000;  total_cost = 285.852976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 3 4)
+           | cheapest startup: 0.000000, 16252.456067, hint_value: 0
+           | cheapest total: 0.000000, 268.476067, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (3:trade_position_record  4:contract_specification ): rows=1, width=54, multiple=1.000000
+           |         path list:pathid=15 pathid=17 
+           |         cheapest startup path:pathid=17 
+           |         cheapest total path:pathid=15 
+           | }
+           | 
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 3 5)
+           | cheapest startup: 0.000000, 16006.216909, hint_value: 0
+           | cheapest total: 0.000000, 22.326909, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (3:trade_position_record  5:active_contract_snapshot ): rows=35, width=85, multiple=1.000000
+           |         path list:pathid=29 pathid=25 
+           |         cheapest startup path:pathid=25 
+           |         cheapest total path:pathid=29 
+           | }
+           | 
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 4 5)
+           | cheapest startup: 0.000000, 268.477317, hint_value: 0
+           | cheapest total: 0.000000, 268.477317, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (4:contract_specification  5:active_contract_snapshot ): rows=1, width=74, multiple=1.000000
+           |         path list:pathid=32 
+           |         cheapest startup path:pathid=32 
+           |         cheapest total path:pathid=32 
+           | }
+           | 
+           | The origin distinct value is 9990.000000. After using poisson model with ntuples=500000.000000 and ration=0.000929                                      The new distinct value is 453.630423
+           | joinrel: (b 3 4 5)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(3:trade_position_record  4:contract_specification ) Inner_rel :(5:active_contract_snapshot )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(5:active_contract_snapshot ) pathid=00000034 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..19.77 hint 0  subpathid=00000008 traceid=#34#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,8 outer_pathid,15 inner_start_cost,0.000000 inner_total_cost,19.591909 outer_start_cost,0.000000 outer_total_cost,268.476067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,19.591909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.591909, 19.591909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 19.591909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 268.476067
+           | cal: run_cost += inner_run_cost 288.067976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.067976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,35 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:288.067976 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 288.505476,0.437500
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 288.505476
+           | cost_k: 268.913567, cost_b: 19.591909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 288.505476;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000035 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..288.51 hint 0 trace_id=#2##5##15##8##35#        clauses: unknown expr = unknown expr(norm_selec=0.002203, outer_selec=-1.000000) outerpathid=00000015 innerpathid=00000008
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,9 outer_pathid,15 inner_start_cost,0.000000 inner_total_cost,2.296250 outer_start_cost,0.000000 outer_total_cost,268.476067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.296250
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.296250, 2.296250, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.296250
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 268.476067
+           | cal: run_cost += inner_run_cost 270.772317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 270.772317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,36 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:270.772317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 270.782317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 270.782317
+           | cost_k: 268.486067, cost_b: 2.296250
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | An old path is removed with cost = 0.000000 .. 288.505476;  rows = 1.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000035    Cost = NewBetter        |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           | }
+           | A new path is accepted with cost = 0.000000 .. 270.782317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000036 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..270.78 hint 0 trace_id=#2##5##15##9##36#        clauses:  outerpathid=00000015 innerpathid=00000009
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,34 outer_pathid,15 inner_start_cost,0.000000 inner_total_cost,19.766909 outer_start_cost,0.000000 outer_total_cost,268.476067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.766909, 19.766909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 268.476067
+           | cal: run_cost += inner_run_cost 288.242976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.242976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 288.242976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,8 outer_pathid,17 inner_start_cost,0.000000 inner_total_cost,19.591909 outer_start_cost,0.000000 outer_total_cost,16252.456067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,19.591909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.591909, 19.591909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 19.591909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 16252.456067
+           | cal: run_cost += inner_run_cost 16272.047976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16272.047976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,37 outer_path_rows,1.000000 inner_path_rows,35.000000 workspace_start_cost,0.000000 workspace_run_cost:16272.047976 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 35.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16272.485476,0.437500
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16272.485476
+           | cost_k: 16252.893567, cost_b: 19.591909
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | A new path is accepted with cost = 0.000000 .. 16272.485476;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000037 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16272.49 hint 0 trace_id=#1##5##17##8##37#      clauses: unknown expr = unknown expr(norm_selec=0.002203, outer_selec=-1.000000) outerpathid=00000017 innerpathid=00000008
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,9 outer_pathid,17 inner_start_cost,0.000000 inner_total_cost,2.296250 outer_start_cost,0.000000 outer_total_cost,16252.456067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.296250
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.296250, 2.296250, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.296250
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 16252.456067
+           | cal: run_cost += inner_run_cost 16254.752317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16254.752317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,38 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:16254.752317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16254.762317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16254.762317
+           | cost_k: 16252.466067, cost_b: 2.296250
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 16254.762317 v.s. 0.000000 ..  16272.485476
+           | An old path is removed with cost = 0.000000 .. 16272.485476;  rows = 1.000000
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000037    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | A new path is accepted with cost = 0.000000 .. 16254.762317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000038 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=1 lossy=0 uidx=0)  dop=1 cost=0.00..16254.76 hint 0 trace_id=#1##5##17##9##38#      clauses:  outerpathid=00000017 innerpathid=00000009
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,34 outer_pathid,17 inner_start_cost,0.000000 inner_total_cost,19.766909 outer_start_cost,0.000000 outer_total_cost,16252.456067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 19.766909, 19.766909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 16252.456067
+           | cal: run_cost += inner_run_cost 16272.222976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16272.222976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000038, Precheck drop new path: startup_cost = 0.000000;  total_cost = 16272.222976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(5:active_contract_snapshot ) Inner_rel :(3:trade_position_record  4:contract_specification )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(3:trade_position_record  4:contract_specification ) pathid=00000039 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0  subpathid=00000015 traceid=#39#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,15 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,268.476067 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,268.476067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.476067, 268.476067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 268.476067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 288.067976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 9416.254260
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 9416.254260
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 9416.254260
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,39 outer_pathid,8 inner_start_cost,0.000000 inner_total_cost,268.481067 outer_start_cost,0.000000 outer_total_cost,19.591909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.481067, 268.481067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 19.591909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 19.591909
+           | cal: run_cost += inner_run_cost 288.072976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 288.157976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.157976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 288.157976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | joinrel: (b 3 4 5)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(3:trade_position_record  5:active_contract_snapshot ) Inner_rel :(4:contract_specification )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(4:contract_specification ) pathid=00000040 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..266.18 hint 0  subpathid=00000005 traceid=#40#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,5 outer_pathid,29 inner_start_cost,0.000000 inner_total_cost,266.171067 outer_start_cost,0.000000 outer_total_cost,22.326909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,266.171067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.171067, 266.171067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 266.171067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 22.326909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 22.326909
+           | cal: run_cost += inner_run_cost 288.497976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 9338.314261
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 9338.314261
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 9338.314261
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,40 outer_pathid,29 inner_start_cost,0.000000 inner_total_cost,266.176067 outer_start_cost,0.000000 outer_total_cost,22.326909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.176067, 266.176067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 22.326909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 22.326909
+           | cal: run_cost += inner_run_cost 288.502976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 288.587976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.587976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 288.587976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,5 outer_pathid,25 inner_start_cost,0.000000 inner_total_cost,266.171067 outer_start_cost,0.000000 outer_total_cost,16006.216909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,266.171067
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.171067, 266.171067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 266.171067
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 16006.216909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 16006.216909
+           | cal: run_cost += inner_run_cost 16272.387976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 25322.204261
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 25322.204261
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000038, Precheck drop new path: startup_cost = 0.000000;  total_cost = 25322.204261
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,40 outer_pathid,25 inner_start_cost,0.000000 inner_total_cost,266.176067 outer_start_cost,0.000000 outer_total_cost,16006.216909 outer_path_rows,35.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 266.176067, 266.176067, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 16006.216909
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_start_cost 16006.216909
+           | cal: run_cost += inner_run_cost 16272.392976
+           | cal: run_cost += (outer_path_rows - 1) * inner_rescan_run_cost 16272.477976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16272.477976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000038, Precheck drop new path: startup_cost = 0.000000;  total_cost = 16272.477976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(4:contract_specification ) Inner_rel :(3:trade_position_record  5:active_contract_snapshot )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(3:trade_position_record  5:active_contract_snapshot ) pathid=00000041 hasparam=0 rows=35 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..22.50 hint 0  subpathid=00000029 traceid=#41#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,29 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,22.326909 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,22.326909
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 22.326909, 22.326909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 22.326909
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 288.497976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.497976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 288.497976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,41 outer_pathid,5 inner_start_cost,0.000000 inner_total_cost,22.501909 outer_start_cost,0.000000 outer_total_cost,266.171067 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.087500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 22.501909, 22.501909, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.087500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 266.171067
+           | cal: run_cost += inner_run_cost 288.672976
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 288.672976
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | Compared with path with pathid=00000036, Precheck drop new path: startup_cost = 0.000000;  total_cost = 288.672976
+           | can_add_status: false
+           | =[optbase_add_path_precheck]=
+           | =[optpath_add_paths_to_joinrel]=
+           | joinrel: (b 3 4 5)
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(4:contract_specification  5:active_contract_snapshot ) Inner_rel :(3:trade_position_record )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(3:trade_position_record ) pathid=00000042 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..2.30 hint 0  subpathid=00000002 traceid=#42#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,2 outer_pathid,32 inner_start_cost,0.000000 inner_total_cost,2.295000 outer_start_cost,0.000000 outer_total_cost,268.477317 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,2.295000
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.295000, 2.295000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 2.295000
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 268.477317
+           | cal: run_cost += inner_run_cost 270.772317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 270.772317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,43 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:270.772317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 270.782317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 270.782317
+           | cost_k: 268.487317, cost_b: 2.295000
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 270.782317 v.s. 0.000000 ..  270.782317
+           | A new path is not accepted with cost = 0.000000 .. 270.782317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000043 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..270.78 hint 0 trace_id=#5##9##32##2##43#        clauses:  outerpathid=00000032 innerpathid=00000002
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000036    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,42 outer_pathid,32 inner_start_cost,0.000000 inner_total_cost,2.300000 outer_start_cost,0.000000 outer_total_cost,268.477317 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 2.300000, 2.300000, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 268.477317
+           | cal: run_cost += inner_run_cost 270.777317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 270.777317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,44 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:270.777317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 270.787317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 270.787317
+           | cost_k: 268.487317, cost_b: 2.300000
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 270.787317 v.s. 0.000000 ..  270.782317
+           | A new path is not accepted with cost = 0.000000 .. 270.787317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000044 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..270.79 hint 0 trace_id=#5##9##32##42##44#       clauses:  outerpathid=00000032 innerpathid=00000042
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000036    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optpath_add_paths_to_joinrel]
+           | -----------------------Try to join these rels-----------------------
+           | {
+           |         Outter_rel:(3:trade_position_record ) Inner_rel :(4:contract_specification  5:active_contract_snapshot )
+           | }
+           | 
+           | [optspj_unsorted_outer_init_matpath]
+           | Create a new path:
+           | {
+           |         Material(4:contract_specification  5:active_contract_snapshot ) pathid=00000045 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..268.48 hint 0  subpathid=00000032 traceid=#45#
+           | }
+           | =[optspj_unsorted_outer_init_matpath]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,32 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,268.477317 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,268.477317
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.477317, 268.477317, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 268.477317
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 270.772317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 270.772317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,46 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:270.772317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 270.782317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 270.782317
+           | cost_k: 2.305000, cost_b: 268.477317
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 270.782317 v.s. 0.000000 ..  270.782317
+           | A new path is not accepted with cost = 0.000000 .. 270.782317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000046 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..270.78 hint 0 trace_id=#2##5##9##32##46#        clauses:  outerpathid=00000002 innerpathid=00000032
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000036    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,45 outer_pathid,2 inner_start_cost,0.000000 inner_total_cost,268.482317 outer_start_cost,0.000000 outer_total_cost,2.295000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.482317, 268.482317, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 2.295000
+           | cal: run_cost += inner_run_cost 270.777317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 270.777317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,47 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:270.777317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 270.787317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 270.787317
+           | cost_k: 2.305000, cost_b: 268.482317
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 270.787317 v.s. 0.000000 ..  270.782317
+           | A new path is not accepted with cost = 0.000000 .. 270.787317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000047 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..270.79 hint 0 trace_id=#2##45##47#      clauses:  outerpathid=00000002 innerpathid=00000045
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000036    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,32 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,268.477317 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,268.477317
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.477317, 268.477317, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 268.477317
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16254.752317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16254.752317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,48 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:16254.752317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16254.762317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16254.762317
+           | cost_k: 15986.285000, cost_b: 268.477317
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 16254.762317 v.s. 0.000000 ..  16254.762317
+           | A new path is not accepted with cost = 0.000000 .. 16254.762317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000048 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16254.76 hint 0 trace_id=#1##5##9##32##48#      clauses:  outerpathid=00000001 innerpathid=00000032
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000038    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | 
+           | [optcost_initial_cost_nestloop]
+           | method_initial_state: inner_pathid,45 outer_pathid,1 inner_start_cost,0.000000 inner_total_cost,268.482317 outer_start_cost,0.000000 outer_total_cost,15986.275000 outer_path_rows,1.000000
+           | cal: inner_rescan_start_cost,0.000000 inner_rescan_total_cost,0.002500
+           | cal: inner_run_cost = inner_total_cost - inner_start_cost 268.482317, 268.482317, 0.000000
+           | cal: inner_rescan_run_cost = inner_rescan_total_cost - inner_rescan_start_cost 0.002500
+           | cal: startup_cost += outer_start_cost + inner_start_cost 0.000000
+           | cal: run_cost += outer_total_cost - outer_start_cost 15986.275000
+           | cal: run_cost += inner_run_cost 16254.757317
+           | Initial nestloop cost: startup_cost: 0.000000, total_cost: 16254.757317
+           | =[optcost_initial_cost_nestloop]=
+           | 
+           | [optbase_add_path_precheck]
+           | can_add_status: true
+           | =[optbase_add_path_precheck]=
+           | 
+           | [optcost_final_cost_nestloop]
+           | method_initial_state: pathid,49 outer_path_rows,1.000000 inner_path_rows,1.000000 workspace_start_cost,0.000000 workspace_run_cost:16254.757317 workspace_inner_run_cost,0.000000 workspace_inner_rescan_run_cost,0.000000
+           | cal: ntuples = outer_path_rows * inner_path_rows 1.000000
+           | cal: startup_cost += restrict_qual_cost_startup 0.000000,0.000000
+           | cal: run_cost += cpu_per_tuple * ntuples 16254.767317,0.010000
+           | final cost nest loop: stream_cost: 0.000000, startup_cost: 0.000000, total_cost: 16254.767317
+           | cost_k: 15986.285000, cost_b: 268.482317
+           | =[optcost_final_cost_nestloop]=
+           | 
+           | [optbase_add_path]
+           | OPTBASE_SMALL_FUZZY_FACTOR is used to compare 0.000000 .. 16254.767317 v.s. 0.000000 ..  16254.762317
+           | A new path is not accepted with cost = 0.000000 .. 16254.767317;  rows = 1.000000
+           | The detail information of the new path:
+           | {
+           |         NestLoop(3:trade_position_record  4:contract_specification  5:active_contract_snapshot ) pathid=00000049 hasparam=0 rows=1 multiple=1.000000 tuples=0.00 rpages=0.00 ipages=0.00 selec=0.00000000 ml=0 iscost=0 lossy=0 uidx=0)  dop=1 cost=0.00..16254.77 hint 0 trace_id=#1##45##49#    clauses:  outerpathid=00000001 innerpathid=00000045
+           |         Small fuzzy factor is used!
+           | }
+           | The old path and the comparison results are:
+           | {
+           |          old pathid=00000038    Cost = Equal            |       PathKeys = Equal        |          BMS = Equal          |         Rows = Equal   
+           |         Small fuzzy factor is used!
+           | }
+           | =[optbase_add_path]=
+           | =[optpath_add_paths_to_joinrel]=
+           | 
+           | [optbase_set_cheapest]
+           | parent relations: (b 3 4 5)
+           | cheapest startup: 0.000000, 16254.762317, hint_value: 0
+           | cheapest total: 0.000000, 270.782317, hint_value: 0
+           | =[optbase_set_cheapest]=
+           | 
+           | {
+           |         RELOPTINFO (3:trade_position_record  4:contract_specification  5:active_contract_snapshot ): rows=1, width=54, multiple=1.000000
+           |         path list:pathid=36 pathid=38 
+           |         cheapest startup path:pathid=38 
+           |         cheapest total path:pathid=36 
+           | }
+           | 
+           | =[optpath_dp_join_search]=
+           | 
+           | =[optspj_join_search]=
+           | =[optpath_make_one_rel]=
+           | =[optplan_query_planner]=
+           | 
+           | [optplan_try_generate_adaptive_join_plan]
+           | Checking adaptive join available, best_path's pathid: 15
+           | Checking adaptive join available, is unsupported query type: true
+           | =[optplan_try_generate_adaptive_join_plan]=
+           | 
+           | [optplan_try_generate_adaptive_join_plan]
+           | Checking adaptive join available, best_path's pathid: 36
+           | Checking adaptive join available, is unsupported query type: true
+           | =[optplan_try_generate_adaptive_join_plan]=
+           | =[OptOptNonSpj|process]=
+           | leave the level: 1
+           | =[optplan_subquery_planner]=
+           | 
+           | 
+
+total time: 95  ms
