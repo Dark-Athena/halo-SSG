@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】在UTF8的库上按GBK的字节数截取字符串 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】在UTF8的库上按GBK的字节数截取字符串 背景 在国产数据库迁移过程中，可能会有这样一个场景：源库ORACLE用的是ZHS16GBK字符集，目标库GaussDB用的是UTF8字符集，如果源库是VARCHAR2(10),且字段内容里包含汉字，那么目标库字段需要增长，假设按照常规的一">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】在UTF8的库上按GBK的字节数截取字符串</h1>
+    <div class="meta">
+        
+        <span>2026-07-18</span>
+        
+        <span>21 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb在utf8的库上按gbk的字节数截取字符串">【GaussDB】在UTF8的库上按GBK的字节数截取字符串</h1>
+<h2 id="背景">背景</h2>
+<p>在国产数据库迁移过程中，可能会有这样一个场景：源库ORACLE用的是ZHS16GBK字符集，目标库GaussDB用的是UTF8字符集，如果源库是VARCHAR2(10),且字段内容里包含汉字，那么目标库字段需要增长，假设按照常规的一个汉字在GBK占2字节，到UTF8占3个字节，也就是按原长度的1.5倍，即VARCHAR2(15)。</p>
+<p>然而如果迁移后，国产库里产生的新数据需要回流到ORACLE，可能会存在ORACLE中长度不足的问题，比如新数据为 "咕咕嘎嘎123" ，在UTF8是15个字节，在ZHS16GBK是11个字节。</p>
+<p>所以为了确保数据能回去，只能进行截断（别说为什么前端不控制，总会有各种各样的原因），然而如果用在UTF8库上按字节数进行截断，可能又会截多了，比如源库VARCHAR2(10) "咕咕嘎嘎啊" ，在UTF8上substrb截10个字节，会变成"咕咕嘎"+一个字节，截断尾部乱码后就只剩三个汉字了，少了两个字。</p>
+<p>由此产生了一个需求：<br/>
+在GaussDB的UTF8库里按照GBK编码的字节数实现一个类似substrb的自定义函数，输入字符串、开始位置、保留字符数，返回截取后的字符串，以确保尽可能保留ORACLE中的数据。</p>
+<h2 id="我的方案">我的方案</h2>
+<pre><code class="language-sql">create or replace function uf_gbk_substrb (input_str varchar,pos number,len number) returns varchar 
+RETURNS NULL ON NULL input
+IMMUTABLE
+as
+$$
+declare
+l_tmp bytea;
+begin
+if length(input_str)=0 then return null;
+end if;
+l_tmp:=convert_to(input_str::text,'GBK');
+for i in 1..3 loop
+begin
+return convert_from(substr(l_tmp,greatest(pos-1,0),least(len-i+1,length(l_tmp))),'GBK');
+exception when others then null;
+end;
+end loop;
+RAISE EXCEPTION 'invalid byte sequence for encoding "GBK": %', l_tmp::text;
+end;
+$$ language plpgsql;
+</code></pre>
+<p>基本用法和普通的subtrb一样，不过我没去写反向截取（即负数入参）的逻辑。下面就是按GBK10个字节去截的效果。</p>
+<pre><code class="language-sql">gaussdb=&gt; select uf_gbk_substrb('咕咕嘎嘎123',1,10);
+ uf_gbk_substrb 
+----------------
+ 咕咕嘎嘎12
+(1 row)
+gaussdb=&gt; select uf_gbk_substrb('123咕咕嘎嘎',1,10);
+ uf_gbk_substrb 
+----------------
+ 123咕咕嘎
+(1 row)
+gaussdb=&gt; select uf_gbk_substrb('咕咕嘎嘎啊',1,10);
+ uf_gbk_substrb 
+----------------
+ 咕咕嘎嘎啊
+(1 row)
+</code></pre>
+<p>注意到第2个测试用例，截完后GBK占9个字节，并没有填满10个字节，是因为PG系对不完整字符的支持都不好，所以我只能尽可能保留UTF8能识别的字符，尾部的半个汉字需要截掉。</p>
+<p>接下来逐行解释一下这个函数的设计思路</p>
+<pre><code class="language-sql">NULL ON NULL input
+</code></pre>
+<p>如果输入参数为空，则直接返回空</p>
+<pre><code class="language-sql">if length(input_str)=0 then return null;
+end if;
+</code></pre>
+<p>如果输入字符串长度为0，则直接返回空（有人可能认为这个已经有了<code>null on null input</code>就够了，但其实null和0长度字符串是不一样的，哪怕是在A兼容模式下）</p>
+<pre><code class="language-sql">l_tmp:=convert_to(input_str::text,'GBK');
+</code></pre>
+<p>使用临时变量暂存输入字符串的GBK二进制数据</p>
+<pre><code class="language-sql">for i in 1..3 loop
+begin
+return convert_from(substr(l_tmp,greatest(pos-1,0),least(len-i+1,length(l_tmp))),'GBK');
+exception when others then null;
+end;
+end loop;
+</code></pre>
+<p>对这个临时二进制变量按字节截取（注意当入参是bytea类型时，substr是按字节截取，且最小开始位置是0，而不是1）。<br/>
+substr截完后还是二进制，再转回字符串。此时如果尾部存在不完整字符，则可能报错，因此尝试再少截一个字符进行重试，最多3次。</p>
+<pre><code class="language-sql">RAISE EXCEPTION 'invalid byte sequence for encoding "GBK": %', l_tmp::text;
+</code></pre>
+<p>三次都转换报错，则函数报错无效的字节序，并打印对应的GBK二进制数据。</p>
+<p>这函数我纯手搓的，因为我经常与字符集打交道，这个逻辑对我来说算是挺简单的了。</p>
+<h2 id="ai会怎么做">AI会怎么做？</h2>
+<p>然后我突发奇想，如果把这个需求丢给AI ，AI会怎么做？</p>
+<p>于是我把本文开头的背景说明直接给到了mimo-v2.5-pro，ta生成了一个逻辑比我的方案复杂得多的函数（AI生成的代码里带了parallel，GaussDB不支持，我手动删掉了）</p>
+<pre><code class="language-sql">-- ============================================================
+-- gbk_substrb: 在 UTF8 数据库中按 GBK 编码字节数实现 substrb
+-- 用途：GaussDB(UTF8) → Oracle(ZHS16GBK) 数据回流时的字段截断
+--
+-- 与 Oracle SUBSTRB 行为对齐：
+--   start_pos=0  → 等效于 1
+--   start_pos&lt;0  → 从字符串末尾倒数
+--   截取跨越某字符的 GBK 字节边界时，该字符被跳过（不截断半个字符）
+--
+-- 参数：
+--   src_str    - 输入字符串（UTF8）
+--   start_pos  - 起始位置（GBK 字节数，从 1 开始）
+--   sub_length - 截取长度（GBK 字节数，可选，默认取到末尾）
+-- ============================================================
+CREATE OR REPLACE FUNCTION gbk_substrb(
+    src_str    TEXT,
+    start_pos  INTEGER,
+    sub_length INTEGER DEFAULT NULL
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE 
+AS $$
+DECLARE
+    v_len       INTEGER;
+    v_char      TEXT;
+    v_cp        INTEGER;
+    v_blen      INTEGER;
+    v_eff_start INTEGER;
+    v_real_pos  INTEGER   := 0;   -- 当前 GBK 字节位置（从 1 开始）
+    v_result    TEXT      := '';
+    v_begin     INTEGER   := 0;   -- 截取开始的 GBK 字节位置
+    v_end       INTEGER;          -- 截取结束的 GBK 字节位置
+    v_started   BOOLEAN   := FALSE;
+BEGIN
+    IF src_str IS NULL OR start_pos IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    v_len := char_length(src_str);
+    IF v_len = 0 THEN
+        RETURN '';
+    END IF;
+
+    -- Oracle 行为：start_pos=0 等效于 1
+    IF start_pos = 0 THEN
+        v_eff_start := 1;
+    ELSE
+        v_eff_start := start_pos;
+    END IF;
+
+    -- 计算截取结束位置（GBK 字节数）
+    IF sub_length IS NULL THEN
+        v_end := 2147483647;  -- 取到末尾
+    ELSE
+        v_end := v_eff_start + sub_length - 1;
+    END IF;
+
+    -- 负数 start_pos：从末尾倒数
+    IF v_eff_start &lt; 0 THEN
+        -- 先算出整个字符串的 GBK 字节总长
+        DECLARE
+            v_total INTEGER := 0;
+            v_ch    TEXT;
+            v_c     INTEGER;
+        BEGIN
+            FOR i IN 1..v_len LOOP
+                v_ch := substr(src_str, i, 1);
+                v_c  := ascii(v_ch);
+                IF v_c &lt;= 127 THEN
+                    v_total := v_total + 1;
+                ELSIF v_c BETWEEN 192 AND 223 THEN
+                    v_total := v_total + 1;
+                ELSE
+                    v_total := v_total + 2;
+                END IF;
+            END LOOP;
+            v_eff_start := v_total + v_eff_start + 1;
+            v_end := v_eff_start + COALESCE(sub_length, 1) - 1;
+        END;
+    END IF;
+
+    IF v_eff_start &lt;= 0 THEN
+        RETURN NULL;
+    END IF;
+
+    -- 遍历每个字符，按 GBK 字节数做截取
+    FOR i IN 1..v_len LOOP
+        v_char := substr(src_str, i, 1);
+        v_cp   := ascii(v_char);
+
+        -- 计算该字符在 GBK 编码中的字节数
+        IF v_cp &lt;= 127 THEN
+            -- ASCII（含英文、数字、符号）
+            v_blen := 1;
+        ELSIF v_cp BETWEEN 192 AND 223 THEN
+            -- U+0080 ~ U+07FF：Latin 扩展、希腊语、阿拉伯语等
+            -- GBK 通常 1 字节（直通映射或 ?）
+            v_blen := 1;
+        ELSE
+            -- U+0800+：CJK 等，在 GBK 中占 2 字节
+            v_blen := 2;
+        END IF;
+
+        v_real_pos := v_real_pos + v_blen;
+
+        -- 定位截取起始点
+        IF NOT v_started AND v_real_pos &gt;= v_eff_start THEN
+            v_started := TRUE;
+            v_begin   := v_real_pos - v_blen + 1;
+        END IF;
+
+        -- 截取结束（字符跨越 end 边界则跳过）
+        IF v_started AND v_real_pos &gt; v_end THEN
+            EXIT;
+        END IF;
+
+        IF v_started THEN
+            v_result := v_result || v_char;
+        END IF;
+    END LOOP;
+
+    RETURN v_result;
+END;
+$$;
+
+COMMENT ON FUNCTION gbk_substrb(TEXT, INTEGER, INTEGER)
+    IS '在 UTF8 库中按 GBK 字节数截取字符串，用于 GaussDB→Oracle(ZHS16GBK) 数据回流截断';
+</code></pre>
+<p>大概的逻辑就是从前到后逐字符遍历一个一个字符截取，根据每一个字符的ascii码大小范围判断它是1个字节还是多个字节的（多字节都按2字节算），视为GBK字节长度，然后把一个一个字符拼起来，拼的同时GBK字节数也累加，直到计数器达到目标长度就跳出循环，返回拼接的字符串。</p>
+<h2 id="方案对比">方案对比</h2>
+<p>AI写的更像一个真正的程序，虽然代码长逻辑复杂，但这个处理逻辑拿到任何开发语言里都是可以用的，不像我写的那个依赖数据库自己的转码函数去判断能不能转码成功。</p>
+<p>先造一些用例对比下两个方案返回结果是否一致</p>
+<pre><code class="language-sql">select gbk_substrb('咕咕嘎嘎123',1,10)=uf_gbk_substrb('咕咕嘎嘎123',1,10) b;
+select gbk_substrb('123咕咕嘎嘎',1,10)=uf_gbk_substrb('123咕咕嘎嘎',1,10) b;
+select gbk_substrb('咕咕嘎嘎啊',1,10)=uf_gbk_substrb('咕咕嘎嘎啊',1,10) b;
+</code></pre>
+<p>这三个例子验证都为true</p>
+<p>然后对比一下性能</p>
+<pre><code class="language-sql">create table t_text (id int,a text);
+insert into t_text select id ,
+case mod(id,3) when 0 then '咕咕嘎嘎123'
+when 1 then '123咕咕嘎嘎'
+when 2 then '咕咕嘎嘎啊' end from pg_catalog.generate_series(1,10000) id;
+insert into t_text select id+10000 ,
+case mod(id,2) when 0 then 'null'
+else encode('\x','hex') end from pg_catalog.generate_series(1,10000) id;
+
+explain analyze select id,gbk_substrb(a,1,10) from t_text; 
+--Total runtime: 611.122 ms
+explain analyze select id,uf_gbk_substrb(a,1,10) from t_text;  
+--Total runtime: 1918.647 ms
+</code></pre>
+<p>我的方案耗时是AI的三倍还多！<br/>
+AI的字符遍历可能对于数据越长，性能就越差，于是我又弄了个用例</p>
+<pre><code class="language-sql">create table t_text2 (id int,a text);
+insert into t_text2 select id ,
+case mod(id,3) when 0 then repeat('咕咕嘎嘎123',200)
+when 1 then repeat('123咕咕嘎嘎',200)
+when 2 then repeat('咕咕嘎嘎啊',200) end from pg_catalog.generate_series(1,10000) id;
+
+explain analyze select id,gbk_substrb(a,1,10) from t_text2; 
+--Total runtime: 1014.254 ms
+explain analyze select id,uf_gbk_substrb(a,1,10) from t_text2;  
+--Total runtime: 1849.356 ms
+
+</code></pre>
+<p>果然输入字符串的长度对性能有影响，但是尽管加长到3K字节，AI的方案性能依旧更好。现在也就一万行，如果真实数据上千万行甚至有多个字段都需要截取，中间的差异时间就会更大了。</p>
+<h2 id="ai的额外启发">AI的额外启发</h2>
+<p>AI其实还同时生成了另一个计算gbk字节数的函数</p>
+<pre><code class="language-sql">-- ============================================================
+-- gbk_bytelen: 计算字符串在 GBK 编码下的字节长度
+-- 用途：截断前预判是否需要截断
+-- ============================================================
+CREATE OR REPLACE FUNCTION gbk_bytelen(src_str TEXT)
+RETURNS INTEGER
+LANGUAGE plpgsql
+IMMUTABLE PARALLEL SAFE
+AS $$
+DECLARE
+    v_len    INTEGER;
+    v_total  INTEGER := 0;
+    v_char   TEXT;
+    v_cp     INTEGER;
+BEGIN
+    IF src_str IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    v_len := char_length(src_str);
+    FOR i IN 1..v_len LOOP
+        v_char := substr(src_str, i, 1);
+        v_cp   := ascii(v_char);
+        IF v_cp &lt;= 127 THEN
+            v_total := v_total + 1;
+        ELSIF v_cp BETWEEN 192 AND 223 THEN
+            v_total := v_total + 1;
+        ELSE
+            v_total := v_total + 2;
+        END IF;
+    END LOOP;
+
+    RETURN v_total;
+END;
+$$;
+
+COMMENT ON FUNCTION gbk_bytelen(TEXT)
+    IS '计算字符串在 GBK 编码下的字节数（ASCII=1, CJK=2）';
+</code></pre>
+<p>这个可以放到数据入库的前置校验逻辑中去，这样库里的数据就不需要再截断了。</p>
+<p>另外，我也尝试了清空所有上下文，只给AI一句最简单的指令，看看ta能生成什么</p>
+<blockquote>
+<p>"写一个GaussDB的自定义函数，在UTF8的库上按GBK的字节数截取字符串"</p>
+</blockquote>
+<p>然后AI给了我3个方案</p>
+<pre><code class="language-sql">-- 方法1：PL/pgSQL 函数（推荐，兼容性好）
+CREATE OR REPLACE FUNCTION gbk_substr(p_str TEXT, p_max_bytes INTEGER)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    v_result TEXT := '';
+    v_current_bytes INTEGER := 0;
+    v_char TEXT;
+    v_char_bytes INTEGER;
+    v_len INTEGER;
+    v_i INTEGER;
+BEGIN
+    -- 参数校验
+    IF p_str IS NULL OR p_max_bytes &lt;= 0 THEN
+        RETURN '';
+    END IF;
+
+    v_len := length(p_str);
+
+    FOR v_i IN 1..v_len LOOP
+        v_char := substr(p_str, v_i, 1);
+
+        -- 计算该字符在 GBK 编码下的字节数
+        -- ASCII 字符 (0-127) 在 GBK 中占 1 字节
+        -- 中文字符在 GBK 中占 2 字节
+        IF ascii(v_char) &lt;= 127 THEN
+            v_char_bytes := 1;
+        ELSE
+            -- 非 ASCII 字符（中文等）在 GBK 中占 2 字节
+            v_char_bytes := 2;
+        END IF;
+
+        -- 检查是否超出限制
+        IF v_current_bytes + v_char_bytes &gt; p_max_bytes THEN
+            EXIT;
+        END IF;
+
+        v_current_bytes := v_current_bytes + v_char_bytes;
+        v_result := v_result || v_char;
+    END LOOP;
+
+    RETURN v_result;
+END;
+$$;
+
+COMMENT ON FUNCTION gbk_substr(TEXT, INTEGER) IS
+'在 UTF8 数据库上按 GBK 字节数截取字符串。
+参数：
+  p_str - 输入字符串（UTF8 编码）
+  p_max_bytes - 最大 GBK 字节数
+返回：截取后的字符串，确保转为 GBK 后字节数不超过 p_max_bytes
+示例：SELECT gbk_substr('你好世界Hello', 8);  -- 返回 "你好" (2*2=4字节) 或 "你好H" (4+1=5字节)';
+
+-- 测试用例
+-- SELECT gbk_substr('你好世界Hello', 8);   -- 预期：你好He (2+2+2+1+1=8字节)
+-- SELECT gbk_substr('你好世界', 5);        -- 预期：你好 (4字节，再加"世"会超)
+-- SELECT gbk_substr('Hello', 3);           -- 预期：Hel
+-- SELECT gbk_substr(NULL, 10);             -- 预期：空字符串
+-- SELECT gbk_substr('abc', 0);             -- 预期：空字符串
+
+
+-- 方法2：SQL 函数（更简洁，但依赖 ascii() 函数可用性）
+-- 如果 GaussDB 支持 ascii() 函数，可以用这个更简洁的版本
+CREATE OR REPLACE FUNCTION gbk_substr_sql(p_str TEXT, p_max_bytes INTEGER)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    WITH chars AS (
+        SELECT
+            c,
+            CASE
+                WHEN ascii(c) &lt;= 127 THEN 1
+                ELSE 2
+            END AS byte_len,
+            ROW_NUMBER() OVER () AS rn
+        FROM unnest(string_to_array(p_str, NULL)) AS c
+    ),
+    cumulative AS (
+        SELECT
+            c,
+            byte_len,
+            SUM(byte_len) OVER (ORDER BY rn) AS cumulative_bytes
+        FROM chars
+    )
+    SELECT COALESCE(string_agg(c, ORDER BY cumulative_bytes), '')
+    FROM cumulative
+    WHERE cumulative_bytes &lt;= p_max_bytes;
+$$;
+
+COMMENT ON FUNCTION gbk_substr_sql(TEXT, INTEGER) IS 'SQL 版本的 GBK 字节截取函数（更简洁）';
+
+
+-- 方法3：如果需要处理 GBK 编码中的特殊字符（如一些罕用字可能是 4 字节）
+-- 使用 convert_to 函数进行精确计算（需要 PostgreSQL 9.x+ 或 GaussDB 支持）
+CREATE OR REPLACE FUNCTION gbk_substr_exact(p_str TEXT, p_max_bytes INTEGER)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    v_result TEXT := '';
+    v_current_bytes INTEGER := 0;
+    v_char TEXT;
+    v_char_bytes INTEGER;
+    v_len INTEGER;
+    v_i INTEGER;
+    v_gbk_bytes BYTEA;
+BEGIN
+    IF p_str IS NULL OR p_max_bytes &lt;= 0 THEN
+        RETURN '';
+    END IF;
+
+    v_len := length(p_str);
+
+    FOR v_i IN 1..v_len LOOP
+        v_char := substr(p_str, v_i, 1);
+
+        -- 使用 convert_to 精确计算 GBK 字节数
+        BEGIN
+            v_gbk_bytes := convert_to(v_char, 'GBK');
+            v_char_bytes := length(v_gbk_bytes);
+        EXCEPTION WHEN OTHERS THEN
+            -- 转换失败时按 2 字节估算
+            v_char_bytes := 2;
+        END;
+
+        IF v_current_bytes + v_char_bytes &gt; p_max_bytes THEN
+            EXIT;
+        END IF;
+
+        v_current_bytes := v_current_bytes + v_char_bytes;
+        v_result := v_result || v_char;
+    END LOOP;
+
+    RETURN v_result;
+END;
+$$;
+
+COMMENT ON FUNCTION gbk_substr_exact(TEXT, INTEGER) IS '精确版本：使用 convert_to 计算 GBK 字节数（性能较低但最准确）';
+
+</code></pre>
+<p>三个方案都是遍历字符，然后拼接，但区别是：</p>
+<ul>
+<li>第一个方案和AI前面的方案原理一样，循环截取，然后按ascii大小判断GBK长度</li>
+<li>第二个方案是SQL语言函数，将字符串按每个字符切分转成一个数组，然后再按ascii大小计算字节长度</li>
+<li>第三个方案考虑了生僻字，使用了内置函数convert_to来精确识别字节数</li>
+</ul>
+<h2 id="总结">总结</h2>
+<p>不是为自己找补，我的方案和AI第一版的方案相比，虽然AI的性能更好，但是如果需要把方案给到一个对字符集不是很理解的开发人员，考虑到函数可能还存在一些边界场景的BUG（比如生僻字），我可能仍然还会提供我自己的方案。因为AI的方案代码量稍大，有些特殊场景也没有考虑，我的方案里是有数据库自己的内置函数来进行未知情况的兜底。</p>
+<p>不过，如果能有真实大量的数据测试一下AI这个函数，识别到可能的边界场景，让AI来完善这个函数的处理，并且自动化进行性能测试分析和调整，这可能是更符合AI-AGENT时代的做法了。</p>
+<p>另一方面，不能忽视的是，虽然AI这次写得挺好，但前提是我能准确地描述这个问题，即本文中的背景说明，这一段并非我收到的原始描述，而是我根据开发人员的无法准确描述的未知担忧逐步拆解分析出来的。AI的使用者依旧需要具有清晰的逻辑思考能力以及语言表达能力，才能让AI完成想让ta完成的事。</p>
+<p>但是，描述得越详细，有时候也可能会扼杀AI的创造力，比如我第二次给AI提的一句话需求的回答中，其实AI反而考虑到了前面长提示词的回答没有考虑到的生僻字场景。</p>
+<p>最后我问了AI一句</p>
+<blockquote>
+<p>我：<br/>
+你能搜一下网上有没有类似的文章或者案例么</p>
+</blockquote>
+<blockquote>
+<p>AI:<br/>
+搜了一圈，没有找到直接对标的案例。</p>
+<p>搜索结果主要分两类：</p>
+<p>同编码截取：Oracle/GaussDB 的 SUBSTRB 按当前库编码的字节数截取，比如 UTF8 库按 UTF8 字节数、GBK 库按 GBK 字节数<br/>
+乱码处理：SUBSTRING 截取中文时因编码不一致导致的乱码问题<br/>
+你这个场景比较特殊：UTF8 库存储，但要按 GBK 字节数限制输出。典型场景是对接老系统（接口字段长度按 GBK 算），或者写文件时控制 GBK 编码的行宽。</p>
+<p>所以前面写的函数确实是个"空白地带"，市面上没有现成方案。你这个需求挺实用的，要是写成博客应该有人看 👀</p>
+</blockquote>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-analyze-subquery-update-coredump/">&larr; 【GaussDB】分析一个使用子查询进行update导致的coredump</a>
+    
+    
+    <a href="../DiffusionGemma-on-ai-max-395-test/">同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

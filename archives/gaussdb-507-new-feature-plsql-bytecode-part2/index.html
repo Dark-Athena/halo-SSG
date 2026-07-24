@@ -1,0 +1,2723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核新特性-PLSQL字节码（二） - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核新特性-PLSQL字节码（二） 前言 上一篇《【GaussDB】507内核新特性-PLSQL字节码（一）》讲了正常使用的情况，这篇来讲讲使用约束。 一般来说，一个功能在哪些场景下支持，哪些场景下不支持，往往要么写白名单，要么写黑名单，不会两个都写上。 白名单意味着：产品保">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核新特性-PLSQL字节码（二）</h1>
+    <div class="meta">
+        
+        <span>2026-07-19</span>
+        
+        <span>16 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核新特性-plsql字节码二">【GaussDB】507内核新特性-PLSQL字节码（二）</h1>
+<h2 id="前言">前言</h2>
+<p>上一篇<a href="https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part1">《【GaussDB】507内核新特性-PLSQL字节码（一）》</a>讲了正常使用的情况，这篇来讲讲使用约束。</p>
+<p>一般来说，一个功能在哪些场景下支持，哪些场景下不支持，往往要么写白名单，要么写黑名单，不会两个都写上。</p>
+<p>白名单意味着：产品保证在这些场景下可用，如果试出了在白名单以外的场景也可用，官方不保证没问题，用出问题不算BUG，设计如此；</p>
+<p>黑名单意味着：产品明确这些场景有问题，如果发现黑名单里的东西是支持的，那是BUG，官方不保证每次都能正常使用。黑名单以外的场景都支持，测出问题那是BUG，官方会负责修复或者改文档增加黑名单内容。</p>
+<p>但这次GaussDB把黑白名单都放文档里了，对于PLSQL这一复杂的开发语言而言，不可能两个章节就能把所有的场景都描述进去，所以这个黑白双名单就有点耐人寻味了。</p>
+<h2 id="本文环境参数配置">本文环境参数配置</h2>
+<pre><code class="language-bash">gs_guc reload -I all -N all -c "ddl_invalid_mode='invalid'";
+gs_guc reload -I all -N all -c "enable_force_create_obj=on";
+gs_guc reload -I all -N all -c "a_format_dev_version='s6'"
+gs_guc reload -I all -N all -c "behavior_compat_options='aformat_null_test,aformat_regexp_match,allow_procedure_compile_check,bind_procedure_searchpath,compat_cursor,convert_string_digit_to_numeric,correct_to_number,current_sysdate,display_leading_zero,dynamic_sql_compat,enable_bpcharlikebpchar_compare,enable_case_when_alias,enable_crosstype_integer_operator,enable_ora_joinop_in_updatestmt,enable_use_ora_timestamptz,end_month_calculate,forbid_package_function_with_prefix,forbid_skip_tableof_empty_str_elem,forbid_update_multi_same_tables,plsql_rollback_keep_user,plsql_security_definer,plstmt_implicit_savepoint,proc_implicit_for_loop_variable,proc_outparam_override,proc_outparam_transfer_length,rownum_type_compat,show_full_error_lineno,sys_function_without_brackets,tableof_elem_constraints,time_constexpr_compact,truncate_numeric_tail_zero,unbind_divide_bound,varray_compat'"
+gs_guc reload -I all -N all -c "plsql_code_type='BYTECODE'"
+</code></pre>
+<p>注意当前版本的自治事务不会从主事务复制<code>plsql_code_type</code>参数，因此需要全局设置。<br/>
+另外，为了方便从日志观察，全局打开了字节码的日志</p>
+<pre><code class="language-bash">gs_guc reload -I all -N all -c "logging_module = 'on(BYTECODE)'"
+</code></pre>
+<h2 id="测试">测试</h2>
+<p>下面开始根据官方文档所说的约束，逐条开始进行测试，但有些一眼看破的东西我就懒得写代码测了，写个说明完事。</p>
+<ul>
+<li>
+<p><strong>目前不支持的DFX功能：PLDEBUGGER（打开PLDEBUGGER时，函数或存储过程将通过传统引擎执行），PG_STAT_USER_FUNCTIONS视图（仅统计通过传统引擎执行存储过程或函数的时间）。</strong><br/>
+这里应该是指 <code>DBE_PLDEBUGGER</code>  存储过程调试功能，以及自定义函数统计信息收集视图</p>
+</li>
+<li>
+<p><strong>不支持PACKAGE实例化。</strong><br/>
+字节码按照proc维度实例化，package里的procedure和function是可以实例化的，只是package本身不作为一个整体实例化</p>
+</li>
+<li>
+<p><strong>不支持匿名块。</strong><br/>
+直接执行的匿名块不是保存在数据库里的对象，没有pg_proc的oid，就不支持，但是通过匿名块执行的proc，或者proc里嵌套的匿名块是支持的。另外，包的初始化匿名块也不支持，但含有初始化匿名块的包内的proc是支持的。</p>
+</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace package pkg_test1 is
+gaussdb$&gt; x int;
+gaussdb$&gt; procedure a1 ;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; 
+gaussdb=&gt; create  or replace package body pkg_test1 is
+gaussdb$&gt; procedure a1 is
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; end;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=0;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg_test1.a1();
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 32976.
+LOG:  [ByteCode] Function: a1(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] loadn_pkg 0 
+[26] iconst1 
+[27] function func: int4pl 
+[40] storen_pkg 0 
+[45] exec_stmt_end 
+[58] exec_stmt_begin 
+[79] exec_stmt_end 
+[92] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+a1 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; 
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg_test1.a1'::regproc);
+-[ RECORD 1 ]-------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] loadn_pkg 0 
+         | [26] iconst1 
+         | [27] function func: int4pl 
+         | [40] storen_pkg 0 
+         | [45] exec_stmt_end 
+         | [58] exec_stmt_begin 
+         | [79] exec_stmt_end 
+         | [92] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<ul>
+<li><strong>不支持TRIGGER。</strong><br/>
+trigger本身不是pl对象，它需要关联一个proc，就算是使用O的匿名块语法，也会隐式创建一个同名的proc</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; CREATE TABLE test_trigger_src_tbl(id1 INT, id2 INT, id3 INT);
+CREATE TABLE
+gaussdb=&gt; CREATE TABLE test_trigger_des_tbl(id1 INT, id2 INT, id3 INT);
+CREATE TABLE
+gaussdb=&gt; CREATE TRIGGER insert_trigger_with_anonyblock
+gaussdb-&gt; BEFORE INSERT ON test_trigger_src_tbl
+gaussdb-&gt; FOR EACH ROW
+gaussdb-&gt; DECLARE
+gaussdb-&gt; BEGIN
+gaussdb$&gt; INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+gaussdb$&gt; RETURN NEW;
+gaussdb$&gt; END;
+gaussdb$&gt; /
+CREATE TRIGGER
+gaussdb=&gt; select * from pg_trigger where tgname='insert_trigger_with_anonyblock';
+-[ RECORD 1 ]--+-------------------------------
+tgrelid        | 32977
+tgname         | insert_trigger_with_anonyblock
+tgfoid         | 32983
+tgtype         | 7
+tgenabled      | O
+tgisinternal   | f
+tgconstrrelid  | 0
+tgconstrindid  | 0
+tgconstraint   | 0
+tgdeferrable   | f
+tginitdeferred | f
+tgnargs        | 0
+tgattr         | 
+tgargs         | \x
+tgqual         | 
+tgowner        | 16547
+
+gaussdb=&gt; select * from pg_proc where proname='insert_trigger_with_anonyblock';
+-[ RECORD 1 ]-------+--------------------------------------------------------------------
+proname             | insert_trigger_with_anonyblock
+pronamespace        | 16550
+proowner            | 16547
+prolang             | 11442
+procost             | 100
+prorows             | 0
+provariadic         | 0
+protransform        | -
+proisagg            | f
+proiswindow         | f
+prosecdef           | t
+proleakproof        | f
+proisstrict         | f
+proretset           | f
+provolatile         | v
+pronargs            | 0
+pronargdefaults     | 0
+prorettype          | 2279
+proargtypes         | 
+proallargtypes      | 
+proargmodes         | 
+proargnames         | 
+proargdefaults      | 
+prosrc              | DECLARE 
+                    | BEGIN
+                    | INSERT INTO test_trigger_des_tbl VALUES(NEW.id1, NEW.id2, NEW.id3);
+                    | RETURN NEW;
+                    | END
+probin              | 
+proconfig           | 
+proacl              | {admin=X/admin}
+prodefaultargpos    | 
+fencedmode          | f
+proshippable        | f
+propackage          | f
+prokind             | t
+proargsrc           | 
+propackageid        | 0
+proisprivate        | f
+proargtypesext      | 
+prodefaultargposext | 
+allargtypes         | 
+allargtypesext      | 
+
+gaussdb=&gt; 
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; insert into test_trigger_src_tbl values (1,2,3);
+LOG:  [ByteCode] BC003 bytecode doesn't support trigger func.
+LOG:  [ByteCode] BC053 bytecode only support select statement.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 32983.
+INSERT 0 1
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('insert_trigger_with_anonyblock'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<p>测试的确是 <code>Not supported</code> 。</p>
+<ul>
+<li><strong>不支持返回集合的函数。</strong><br/>
+这里就有点描述不清了，以下我分三个场景测试</li>
+</ul>
+<ol>
+<li>returns setof</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; DROP TABLE if exists t1;
+NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+gaussdb=&gt; CREATE TABLE t1(a int);
+CREATE TABLE
+gaussdb=&gt; INSERT INTO t1 VALUES(1),(10);
+INSERT 0 2
+gaussdb=&gt; CREATE OR REPLACE FUNCTION fun_for_return_next() RETURNS SETOF t1 AS $$
+gaussdb$&gt; DECLARE
+gaussdb$&gt;    r t1%ROWTYPE;
+gaussdb$&gt; BEGIN
+gaussdb$&gt;    FOR r IN select * from t1
+gaussdb$&gt;    LOOP
+gaussdb$&gt;       RETURN NEXT r;
+gaussdb$&gt;    END LOOP;
+gaussdb$&gt;    RETURN;
+gaussdb$&gt; END;
+gaussdb$&gt; $$ LANGUAGE plpgsql;
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call fun_for_return_next();
+LOG:  [ByteCode] BC004 bytecode doesn't support func which returns set.
+LOG:  [ByteCode] BC030 Stmt RETURN NEXT does not support with some error, lineno: 7.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 32988.
+-[ RECORD 1 ]
+a | 1
+-[ RECORD 2 ]
+a | 10
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode((select oid from pg_proc where proname='fun_for_return_next'));
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<ol start="2">
+<li>returns table</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; CREATE OR REPLACE FUNCTION fun_for_return_next2() RETURNS table (a int) AS $$
+gaussdb$&gt; DECLARE
+gaussdb$&gt;    r t1%ROWTYPE;
+gaussdb$&gt; BEGIN
+gaussdb$&gt;    RETURN query select * from t1;
+gaussdb$&gt; END;
+gaussdb$&gt; $$ LANGUAGE plpgsql;
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call fun_for_return_next2(null);
+LOG:  [ByteCode] BC004 bytecode doesn't support func which returns set.
+LOG:  [ByteCode] BC013 The bytecode does not allow parameters except in &amp; out.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 32991.
+-[ RECORD 1 ]
+a | 1
+-[ RECORD 2 ]
+a | 10
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode((select oid from pg_proc where proname='fun_for_return_next2'));
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<ol start="3">
+<li>return type (is table of )</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create type ty_test5 as (a int,b int);
+CREATE TYPE
+gaussdb=&gt; create type tyt_test5 is table of ty_test5;
+CREATE TYPE
+gaussdb=&gt; create function f5 return tyt_test5 is
+gaussdb$&gt; v tyt_test5:=tyt_test5();
+gaussdb$&gt; begin
+gaussdb$&gt; v.extend;
+gaussdb$&gt; v(1):=ty_test5(1,2);
+gaussdb$&gt; return v;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; select f5();
+LOG:  [ByteCode] BC019 proc 6149 isn't pllanguage.
+CONTEXT:  referenced column: f5
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 32997.
+CONTEXT:  referenced column: f5
+LOG:  [ByteCode] Function: f5(), InterpreterBytecode:
+[0] create_nesttable tyt_test5 0 
+[9] storen_nesttable 9 
+[22] exec_stmt_begin 
+[43] loadn_expand 9 
+[48] iconst1 
+[49] function func: nesttable_extend 
+[62] storen_nesttable 9 
+[75] exec_stmt_end 
+[88] exec_stmt_begin 
+[109] iconst1 
+[110] iconst2 
+[111] eval_rowexpr  
+[120] expand_and_load_table 9 
+[125] iconst1 
+[126] store_nesttable_elem 2249 -1 
+[135] exec_stmt_end 
+[148] exec_stmt_begin 
+[169] loadn_expand 9 
+[174] transfer 
+[179] exec_stmt_end 
+[192] return 5 
+
+CONTEXT:  referenced column: f5
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: f5
+-[ RECORD 1 ]-
+f5 | {"(1,2)"}
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode((select oid from pg_proc where proname='f5'));
+-[ RECORD 1 ]-----------------------------------
+bytecode | [0] create_nesttable tyt_test5 0 
+         | [9] storen_nesttable 9 
+         | [22] exec_stmt_begin 
+         | [43] loadn_expand 9 
+         | [48] iconst1 
+         | [49] function func: nesttable_extend 
+         | [62] storen_nesttable 9 
+         | [75] exec_stmt_end 
+         | [88] exec_stmt_begin 
+         | [109] iconst1 
+         | [110] iconst2 
+         | [111] eval_rowexpr  
+         | [120] expand_and_load_table 9 
+         | [125] iconst1 
+         | [126] store_nesttable_elem 2249 -1 
+         | [135] exec_stmt_end 
+         | [148] exec_stmt_begin 
+         | [169] loadn_expand 9 
+         | [174] transfer 
+         | [179] exec_stmt_end 
+         | [192] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>return 嵌套表类型是支持的，returns setof/table 是不支持的。</p>
+<ul>
+<li><strong>不支持高级包以及系统函数。</strong><br/>
+自定义pl存储过程里使用系统函数不会导致自定义存储过程不支持字节码，像下面这种日志其实没有影响</li>
+</ul>
+<pre><code class="language-sql">LOG:  [ByteCode] BC019 proc 7752 isn't pllanguage.
+LOG:  [ByteCode] BC019 proc 1724 isn't pllanguage.
+</code></pre>
+<ul>
+<li><strong>不支持带有出参的FUNCTION在表达式中嵌套调用。</strong><br/>
+这个用法在GaussDB本来就是会报错的，与字节码无关</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create function f1(o out int) return varchar2 is
+gaussdb$&gt; begin
+gaussdb$&gt;     return 'a';
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; declare
+gaussdb-&gt; x text;
+gaussdb-&gt; o int;
+gaussdb-&gt; begin
+gaussdb$&gt; x:=x||f1(o);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+ERROR:  Function f1 with out parameters cannot be called by an expression.
+CONTEXT:  PL/pgSQL function inline_code_block line 5 at assignment
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; 
+</code></pre>
+<p>不嵌套，直接<code>x:=f1(o);</code>是可以使用字节码的</p>
+<ul>
+<li><strong>不支持RETURN复合类型的带有出参的FUNCTION。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create type ty_test1 as (a int,b int);
+CREATE TYPE
+gaussdb=&gt; create or replace function f2(o out int) return ty_test1 is
+gaussdb$&gt; x ty_test1:=ty_test1();
+gaussdb$&gt; begin
+gaussdb$&gt; return x;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; declare
+gaussdb-&gt; x ty_test1;
+gaussdb-&gt; v int;
+gaussdb-&gt; begin
+gaussdb$&gt; x:=f2(v);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+LOG:  [ByteCode] BC057 bytecode doesn't support function with outparam return record.
+CONTEXT:  SQL statement "CALL f2(v)"
+PL/pgSQL function inline_code_block line 5 at assignment
+LOG:  [ByteCode] BC059 bytecode does not support return var is not out param var.
+CONTEXT:  SQL statement "CALL f2(v)"
+PL/pgSQL function inline_code_block line 5 at assignment
+LOG:  [ByteCode] BC030 Stmt RETURN does not support with some error, lineno: 4.
+CONTEXT:  SQL statement "CALL f2(v)"
+PL/pgSQL function inline_code_block line 5 at assignment
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33002.
+CONTEXT:  SQL statement "CALL f2(v)"
+PL/pgSQL function inline_code_block line 5 at assignment
+ANONYMOUS BLOCK EXECUTE
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; 
+</code></pre>
+<p>这里其实报了两个不支持，一是不支持带出参的函数返回record/复合类型，二是不支持返回值不是出参值（"返回值是出参值"指的是PG风格带出参的function，out参数其实就是定义的return，但既然必须要开启<code>proc_outparam_override</code>，就肯定不会是PG风格的出参，不知该如何理解）</p>
+<ul>
+<li><strong>不支持PROCEDURE显式指定RETURN值（正常用法PROCEDURE无需RETURN值）。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p1 is
+gaussdb$&gt; begin
+gaussdb$&gt; return '';
+gaussdb$&gt; end;
+gaussdb$&gt; /
+WARNING:  RETURN cannot have a parameter in a function returning void.
+DETAIL:  N/A
+CONTEXT:  compilation of PL/pgSQL function "p1" near line 3
+WARNING:  Procedure created with compilation errors.
+CREATE PROCEDURE
+gaussdb=&gt; 
+</code></pre>
+<p>这玩意本身就会编译报错，无法执行的。</p>
+<ul>
+<li><strong>不支持子程序</strong>。</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p2 is 
+gaussdb$&gt; a int;
+gaussdb$&gt; procedure p3 is
+gaussdb$&gt; begin
+gaussdb$&gt; null;
+gaussdb$&gt; end;
+gaussdb$&gt; begin
+gaussdb$&gt; p3();
+gaussdb$&gt; a:=a+1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p2();
+LOG:  [ByteCode] BC068 bytecode neither support nest sub procedure/function nor subtype.
+-[ RECORD 1 ]
+p2 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p2'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<p>的确不支持</p>
+<ul>
+<li><strong>主事务不支持嵌套调用自治事务的表达式执行字节码（自治事务创建的新SESSION执行存储过程可以通过字节码框架执行）。</strong><br/>
+这里需要注意，自治事务是新开连接,而且plsql_code_type这个参数的值不会从主事务复制到自治事务，因此自治事务如果要使用字节码，则需要在非会话级设置，比如database/role/instance级别</li>
+</ul>
+<ol>
+<li>存储过程里嵌套了一个自治事务的匿名块</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p_main2 is
+gaussdb$&gt; x int:=0;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; declare
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+2;
+gaussdb$&gt; end;
+gaussdb$&gt; x:=x+3;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+ERROR:  Autonomous transactions do not support nested anonymous blocks.
+DETAIL:  N/A
+gaussdb=&gt; 
+</code></pre>
+<p>创建就报错</p>
+<ol start="2">
+<li>自治事务里调用另一个非自治事务的存储过程</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p_main2 is
+gaussdb$&gt; x int:=0;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; x:=x+3;
+gaussdb$&gt; commit;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; create or replace procedure p_autom2 is
+gaussdb$&gt; x int;
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; raise notice 'plsql_code_type:%',current_setting('plsql_code_type');
+gaussdb$&gt; raise notice 'client_min_messages:%',current_setting('client_min_messages');raise notice 'logging_module:%',current_setting('logging_module');
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; p_main2();
+gaussdb$&gt; commit;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; alter database postgres set client_min_messages = log;
+NOTICE:  SET "client_min_messages" TO "log" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p_autom2();
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  referenced column: p_autom2
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33007.
+CONTEXT:  referenced column: p_autom2
+LOG:  [ByteCode] Function: p_autom2(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] exec_stmt_treebased  
+[81] exec_stmt_end 
+[94] exec_stmt_begin 
+[115] exec_stmt_treebased  
+[128] exec_stmt_end 
+[141] exec_stmt_begin 
+[162] loadn 9 
+[167] iconst1 
+[168] function func: int4pl 
+[181] storen 9 
+[186] exec_stmt_end 
+[199] exec_stmt_begin 
+[220] procedure expression expr: CALL p_main2() 
+[257] exec_stmt_end 
+[270] nop_pop 
+[271] exec_stmt_begin 
+[292] exec_stmt_treebased_transaction  
+[305] exec_stmt_end 
+[318] exec_stmt_begin 
+[339] exec_stmt_end 
+[352] return0 5 
+
+CONTEXT:  referenced column: p_autom2
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: p_autom2
+NOTICE:  plsql_code_type:BYTECODE
+CONTEXT:  referenced column: p_autom2
+NOTICE:  client_min_messages:log
+CONTEXT:  referenced column: p_autom2
+NOTICE:  logging_module:ALL,on(BYTECODE),off(COMMAND,DFS,GUC,GSCLEAN,HDFS,ORC,SLRU,MEM_CTL,AUTOVAC,CACHE,ADIO,SSL,GDS,TBLSPC,WLM,OBS,INDEX,EXECUTOR,OPFUSION,GPC,GSC,VEC_EXECUTOR,STREAM,LLVM,OPT,OPT_REWRITE,CBOPT_REWRITE,OPT_JOIN,OPT_AGG,OPT_CHOICE,OPT_SUBPLAN,OPT_SETOP,OPT_SKEW,OPT_PLANNER,OPT_STAT_EXT,OPT_SHIPPING,OPT_DSL_REWRITE,SPM,SPM_BG,SPM_KEY_FLOW,UDF,COOP_ANALYZE,WLMCP,ACCELERATE,MOT,PLANHINT,PARQUET,PGSTAT,CARBONDATA,SNAPSHOT,XACT,HANDLE,CLOG,EC,REMOTE,CN_RETRY,PLSQL,PLSQL_COMPILE,PLSQL_TRANS,TEXTSEARCH,SEQ,REDO,FUNCTION,PARSER,INSTR,WDR_SNAPSHOT,GSMONITOR,WDR_REPORT,ASP_REPORT,BLACKBOX,INCRE_CKPT,INCRE_BG_WRITER,DBL_WRT,RTO_RPO,HEARTBEAT,COMM_IPC,COMM_PARAM,TIMESERIES,SCHEMA,GTT,SEGMENT_PAGE,LIGHTPROXY,HOTKEY,THREAD_POOL,OPT_AI,WALRECEIVER,USTORE,UPAGE,UBTREE,UNDO,TIMECAPSULE,GEN_COL,DCF,AI4DB,DB4AI,ABO,MOD_ABOFEEDBACK,ASCEND,PLDEBUGGER,ADVISOR,SEC,SEC_FE,SEC_LEGER,SEC_POLICY,SEC_SDD,SEC_TDE,COMM_FRAMEWORK,COMM_PROXY,COMM_POOLER,COMM_STATUS,VACUUM,JOB,SPI,NEST_COMPILE,RESOWNER,GSSTACK,LOGICAL_DECODE,GPRC,DISASTER_READ,STANDBY_READ,SQL_APPLY,REPSYNC,SQLPATCH,PARTITION,UBT_NEWPAGE,GS_DEPENDENCY,GPI,LWLOCK,LOCK,UNIQUE_SQL,GLC,SRF,DBLINK,BARRIER_CREATOR,EXRTO_PAGE_P,SEQ_TUP_P,BT_TUP_P,DISPATCH_VERIFY,HBKT,HBKT_CBI,DBE_STATS,DBE_XMLGEN,MESSAGE_QUEUE,DBE_ALERT,GS_ILM,GSPERF,PARAMETERIZE,EXEC_REMOTE,UBTREE_PARA,BTREE_PARA,ANTI_CACHE,ANTI_RECYCLER,VERIFYLOG,PARALLEL_BUILD,GS_REPAIR,AUTHID,CCINDEX,ONLINE_DDL,MTD,EXRTO_BUFFER,WAL,HTAP,UALT,GTM_LITE_READ_S,UGIN,LOCAL_CACHE,BIINDEX,ONDEMAND,DATEA,TURBO_COMPRESS,GS_SIGNAL,AUTOHINT,EXRTO_READ_RECY,CHARACTER,ABNORMAL_SQL,GAUSS_STOR,BUFFILE,BUFFER,PAGE,SELCACHE,UTIL,FUNC_DEPEND,MOD_DBE_LOB,EXEC_CACHE,ROWID,WAL_IMAGE_CHECK,CHECK_XLOG_GEN,SHARE_STORAGE,MOD_TOOLKIT)
+CONTEXT:  referenced column: p_autom2
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  SQL statement "CALL p_main2()"
+PL/pgSQL function p_autom2() line 8 at PERFORM
+referenced column: p_autom2
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  SQL statement "CALL p_main2()"
+PL/pgSQL function p_autom2() line 8 at PERFORM
+referenced column: p_autom2
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33006.
+CONTEXT:  SQL statement "CALL p_main2()"
+PL/pgSQL function p_autom2() line 8 at PERFORM
+referenced column: p_autom2
+LOG:  [ByteCode] Function: p_main2(), InterpreterBytecode:
+[0] iconst0 
+[1] storen 9 
+[6] exec_stmt_begin 
+[27] loadn 9 
+[32] iconst1 
+[33] function func: int4pl 
+[46] storen 9 
+[51] exec_stmt_end 
+[64] exec_stmt_begin 
+[85] loadn 9 
+[90] iconst3 
+[91] function func: int4pl 
+[104] storen 9 
+[109] exec_stmt_end 
+[122] exec_stmt_begin 
+[143] exec_stmt_treebased_transaction  
+[156] exec_stmt_end 
+[169] exec_stmt_begin 
+[190] exec_stmt_end 
+[203] return0 5 
+
+CONTEXT:  SQL statement "CALL p_main2()"
+PL/pgSQL function p_autom2() line 8 at PERFORM
+referenced column: p_autom2
+LOG:  [ByteCode] Function: CALL p_main2(), InterpreterBytecode:
+[0] nop_push 
+[1] invokemethod_definer func: p_main2 
+
+CONTEXT:  PL/pgSQL function p_autom2() line 8 at PERFORM
+referenced column: p_autom2
+-[ RECORD 1 ]
+p_autom2 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; alter database postgres reset client_min_messages;
+NOTICE:  SET "client_min_messages" TO "(null)" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_main2'::regproc);
+-[ RECORD 1 ]-------------------------------------
+bytecode | [0] iconst0 
+         | [1] storen 9 
+         | [6] exec_stmt_begin 
+         | [27] loadn 9 
+         | [32] iconst1 
+         | [33] function func: int4pl 
+         | [46] storen 9 
+         | [51] exec_stmt_end 
+         | [64] exec_stmt_begin 
+         | [85] loadn 9 
+         | [90] iconst3 
+         | [91] function func: int4pl 
+         | [104] storen 9 
+         | [109] exec_stmt_end 
+         | [122] exec_stmt_begin 
+         | [143] exec_stmt_treebased_transaction  
+         | [156] exec_stmt_end 
+         | [169] exec_stmt_begin 
+         | [190] exec_stmt_end 
+         | [203] return0 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_autom2'::regproc);
+-[ RECORD 1 ]----------------------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] exec_stmt_treebased  
+         | [81] exec_stmt_end 
+         | [94] exec_stmt_begin 
+         | [115] exec_stmt_treebased  
+         | [128] exec_stmt_end 
+         | [141] exec_stmt_begin 
+         | [162] loadn 9 
+         | [167] iconst1 
+         | [168] function func: int4pl 
+         | [181] storen 9 
+         | [186] exec_stmt_end 
+         | [199] exec_stmt_begin 
+         | [220] procedure expression expr: CALL p_main2() 
+         | [257] exec_stmt_end 
+         | [270] nop_pop 
+         | [271] exec_stmt_begin 
+         | [292] exec_stmt_treebased_transaction  
+         | [305] exec_stmt_end 
+         | [318] exec_stmt_begin 
+         | [339] exec_stmt_end 
+         | [352] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>两个存储过程都支持字节码。<br/>
+这里注意，自治事务没有复制主事务的client_min_messages参数，所以额外在数据库级别上设置了一下，否则打不出这个日志</p>
+<ol start="3">
+<li>存储过程里调用了另一个自治事务的存储过程</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p_autom1 is
+gaussdb$&gt; x int;
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; create or replace procedure p_main1 is
+gaussdb$&gt; begin
+gaussdb$&gt; p_autom1();
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; alter database postgres set client_min_messages = log;
+NOTICE:  SET "client_min_messages" TO "log" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p_main1();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33009.
+LOG:  [ByteCode] Function: p_main1(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] procedure expression expr: CALL p_autom1() 
+[58] exec_stmt_end 
+[71] nop_pop 
+[72] exec_stmt_begin 
+[93] exec_stmt_end 
+[106] return0 5 
+
+LOG:  Start ByteCode!
+LOG:  [ByteCode] BC072 Expression: CALL p_autom1() is degenerated.
+CONTEXT:  PL/pgSQL function p_main1() line 3 at PERFORM
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  referenced column: p_autom1
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33008.
+CONTEXT:  referenced column: p_autom1
+LOG:  [ByteCode] Function: p_autom1(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] loadn 9 
+[26] iconst1 
+[27] function func: int4pl 
+[40] storen 9 
+[45] exec_stmt_end 
+[58] exec_stmt_begin 
+[79] exec_stmt_end 
+[92] return0 5 
+
+CONTEXT:  referenced column: p_autom1
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: p_autom1
+-[ RECORD 1 ]
+p_main1 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; alter database postgres reset client_min_messages;
+NOTICE:  SET "client_min_messages" TO "(null)" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_autom1'::regproc);
+-[ RECORD 1 ]-------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] loadn 9 
+         | [26] iconst1 
+         | [27] function func: int4pl 
+         | [40] storen 9 
+         | [45] exec_stmt_end 
+         | [58] exec_stmt_begin 
+         | [79] exec_stmt_end 
+         | [92] return0 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_main1'::regproc);
+-[ RECORD 1 ]----------------------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] procedure expression expr: CALL p_autom1() 
+         | [58] exec_stmt_end 
+         | [71] nop_pop 
+         | [72] exec_stmt_begin 
+         | [93] exec_stmt_end 
+         | [106] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>主事务和自治事务的存储过程都支持字节码</p>
+<ol start="4">
+<li>自治事务的双重嵌套</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p_autom3 is
+gaussdb$&gt; x int;
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; create or replace procedure p_autom4 is
+gaussdb$&gt; x int;
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; p_autom3();
+gaussdb$&gt; x:=x+1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; create or replace procedure p_main3 is
+gaussdb$&gt; begin
+gaussdb$&gt; p_autom4();
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; alter database postgres set client_min_messages = log;
+NOTICE:  SET "client_min_messages" TO "log" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p_main3();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33012.
+LOG:  [ByteCode] Function: p_main3(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] procedure expression expr: CALL p_autom4() 
+[58] exec_stmt_end 
+[71] nop_pop 
+[72] exec_stmt_begin 
+[93] exec_stmt_end 
+[106] return0 5 
+
+LOG:  Start ByteCode!
+LOG:  [ByteCode] BC072 Expression: CALL p_autom4() is degenerated.
+CONTEXT:  PL/pgSQL function p_main3() line 3 at PERFORM
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  referenced column: p_autom4
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33011.
+CONTEXT:  referenced column: p_autom4
+LOG:  [ByteCode] Function: p_autom4(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] procedure expression expr: CALL p_autom3() 
+[58] exec_stmt_end 
+[71] nop_pop 
+[72] exec_stmt_begin 
+[93] loadn 9 
+[98] iconst1 
+[99] function func: int4pl 
+[112] storen 9 
+[117] exec_stmt_end 
+[130] exec_stmt_begin 
+[151] exec_stmt_end 
+[164] return0 5 
+
+CONTEXT:  referenced column: p_autom4
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: p_autom4
+LOG:  [ByteCode] BC072 Expression: CALL p_autom3() is degenerated.
+CONTEXT:  PL/pgSQL function p_autom4() line 5 at PERFORM
+referenced column: p_autom4
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+CONTEXT:  referenced column: p_autom3
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33010.
+CONTEXT:  referenced column: p_autom3
+LOG:  [ByteCode] Function: p_autom3(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] loadn 9 
+[26] iconst1 
+[27] function func: int4pl 
+[40] storen 9 
+[45] exec_stmt_end 
+[58] exec_stmt_begin 
+[79] exec_stmt_end 
+[92] return0 5 
+
+CONTEXT:  referenced column: p_autom3
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: p_autom3
+-[ RECORD 1 ]
+p_main3 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; alter database postgres reset client_min_messages;
+NOTICE:  SET "client_min_messages" TO "(null)" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_autom3'::regproc);
+-[ RECORD 1 ]-------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] loadn 9 
+         | [26] iconst1 
+         | [27] function func: int4pl 
+         | [40] storen 9 
+         | [45] exec_stmt_end 
+         | [58] exec_stmt_begin 
+         | [79] exec_stmt_end 
+         | [92] return0 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_autom4'::regproc);
+-[ RECORD 1 ]----------------------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] procedure expression expr: CALL p_autom3() 
+         | [58] exec_stmt_end 
+         | [71] nop_pop 
+         | [72] exec_stmt_begin 
+         | [93] loadn 9 
+         | [98] iconst1 
+         | [99] function func: int4pl 
+         | [112] storen 9 
+         | [117] exec_stmt_end 
+         | [130] exec_stmt_begin 
+         | [151] exec_stmt_end 
+         | [164] return0 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p_main3'::regproc);
+-[ RECORD 1 ]----------------------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] procedure expression expr: CALL p_autom4() 
+         | [58] exec_stmt_end 
+         | [71] nop_pop 
+         | [72] exec_stmt_begin 
+         | [93] exec_stmt_end 
+         | [106] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>主事务和两个自治事务都支持字节码</p>
+<ol start="5">
+<li>表达式是自治事务的函数</li>
+</ol>
+<pre><code>gaussdb=&gt; create function f6 return int is
+gaussdb$&gt; PRAGMA AUTONOMOUS_TRANSACTION;
+gaussdb$&gt; begin
+gaussdb$&gt; return 1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE FUNCTION
+gaussdb=&gt; create procedure p6 is
+gaussdb$&gt; v int;
+gaussdb$&gt; begin
+gaussdb$&gt; v:=f6();
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; alter database postgres set client_min_messages = log;
+NOTICE:  SET "client_min_messages" TO "log" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p6();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33014.
+LOG:  [ByteCode] Function: p6(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] expression expr: SELECT f6() 
+[58] storen 9 
+[63] exec_stmt_end 
+[76] exec_stmt_begin 
+[97] exec_stmt_end 
+[110] return0 5 
+
+LOG:  Start ByteCode!
+LOG:  [ByteCode] BC072 Expression: SELECT f6() is degenerated.
+CONTEXT:  PL/pgSQL function p6() line 4 at assignment
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33013.
+CONTEXT:  referenced column: f6
+LOG:  [ByteCode] Function: f6(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] iconst1 
+[22] exec_stmt_end 
+[35] return 5 
+
+CONTEXT:  referenced column: f6
+LOG:  Start ByteCode!
+CONTEXT:  referenced column: f6
+-[ RECORD 1 ]
+p6 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; alter database postgres reset client_min_messages;
+NOTICE:  SET "client_min_messages" TO "(null)" will only take effect after restarting session.
+ALTER DATABASE
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('f6'::regproc);
+-[ RECORD 1 ]------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] iconst1 
+         | [22] exec_stmt_end 
+         | [35] return 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p6'::regproc);
+-[ RECORD 1 ]--------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] expression expr: SELECT f6() 
+         | [58] storen 9 
+         | [63] exec_stmt_end 
+         | [76] exec_stmt_begin 
+         | [97] exec_stmt_end 
+         | [110] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>主事务和自治事务都支持字节码</p>
+<p>上面测了5种场景，并没有测出不支持的情况。</p>
+<ul>
+<li><strong>不支持SUBTYPE类型。</strong><br/>
+GaussDB里有两个subtype的概念</li>
+</ul>
+<ol>
+<li>PG原生的RANGE类型里指定subtype ，不过这样应该叫不支持range类型</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; CREATE TYPE float8_range AS RANGE (subtype = float8, subtype_diff = float8mi);
+CREATE TYPE
+gaussdb=&gt; create procedure p5 is
+gaussdb$&gt; v float8_range;
+gaussdb$&gt; begin
+gaussdb$&gt; v:='[1,5]';
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p5();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33027.
+LOG:  [ByteCode] Function: p5(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] const64 
+[30] outputfunction func: textout 
+[39] inputfunction func: range_in 
+[56] storen_copy1 9 
+[61] exec_stmt_end 
+[74] exec_stmt_begin 
+[95] exec_stmt_end 
+[108] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p5 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p5'::regproc);
+-[ RECORD 1 ]--------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] const64 
+         | [30] outputfunction func: textout 
+         | [39] inputfunction func: range_in 
+         | [56] storen_copy1 9 
+         | [61] exec_stmt_end 
+         | [74] exec_stmt_begin 
+         | [95] exec_stmt_end 
+         | [108] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>这种实测是支持的</p>
+<ol start="2">
+<li>ORACLE风格package里的subtype</li>
+</ol>
+<pre><code class="language-sql">gaussdb=&gt; create package pkg5 is
+gaussdb$&gt; subtype varchar8 is varchar2(8);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create package pkg6 is
+gaussdb$&gt; procedure p6 ;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create package body pkg6 is
+gaussdb$&gt; procedure p6 is
+gaussdb$&gt; v pkg5.varchar8;
+gaussdb$&gt; begin
+gaussdb$&gt; v:=1;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg6.p6();
+LOG:  [ByteCode] BC036 bytecode does not support to cast subtype.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33032.
+LOG:  [ByteCode] Function: p6(), InterpreterBytecode:
+[0] const_null 
+[1] inputfunction func: subtype_in 
+[18] storen_copy1 9 
+[23] exec_stmt_begin 
+[44] exec_stmt_treebased  
+[57] exec_stmt_end 
+[70] exec_stmt_begin 
+[91] exec_stmt_end 
+[104] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p6 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg6.p6'::regproc);
+-[ RECORD 1 ]---------------------------------
+bytecode | [0] const_null 
+         | [1] inputfunction func: subtype_in 
+         | [18] storen_copy1 9 
+         | [23] exec_stmt_begin 
+         | [44] exec_stmt_treebased  
+         | [57] exec_stmt_end 
+         | [70] exec_stmt_begin 
+         | [91] exec_stmt_end 
+         | [104] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>这个实测也是支持的</p>
+<p>弄个subtype类型的参数</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace package pkg6 is
+gaussdb$&gt; procedure p6 ;
+gaussdb$&gt; procedure p7(i pkg5.varchar8);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body pkg6 is
+gaussdb$&gt; procedure p6 is
+gaussdb$&gt; v pkg5.varchar8;
+gaussdb$&gt; begin
+gaussdb$&gt; v:=1;
+gaussdb$&gt; end;
+gaussdb$&gt; procedure p7(i pkg5.varchar8) is
+gaussdb$&gt; v pkg5.varchar8;
+gaussdb$&gt; begin
+gaussdb$&gt; v:=i;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg6.p7(1);
+LOG:  [ByteCode] BC036 bytecode does not support to cast subtype.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33033.
+LOG:  [ByteCode] Function: p7(pkg5.varchar8), InterpreterBytecode:
+[0] const_null 
+[1] inputfunction func: subtype_in 
+[18] storen_copy1 10 
+[23] exec_stmt_begin 
+[44] exec_stmt_treebased  
+[57] exec_stmt_end 
+[70] exec_stmt_begin 
+[91] exec_stmt_end 
+[104] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p7 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg6.p7'::regproc);
+-[ RECORD 1 ]---------------------------------
+bytecode | [0] const_null 
+         | [1] inputfunction func: subtype_in 
+         | [18] storen_copy1 10 
+         | [23] exec_stmt_begin 
+         | [44] exec_stmt_treebased  
+         | [57] exec_stmt_end 
+         | [70] exec_stmt_begin 
+         | [91] exec_stmt_end 
+         | [104] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的，这说明文档不对</p>
+<ul>
+<li><strong>不支持游标循环语句SELECT返回的列数与语句中的游标变量列数不一致。</strong><br/>
+可能指的是fetch into ,ORACLE里需保证列对应，但GaussDB里支持源列和目标列数不一致</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p7 is
+gaussdb$&gt; v1 int;
+gaussdb$&gt; v2 int;
+gaussdb$&gt; cursor c is
+gaussdb$&gt; select 1 c1,2 c2,3 c3 from dual  ;
+gaussdb$&gt; begin
+gaussdb$&gt; open c;
+gaussdb$&gt; fetch c into v1,v2;
+gaussdb$&gt; close c;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p7();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33034.
+LOG:  [ByteCode] Function: p7(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] exec_stmt_treebased_fetch  
+[81] exec_stmt_end 
+[94] exec_stmt_begin 
+[115] exec_stmt_treebased_close  
+[128] exec_stmt_end 
+[141] exec_stmt_begin 
+[162] exec_stmt_end 
+[175] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p7 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p7'::regproc);
+-[ RECORD 1 ]-------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased_open  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] exec_stmt_treebased_fetch  
+         | [81] exec_stmt_end 
+         | [94] exec_stmt_begin 
+         | [115] exec_stmt_treebased_close  
+         | [128] exec_stmt_end 
+         | [141] exec_stmt_begin 
+         | [162] exec_stmt_end 
+         | [175] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>这种情况是支持的</p>
+<p>放循环里</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p8 is
+gaussdb$&gt; v1 int;
+gaussdb$&gt; v2 int;
+gaussdb$&gt; cursor c is
+gaussdb$&gt; select 1 c1,2 c2,3 c3 from dual  ;
+gaussdb$&gt; begin
+gaussdb$&gt; open c;
+gaussdb$&gt; loop
+gaussdb$&gt; if c%notfound then exit;
+gaussdb$&gt; end if;
+gaussdb$&gt; fetch c into v1,v2;
+gaussdb$&gt; raise notice 'v1:%,v2:%',v1,v2;
+gaussdb$&gt; end loop;
+gaussdb$&gt; close c;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p8();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33038.
+LOG:  [ByteCode] Function: p8(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] loopwhile 
+[73] exec_stmt_begin 
+[94] loadn_cursor_attributes 11 
+[103] if_or_when 49 
+[108] exec_stmt_begin 
+[129] exec_stmt_end 
+[142] goto 122 
+[147] goto 5 
+[152] exec_stmt_end 
+[165] exec_stmt_begin 
+[186] exec_stmt_treebased_fetch  
+[199] exec_stmt_end 
+[212] exec_stmt_begin 
+[233] exec_stmt_treebased  
+[246] exec_stmt_end 
+[259] goto -191 
+[264] exec_stmt_end 
+[277] exec_stmt_begin 
+[298] exec_stmt_treebased_close  
+[311] exec_stmt_end 
+[324] exec_stmt_begin 
+[345] exec_stmt_end 
+[358] return0 5 
+
+LOG:  Start ByteCode!
+NOTICE:  v1:1,v2:2
+NOTICE:  v1:1,v2:2
+-[ RECORD 1 ]
+p8 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p8'::regproc);
+-[ RECORD 1 ]-------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased_open  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] loopwhile 
+         | [73] exec_stmt_begin 
+         | [94] loadn_cursor_attributes 11 
+         | [103] if_or_when 49 
+         | [108] exec_stmt_begin 
+         | [129] exec_stmt_end 
+         | [142] goto 122 
+         | [147] goto 5 
+         | [152] exec_stmt_end 
+         | [165] exec_stmt_begin 
+         | [186] exec_stmt_treebased_fetch  
+         | [199] exec_stmt_end 
+         | [212] exec_stmt_begin 
+         | [233] exec_stmt_treebased  
+         | [246] exec_stmt_end 
+         | [259] goto -191 
+         | [264] exec_stmt_end 
+         | [277] exec_stmt_begin 
+         | [298] exec_stmt_treebased_close  
+         | [311] exec_stmt_end 
+         | [324] exec_stmt_begin 
+         | [345] exec_stmt_end 
+         | [358] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的，</p>
+<p>反过来，让游标列数比目标参数列少</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p9 is
+gaussdb$&gt; v1 int;
+gaussdb$&gt; v2 int;
+gaussdb$&gt; v3 int;
+gaussdb$&gt; v4 int;
+gaussdb$&gt; cursor c is
+gaussdb$&gt; select 1 c1,2 c2,3 c3 from dual  ;
+gaussdb$&gt; begin
+gaussdb$&gt; open c;
+gaussdb$&gt; loop
+gaussdb$&gt; if c%notfound then exit;
+gaussdb$&gt; end if;
+gaussdb$&gt; fetch c into v1,v2,v3,v4;
+gaussdb$&gt; raise notice 'v1:%,v2:%,v3:%,v4:%',v1,v2,v3,v4;
+gaussdb$&gt; end loop;
+gaussdb$&gt; close c;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p9();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33042.
+LOG:  [ByteCode] Function: p9(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] loopwhile 
+[73] exec_stmt_begin 
+[94] loadn_cursor_attributes 13 
+[103] if_or_when 49 
+[108] exec_stmt_begin 
+[129] exec_stmt_end 
+[142] goto 122 
+[147] goto 5 
+[152] exec_stmt_end 
+[165] exec_stmt_begin 
+[186] exec_stmt_treebased_fetch  
+[199] exec_stmt_end 
+[212] exec_stmt_begin 
+[233] exec_stmt_treebased  
+[246] exec_stmt_end 
+[259] goto -191 
+[264] exec_stmt_end 
+[277] exec_stmt_begin 
+[298] exec_stmt_treebased_close  
+[311] exec_stmt_end 
+[324] exec_stmt_begin 
+[345] exec_stmt_end 
+[358] return0 5 
+
+LOG:  Start ByteCode!
+NOTICE:  v1:1,v2:2,v3:3,v4:&lt;NULL&gt;
+NOTICE:  v1:1,v2:2,v3:3,v4:&lt;NULL&gt;
+-[ RECORD 1 ]
+p9 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p9'::regproc);
+-[ RECORD 1 ]-------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased_open  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] loopwhile 
+         | [73] exec_stmt_begin 
+         | [94] loadn_cursor_attributes 13 
+         | [103] if_or_when 49 
+         | [108] exec_stmt_begin 
+         | [129] exec_stmt_end 
+         | [142] goto 122 
+         | [147] goto 5 
+         | [152] exec_stmt_end 
+         | [165] exec_stmt_begin 
+         | [186] exec_stmt_treebased_fetch  
+         | [199] exec_stmt_end 
+         | [212] exec_stmt_begin 
+         | [233] exec_stmt_treebased  
+         | [246] exec_stmt_end 
+         | [259] goto -191 
+         | [264] exec_stmt_end 
+         | [277] exec_stmt_begin 
+         | [298] exec_stmt_treebased_close  
+         | [311] exec_stmt_end 
+         | [324] exec_stmt_begin 
+         | [345] exec_stmt_end 
+         | [358] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的，</p>
+<p>让into 的是一个record变量</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p99 is
+gaussdb$&gt; type t_r is record(v1 int,v2 int);
+gaussdb$&gt; r t_r;
+gaussdb$&gt; cursor c is
+gaussdb$&gt; select 1 c1,2 c2,3 c3 from dual  ;
+gaussdb$&gt; begin
+gaussdb$&gt; open c;
+gaussdb$&gt; loop
+gaussdb$&gt; if c%notfound then exit;
+gaussdb$&gt; end if;
+gaussdb$&gt; fetch c into r;
+gaussdb$&gt; raise notice 'r:%',r::text;
+gaussdb$&gt; end loop;
+gaussdb$&gt; close c;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p99();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33046.
+LOG:  [ByteCode] Function: p99(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] loopwhile 
+[73] exec_stmt_begin 
+[94] loadn_cursor_attributes 13 
+[103] if_or_when 49 
+[108] exec_stmt_begin 
+[129] exec_stmt_end 
+[142] goto 122 
+[147] goto 5 
+[152] exec_stmt_end 
+[165] exec_stmt_begin 
+[186] exec_stmt_treebased_fetch  
+[199] exec_stmt_end 
+[212] exec_stmt_begin 
+[233] exec_stmt_treebased  
+[246] exec_stmt_end 
+[259] goto -191 
+[264] exec_stmt_end 
+[277] exec_stmt_begin 
+[298] exec_stmt_treebased_close  
+[311] exec_stmt_end 
+[324] exec_stmt_begin 
+[345] exec_stmt_end 
+[358] return0 5 
+
+LOG:  Start ByteCode!
+ERROR:  Assignment and variable field do not match.
+CONTEXT:  PL/pgSQL function p99() line 11 at FETCH
+gaussdb=&gt; reset client_min_messages;
+RESET
+</code></pre>
+<p>执行会报错 <code>ERROR: Assignment and variable field do not match.</code></p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p98 is
+gaussdb$&gt; type t_r is record(v1 int,v2 int,v3 int);
+gaussdb$&gt; r t_r;
+gaussdb$&gt; cursor c is
+gaussdb$&gt; select 1 c1,2 c2 from dual  ;
+gaussdb$&gt; begin
+gaussdb$&gt; open c;
+gaussdb$&gt; loop
+gaussdb$&gt; if c%notfound then exit;
+gaussdb$&gt; end if;
+gaussdb$&gt; fetch c into r;
+gaussdb$&gt; raise notice 'r:%',r::text;
+gaussdb$&gt; end loop;
+gaussdb$&gt; close c;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p98();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33052.
+LOG:  [ByteCode] Function: p98(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] loopwhile 
+[73] exec_stmt_begin 
+[94] loadn_cursor_attributes 14 
+[103] if_or_when 49 
+[108] exec_stmt_begin 
+[129] exec_stmt_end 
+[142] goto 122 
+[147] goto 5 
+[152] exec_stmt_end 
+[165] exec_stmt_begin 
+[186] exec_stmt_treebased_fetch  
+[199] exec_stmt_end 
+[212] exec_stmt_begin 
+[233] exec_stmt_treebased  
+[246] exec_stmt_end 
+[259] goto -191 
+[264] exec_stmt_end 
+[277] exec_stmt_begin 
+[298] exec_stmt_treebased_close  
+[311] exec_stmt_end 
+[324] exec_stmt_begin 
+[345] exec_stmt_end 
+[358] return0 5 
+
+LOG:  Start ByteCode!
+ERROR:  Assignment and variable field do not match.
+CONTEXT:  PL/pgSQL function p98() line 11 at FETCH
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; 
+</code></pre>
+<p>这种反过来也会报错，<code>ERROR: Assignment and variable field do not match.</code></p>
+<p>所以没找到对应的不支持场景</p>
+<ul>
+<li><strong>不支持RECORD变量的读取和赋值列值（如：va record; va.c1 := 1;）。</strong><br/>
+游标的一行/row函数/复合类型不带参数名的构造，类型都是record,但复合类型带参数名的构造的类型则是复合类型自己。</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; select pg_typeof(row(1,1));
+-[ RECORD 1 ]-----
+pg_typeof | record
+
+gaussdb=&gt; create type ty_test2 as (a int,b int);
+CREATE TYPE
+gaussdb=&gt; select pg_typeof(ty_test2(1,1));
+-[ RECORD 1 ]-----
+pg_typeof | record
+
+gaussdb=&gt; select pg_typeof(ty_test2(a=&gt;1,b=&gt;1));
+-[ RECORD 1 ]-------
+pg_typeof | ty_test2
+
+gaussdb=&gt; 
+</code></pre>
+<pre><code class="language-sql">gaussdb=&gt; create procedure p10 is
+gaussdb$&gt; begin
+gaussdb$&gt; for rec in (select 1 a,2 b from dual) 
+gaussdb$&gt; loop
+gaussdb$&gt; raise notice '%',pg_typeof(rec);
+gaussdb$&gt; rec.a:=3;
+gaussdb$&gt; end loop;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p10();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33067.
+LOG:  [ByteCode] Function: p10(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] fors_prepare 
+[46] fors 105 
+[59] exec_stmt_begin 
+[80] exec_stmt_treebased  
+[93] exec_stmt_end 
+[106] exec_stmt_begin 
+[127] iconst3 
+[128] storen 9 
+[133] exec_stmt_end 
+[146] goto -100 
+[151] exec_stmt_end 
+[164] exec_stmt_begin 
+[185] exec_stmt_end 
+[198] return0 5 
+
+LOG:  Start ByteCode!
+NOTICE:  record
+-[ RECORD 1 ]
+p10 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p10'::regproc);
+-[ RECORD 1 ]------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] fors_prepare 
+         | [46] fors 105 
+         | [59] exec_stmt_begin 
+         | [80] exec_stmt_treebased  
+         | [93] exec_stmt_end 
+         | [106] exec_stmt_begin 
+         | [127] iconst3 
+         | [128] storen 9 
+         | [133] exec_stmt_end 
+         | [146] goto -100 
+         | [151] exec_stmt_end 
+         | [164] exec_stmt_begin 
+         | [185] exec_stmt_end 
+         | [198] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>测试下来其实是支持的</p>
+<pre><code class="language-sql">gaussdb=&gt; create procedure p11 is
+gaussdb$&gt; type t_rec is record(a int,b int);
+gaussdb$&gt; v t_rec;
+gaussdb$&gt; begin
+gaussdb$&gt; v.a:=1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p11();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33068.
+LOG:  [ByteCode] Function: p11(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] iconst1 
+[22] storen 10 
+[27] exec_stmt_end 
+[40] exec_stmt_begin 
+[61] exec_stmt_end 
+[74] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p11 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p11'::regproc);
+-[ RECORD 1 ]-------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] iconst1 
+         | [22] storen 10 
+         | [27] exec_stmt_end 
+         | [40] exec_stmt_begin 
+         | [61] exec_stmt_end 
+         | [74] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>这种也支持<br/>
+至于文档里说的那个例子，本身就是个错的，没有定义record的结构，c1列是哪里来的？</p>
+<ul>
+<li><strong>不支持PACKAGE中RECORD变量的读取和复制。</strong><br/>
+同上，没必要单独强调package,这里还有错别字，"复制"应该是"赋值"</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace package pkg11 is
+gaussdb$&gt; type t_rec is record(a int,b int);
+gaussdb$&gt; procedure p11 ;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body pkg11 is
+gaussdb$&gt; procedure p11 is
+gaussdb$&gt; v t_rec;
+gaussdb$&gt; begin
+gaussdb$&gt; v.a:=1;
+gaussdb$&gt; raise notice '%',v.a;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg11.p11();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33073.
+LOG:  [ByteCode] Function: p11(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] iconst1 
+[22] storen 11 
+[27] exec_stmt_end 
+[40] exec_stmt_begin 
+[61] exec_stmt_treebased  
+[74] exec_stmt_end 
+[87] exec_stmt_begin 
+[108] exec_stmt_end 
+[121] return0 5 
+
+LOG:  Start ByteCode!
+NOTICE:  1
+-[ RECORD 1 ]
+p11 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg11.p11'::regproc);
+-[ RECORD 1 ]------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] iconst1 
+         | [22] storen 11 
+         | [27] exec_stmt_end 
+         | [40] exec_stmt_begin 
+         | [61] exec_stmt_treebased  
+         | [74] exec_stmt_end 
+         | [87] exec_stmt_begin 
+         | [108] exec_stmt_end 
+         | [121] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的</p>
+<ul>
+<li><strong>不支持REFCURSOR类型的出入参转换为其他类型（例如：REFCURSOR转换为VARCHAR2，或进行拼接运算操作等）。</strong><br/>
+游标类型的参数强转没什么意义 一个 "" 的字符串而已</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace package pkg12 is
+gaussdb$&gt; procedure p1(o out sys_refcursor);
+gaussdb$&gt; procedure p2;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body pkg12 is
+gaussdb$&gt; procedure p1(o out sys_refcursor) is
+gaussdb$&gt; begin
+gaussdb$&gt; open o for select 1 a,2 b from dual;
+gaussdb$&gt; raise notice '%',o::text;
+gaussdb$&gt; end;
+gaussdb$&gt; procedure p2 is
+gaussdb$&gt; cr sys_refcursor;
+gaussdb$&gt; begin
+gaussdb$&gt; p1(cr);
+gaussdb$&gt; raise notice '%','aaaa'||cr::text;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg12.p2();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33079.
+LOG:  [ByteCode] Function: p2(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] procedure expression expr: CALL p1(cr) 
+[58] nop_pop 
+[59] exec_stmt_end 
+[72] exec_stmt_begin 
+[93] exec_stmt_treebased  
+[106] exec_stmt_end 
+[119] exec_stmt_begin 
+[140] exec_stmt_end 
+[153] return0 5 
+
+LOG:  Start ByteCode!
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33078.
+CONTEXT:  PL/pgSQL function p2() line 10 at SQL statement
+LOG:  [ByteCode] Function: p1(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] exec_stmt_treebased  
+[81] exec_stmt_end 
+[94] exec_stmt_begin 
+[115] loadn_return_cursor 0 
+[120] transfer 
+[125] exec_stmt_end 
+[138] return 5 
+
+CONTEXT:  PL/pgSQL function p2() line 10 at SQL statement
+LOG:  [ByteCode] Function: CALL p1(cr), InterpreterBytecode:
+[0] nop_push 
+[1] invokemethod_definer func: p1 
+[30] storen_copy_cursor 9 
+
+CONTEXT:  PL/pgSQL function p2() line 10 at SQL statement
+NOTICE:  &lt;unnamed portal 9&gt;
+CONTEXT:  PL/pgSQL function p2() line 10 at SQL statement
+NOTICE:  aaaa&lt;unnamed portal 9&gt;
+-[ RECORD 1 ]
+p2 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg12.p2'::regproc);
+-[ RECORD 1 ]------------------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] procedure expression expr: CALL p1(cr) 
+         | [58] nop_pop 
+         | [59] exec_stmt_end 
+         | [72] exec_stmt_begin 
+         | [93] exec_stmt_treebased  
+         | [106] exec_stmt_end 
+         | [119] exec_stmt_begin 
+         | [140] exec_stmt_end 
+         | [153] return0 5 
+         | 
+
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg12.p1'::regproc);
+-[ RECORD 1 ]-----------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased_open  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] exec_stmt_treebased  
+         | [81] exec_stmt_end 
+         | [94] exec_stmt_begin 
+         | [115] loadn_return_cursor 0 
+         | [120] transfer 
+         | [125] exec_stmt_end 
+         | [138] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>不过这么测下来，竟然是支持的。</p>
+<ul>
+<li><strong>不支持伪类型（具体请参见伪类型）作为函数或存储过程出入参。</strong></li>
+</ul>
+<table><thead><tr><th align="left">名称</th><th align="left">描述</th></tr></thead><tbody><tr><td align="left">any</td><td align="left">表示函数接受任何输入数据类型。</td></tr><tr><td align="left">anyelement</td><td align="left">表示函数接受任何数据类型。</td></tr><tr><td align="left">anyarray</td><td align="left">表示函数接受任意数组数据类型。</td></tr><tr><td align="left">anynonarray</td><td align="left">表示函数接受任意非数组数据类型。</td></tr><tr><td align="left">anyenum</td><td align="left">表示函数接受任意枚举数据类型。</td></tr><tr><td align="left">anyrange</td><td align="left">表示函数接受任意范围数据类型。</td></tr><tr><td align="left">cstring</td><td align="left">表示函数接受或者返回一个空结尾的C字符串。</td></tr><tr><td align="left">internal</td><td align="left">表示函数接受或者返回一种服务器内部的数据类型。</td></tr><tr><td align="left">language_handler</td><td align="left">声明一个过程语言调用句柄返回language_handler。</td></tr><tr><td align="left">fdw_handler</td><td align="left">声明一个外部数据封装器返回fdw_handler。</td></tr><tr><td align="left">record</td><td align="left">标识函数返回一个未声明的行类型。</td></tr><tr><td align="left">trigger</td><td align="left">声明一个触发器函数返回trigger。</td></tr><tr><td align="left">void</td><td align="left">表示函数不返回值。</td></tr><tr><td align="left">opaque</td><td align="left">一个已经过时的类型，以前用于所有上面这些用途。</td></tr></tbody></table>
+<p>ORACLE里也没这些东西，直接迁移过来的不会用，但是自己写一些通用工具函数时要注意了。</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace function f12(anyelement) return text as
+gaussdb$&gt; begin 
+gaussdb$&gt; return $1::text;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE FUNCTION
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; select f12(1);
+LOG:  [ByteCode] BC070 Bytecode does not support parameter with pseudo type.
+CONTEXT:  referenced column: f12
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33080.
+CONTEXT:  referenced column: f12
+-[ RECORD 1 ]
+f12 | 1
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('f12'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<ul>
+<li><strong>不支持循环游标语句使用跨PACKAGE的CURSOR变量。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create package  pkg13 is
+gaussdb$&gt; cursor c is select 1 a,2 b from dual;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create package pkg14 is
+gaussdb$&gt; procedure p ;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body pkg14 is
+gaussdb$&gt; procedure p is
+gaussdb$&gt; r pkg13.c%rowtype;
+gaussdb$&gt; begin
+gaussdb$&gt; open pkg13.c;
+gaussdb$&gt; loop 
+gaussdb$&gt; if pkg13.c%notfound then exit;
+gaussdb$&gt; end if;
+gaussdb$&gt; fetch pkg13.c into r;
+gaussdb$&gt; raise notice '%',r;
+gaussdb$&gt; end loop;
+gaussdb$&gt; close pkg13.c;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg14.p();
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33086.
+LOG:  [ByteCode] Function: p(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased_open  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] loopwhile 
+[73] exec_stmt_begin 
+[94] loadn_pkg_cursor_attributes 12 
+[103] if_or_when 49 
+[108] exec_stmt_begin 
+[129] exec_stmt_end 
+[142] goto 122 
+[147] goto 5 
+[152] exec_stmt_end 
+[165] exec_stmt_begin 
+[186] exec_stmt_treebased_fetch  
+[199] exec_stmt_end 
+[212] exec_stmt_begin 
+[233] exec_stmt_treebased  
+[246] exec_stmt_end 
+[259] goto -191 
+[264] exec_stmt_end 
+[277] exec_stmt_begin 
+[298] exec_stmt_treebased_close  
+[311] exec_stmt_end 
+[324] exec_stmt_begin 
+[345] exec_stmt_end 
+[358] return0 5 
+
+LOG:  Start ByteCode!
+NOTICE:  (1,2)
+NOTICE:  (1,2)
+-[ RECORD 1 ]
+p | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg14.p'::regproc);
+-[ RECORD 1 ]----------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased_open  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] loopwhile 
+         | [73] exec_stmt_begin 
+         | [94] loadn_pkg_cursor_attributes 12 
+         | [103] if_or_when 49 
+         | [108] exec_stmt_begin 
+         | [129] exec_stmt_end 
+         | [142] goto 122 
+         | [147] goto 5 
+         | [152] exec_stmt_end 
+         | [165] exec_stmt_begin 
+         | [186] exec_stmt_treebased_fetch  
+         | [199] exec_stmt_end 
+         | [212] exec_stmt_begin 
+         | [233] exec_stmt_treebased  
+         | [246] exec_stmt_end 
+         | [259] goto -191 
+         | [264] exec_stmt_end 
+         | [277] exec_stmt_begin 
+         | [298] exec_stmt_treebased_close  
+         | [311] exec_stmt_end 
+         | [324] exec_stmt_begin 
+         | [345] exec_stmt_end 
+         | [358] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>实测其实是支持的</p>
+<ul>
+<li><strong>不支持包含对入参进行赋值的存储过程或函数。</strong><br/>
+在ORACLE里，入参本身就不允许赋值，GaussDB没做强控制</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create procedure p15( a int) is 
+gaussdb$&gt; begin
+gaussdb$&gt; a:=1;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p15(1);
+LOG:  [ByteCode] BC066 in-param can't be changed.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33087.
+-[ RECORD 1 ]
+p15 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p15'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+</code></pre>
+<p>这种不合规用法的确会导致该函数整个无法使用字节码</p>
+<ul>
+<li><strong>不支持BULK COLLECT语句。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; CREATE TABLE customers(id int,name varchar);
+CREATE TABLE
+gaussdb=&gt; INSERT INTO customers VALUES(1,'ab');
+INSERT 0 1
+gaussdb=&gt; create procedure p16 is
+gaussdb$&gt; type id_list is varray(6) of customers.id%type;
+gaussdb$&gt; id_arr id_list;
+gaussdb$&gt; begin
+gaussdb$&gt; select id bulk collect into id_arr from customers;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p16();
+LOG:  [Bytecode] BC077 bulk collect does not support.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33093.
+LOG:  [ByteCode] Function: p16(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] exec_stmt_end 
+[81] return0 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+p16 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p16'::regproc);
+-[ RECORD 1 ]------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] exec_stmt_treebased  
+         | [34] exec_stmt_end 
+         | [47] exec_stmt_begin 
+         | [68] exec_stmt_end 
+         | [81] return0 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>的确不支持，但是没有导致这个存储过程不支持字节码，这是个好消息</p>
+<ul>
+<li><strong>不支持FORALL批量查询语句带有SAVE EXCEPTIONS。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; CREATE TABLE hdfs_t1 (
+gaussdb(&gt;   title NUMBER(6),
+gaussdb(&gt;   did VARCHAR2(20),
+gaussdb(&gt;   data_period VARCHAR2(25),
+gaussdb(&gt;   kind VARCHAR2(25),
+gaussdb(&gt;   interval VARCHAR2(20),
+gaussdb(&gt;   time DATE,
+gaussdb(&gt;   isModified VARCHAR2(10)
+gaussdb(&gt; );
+CREATE TABLE
+gaussdb=&gt; INSERT INTO hdfs_t1 VALUES( 8, 'Donald', 'OConnell', 'DOCONNEL', '650.507.9833', to_date('21-06-1999', 'dd-mm-yyyy'), 'SH_CLERK' );
+INSERT 0 1
+gaussdb=&gt; CREATE OR REPLACE PROCEDURE proc_forall()
+gaussdb-&gt; AS 
+gaussdb$&gt; BEGIN 
+gaussdb$&gt; FORALL i IN 100..120 save exceptions
+gaussdb$&gt; update hdfs_t1 set title = title + 100*i;
+gaussdb$&gt; END; 
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; CALL proc_forall();
+LOG:  [ByteCode] BC027 Stmtfori is not support save_exceptions, plsql: FORALL i IN 100..120 save exceptions.
+LOG:  [ByteCode] BC030 Stmt FOR with integer loop variable does not support with some error, lineno: 3.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33098.
+-[ RECORD 1 ]-
+proc_forall | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('proc_forall'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+</code></pre>
+<p>的确不支持,不过这个用得少</p>
+<ul>
+<li><strong>不支持函数或存储过程的参数默认值为PACKAGE变量。</strong></li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create or replace package test_pkg is 
+gaussdb$&gt; xx int:=10000;
+gaussdb$&gt; PROCEDURE bc_loop2(i int default xx);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body test_pkg is 
+gaussdb$&gt; PROCEDURE bc_loop2(i int default xx) is
+gaussdb$&gt; L_COUNT NUMBER:=0;
+gaussdb$&gt; BEGIN
+gaussdb$&gt;   LOOP
+gaussdb$&gt;     IF L_COUNT &gt; i THEN
+gaussdb$&gt;       RAISE INFO 'count is %',L_COUNT;
+gaussdb$&gt;       EXIT;
+gaussdb$&gt;     END IF;
+gaussdb$&gt;    L_COUNT:=L_COUNT+1;
+gaussdb$&gt;   END LOOP;
+gaussdb$&gt; END;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call test_pkg.bc_loop2(20);
+LOG:  [ByteCode] BC007 bytecode doesn't support parameters with package default value.
+LOG:  [ByteCode] BC019 proc 7752 isn't pllanguage.
+LOG:  [ByteCode] BC019 proc 1724 isn't pllanguage.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33100.
+INFO:  count is 21
+-[ RECORD 1 ]
+bc_loop2 | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('test_pkg.bc_loop2'::regproc);
+-[ RECORD 1 ]-----------
+bytecode | Not supported
+
+gaussdb=&gt; 
+
+</code></pre>
+<p>这种用得还挺多，只要用了就整个存储过程不支持了。</p>
+<ul>
+<li><strong>不支持存储过程或函数OUT出参具有多个列或带有数组下标的复杂变量（如：type arrayInt is varray(16) of int; val arrayInt; val(1) = 1;）</strong>。<br/>
+可能是指out出参不能为复合类型或者数组类型？</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create type ty_test3 as (a int,b int);
+CREATE TYPE
+gaussdb=&gt; create type tyt_test3 is table of ty_test3;
+CREATE TYPE
+gaussdb=&gt; create type tyt_test4 is table of ty_test3 index by binary_integer ;
+ERROR:  Creation outside PL/SQL is not supported.
+gaussdb=&gt; create type tyt_test5 is varray(16) of int;
+ERROR:  syntax error at or near "varray"
+LINE 1: create type tyt_test5 is varray(16) of int;
+                                 ^
+gaussdb=&gt; 
+</code></pre>
+<p>后两种类型不能单独创建</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p17( o out ty_test3) is
+gaussdb$&gt; begin
+gaussdb$&gt; o:=ty_test3();
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p17(null);
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33118.
+LOG:  [ByteCode] Function: p17(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] eval_rowexpr  
+[30] store_row  
+[47] storen 0 
+[52] storen 1 
+[57] exec_stmt_end 
+[70] exec_stmt_begin 
+[91] loadn 0 
+[96] loadn 1 
+[101] eval_rowexpr  
+[110] transfer 
+[115] exec_stmt_end 
+[128] return 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+a | 
+b | 
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p17'::regproc);
+-[ RECORD 1 ]-------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] eval_rowexpr  
+         | [30] store_row  
+         | [47] storen 0 
+         | [52] storen 1 
+         | [57] exec_stmt_end 
+         | [70] exec_stmt_begin 
+         | [91] loadn 0 
+         | [96] loadn 1 
+         | [101] eval_rowexpr  
+         | [110] transfer 
+         | [115] exec_stmt_end 
+         | [128] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>这个是支持的</p>
+<pre><code class="language-sql">gaussdb=&gt; create or replace procedure p18( o out tyt_test3,o2 out ty_test3) is
+gaussdb$&gt; begin
+gaussdb$&gt; o:=tyt_test3();
+gaussdb$&gt; o.extend;
+gaussdb$&gt; o(1):=ty_test3(1,2);
+gaussdb$&gt; o2:=o(1);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p18(null,null);
+LOG:  [ByteCode] BC019 proc 6149 isn't pllanguage.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33119.
+LOG:  [ByteCode] Function: p18(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] create_nesttable tyt_test3 0 
+[30] storen_nesttable 0 
+[43] exec_stmt_end 
+[56] exec_stmt_begin 
+[77] loadn_expand 0 
+[82] iconst1 
+[83] function func: nesttable_extend 
+[96] storen_nesttable 0 
+[109] exec_stmt_end 
+[122] exec_stmt_begin 
+[143] iconst1 
+[144] iconst2 
+[145] eval_rowexpr  
+[154] expand_and_load_table 0 
+[159] iconst1 
+[160] store_nesttable_elem 2249 -1 
+[169] exec_stmt_end 
+[182] exec_stmt_begin 
+[203] loadn_expand 0 
+[208] iconst1 
+[209] tableofelem 33117 
+[214] store_row  
+[231] storen 1 
+[236] storen 2 
+[241] exec_stmt_end 
+[254] exec_stmt_begin 
+[275] loadn_expand 0 
+[280] loadn 1 
+[285] loadn 2 
+[290] eval_rowexpr  
+[299] eval_rowexpr  
+[308] transfer 
+[313] exec_stmt_end 
+[326] return 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]-
+o  | {"(1,2)"}
+o2 | (1,2)
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p18'::regproc);
+-[ RECORD 1 ]-----------------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] create_nesttable tyt_test3 0 
+         | [30] storen_nesttable 0 
+         | [43] exec_stmt_end 
+         | [56] exec_stmt_begin 
+         | [77] loadn_expand 0 
+         | [82] iconst1 
+         | [83] function func: nesttable_extend 
+         | [96] storen_nesttable 0 
+         | [109] exec_stmt_end 
+         | [122] exec_stmt_begin 
+         | [143] iconst1 
+         | [144] iconst2 
+         | [145] eval_rowexpr  
+         | [154] expand_and_load_table 0 
+         | [159] iconst1 
+         | [160] store_nesttable_elem 2249 -1 
+         | [169] exec_stmt_end 
+         | [182] exec_stmt_begin 
+         | [203] loadn_expand 0 
+         | [208] iconst1 
+         | [209] tableofelem 33117 
+         | [214] store_row  
+         | [231] storen 1 
+         | [236] storen 2 
+         | [241] exec_stmt_end 
+         | [254] exec_stmt_begin 
+         | [275] loadn_expand 0 
+         | [280] loadn 1 
+         | [285] loadn 2 
+         | [290] eval_rowexpr  
+         | [299] eval_rowexpr  
+         | [308] transfer 
+         | [313] exec_stmt_end 
+         | [326] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的</p>
+<pre><code class="language-sql">gaussdb=&gt; create package pkg19 is
+gaussdb$&gt;  type tyt_test4 is table of ty_test3 index by binary_integer ;
+gaussdb$&gt;  type tyt_test5 is varray(16) of int;
+gaussdb$&gt; procedure p(o1 out tyt_test4 ,o2 out tyt_test5);
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE
+gaussdb=&gt; create or replace package body pkg19 is
+gaussdb$&gt; procedure p(o1 out tyt_test4 ,o2 out tyt_test5) is
+gaussdb$&gt; i int:=1;
+gaussdb$&gt; begin
+gaussdb$&gt; o1(i):=ty_test3(1,2);
+gaussdb$&gt; o2:=tyt_test5();
+gaussdb$&gt; o2.extend;
+gaussdb$&gt; o2(i):=1;
+gaussdb$&gt; end;
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PACKAGE BODY
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call pkg19.p(null,null);
+LOG:  [ByteCode] BC019 proc 6014 isn't pllanguage.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33134.
+LOG:  [ByteCode] Function: p(), InterpreterBytecode:
+[0] create_tableofindex pkg19.tyt_test4 integer 0 
+[13] storen_tableofindex 2 
+[26] iconst1 
+[27] storen 14 
+[32] exec_stmt_begin 
+[53] iconst1 
+[54] iconst2 
+[55] eval_rowexpr  
+[64] expand_and_load_table 2 
+[69] loadn 14 
+[74] store_tableofindex_elem 2249 -1 
+[83] exec_stmt_end 
+[96] exec_stmt_begin 
+[117] const64 
+[126] storen_array 3 integer[] -1 
+[139] exec_stmt_end 
+[152] exec_stmt_begin 
+[173] loadn_expand 3 
+[178] iconst1 
+[179] function func: array_extendnull 
+[192] storen_array 3 integer[] -1 
+[205] exec_stmt_end 
+[218] exec_stmt_begin 
+[239] iconst1 
+[240] op_check_and_load_array integer[] -1 3 
+[253] loadn 14 
+[258] store_array_elem integer -1 1 
+[271] exec_stmt_end 
+[284] exec_stmt_begin 
+[305] loadn_expand 2 
+[310] loadn_expand 3 
+[315] eval_rowexpr  
+[324] transfer 
+[329] exec_stmt_end 
+[342] return 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]--------------------
+o1 | {indexbyType:int,1=&gt;"(1,2)"}
+o2 | {1}
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('pkg19.p'::regproc);
+-[ RECORD 1 ]------------------------------------------------
+bytecode | [0] create_tableofindex pkg19.tyt_test4 integer 0 
+         | [13] storen_tableofindex 2 
+         | [26] iconst1 
+         | [27] storen 14 
+         | [32] exec_stmt_begin 
+         | [53] iconst1 
+         | [54] iconst2 
+         | [55] eval_rowexpr  
+         | [64] expand_and_load_table 2 
+         | [69] loadn 14 
+         | [74] store_tableofindex_elem 2249 -1 
+         | [83] exec_stmt_end 
+         | [96] exec_stmt_begin 
+         | [117] const64 
+         | [126] storen_array 3 integer[] -1 
+         | [139] exec_stmt_end 
+         | [152] exec_stmt_begin 
+         | [173] loadn_expand 3 
+         | [178] iconst1 
+         | [179] function func: array_extendnull 
+         | [192] storen_array 3 integer[] -1 
+         | [205] exec_stmt_end 
+         | [218] exec_stmt_begin 
+         | [239] iconst1 
+         | [240] op_check_and_load_array integer[] -1 3 
+         | [253] loadn 14 
+         | [258] store_array_elem integer -1 1 
+         | [271] exec_stmt_end 
+         | [284] exec_stmt_begin 
+         | [305] loadn_expand 2 
+         | [310] loadn_expand 3 
+         | [315] eval_rowexpr  
+         | [324] transfer 
+         | [329] exec_stmt_end 
+         | [342] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也是支持的，没测出不支持的场景</p>
+<ul>
+<li>对于存储过程或函数INOUT参数，仅不包含运算的单一参数类型变量支持字节码框架。<br/>
+可能是指inout参数不能被赋值</li>
+</ul>
+<pre><code class="language-sql">gaussdb=&gt; create procedure p20(io1 inout int,io2 inout varchar2) is
+gaussdb$&gt; begin
+gaussdb$&gt; io1:=1;
+gaussdb$&gt; io1:=io1+1;
+gaussdb$&gt; io2:='a';
+gaussdb$&gt; io2:=io2||'a';
+gaussdb$&gt; end;
+gaussdb$&gt; /
+CREATE PROCEDURE
+gaussdb=&gt; set client_min_messages = log;
+SET
+gaussdb=&gt; call p20(null,null);
+LOG:  [ByteCode] BC019 proc 177 isn't pllanguage.
+LOG:  [ByteCode] BC019 proc 1258 isn't pllanguage.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33135.
+LOG:  [ByteCode] Function: p20(integer,character varying), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] iconst1 
+[22] storen 0 
+[27] exec_stmt_end 
+[40] exec_stmt_begin 
+[61] loadn 0 
+[66] iconst1 
+[67] function func: int4pl 
+[80] storen 0 
+[85] exec_stmt_end 
+[98] exec_stmt_begin 
+[119] const64 
+[128] storen_outparam 1043 1
+[137] exec_stmt_end 
+[150] exec_stmt_begin 
+[171] loadn 1 
+[176] const64 
+[185] function func: textcat 
+[198] storen_outparam 1043 1
+[207] exec_stmt_end 
+[220] exec_stmt_begin 
+[241] loadn 0 
+[246] loadn 1 
+[251] eval_rowexpr  
+[260] transfer 
+[265] exec_stmt_end 
+[278] return 5 
+
+LOG:  Start ByteCode!
+-[ RECORD 1 ]
+io1 | 2
+io2 | aa
+
+gaussdb=&gt; reset client_min_messages;
+RESET
+gaussdb=&gt; select bytecode from dump_plsql_bytecode('p20'::regproc);
+-[ RECORD 1 ]---------------------------
+bytecode | [0] exec_stmt_begin 
+         | [21] iconst1 
+         | [22] storen 0 
+         | [27] exec_stmt_end 
+         | [40] exec_stmt_begin 
+         | [61] loadn 0 
+         | [66] iconst1 
+         | [67] function func: int4pl 
+         | [80] storen 0 
+         | [85] exec_stmt_end 
+         | [98] exec_stmt_begin 
+         | [119] const64 
+         | [128] storen_outparam 1043 1
+         | [137] exec_stmt_end 
+         | [150] exec_stmt_begin 
+         | [171] loadn 1 
+         | [176] const64 
+         | [185] function func: textcat 
+         | [198] storen_outparam 1043 1
+         | [207] exec_stmt_end 
+         | [220] exec_stmt_begin 
+         | [241] loadn 0 
+         | [246] loadn 1 
+         | [251] eval_rowexpr  
+         | [260] transfer 
+         | [265] exec_stmt_end 
+         | [278] return 5 
+         | 
+
+gaussdb=&gt; 
+</code></pre>
+<p>也支持</p>
+<h2 id="非常规分析">非常规分析</h2>
+<p>官方文档描述有限，估计有些不支持的场景都没试出来。</p>
+<p>观察字节码模块的日志，可以得出一个规律，字节码的日志都带了<code>[ByteCode]</code>，所以可以尝试在二进制里搜索所有有关的日志。</p>
+<p><code>strings gaussdb |grep "\[ByteCode\]"</code></p>
+<pre><code>[ByteCode] Function: %s, InterpreterBytecode:
+[ByteCode] BC017 can't find valid proc %u.
+[ByteCode] BC018 can't find valid languageTuple.
+[ByteCode] BC019 proc %u isn't pllanguage.
+[ByteCode] BC070 Bytecode does not support parameter with pseudo type.
+[ByteCode] BC013 The bytecode does not allow parameters except in &amp; out.
+[ByteCode] BC073 Bytecode is invalid, because the expr in Function: %s (func oid: %u) is changed to complex expr.Expr: %s
+[ByteCode] BC071 Bytecode is invalid, because the type of expr in Function: %s (func oid: %u) is changed.
+[ByteCode] BC076 occurs error: %s during bytecode processExpr
+[ByteCode] BC072 Expression: %s is degenerated.
+[ByteCode] BC065 assign outparam Failed
+[ByteCode] outparam only supports var type &amp; row type.
+[ByteCode] BC079 func %u doesn't support bytecode because of permission error.
+[ByteCode] BC064 Statements that ignore output parameters contain output parameters
+[ByteCode] BC020 This expr type %d does not support.
+[ByteCode] BC022 Param kind is PARAM_EXTERN.
+[ByteCode] BC055 function(%u) with outparam called in simple expr does not support.
+[ByteCode] BC023 FieldSelect input expression is null or fieldnum less 1.
+[ByteCode] BC025 MinMaxExpr op is invalid.
+[ByteCode] BC045 This xml type is not support, xml type: %d.
+[ByteCode] BC024 CompositeExpr node has incorrect type.
+[ByteCode] BC032 bytecode row type param includes column except var &amp; row.
+[ByteCode] BC036 bytecode does not support to cast subtype.
+[ByteCode] BC037 bytecode does not support to cast tableof type.
+[ByteCode] BC038 Typecast hashentry is NULL, valtype: %u, valtypmod: %d, reqtype: %u, reqtypmod: %d.
+[ByteCode] BC052 bytecode only support independent statement.
+[ByteCode] BC053 bytecode only support select statement.
+[ByteCode] BC054 Simple expr check occurs exeception. Failed to eval simple expr.
+[ByteCode] BC062 bytecode doesn't support query returning more row fields than the row variable has in loop stmt.
+[ByteCode] BC066 in-param can't be changed.
+[ByteCode] BC074 This function can not supports bytecode, func_oid: %u.Please check the GUC parameter behavior_compat_flags.
+[ByteCode] BC002 bytecode doesn't support during package instantiation.
+[ByteCode] BC067 bytecode doesn't support system functions.
+[ByteCode] BC001 only support bytecode in A_FORMAT.
+[ByteCode] BC003 bytecode doesn't support trigger func.
+[ByteCode] BC004 bytecode doesn't support func which returns set.
+[ByteCode] BC056 bytecode doesn't support function with outparam                 when proc_outparam_override is off.
+[ByteCode] BC057 bytecode doesn't support function with outparam return record.
+[ByteCode] BC007 bytecode doesn't support parameters with package default value.
+[ByteCode] BC008 exists invalid parameter type %d.
+[ByteCode] BC039 This function doesn't support bytecode, func_oid: %u.
+[ByteCode] BC068 bytecode neither support nest sub procedure/function nor subtype.
+[ByteCode] BC016 occurs exception during bytecode processStatement
+[ByteCode] BC031 proc exists in unsupported namespace, it's in %s.
+[ByteCode] BC040 This function supports bytecode, func_oid: %u.
+[ByteCode] BC048 Bytecode does not support invalid typeoid. typeoid is %u
+[ByteCode] exit or continue stmt label not match.
+[ByteCode] BC044 Node type is not A_Indices, node type: %d.
+[ByteCode] BC042 Node type is A_Indices.
+[ByteCode] BC043 Attname %s's num is invalid.
+[ByteCode] BC078 stack size is unexpected.
+[ByteCode] BC041 Node type is not A_Indices, node type: %d.
+[ByteCode] BC046 Neither GSPLSQL_COLLECTION_ARAY nor GSPLSQL_COLLECTION_TABLE are not supported.
+[ByteCode] BC047 This datumtype %d is not support in assigntarget.
+[ByteCode] BC049 unknown assign target.
+[ByteCode] BC033 non-scalar variables are not supported in get_diag statement.
+[ByteCode] BC034 This diagnostic type %d does not support.
+[ByteCode] BC075 Assignment and variable field do not match in execsql statement, sql is :%s
+[ByteCode] BC061 not spport func with out param used in execsql statement, sql is :%s
+[ByteCode] BC058 bytecode does not support funtion with out paramter don't have return value.
+[ByteCode] BC059 bytecode does not support return var is not out param var.
+[ByteCode] BC060 bytecode does not support procedure return a value.
+[ByteCode] BC028 bytecode doesn't support tuple return.
+[ByteCode] BC029 This stmt type %s does not support, lineno: %d.
+[ByteCode] BC030 Stmt %s does not support with some error, lineno: %d.
+[ByteCode] BC063 bytecode doesn't support diff pkg cursor in loop stmt.
+[ByteCode] BC027 Stmtfori is not support save_exceptions, plsql: %s.
+</code></pre>
+<p>不过这里面并非所有的日志都是不支持的，有些正常输出的日志也在里面，而且无法区分像BC019那种局部不支持但存储过程整体支持的有哪些，甚至还有一些重复的，比如BC044和BC041,都是<code>Node type is not A_Indices, node type: %d.</code> （<code>A_Indices</code>是数组的下标访问，是或不是会怎样？）。</p>
+<p>另外，还有一部分不支持字节码的情况，在非字节码运行时也是不支持的，创建就报错了，正确的代码不会遇到。</p>
+<p>但仅从二进制里捞出来的这些不支持日志的场景数量上来说，明显是比官方文档里的要多的，有些日志我也没测出对应的场景，所以不能仅从官方文档上去看，还是得使用实际的存储过程代码去测试，才能准确知道字节码的支持情况。</p>
+<p>略微有点力竭，官方文档不完善，而且没有源码，面对字节码这样一个新功能，或者说新的执行框架，个人盲测无法穷尽所有场景。我暂时先把本次测试汇总成一个表格吧，究竟这个功能能不能在生产环境上使用，建议以华为官方口径为准。</p>
+<table><thead><tr><th>日志</th><th>是否约束</th><th>对应文档</th><th>是否有命中日志</th><th>自测是否支持字节码</th><th>备注</th></tr></thead><tbody><tr><td>BC001 only support bytecode in A_FORMAT.</td><td>Y</td><td></td><td></td><td></td><td>只有ORACLE兼容模式支持</td></tr><tr><td>BC002 bytecode doesn't support during package instantiation.</td><td>Y</td><td>不支持PACKAGE实例化。</td><td></td><td></td><td></td></tr><tr><td>BC003 bytecode doesn't support trigger func.</td><td>Y</td><td>不支持TRIGGER</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC004 bytecode doesn't support func which returns set.</td><td>Y</td><td>不支持返回集合的函数</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC007 bytecode doesn't support parameters with package default value.</td><td>Y</td><td>不支持函数或存储过程的参数默认值为PACKAGE变量</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC008 exists invalid parameter type %d.</td><td>Y</td><td></td><td></td><td></td><td>存在无效的参数类型</td></tr><tr><td>BC013 The bytecode does not allow parameters except in &amp; out.</td><td>Y</td><td></td><td>Y</td><td>N</td><td>不允许in和out之外的参数，RETURNS TABLE时会报</td></tr><tr><td>BC016 occurs exception during bytecode processStatement</td><td>Y</td><td></td><td></td><td></td><td>处理语句时遇到错误</td></tr><tr><td>BC017 can't find valid proc %u.</td><td>Y</td><td></td><td></td><td></td><td>不能发现有效的proc</td></tr><tr><td>BC018 can't find valid languageTuple.</td><td>Y</td><td></td><td></td><td></td><td>不能发现有效的语言元组</td></tr><tr><td>BC019 proc %u isn't pllanguage.</td><td>Y</td><td></td><td>Y</td><td></td><td>proc不是pl语言</td></tr><tr><td>BC020 This expr type %d does not support.</td><td>Y</td><td></td><td></td><td></td><td>这种表达式类型不支持</td></tr><tr><td>BC022 Param kind is PARAM_EXTERN.</td><td></td><td></td><td></td><td></td><td>参数类型是PARAM_EXTERN</td></tr><tr><td>BC023 FieldSelect input expression is null or fieldnum less 1.</td><td>Y</td><td></td><td></td><td></td><td>FieldSelect输入表达式是空或者fieldnum小于1</td></tr><tr><td>BC024 CompositeExpr node has incorrect type.</td><td>Y</td><td></td><td></td><td></td><td>复合类型表达式节点有不正确的类型</td></tr><tr><td>BC025 MinMaxExpr op is invalid.</td><td>Y</td><td></td><td></td><td></td><td>MinMaxExpr操作无效</td></tr><tr><td>BC027 Stmtfori is not support save_exceptions, plsql: %s.</td><td>Y</td><td>不支持FORALL批量查询语句带有SAVE EXCEPTIONS</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC028 bytecode doesn't support tuple return.</td><td>Y</td><td></td><td></td><td></td><td>不支持返回行</td></tr><tr><td>BC029 This stmt type %s does not support, lineno: %d.</td><td>Y</td><td></td><td></td><td></td><td>特定的语句类型不支持</td></tr><tr><td>BC030 Stmt %s does not support with some error, lineno: %d.</td><td>Y</td><td></td><td>Y</td><td>N</td><td>由于一些错误，语句XXX不支持</td></tr><tr><td>BC031 proc exists in unsupported namespace, it's in %s.</td><td>Y</td><td>不支持高级包以及系统函数。</td><td></td><td></td><td></td></tr><tr><td>BC032 bytecode row type param includes column except var &amp; row.</td><td>Y</td><td></td><td></td><td></td><td>行类型参数含有不是var和row的列</td></tr><tr><td>BC033 non-scalar variables are not supported in get_diag statement.</td><td>Y</td><td></td><td></td><td></td><td>非标量变量不支持在get_diag语句里</td></tr><tr><td>BC034 This diagnostic type %d does not support.</td><td>Y</td><td></td><td></td><td></td><td>这个诊断类型不支持</td></tr><tr><td>BC036 bytecode does not support to cast subtype.</td><td>Y</td><td></td><td></td><td></td><td>不支持转换subtype</td></tr><tr><td>BC037 bytecode does not support to cast tableof type.</td><td>Y</td><td></td><td></td><td></td><td>不支持转换tableof类型</td></tr><tr><td>BC038 Typecast hashentry is NULL, valtype: %u, valtypmod: %d, reqtype: %u, reqtypmod: %d.</td><td>Y</td><td></td><td></td><td></td><td>类型转换hashentry是null</td></tr><tr><td>BC039 This function doesn't support bytecode, func_oid: %u.</td><td></td><td></td><td>Y</td><td>N</td><td>首次执行，该函数不支持字节码时会输出此日志</td></tr><tr><td>BC040 This function supports bytecode, func_oid: %u.</td><td></td><td></td><td></td><td></td><td>首次执行，该函数支持字节码时会输出此日志</td></tr><tr><td>BC041 Node type is not A_Indices, node type: %d.</td><td>？</td><td></td><td></td><td></td><td>不是数组下标节点</td></tr><tr><td>BC042 Node type is A_Indices.</td><td>?</td><td></td><td></td><td></td><td>是数组下标节点</td></tr><tr><td>BC043 Attname %s's num is invalid.</td><td>？</td><td></td><td></td><td></td><td>列名的列号是无效的</td></tr><tr><td>BC044 Node type is not A_Indices, node type: %d.</td><td>?</td><td></td><td></td><td></td><td>不是数组下标节点</td></tr><tr><td>BC045 This xml type is not support, xml type: %d.</td><td>Y</td><td></td><td></td><td></td><td>这种xml类型不支持</td></tr><tr><td>BC046 Neither GSPLSQL_COLLECTION_ARAY nor GSPLSQL_COLLECTION_TABLE are not supported.</td><td>Y</td><td></td><td></td><td></td><td>集合数组和集合表都不支持</td></tr><tr><td>BC047 This datumtype %d is not support in assigntarget.</td><td>Y</td><td></td><td></td><td></td><td>这个datumtype不支持用于赋值目标</td></tr><tr><td>BC048 Bytecode does not support invalid typeoid. typeoid is %u</td><td>Y</td><td></td><td></td><td></td><td>不支持无效的类型oid</td></tr><tr><td>BC049 unknown assign target.</td><td>？</td><td></td><td></td><td></td><td>未知的赋值目标</td></tr><tr><td>BC052 bytecode only support independent statement.</td><td>Y</td><td></td><td></td><td></td><td>只支持独立语句</td></tr><tr><td>BC053 bytecode only support select statement.</td><td>Y</td><td></td><td></td><td></td><td>只支持select语句</td></tr><tr><td>BC054 Simple expr check occurs exeception. Failed to eval simple expr.</td><td>Y</td><td></td><td></td><td></td><td>简单表达式遇到错误，计算简单表达式失败</td></tr><tr><td>BC055 function(%u) with outparam called in simple expr does not support.</td><td>Y</td><td></td><td></td><td></td><td>被简单表达式调用的带出参的函数不支持</td></tr><tr><td>BC056 bytecode doesn't support function with outparam                 when proc_outparam_override is off.</td><td>Y</td><td>该特性仅在兼容性参数behavior_compat_options设置中包含compat_cursor、allow_procedure_compile_check、proc_outparam_override、dynamic_sql_compat、proc_outparam_transfer_length以及varray_compat参数选项时，支持执行字节码</td><td></td><td></td><td>O兼容一般都会打开proc_outparam_override</td></tr><tr><td>BC057 bytecode doesn't support function with outparam return record.</td><td>Y</td><td>不支持RETURN复合类型的带有出参的FUNCTION</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC058 bytecode does not support funtion with out paramter don't have return value.</td><td>Y</td><td></td><td></td><td></td><td>函数没有返回值</td></tr><tr><td>BC059 bytecode does not support return var is not out param var.</td><td>Y</td><td></td><td></td><td></td><td>函数不支持返回值不是出参</td></tr><tr><td>BC060 bytecode does not support procedure return a value.</td><td>Y</td><td>不支持PROCEDURE显式指定RETURN值</td><td></td><td></td><td></td></tr><tr><td>BC061 not spport func with out param used in execsql statement, sql is :%s</td><td>？</td><td></td><td></td><td></td><td>执行SQL里不支持使用带出参的函数</td></tr><tr><td>BC062 bytecode doesn't support query returning more row fields than the row variable has in loop stmt.</td><td>Y</td><td>不支持游标循环语句SELECT返回的列数与语句中的游标变量列数不一致。</td><td></td><td>Y</td><td></td></tr><tr><td>BC063 bytecode doesn't support diff pkg cursor in loop stmt.</td><td>Y</td><td>不支持循环游标语句使用跨PACKAGE的CURSOR变量</td><td></td><td>Y</td><td></td></tr><tr><td>BC064 Statements that ignore output parameters contain output parameters</td><td>Y</td><td></td><td></td><td></td><td>忽略了出参的语句包含有出参</td></tr><tr><td>BC065 assign outparam Failed</td><td>Y</td><td></td><td></td><td></td><td>赋值出参失败</td></tr><tr><td>BC066 in-param can't be changed.</td><td>Y</td><td>不支持包含对入参进行赋值的存储过程或函数</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC067 bytecode doesn't support system functions.</td><td>Y</td><td>不支持高级包以及系统函数</td><td></td><td></td><td></td></tr><tr><td>BC068 bytecode neither support nest sub procedure/function nor subtype.</td><td>Y</td><td>不支持子程序。</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC070 Bytecode does not support parameter with pseudo type.</td><td>Y</td><td>不支持伪类型（具体请参见伪类型）作为函数或存储过程出入参。</td><td>Y</td><td>N</td><td></td></tr><tr><td>BC071 Bytecode is invalid, because the type of expr in Function: %s (func oid: %u) is changed.</td><td>Y</td><td></td><td></td><td></td><td>函数中表达式的类型被改成</td></tr><tr><td>BC072 Expression: %s is degenerated.</td><td>?</td><td></td><td>Y</td><td></td><td>表达式被退化 (自治事务会出现）</td></tr><tr><td>BC073 Bytecode is invalid, because the expr in Function: %s (func oid: %u) is changed to complex expr.Expr: %s</td><td>Y</td><td></td><td></td><td></td><td>函数中的表达式被改变成复杂表达式</td></tr><tr><td>BC074 This function can not supports bytecode, func_oid: %u.Please check the GUC parameter behavior_compat_flags.</td><td>Y</td><td>该特性仅在兼容性参数behavior_compat_options设置中包含compat_cursor、allow_procedure_compile_check、proc_outparam_override、dynamic_sql_compat、proc_outparam_transfer_length以及varray_compat参数选项时，支持执行字节码</td><td></td><td></td><td>O兼容这些一般都要打开</td></tr><tr><td>BC075 Assignment and variable field do not match in execsql statement, sql is :%s</td><td>？</td><td></td><td></td><td></td><td>执行SQL的赋值和变量个数不匹配</td></tr><tr><td>BC076 occurs error: %s during bytecode processExpr</td><td>Y</td><td></td><td></td><td></td><td>处理表达式遇到错误</td></tr><tr><td>BC078 stack size is unexpected.</td><td>？</td><td></td><td></td><td></td><td>栈大小非预期</td></tr><tr><td>BC079 func %u doesn't support bytecode because of permission error.</td><td>Y</td><td></td><td></td><td></td><td>权限错误</td></tr><tr><td>exit or continue stmt label not match.</td><td>Y</td><td></td><td></td><td></td><td>exit 或 continue 后面的语句标签在前面找不到</td></tr><tr><td>Function: %s, InterpreterBytecode:</td><td></td><td></td><td>Y</td><td>Y</td><td>在这一行日志下开始输出字节码序列</td></tr><tr><td>outparam only supports var type &amp; row type.</td><td>Y</td><td></td><td></td><td></td><td>出参只支持var类型和row类型</td></tr></tbody></table>
+<p>关于这个字节码特性，我写了两篇了，后续我打算把这两篇内容喂给AI，让AI继续写第三篇。</p>
+<p><strong>未完待续~</strong></p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-507-new-feature-plsql-bytecode-part3/">&larr; 【GaussDB】507内核新特性-PLSQL字节码（三）</a>
+    
+    
+    <a href="../gaussdb-507-new-feature-plsql-bytecode-part1/">【GaussDB】507内核新特性-PLSQL字节码（一） &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

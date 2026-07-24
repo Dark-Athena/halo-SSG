@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】分析一个使用子查询进行update导致的coredump - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】分析一个使用子查询进行update导致的coredump 背景 隔壁驻场同事在帮客户做SQL优化的时候，发现某个测试环境的GaussDB数据库(506.0.0SPC0500)近期发生过coredump，查看ffic_log，里面是个很简单的update语句，我就来稍微分析一下。 由">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】分析一个使用子查询进行update导致的coredump</h1>
+    <div class="meta">
+        
+        <span>2026-07-18</span>
+        
+        <span>22 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb分析一个使用子查询进行update导致的coredump">【GaussDB】分析一个使用子查询进行update导致的coredump</h1>
+<h2 id="背景">背景</h2>
+<p>隔壁驻场同事在帮客户做SQL优化的时候，发现某个测试环境的GaussDB数据库(506.0.0SPC0500)近期发生过coredump，查看ffic_log，里面是个很简单的update语句，我就来稍微分析一下。</p>
+<p>由于我本地没有装506.0.0SPC0500的完整环境，所以先用506.0.0SPC0100进行分析，因为这两个版本都可以复现这个coredump</p>
+<h2 id="复现及日志">复现及日志</h2>
+<p>环境：</p>
+<blockquote>
+<p>GaussDB 506.0.0SPC0100</p>
+</blockquote>
+<p>数据准备:</p>
+<pre><code class="language-sql">drop table if exists test_reorder;
+create table test_reorder(id number ,c1 varchar2(200),c2 varchar2(200));
+insert into test_reorder select random() ,'aaa','bbb' from pg_catalog.generate_series(1, 100) e;
+</code></pre>
+<p>复现SQL:</p>
+<pre><code class="language-sql">update test_reorder a set id = 
+(select s.newid from (select b.id, row_number()over (order by b.id) newid from test_reorder b) s 
+where a.id=s.id);
+</code></pre>
+<p>ffic_log：</p>
+<pre><code class="language-c">====== Statement info ======
+[statement] unique SQL key - sql id: 0, cn id: 0, user id: 0
+[statement] debug query id: 0
+[postgres_cxt] debug_query_string: update test_reorder a set id = 
+(select s.newid from (select b.id, row_number()over (order by b.id) newid from test_reorder b) s 
+where a.id=s.id)
+[ffic_cxt] parse_tree: 
+({UPDATE :relation &lt;&gt; :targetList ({RESTARGET :name id :indirection &lt;&gt; :val {SUBLINK :subLinkType 4 :testexpr &lt;&gt; :operName &lt;&gt; :subselect {QUERY :commandType 1 :querySource 0 :canSetTag true :utilityStmt &lt;&gt; :resultRelation 0 :hasAggs false :hasWindowFuncs false :hasTargetSRFs false :is_flt_frame true :hasSubLinks false :hasDistinctOn false :hasRecursive false :hasModifyingCTE false :hasForUpdate false :hasRowSecurity false :hasSynonyms false :cteList &lt;&gt; :rtable ({RTE :alias {ALIAS :aliasname s :colnames &lt;&gt; :block_name &lt;&gt; :schema_name &lt;&gt; :auto_aliasname &lt;&gt;} :eref {ALIAS :aliasname s :colnames ("id" "newid") :block_name &lt;&gt; :schema_name &lt;&gt; :auto_aliasname &lt;&gt;} :rtekind 1 :relname &lt;&gt; :partAttrNum &lt;&gt; :subquery {QUERY :commandType 1 :querySource 0 :canSetTag true :utilityStmt &lt;&gt; :resultRelation 0 :hasAggs false :hasWindowFuncs true :hasTargetSRFs false :is_flt_frame true :hasSubLinks false :hasDistinctOn false :hasRecursive false :hasModifyingCTE false :hasForUpdate false :hasRowSecurity false :hasSynonyms false :cteList &lt;&gt; :rtable ({RTE :alias {ALIAS :aliasname b :colnames &lt;&gt; :block_name &lt;&gt; :schema_name &lt;&gt; :auto_aliasname &lt;&gt;} :eref {ALIAS :aliasname b :colnames ("id" "c1" "c2") :block_name &lt;&gt; :schema_name &lt;&gt; :auto_aliasname &lt;&gt;} :rtekind 0 :relname test_reorder :partAttrNum &lt;&gt; :relid 180224 :relkind r :isResultRel false :tablesample &lt;&gt; :timecapsule &lt;&gt; :partitionOid 0 :isContainPartition false :subpartitionOid 0 :isContainSubPartition false :refSynOid 0 :ispartrel false :ignoreResetRelid false :pname &lt;&gt; :ref_nestsynoid &lt;&gt; :partid_list &lt;&gt; :plist &lt;&gt; :lateral false :inh true :inFromCl true :requiredPerms 2 :checkAsUser 0 :selectedCols (b...) :modifiedCols (b...) :insertedCols (b...) :updatedCols (b...) :orientation 2 :securityQuals &lt;&gt; :subquery_pull_up false :correlated_with_recursive_cte false :slicegroup 0 :relhasbucket false :isbucket false :buckets &lt;&gt; :isexcluded false :sublink_pull_up false :is_ustore true :extraUpdatedCols (b...) :partitionOidList &lt;&gt; :subpartitionOidList &lt;&gt; :partitionNameList &lt;&gt; :isexpandrte false :dblink_name &lt;&gt; :dblink_schema &lt;&gt; :dblink_relname &lt;&gt; :is_dml_subquery_rte false}) :jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) :quals &lt;&gt;} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 1 :vartype 1700 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnoold 1 :varoattno 1 :location 62} :resno 1 :resname id :ressortgroupref 1 :resorigtbl 180224 :resorigcol 1 :resjunk false :rtindex 0} {TARGETENTRY :expr {WINDOWFUNC :winfnoid 3100 :wintype 20 :wincollid 0 :inputcollid 0 :args &lt;&gt; :winref 1 :winstar false :winagg false :location 68 :ignore_nulls false :keep_func false :keep_first false :is_distinct false} :resno 2 :resname newid :ressortgroupref 0 :resorigtbl 0 :resorigcol 0 :resjunk false :rtindex 0}) :starStart &lt;&gt; :starEnd &lt;&gt; :starOnly &lt;&gt; :returningList &lt;&gt; :groupClause &lt;&gt; :groupingSets &lt;&gt; :havingQual &lt;&gt; :windowClause ({WINDOWCLAUSE :name &lt;&gt; :refname &lt;&gt; :partitionClause &lt;&gt; :orderClause ({SORTGROUPCLAUSE :tleSortGroupRef 1 :eqop 1752 :sortop 1754 :nulls_first false :hashable true :groupSet false}) :frameOptions 530 :startOffset &lt;&gt; :endOffset &lt;&gt; :winref 1 :copiedOrder false :runCondition &lt;&gt; :winfnoid 0 :startInRangeFunc 0 :endInRangeFunc 0 :inRangeColl 0 :inRangeAsc false :inRangeNullsFirst false}) :distinctClause &lt;&gt; :sortClause &lt;&gt; :limitOffset &lt;&gt; :limitCount &lt;&gt; :rowMarks &lt;&gt; :setOperations &lt;&gt; :constraintDeps &lt;&gt; :hintState &lt;&gt; :sql_statement &lt;&gt; :is_local false :has_to_save_cmd_id false :vec_output false :tdTruncCastStatus 0 :equalVars &lt;&gt; :mergeTarget_relation 0 :mergeSourceTargetList &lt;&gt; :mergeActionList &lt;&gt; :insertAllConditionalActionList &lt;&gt; :is_first false :upsertQuery &lt;&gt; :upsertClause &lt;&gt; :isRowTriggerShippable false :use_star_targets false :is_from_full_join_rewrite false :is_from_rollup_pullup_rewrite false :can_push false :unique_check false :resultRelations &lt;&gt; :blockname &lt;&gt; :auto_blockname &lt;&gt; :p_row_col_conversion_kind 0 :swoptions &lt;&gt; :is_from_start_with_rewrite false :has_rownum false :stopkey &lt;&gt; :rownum_qual &lt;&gt; :right_ref_state &lt;&gt; :is_replace false :has_no_rewrite_rule_hint false :can_ignore false :is_dml_sql false :with_check_option 0 :withCheckOptions &lt;&gt; :preservedTables &lt;&gt; :is_iud_subquery false :has_nestagg false :nestagg_pullup_forbidden false :has_sql_calc_found_rows false :is_from_or2union false :onConflict &lt;&gt;} :security_barrier false :lateral false :inh false :inFromCl true :requiredPerms 0 :checkAsUser 0 :selectedCols (b...) :modifiedCols (b...) :insertedCols (b...) :updatedCols (b...) :orientation 0 :securityQuals &lt;&gt; :subquery_pull_up false :correlated_with_recursive_cte false :slicegroup 0 :relhasbucket false :isbucket false :buckets &lt;&gt; :isexcluded false :sublink_pull_up false :is_ustore false :extraUpdatedCols (b...) :partitionOidList &lt;&gt; :subpartitionOidList &lt;&gt; :partitionNameList &lt;&gt; :isexpandrte false :dblink_name &lt;&gt; :dblink_schema &lt;&gt; :dblink_relname &lt;&gt; :is_dml_subquery_rte false}) :jointree {FROMEXPR :fromlist ({RANGETBLREF :rtindex 1}) :quals {OPEXPR :opno 1752 :opfuncid 1718 :opresulttype 16 :opresulttypmod -1 :opretset false :opcollid 0 :inputcollid 0 :args ({VAR :varno 1 :varattno 1 :vartype 1700 :vartypmod -1 :varcollid 0 :varlevelsup 1 :varnoold 1 :varoattno 1 :location 138} {VAR :varno 1 :varattno 1 :vartype 1700 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnoold 1 :varoattno 1 :location 143}) :location 142}} :targetList ({TARGETENTRY :expr {VAR :varno 1 :varattno 2 :vartype 20 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnoold 1 :varoattno 2 :location 41} :resno 1 :resname newid :ressortgroupref 0 :resorigtbl 0 :resorigcol 0 :resjunk false :rtindex 0}) :starStart &lt;&gt; :starEnd &lt;&gt; :starOnly &lt;&gt; :returningList &lt;&gt; :groupClause &lt;&gt; :groupingSets &lt;&gt; :havingQual &lt;&gt; :windowClause &lt;&gt; :distinctClause &lt;&gt; :sortClause &lt;&gt; :limitOffset &lt;&gt; :limitCount &lt;&gt; :rowMarks &lt;&gt; :setOperations &lt;&gt; :constraintDeps &lt;&gt; :hintState &lt;&gt; :sql_statement &lt;&gt; :is_local false :has_to_save_cmd_id false :vec_output false :tdTruncCastStatus 0 :equalVars &lt;&gt; :mergeTarget_relation 0 :mergeSourceTargetList &lt;&gt; :mergeActionList &lt;&gt; :insertAllConditionalActionList &lt;&gt; :is_first false :upsertQuery &lt;&gt; :upsertClause &lt;&gt; :isRowTriggerShippable false :use_star_targets false :is_from_full_join_rewrite false :is_from_rollup_pullup_rewrite false :can_push false :unique_check false :resultRelations &lt;&gt; :blockname &lt;&gt; :auto_blockname &lt;&gt; :p_row_col_conversion_kind 0 :swoptions &lt;&gt; :is_from_start_with_rewrite false :has_rownum false :stopkey &lt;&gt; :rownum_qual &lt;&gt; :right_ref_state &lt;&gt; :is_replace false :has_no_rewrite_rule_hint false :can_ignore false :is_dml_sql false :with_check_option 0 :withCheckOptions &lt;&gt; :preservedTables &lt;&gt; :is_iud_subquery false :has_nestagg false :nestagg_pullup_forbidden false :has_sql_calc_found_rows false :is_from_or2union false :onConflict &lt;&gt;} :location 33 :sublinkId 0} :location 26 :attr_name &lt;&gt; :dblink_name &lt;&gt;}) :whereClause &lt;&gt; :fromClause &lt;&gt; :returningList &lt;&gt; :withClause &lt;&gt; :hintState &lt;&gt; :sortClause &lt;&gt; :limitClause &lt;&gt; :relationClause ({RANGEVAR :schemaname &lt;&gt; :relname test_reorder :partitionname &lt;&gt; :subpartitionname &lt;&gt; :inhOpt 2 :relpersistence p :alias {ALIAS :aliasname a :colnames &lt;&gt; :block_name &lt;&gt; :schema_name &lt;&gt; :auto_aliasname &lt;&gt;} :location 7 :ispartition false :issubpartition false :partitionKeyValuesList &lt;&gt; :isbucket false :buckets &lt;&gt; :withVerExpr false :partitionNameList &lt;&gt; :isexpandrel false :servername &lt;&gt; :mode 0}) :can_ignore false})
+
+======= Call stack ====== 
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x12a21b0] _Z32lexical_parameterize_ssu_mutatorP4NodeP22SharedSetUpdateContext + 0x150
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x1211460] _Z33node_expression_tree_mutator_funcPKciP4NodePFS2_S2_PvES3_b + 0x9a0
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x1210dfd] _Z33node_expression_tree_mutator_funcPKciP4NodePFS2_S2_PvES3_b + 0x33d
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x1211a45] _Z33node_expression_tree_mutator_funcPKciP4NodePFS2_S2_PvES3_b + 0xf85
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x1211460] _Z33node_expression_tree_mutator_funcPKciP4NodePFS2_S2_PvES3_b + 0x9a0
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x12a5807] _Z26lexical_make_update_sharedP10ParseStateP10UpdateStmtRP4List + 0x47
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x12b121f] _Z12lexical_stmtP10ParseStateP4Nodebb + 0x15ef
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x12b4453] _Z22lexical_top_level_stmtP10ParseStateP4Nodebb + 0xd3
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x12b4ab9] _Z31lexical_parse_analyze_varparamsP4NodePKcPPjPibPP4ListS4_S2_PPbP24MformatParameterizedInfo + 0x99
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x254c2a2] _ZL15proc_parse_treePP4NodeP4ListPKcS5_PP16CachedPlanSourcePiPPjSB_PP5QueryPbPS3_PP9ExecNodesSF_bP24MmgrMemoryControllerDataP17PreparedStatementSB_.constprop.60 + 0x182
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x255755a] _Z18gs_process_commandiP12GsStringDataPVb + 0x10ca
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x255c9c0] _Z12PostgresMainiPPcPKcS2_ + 0x1c30
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x24e02df] _ZL11backend_runP4Port + 0x25f
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x251f1b0] _Z27gauss_db_worker_thread_mainIL15knl_thread_role2EEiP14knl_thread_arg + 0x140
+[/opt/cluster/usr/local/core/app/bin/gaussdb + 0x24e039a] _ZL20internal_thread_funcPv + 0x1a
+[/usr/lib64/libpthread.so.0 + 0x8f1b]0x7f9836e38f1b
+[/usr/lib64/libc.so.6 + 0xf81c0] clone + 0x40
+</code></pre>
+<h2 id="个人分析">个人分析</h2>
+<p>这个堆栈和客户环境里的堆栈是一样的，所以SPC0500和SPC0100的问题原因应该也是一样的。</p>
+<p>从这个堆栈上看，是在对SQL进行PARSE ，即解析SQL，所以应该是可以稳定复现的。再往里层看，是做参数化路径处理时出了问题。</p>
+<p>尝试explain这个sql，也同样会coredump，此时ffic_log里就无法输出完整的parse_tree，而是显示为</p>
+<pre><code class="language-c">[ffic_cxt] parse_tree:
+({pack_node() could not dump unrecognized node type: 766.
+})
+</code></pre>
+<p>766这个语法节点无法识别。和我之前遇到的一个报错类似，都是内核在解析SQL改写时，遇到多重改写就可能会报错,只要手动提前改写一处就可规避:</p>
+<pre><code class="language-sql">drop table if exists t1;
+drop table if exists t2;
+create table t1(id number,name varchar2(20));
+create table t2(id number,name varchar2(20));
+insert into t1 values(1,'x1'),(2,'x2'),(3,'x3');
+insert into t2 values(1,'x1'),(2,'x2');
+
+-- "(+)"-&gt;"left join" 
+-- "decode" -&gt;"case when" 
+-- "between" -&gt; "&gt;= &lt;=" 
+select * from t1,t2
+where t1.id=t2.id(+)
+and decode(t1.name,'x1',1,10) between 1 and 3;
+
+ERROR: Unrecognized node type: 303.
+</code></pre>
+<p>所以对于这次出现的问题，理论上也可以改写一下，让其不走对应的解析路径。</p>
+<p>尝试使用CTE进行等价改写：</p>
+<pre><code class="language-sql">with t as (select b.id, row_number()over (order by b.id) newid from test_reorder b)
+update  test_reorder a set id = (select t.newid from t where t.id=a.id);
+</code></pre>
+<p>将包含有窗口函数的子查询提出来放with里，果然这样执行就不coredump了。</p>
+<h2 id="ai第一次分析">AI第一次分析</h2>
+<p>以上都是我人工进行的分析，再来看看AI会怎么分析吧</p>
+<p>我让copilot cli接上mimo-v2.5-pro上去gdb分析了一下coredump文件</p>
+<blockquote>
+<p>我：<br/>
+ssh 到 192.168.163.118 ， su - Ruby ,source gauss_env_file ,分析下 /opt/cluster/var/lib/engine/data1/data/dn_6002/core-gaussdb-8512-2026_07_10_11_10_40-bbox ,gdb和符号表已经装好</p>
+</blockquote>
+<blockquote>
+<p>copilot:<br/>
+GaussDB Core Dump 分析报告</p>
+<p>基本信息</p>
+<p>• Core 文件:  core-gaussdb-8512-2026_07_10_11_10_40-bbox <br/>
+• 进程:  /opt/cluster/usr/local/core/app/bin/gaussdb -D /opt/cluster/var/lib/engine/data1 <br/>
+• 主线程 PID: 8512，崩溃线程 LWP: 11419<br/>
+• 总线程数: 209 个<br/>
+• GaussDB 版本: 506.0.0.SPC0100</p>
+<p>崩溃原因</p>
+<p>信号:  SIGSEGV (signal 11)  — 空指针解引用 ( si_addr = 0x0 )</p>
+<p>崩溃调用栈</p>
+<p>#0  BBOX_CreateCoredump()                  — bbox_create.cpp:393  (BBOX信号处理)<br/>
+#1  bbox_handler(sig=11)                    — gs_bbox.cpp:125      (SIGSEGV handler)<br/>
+#2  <br/>
+#3  lexical_parameterize_ssu_mutator()      — analyze.cpp:6044     ★ 崩溃点 ★<br/>
+#4  node_expression_tree_mutator_func()     — nodefuncs_mutator.cpp:755<br/>
+#5  node_expression_tree_mutator_func()     — nodefuncs_mutator.cpp:374<br/>
+#6  node_expression_tree_mutator_func()     — nodefuncs_mutator.cpp:691<br/>
+#7  node_expression_tree_mutator_func()     — nodefuncs_mutator.cpp:755<br/>
+#8  lexical_make_update_shared()            — analyze.cpp:6115<br/>
+#9  lexical_update_stmt()                   — analyze.cpp:6272<br/>
+#10 lexical_stmt()                          — analyze.cpp:728<br/>
+#11 lexical_top_level_stmt()                — analyze.cpp:490<br/>
+#12 lexical_parse_analyze_varparams()       — analyze.cpp:289<br/>
+#13 proc_parse_tree()                       — postgres.cpp:4815<br/>
+#14 exec_parse_message()                    — postgres.cpp:5083<br/>
+#15 gs_process_command()                    — postgres.cpp:12234<br/>
+#16 PostgresMain()                          — postgres.cpp:11313</p>
+<p>触发崩溃的 SQL</p>
+<p>update test_reorder a set id =<br/>
+(select s.newid from (select b.id, row_number()over (order by b.id) newid from test_reorder b) s<br/>
+where a.id=s.id)</p>
+<p>根因分析</p>
+<p>崩溃发生在 SQL 解析/分析阶段（尚未执行），具体在  lexical_parameterize_ssu_mutator  函数中（analyze.cpp:6044）。</p>
+<p>反汇编关键路径:</p>
+<p>+96:   call lexical_sublink_is_ssu(Node*)   ; 检查是否是 SSU 子链接 → 返回 true<br/>
++105:  mov  0x28(%rbx),%rdi                 ; 加载 SubLink-&gt;subselect<br/>
++109:  mov  0x68(%rdi),%rax                 ; 加载 subselect 的 ssu_slink_tlist 字段<br/>
++113:  test %rax,%rax                       ; 检查是否为 NULL<br/>
++116:  je   +336                            ; NULL → 跳转到崩溃陷阱<br/>
++336:  mov  0x0,%rax                        ; ★ SIGSEGV ★<br/>
++344:  ud2                                  ; unreachable trap</p>
+<p>关键变量:</p>
+<p>•  node = 0x7f95c2f23f10 ，类型 =  T_SubLink （子查询节点）<br/>
+•  ssu_ctx-&gt;ssu_slink_tlist = 0x0  (NULL!)<br/>
+•  slink_te = 0x0  (NULL!)<br/>
+•  referred_slink = 0x0  (NULL!)</p>
+<p>结论</p>
+<p>这是一个 GaussDB 内核 BUG，位于 SSU（Shared Set Update）优化代码路径中。</p>
+<p> UPDATE ... SET col = (correlated_subquery)  语句在解析阶段，SSU 优化器通过  lexical_sublink_is_ssu()  识别出该子链接是 SSU 可优化的，但在  lexical_parameterize_ssu_mutator  中访问子链接的 target list ( ssu_slink_tlist ) 时，该字段尚未初始化（为 NULL），导致空指针解引用。</p>
+<p>涉及模块:  src/compatibility/sql_adaptor/parser/analyze.cpp  中的 SSU 参数化逻辑（约第 6044 行）</p>
+<p>建议:</p>
+<ol>
+<li>检查  lexical_sublink_is_ssu()  是否对含  ROW_NUMBER()  窗口函数的关联子查询误判为 SSU 可优化</li>
+<li>在  lexical_parameterize_ssu_mutator  中增加对  ssu_slink_tlist  为 NULL 的防御性检查</li>
+<li>可向华为提交此 BUG（影响版本 506.0.0.SPC0100）</li>
+</ol>
+</blockquote>
+<p>AI的分析比我的分析更加专业，而且我就一句话让AI去分析，该给的权限提前都给了，中间不产生任何人机交互，AI直接就分析好了。而且注意，GaussDB是没有公开源码的，此处相关逻辑在openGauss中也不存在，无法参考openGauss。（但是GaussDB从507版本开始，内核安装包里不再提供符号表，需要另外下载，非原厂人员定位问题难度会加大）</p>
+<p>我又去GaussDB最新发布的507.0版本上测试了一下，发现这个问题没有复现，猜测华为已经修复了这个问题。</p>
+<p>这个问题到此还能继续分析下去么？</p>
+<h2 id="继续深入">继续深入</h2>
+<p>其实有个疑问，这条SQL里使用了分析函数row_number，coredump就一定与这个函数相关么？我们可能会默认这不是普通函数，可能有BUG，然后就没继续分析了。不过，我想通过507版本看一下这个问题是怎么修复，发现507版本显示的执行计划就是不走这个子链接提升的优化路径，仍然保持了subplan</p>
+<pre><code class="language-sql">Update on test_reorder a  (cost=0.00..1521.83 rows=91 width=874)
+  -&gt;  Seq Scan on test_reorder a  (cost=0.00..1521.83 rows=91 width=874)
+        SubPlan 1
+          -&gt;  Subquery Scan on s  (cost=13.87..16.60 rows=1 width=8)
+                Filter: (a.id = s.id), (Expression Flatten Optimized)
+                -&gt;  WindowAgg  (cost=13.87..15.46 rows=91 width=32)
+                      -&gt;  Sort  (cost=13.87..14.10 rows=91 width=32)
+                            Sort Key: b.id
+                            -&gt;  Seq Scan on test_reorder b  (cost=0.00..10.91 rows=91 width=32)
+</code></pre>
+<p>于是我回到了506版本上，把这个row_number函数改成原本的id字段，想看看是不是能显示出join的执行计划，然而数据库还是coredump了，这说明这个bug与这个分析函数还真没有关系！纯粹是因为update里进行了子查询提升！</p>
+<pre><code class="language-sql">update test_reorder a set id = 
+(select s.newid from (select b.id, b.id newid from test_reorder b) s 
+where a.id=s.id);  
+</code></pre>
+<p>我让AI分析了一下这个新core</p>
+<blockquote>
+<p>分析完成。这个 core dump 与 192.168.163.118 上的是 完全相同的 BUG。</p>
+<p>────────────────────</p>
+<p>GaussDB Core Dump 分析报告 (192.168.163.119)</p>
+<p>基本信息</p>
+<p>• Core 文件:  core-gaussdb-399212-2026_07_10_16_36_48-bbox <br/>
+• 路径:  /opt/cluster/var/lib/engine/data1/data/dn_6001/ <br/>
+• 崩溃线程: LWP 399912<br/>
+• 信号:  SIGSEGV (signal 11) ， si_addr = 0x0 （空指针解引用）<br/>
+• GaussDB 版本: 506.0.0.SPC0100（同一 BuildID:  4c19e2530a5eaf287a9e68ede890dd06 ）</p>
+<p>触发 SQL</p>
+<p>update test_reorder a set id =<br/>
+(select s.newid from (select b.id, b.id newid from test_reorder b) s<br/>
+where a.id=s.id)</p>
+<p>崩溃调用栈</p>
+<p>#0  BBOX_CreateCoredump()                    — bbox_create.cpp:393<br/>
+#1  bbox_handler(sig=11)                      — gs_bbox.cpp:125<br/>
+#2  <br/>
+#3  lexical_parameterize_ssu_mutator()        — analyze.cpp:6044  ★ 崩溃点 ★<br/>
+#4  node_expression_tree_mutator_func()       — nodefuncs_mutator.cpp:691<br/>
+#5  node_expression_tree_mutator_func()       — nodefuncs_mutator.cpp:755<br/>
+#6  lexical_make_update_shared()              — analyze.cpp:6115<br/>
+#7  lexical_update_stmt()                     — analyze.cpp:6272<br/>
+#8  lexical_stmt()                            — analyze.cpp:728<br/>
+#9  lexical_top_level_stmt()                  — analyze.cpp:490<br/>
+#10 lexical_parse_analyze_varparams()         — analyze.cpp:289<br/>
+#11 proc_parse_tree()                         — postgres.cpp:4815<br/>
+#12 exec_parse_message()                      — postgres.cpp:5083<br/>
+#13 gs_process_command()                      — postgres.cpp:12234<br/>
+#14 PostgresMain()                            — postgres.cpp:11313</p>
+<p>关键变量（与 118 节点完全一致）</p>
+<pre><code>┌──────────────────────────┬────────────────┬────────────────────────────┐
+│ 变量                     │ 值             │ 说明                       │
+├──────────────────────────┼────────────────┼────────────────────────────┤
+│ node                     │ 0x7fcf70015b10 │ 类型 = T_SubLink           │
+├──────────────────────────┼────────────────┼────────────────────────────┤
+│ ssu_ctx-&gt;ssu_slink_tlist │ 0x0 (NULL)     │ SSU 子链接目标列表未初始化 │
+├──────────────────────────┼────────────────┼────────────────────────────┤
+│ slink_te                 │ 0x0 (NULL)     │ 子链接目标条目为空         │
+├──────────────────────────┼────────────────┼────────────────────────────┤
+│ referred_slink           │ 0x0 (NULL)     │ 引用的子链接为空           │
+├──────────────────────────┼────────────────┼────────────────────────────┤
+│ si.si_addr               │ 0x0            │ 访问地址为 NULL            │
+└──────────────────────────┴────────────────┴────────────────────────────┘
+</code></pre>
+<p>结论</p>
+<p>与 192.168.163.118 上的 core dump 是同一个 BUG，崩溃位置、根因、调用栈完全一致：</p>
+<p>• 同一函数  lexical_parameterize_ssu_mutator  (analyze.cpp:6044)<br/>
+• 同一触发模式： UPDATE ... SET col = (correlated subquery FROM table) WHERE correlated_condition <br/>
+• 同一原因：SSU 优化器误判关联子链接可优化，但  ssu_slink_tlist  为 NULL 导致空指针解引用</p>
+<p>两台机器的 SQL 区别仅在于子查询：</p>
+<p>• 118:  row_number()over (order by b.id) newid （窗口函数）<br/>
+• 119:  b.id newid （简单列引用）</p>
+<p>说明此 BUG 不依赖窗口函数，任何  UPDATE SET col = (关联子查询)  的写法都可能触发。</p>
+<p>建议</p>
+<ol>
+<li>紧急规避：避免使用  UPDATE ... SET col = (correlated subquery)  语法，改用 JOIN 或 CTE 重写</li>
+<li>代码修复：在  lexical_parameterize_ssu_mutator  (analyze.cpp:6044) 中对  ssu_slink_tlist  增加 NULL 检查</li>
+<li>排查  lexical_sublink_is_ssu() ：该函数对关联子查询的 SSU 可优化判断可能存在逻辑缺陷</li>
+</ol>
+</blockquote>
+<p>其实最终结论下来，就是update 的set的值，来自于一个嵌套两层的子查询（两个select ）时，就会coredump</p>
+<h2 id="总结与思考">总结与思考</h2>
+<p><strong>一句话总结</strong>：<br/>
+在 <strong>GaussDB506.0.0SPC0100/SPC0500</strong> 版本上,执行形如 <code>update set (select ... from (select ... from ))</code> 的SQL会导致数据库coredump，该问题已在<strong>GaussDB507</strong>版本修复。</p>
+<p><strong>思考</strong>：<br/>
+本次发现的这个问题，我差点就由于AI偷懒误判了问题的严重性，认为与update子查询里套窗口函数相关，但是实际上与窗口函数没关系。尽管有了AI辅助，人类仍然必须时刻保持清醒。以前没有AI的时候，我可能会挖根刨底，找到问题根因，而不是停在窗口函数这个表象，有了AI我也懒了，AI自己也懒，问题就会被误判。幸好我仍然保留了一部分深入探究和合理质疑的习惯，没有在AI第一次分析后就认可AI给的结论。当然使用其他能力更强的模型，或者通过提示词加强约束，可能AI更不容易偷懒，但是那也只是“更不容易”而已。</p>
+<h2 id="20260715更新">20260715更新</h2>
+<p>今天在看GaussDB 507版本的更新说明，发现有提到一个enable_shared_set_update这样的参数，联想到了本文分析时发现的内核<code>SSU</code>特性，就顺便到506版本上看了下这个参数说明</p>
+<blockquote>
+<p><strong>enable_shared_set_update</strong><br/>
+<strong>参数说明</strong>：对于UPDATE语句中使用子查询更新多个列的场景，该参数可以控制优化器是否对每个待更新列分别生成一个子计划，当打开该参数时，将只生成一个子计划在多个列之间共享。<br/>
+<strong>参数类型</strong>：布尔型<br/>
+<strong>参数单位</strong>：无<br/>
+<strong>取值范围</strong>：<br/>
+•on：表示仅根据子查询生成一个子计划。<br/>
+•off：表示为每个待更新列，分别生成一个子计划。<br/>
+<strong>默认值</strong>：<strong>on</strong><br/>
+<strong>设置方式</strong>：该参数属于USERSET类型参数，请参见表1中对应设置方法进行设置。<br/>
+<strong>设置建议</strong>：推荐使用默认值。<br/>
+<strong>设置不当的风险与影响</strong>：关闭可能会降低使用子查询更新多个列的查询执行效率，且增加查询优化和执行开销。</p>
+</blockquote>
+<p>我尝试在506版本上关闭enable_shared_set_update这个参数，果然本文的用例就不再coredump了。但是关闭这个功能，对于使用子查询update多列的情况，性能就会按更新的列数成倍数下降。</p>
+<p>下面是开关enable_shared_set_update的对比，关注subplan的个数和Output的内容</p>
+<pre><code class="language-sql">gaussdb=&gt; select version();
+                                                version                                               
+ 
+------------------------------------------------------------------------------------------------------
+-
+ gaussdb (GaussDB Kernel 507.0.0 build 19fa72ae) compiled at 2026-05-31 13:54:32 last mr 27222 release
+(1 row)
+
+gaussdb=&gt; set explain_perf_mode to normal;
+SET
+gaussdb=&gt; show enable_shared_set_update;
+ enable_shared_set_update 
+--------------------------
+ on
+(1 row)
+
+gaussdb=&gt; explain performance
+update test_reorder a set (id,c1) =
+(select s.newid,s.id from (select b.id, b.id newid from test_reorder b) s
+where a.id=s.id);
+                                                           QUERY PLAN                                 
+                          
+------------------------------------------------------------------------------------------------------
+--------------------------
+ Update on admin.test_reorder a  (cost=0.00..1024.88 rows=91 width=456) (actual time=0.205..0.753 rows
+=10 loops=1)
+   (Buffers: shared hit=112 dirtied=3)
+   (CPU: ex c/r=114087, ex row=10, ex cyc=1140870, inc cyc=2639148)
+   -&gt;  Seq Scan on admin.test_reorder a  (cost=0.00..1024.88 rows=91 width=456) (actual time=0.063..0.
+428 rows=10 loops=1)
+         Output: $1, $2, a.c2, (SubPlan 1), a.ctid, (Expression Flatten Optimized)
+         (Buffers: shared hit=101)
+         (CPU: ex c/r=149827, ex row=10, ex cyc=1498278, inc cyc=1498278)
+         SubPlan 1
+           -&gt;  Seq Scan on admin.test_reorder b  (cost=0.00..11.14 rows=1 width=32) (actual time=0.298
+..0.324 rows=10 loops=10)
+                 Output: b.id, b.id, (Expression Flatten Optimized)
+                 Filter: (a.id = b.id), (Expression Flatten Optimized)
+                 Rows Removed by Filter: 90
+                 (Buffers: shared hit=100)
+                 (CPU: ex c/r=11255, ex row=100, ex cyc=1125518, inc cyc=1125518)
+ Total runtime: 0.981 ms
+(15 rows)
+
+gaussdb=&gt; set enable_shared_set_update to off;
+SET
+gaussdb=&gt; explain performance
+update test_reorder a set (id,c1) =
+(select s.newid,s.id from (select b.id, b.id newid from test_reorder b) s
+where a.id=s.id);
+                                                           QUERY PLAN                                 
+                          
+------------------------------------------------------------------------------------------------------
+--------------------------
+ Update on admin.test_reorder a  (cost=0.00..2038.39 rows=91 width=456) (actual time=0.205..1.195 rows
+=10 loops=1)
+   (Buffers: shared hit=212 dirtied=3)
+   (CPU: ex c/r=126086, ex row=10, ex cyc=1260860, inc cyc=4187080)
+   -&gt;  Seq Scan on admin.test_reorder a  (cost=0.00..2038.39 rows=91 width=456) (actual time=0.066..0.
+836 rows=10 loops=1)
+         Output: (SubPlan 1), (SubPlan 2), a.c2, a.ctid, (Expression Flatten Optimized)
+         (Buffers: shared hit=201)
+         (CPU: ex c/r=292622, ex row=10, ex cyc=2926220, inc cyc=2926220)
+         SubPlan 1
+           -&gt;  Seq Scan on admin.test_reorder b  (cost=0.00..11.14 rows=1 width=32) (actual time=0.328
+..0.367 rows=10 loops=10)
+                 Output: b.id, (Expression Flatten Optimized)
+                 Filter: (a.id = b.id), (Expression Flatten Optimized)
+                 Rows Removed by Filter: 90
+                 (Buffers: shared hit=100)
+                 (CPU: ex c/r=12884, ex row=100, ex cyc=1288424, inc cyc=1288424)
+         SubPlan 2
+           -&gt;  Seq Scan on admin.test_reorder b  (cost=0.00..11.14 rows=1 width=32) (actual time=0.280
+..0.305 rows=10 loops=10)
+                 Output: b.id, (Expression Flatten Optimized)
+                 Filter: (a.id = b.id), (Expression Flatten Optimized)
+                 Rows Removed by Filter: 90
+                 (Buffers: shared hit=100)
+                 (CPU: ex c/r=10563, ex row=100, ex cyc=1056332, inc cyc=1056332)
+ Total runtime: 1.438 ms
+(22 rows)
+
+gaussdb=&gt; 
+</code></pre>
+<p>子查询update多列生成多个subplan导致性能差，这个问题要拆开看，一是支持使用子查询update多列，二是生成合理的执行计划。第一个点，原生PG是9.5版本加的，但是当时PG实现这个功能的时候就只有一个subplan，更新多个字段时，subplan里是一次性返回了多个字段，也就是原生PG从一开始支持使用子查询更新多列时就不存在性能问题。GaussDB是从PG9.2.4开始分叉，所以GaussDB从一开始就是华为自研的子查询update多列，没有用原生PG的方案。只是不确定是不是当时研发偷懒了，直接一个递归，每个字段都单独重新查询，方便适配原本的单字段更新逻辑。这个点我在前几年做其他OG系国产数据库的内核需求分析的时候也遇到过，倒是没想到GaussDB已经做过优化了。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-507-new-feature-plsql-bytecode-part1/">&larr; 【GaussDB】507内核新特性-PLSQL字节码（一）</a>
+    
+    
+    <a href="../gaussdb-utf8-gbk-substrb/">【GaussDB】在UTF8的库上按GBK的字节数截取字符串 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

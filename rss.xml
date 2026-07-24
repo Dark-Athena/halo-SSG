@@ -6,6 +6,36 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】507内核新特性-PLSQL字节码（三）</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part3</link>
+      <description>【GaussDB】507内核新特性-PLSQL字节码（三） 上一篇《【GaussDB】507内核新特性-PLSQL字节码（二）》在结尾提到，官方文档和日志描述都不太完善，二进制里grep出来的字节码日志有很多没有命中，成了个遗憾。本文根据日志描述反向倒推测试场景，尝试命中更多上一篇没有覆盖到的BC日</description>
+      <pubDate>Sun, 19 Jul 2026 07:01:05 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】507内核新特性-PLSQL字节码（二）</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part2</link>
+      <description>【GaussDB】507内核新特性-PLSQL字节码（二） 前言 上一篇《【GaussDB】507内核新特性-PLSQL字节码（一）》讲了正常使用的情况，这篇来讲讲使用约束。 一般来说，一个功能在哪些场景下支持，哪些场景下不支持，往往要么写白名单，要么写黑名单，不会两个都写上。 白名单意味着：产品保</description>
+      <pubDate>Sun, 19 Jul 2026 06:49:18 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】507内核新特性-PLSQL字节码（一）</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part1</link>
+      <description>【GaussDB】507内核新特性-PLSQL字节码（一） 这个字节码内容较多，一篇讲不完，这篇先讲基础概念和正常使用的情况 官方文档介绍 《字节码简介》 字节码和汇编指令类似，是为PL/SQL专门定义的一组用于实现PL/SQL语义的指令，通过将PL/SQL语句转化为字节码完成用户的指令。一个字节码</description>
+      <pubDate>Sun, 19 Jul 2026 06:44:36 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】分析一个使用子查询进行update导致的coredump</title>
+      <link>https://www.darkathena.top/archives/gaussdb-analyze-subquery-update-coredump</link>
+      <description>【GaussDB】分析一个使用子查询进行update导致的coredump 背景 隔壁驻场同事在帮客户做SQL优化的时候，发现某个测试环境的GaussDB数据库(506.0.0SPC0500)近期发生过coredump，查看ffic_log，里面是个很简单的update语句，我就来稍微分析一下。 由</description>
+      <pubDate>Sat, 18 Jul 2026 12:55:32 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】在UTF8的库上按GBK的字节数截取字符串</title>
+      <link>https://www.darkathena.top/archives/gaussdb-utf8-gbk-substrb</link>
+      <description>【GaussDB】在UTF8的库上按GBK的字节数截取字符串 背景 在国产数据库迁移过程中，可能会有这样一个场景：源库ORACLE用的是ZHS16GBK字符集，目标库GaussDB用的是UTF8字符集，如果源库是VARCHAR2(10),且字段内容里包含汉字，那么目标库字段需要增长，假设按照常规的一</description>
+      <pubDate>Sat, 18 Jul 2026 12:52:43 +0000</pubDate>
+    </item>
+    <item>
       <title>同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测</title>
       <link>https://www.darkathena.top/archives/DiffusionGemma-on-ai-max-395-test</link>
       <description>同一句话，两次全新启动，输出一模一样——AI MAX+395运行DiffusionGemma实测 扩散模型 vs 自回归模型 常见的LLM大多是自回归模型，简单来说就是词语接龙，根据前面的文本猜测下一个最可能出现的词语；而扩散模型和自回归模型那种词语接龙的方式不一样，扩散模型不是一个字一个字地吐，而</description>
@@ -291,38 +321,6 @@
       <description>【openGauss】用Qoder修复openGauss的一处BUG 背景 最近遇到一个openGauss的BUG，经验证，在5.0/6.0/7.0RC2上都存在,部分基于openGauss的商业发行版也有这个BUG。 [og600@kylinv10sp3-node1 ~]$ gsql -r
 gsq</description>
       <pubDate>Sat, 03 Jan 2026 13:32:32 +0000</pubDate>
-      <category>openGauss</category>
-    </item>
-    <item>
-      <title>【GaussDB】跨用户调用已授权的存储过程，可能会在存储过程内SQL的自定义函数表达式里报错没有权限</title>
-      <link>https://www.darkathena.top/archives/gaussdb-nested-function-call-other-user-permission-denied</link>
-      <description>背景 GaussDB内核版本:506.0.0 SPC0100 在开启了behavior_compat_options=plsql_security_definer时，理论上跨用户的存储过程调用，只要授权最外层的存储过程执行权限即可，存储过程内调用的其他对象是不需要再授权的，因为进入存储过程后，当前用</description>
-      <pubDate>Sat, 03 Jan 2026 13:32:06 +0000</pubDate>
-    </item>
-    <item>
-      <title>【DuckDB】duckdb和postgresql对于unnest函数的区别</title>
-      <link>https://www.darkathena.top/archives/duckdb-postgresql-diff-unnest</link>
-      <description>【DuckDB】duckdb和postgresql对于unnest函数的区别 背景 在postgresql中，unnest函数用于解开数组类型的嵌套，能把一个数组变成多行，但不解开一行中的多个字段；当unnest处于from后面时，如果解开的一行有多个字段，同时也会解开成多个字段。 也就是说，在pg</description>
-      <pubDate>Fri, 02 Jan 2026 10:35:16 +0000</pubDate>
-    </item>
-    <item>
-      <title>【DuckDB】探索函数调用新范式：点操作符链式调用</title>
-      <link>https://www.darkathena.top/archives/DuckDB-Function-Chaining-via-the-Dot-Operator</link>
-      <description>【DuckDB】探索函数调用新范式：点操作符链式调用 在数据库操作的日常实践中，函数调用的简洁性与直观性直接影响着开发效率与代码可读性。DuckDB 提供的点操作符函数链式调用功能，为我们打开了全新的函数调用视角，让数据处理逻辑更加流畅自然。 基础使用方法：从传统到创新 基本语法解析 在 DuckD</description>
-      <pubDate>Fri, 02 Jan 2026 10:35:05 +0000</pubDate>
-    </item>
-    <item>
-      <title>【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境</title>
-      <link>https://www.darkathena.top/archives/docker-compose-oracle-adg</link>
-      <description>【DOCKER+ORACLE】使用docker-compose一键拉起一个ORACLE-ADG一主一备环境 背景 虽然现在都在搞国产数据库了，但是迁移阶段仍然有不少ORACLE的特性机制需要验证，目前安装单机ORACLE很方便了，ORACLE官方也提供了单机的DOCKER容器，但是如果测试ADG的特</description>
-      <pubDate>Thu, 01 Jan 2026 13:45:47 +0000</pubDate>
-      <category>docker</category>
-    </item>
-    <item>
-      <title>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造</title>
-      <link>https://www.darkathena.top/archives/From-sqlplus-to-gsql-Migrating-and-Adapting-the-Shell-Script-for-Executing-SQL-Files</link>
-      <description>【GaussDB】从 sqlplus 到 gsql：Shell 中执行 SQL 文件方案的迁移与改造 背景 在客户应用系统中，有一套shell脚本来操作ORACLE数据库执行业务存储过程，现数据库需要迁移到GaussDB,因此这套shell脚本也要进行移植改写 原始代码demo 存储过程定义 cre</description>
-      <pubDate>Thu, 01 Jan 2026 13:44:36 +0000</pubDate>
       <category>openGauss</category>
     </item>
   </channel>

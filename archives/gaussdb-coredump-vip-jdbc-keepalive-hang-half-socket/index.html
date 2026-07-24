@@ -149,7 +149,7 @@
         
         <span>2026-06-15</span>
         
-        <span>17 阅读</span>
+        <span>49 阅读</span>
         
     </div>
     <div class="post-body">
@@ -179,11 +179,18 @@
 <h2 id="测试验证">测试验证</h2>
 <h3 id="环境准备">环境准备</h3>
 <p>这里我使用了三台机器:<br/>
-一台运行java程序，另外两台分别为GaussDB的主备节点<br/>
-192.168.163.131 java客户端<br/>
-192.168.163.118 GaussDB dn1<br/>
-192.168.163.119 GaussDB dn2<br/>
-192.168.163.140 GaussDB VIP</p>
+一台运行java程序，另外两台分别为GaussDB的主备节点</p>
+<ul>
+<li>192.168.163.131 java客户端</li>
+<li>192.168.163.118 GaussDB dn1</li>
+<li>192.168.163.119 GaussDB dn2</li>
+<li>192.168.163.140 GaussDB VIP</li>
+</ul>
+<p>三台机器的操作系统tcp_keepalive设置均为</p>
+<pre><code class="language-bash">net.ipv4.tcp_keepalive_intvl = 30
+net.ipv4.tcp_keepalive_probes = 9
+net.ipv4.tcp_keepalive_time = 30
+</code></pre>
 <p>用于测试的java程序,很简单，连接上去执行一个耗时很长的SQL</p>
 <pre><code class="language-java">import java.sql.*;
 public class testlongquery {
@@ -263,7 +270,7 @@ java -cp .:gaussdbjdbc.jar testlongquery
 </code></pre>
 <p><img alt="image-xXiB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-xXiB.png" srcset="../../upload/image-xXiB.png?width=1600 1600w, ../../upload/image-xXiB.png?width=800 800w, ../../upload/image-xXiB.png?width=1200 1200w, ../../upload/image-xXiB.png?width=400 400w"/></p>
 <p>GaussDB发生failover，vip飘到新主库，应用服务器上java程序卡死，符合问题现象。</p>
-<p>可以观察到java应用服务器上的这个连接在sql发出去后就一直没有变化了，一直显示为 off(0.00/0/0)，必须关闭java应用才断开连接；而对应在原主库上的这个连接显示 FIN_WAIT1、probe，超时重试9次断开了</p>
+<p>可以观察到java应用服务器上的这个连接在sql发出去后就一直没有变化了，一直显示为 off(0.00/0/0)，必须关闭java应用才断开连接；而对应在原主库上的这个连接显示 FIN_WAIT1、probe，超时重试8次（tcp_orphan_retries）断开了</p>
 <p><img alt="image-TMGA.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-TMGA.png" srcset="../../upload/image-TMGA.png?width=1600 1600w, ../../upload/image-TMGA.png?width=800 800w, ../../upload/image-TMGA.png?width=1200 1200w, ../../upload/image-TMGA.png?width=400 400w"/></p>
 <h3 id="jdbc开启keepalive再测">jdbc开启keepalive再测</h3>
 <p>再测试jdbc开keepalive的情况，把java程序里连接串上的tcpKeepAlive参数改成true，重新编译执行</p>

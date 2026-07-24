@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核新特性-PLSQL字节码（三） - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核新特性-PLSQL字节码（三） 上一篇《【GaussDB】507内核新特性-PLSQL字节码（二）》在结尾提到，官方文档和日志描述都不太完善，二进制里grep出来的字节码日志有很多没有命中，成了个遗憾。本文根据日志描述反向倒推测试场景，尝试命中更多上一篇没有覆盖到的BC日">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核新特性-PLSQL字节码（三）</h1>
+    <div class="meta">
+        
+        <span>2026-07-19</span>
+        
+        <span>15 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核新特性-plsql字节码三">【GaussDB】507内核新特性-PLSQL字节码（三）</h1>
+<p>上一篇<a href="https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part2">《【GaussDB】507内核新特性-PLSQL字节码（二）》</a>在结尾提到，官方文档和日志描述都不太完善，二进制里grep出来的字节码日志有很多没有命中，成了个遗憾。本文根据日志描述反向倒推测试场景，尝试命中更多上一篇没有覆盖到的BC日志码。</p>
+<p>测试环境与上一篇一致：GaussDB 507.0.0 (build 19fa72ae)，A兼容模式，<code>plsql_code_type=BYTECODE</code>。</p>
+<p>由于没有gsql客户端，本次测试使用Java + gaussdbjdbc.jar连接数据库，通过JDBC的<code>SQLWarning</code>链捕获<code>client_min_messages=log</code>输出的LOG消息，效果与gsql终端输出一致。</p>
+<pre><code class="language-java">// 核心思路：JDBC的SQLWarning可以捕获server端LOG消息
+Statement st = conn.createStatement();
+st.execute("set plsql_code_type=BYTECODE");
+st.execute("set client_min_messages=log");
+st.execute("set logging_module='on(BYTECODE)'");
+st.execute("call some_proc()");
+SQLWarning w = st.getWarnings();
+while (w != null) {
+    System.out.println(w.getMessage());
+    w = w.getNextWarning();
+}
+</code></pre>
+<h2 id="bc053-bytecode-only-support-select-statement">BC053: bytecode only support select statement.</h2>
+<p>上一篇只在TRIGGER场景命中过BC053，实际上只要是存储过程里直接写DML语句（INSERT/UPDATE/DELETE/MERGE），都会触发这个日志。</p>
+<pre><code class="language-sql">create or replace procedure p_bc_insert is
+begin
+  insert into dml_test values(1,1);
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC053 bytecode only support select statement.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33663.
+LOG:  [ByteCode] Function: p_bc_insert(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_stmt_treebased  
+[34] exec_stmt_end 
+[47] exec_stmt_begin 
+[68] exec_stmt_end 
+[81] return0 5 
+
+LOG:  Start ByteCode!
+</code></pre>
+<p>UPDATE、DELETE、MERGE同理，都输出BC053，但存储过程本身仍然支持字节码，只是DML语句编译为<code>exec_stmt_treebased</code>指令。<code>exec_stmt_treebased</code>是字节码指令集中的一个正常指令，字节码引擎执行到该指令时会调用AST引擎处理这一条语句，然后继续执行下一条字节码指令。也就是说，存储过程里只要有DML，那部分就是树引擎跑的，其余部分还是字节码。</p>
+<p>FORALL语句也是如此，不管FORALL里是UPDATE还是INSERT还是DELETE，都会输出BC053：</p>
+<pre><code class="language-sql">create or replace procedure p3_forall_upd is
+type num_arr is varray(10) of int;
+arr num_arr := num_arr(1,2,3);
+begin
+forall i in 1..arr.count
+update forall_test3 set val = val + 100 where id = arr(i);
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC053 bytecode only support select statement.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33724.
+</code></pre>
+<p>FORALL本身是支持字节码的（<code>fori_prepare</code> + <code>fori</code>），只是循环体里的DML语句编译为<code>exec_stmt_treebased</code>。但FORALL带SAVE EXCEPTIONS则会直接导致整个存储过程不支持字节码（BC027 + BC030 + BC039），上一篇已测过。</p>
+<h2 id="bc054-simple-expr-check-occurs-exeception-failed-to-eval-simple-expr">BC054: Simple expr check occurs exeception. Failed to eval simple expr.</h2>
+<p>这个日志在异常处理块里被触发了，具体场景是过程体里有一个会在编译期求值失败的表达式：</p>
+<pre><code class="language-sql">create or replace procedure p_bc_except is
+v int;
+begin
+  v := 1/0;
+exception
+when others then
+  v := 0;
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC054 Simple expr check occurs exeception. Failed to eval simple expr.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33651.
+LOG:  [ByteCode] Function: p_bc_except(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] exec_block_init 
+[22] exec_block_begin 
+[27] exec_stmt_begin 
+[48] exec_stmt_treebased  
+[61] exec_stmt_end 
+[74] exec_block_end 
+...
+LOG:  Start ByteCode!
+</code></pre>
+<p><code>1/0</code>在简单表达式检查时抛出了除零异常，导致该语句编译为<code>exec_stmt_treebased</code>指令，但整个存储过程仍支持字节码。BC054的含义应该是：字节码引擎在尝试将表达式编译为字节码指令时，如果简单表达式求值检查失败（比如常量折叠时除零），就会将该语句改为<code>exec_stmt_treebased</code>，交给树引擎执行。</p>
+<h2 id="bc055--bc072-带出参函数在简单表达式中调用">BC055 + BC072: 带出参函数在简单表达式中调用</h2>
+<p>当存储过程里通过<code>SELECT</code>语句调用一个带OUT参数的函数时，会触发BC055：</p>
+<pre><code class="language-sql">create or replace function f2_bc061(o out int) return int is
+begin
+  o := 1;
+  return 2;
+end;
+/
+
+create or replace procedure p2_bc061 is
+v int;
+o int;
+begin
+  select f2_bc061(o) into v;
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33675.
+LOG:  [ByteCode] Function: p2_bc061(), InterpreterBytecode:
+[0] exec_stmt_begin 
+[21] expression expr: select f2_bc061(o) 
+[58] storen_sql_attributes 
+[59] storen 9 
+[64] exec_stmt_end 
+...
+LOG:  Start ByteCode!
+LOG:  [ByteCode] BC055 function(33674) with outparam called in simple expr does not support.
+LOG:  [ByteCode] BC072 Expression: select f2_bc061(o) is degenerated.
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33674.
+</code></pre>
+<p>BC055表示带出参的函数在简单表达式中调用时不支持字节码，BC072表示该表达式被"退化"（degenerated）。调用方存储过程仍然支持字节码，被调用的带出参函数本身也支持字节码，只是调用点这个表达式编译为<code>exec_stmt_treebased</code>。</p>
+<h2 id="bc061-带出参函数在perform语句中使用">BC061: 带出参函数在PERFORM语句中使用</h2>
+<pre><code class="language-sql">create or replace procedure p2_bc064 is
+o int;
+begin
+  perform f2_bc064(o);
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC061 not spport func with out param used in execsql statement, sql is :perform f2_bc064(o);
+LOG:  [ByteCode] BC040 This function supports bytecode, func_oid: 33679.
+</code></pre>
+<p>BC061表示在execsql语句（PERFORM也是一种execsql）中使用了带出参的函数，不支持字节码，但存储过程本身仍支持。注意这里BC061的日志文本里有个拼写错误："spport"应该是"support"。</p>
+<h2 id="bc074-behavior_compat_flags-检查">BC074: behavior_compat_flags 检查</h2>
+<p>这个日志在关闭<code>proc_outparam_override</code>后创建带出参的函数时触发：</p>
+<pre><code class="language-sql">-- 先关闭 proc_outparam_override
+set behavior_compat_options='...(不包含proc_outparam_override)...';
+
+create or replace function f3_bc056(o out int) return int is
+begin
+  o := 1;
+  return 2;
+end;
+/
+
+declare o int; v int; begin v:=f3_bc056(o); end;
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC074 This function can not supports bytecode, func_oid: 33704.Please check the GUC parameter behavior_compat_flags.
+</code></pre>
+<pre><code>select bytecode from dump_plsql_bytecode('f3_bc056'::regproc);
+  Not supported
+</code></pre>
+<p>BC074直接导致函数不支持字节码。这个日志对应文档约束中"该特性仅在兼容性参数behavior_compat_options设置中包含...proc_outparam_override...参数选项时，支持执行字节码"。实际测试发现，不是某个单独的参数控制，而是只要<code>proc_outparam_override</code>不在<code>behavior_compat_options</code>里，带出参的函数就会触发BC074。普通存储过程（不带出参）在关闭<code>proc_outparam_override</code>时仍然支持字节码。</p>
+<h2 id="bc030-goto语句不支持">BC030: GOTO语句不支持</h2>
+<p>GOTO语句会导致整个存储过程不支持字节码：</p>
+<pre><code class="language-sql">create or replace procedure p3_goto_valid is
+v int := 0;
+begin
+  v := 1;
+  goto skip;
+  v := 2;
+  &lt;&lt;skip&gt;&gt;
+  v := 3;
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC030 Stmt GOTO does not support with some error, lineno: 5.
+LOG:  [ByteCode] BC039 This function doesn't support bytecode, func_oid: 33720.
+</code></pre>
+<p>不管GOTO的标签是否有效，只要存储过程里用了GOTO，整个存储过程就不支持字节码。而EXIT和CONTINUE（带标签或不带标签）都是支持字节码的。</p>
+<h2 id="bc068-subtype的新触发场景">BC068: subtype的新触发场景</h2>
+<p>上一篇测BC068时，只在嵌套子程序场景命中过。这次发现subtype变量也能触发BC068，而且会直接导致整个存储过程不支持字节码。</p>
+<p>场景1：subtype定义在同一个package中</p>
+<pre><code class="language-sql">create or replace package pkg_bc036b is
+subtype myint is int;
+procedure p;
+end;
+/
+
+create or replace package body pkg_bc036b is
+procedure p is
+v myint;
+begin
+  v := 1;
+  v := v + 1;
+  raise notice '%', v;
+end;
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC068 bytecode neither support nest sub procedure/function nor subtype.
+</code></pre>
+<pre><code>select bytecode from dump_plsql_bytecode('pkg_bc036b.p'::regproc);
+  Not supported
+</code></pre>
+<p>场景2：subtype定义在匿名块中</p>
+<pre><code class="language-sql">create or replace procedure p_bc_subtype2 is
+begin
+  declare
+    subtype myint is int;
+    v myint;
+  begin
+    v := 1;
+  end;
+end;
+/
+</code></pre>
+<pre><code>LOG:  [ByteCode] BC068 bytecode neither support nest sub procedure/function nor subtype.
+</code></pre>
+<pre><code>select bytecode from dump_plsql_bytecode('p_bc_subtype2'::regproc);
+  Not supported
+</code></pre>
+<p>但在上一篇中测试的跨package引用subtype（<code>v pkg5.varchar8</code>），却只触发了BC036且仍然支持字节码。这说明subtype的不支持行为存在不一致：同package内定义的subtype或匿名块内的subtype会导致BC068（整体不支持），而跨package引用subtype只触发BC036（局部不支持，整体仍支持）。考虑到BC068的日志文本是"bytecode neither support nest sub procedure/function nor subtype"，subtype和嵌套子程序共用同一个检查逻辑，这恐怕是个实现上的简化处理。</p>
+<h2 id="确认支持字节码的场景">确认支持字节码的场景</h2>
+<p>以下场景在测试中确认支持字节码（输出BC040 + 正常字节码），其中部分语句编译为<code>exec_stmt_treebased</code>（由AST引擎执行该条语句），但存储过程整体仍走字节码框架：</p>
+<table><thead><tr><th>场景</th><th>字节码情况</th><th>备注</th></tr></thead><tbody><tr><td>ARRAY构造 <code>array[1,2,3]</code></td><td>支持</td><td><code>storen_array</code></td></tr><tr><td>ROW构造 <code>row(1,2)</code></td><td>支持</td><td><code>eval_rowexpr</code> + <code>store_row</code></td></tr><tr><td>子查询赋值 <code>v := (select 1)</code></td><td>treebased</td><td>但整体支持</td></tr><tr><td>IS NULL表达式</td><td>支持</td><td><code>nulltest</code></td></tr><tr><td>CASE WHEN表达式</td><td>支持</td><td>常量折叠</td></tr><tr><td>COALESCE</td><td>支持</td><td>常量折叠</td></tr><tr><td>NULLIF</td><td>支持</td><td><code>nullif</code></td></tr><tr><td>GREATEST/LEAST</td><td>支持</td><td><code>max</code>/<code>min</code></td></tr><tr><td>XML类型操作</td><td>支持</td><td><code>xml XMLPARSE</code></td></tr><tr><td>数组元素赋值 <code>v(1) := 10</code></td><td>支持</td><td><code>store_array_elem</code></td></tr><tr><td>index-by表元素赋值</td><td>支持</td><td><code>store_tableofindex_elem</code></td></tr><tr><td>varray元素赋值</td><td>支持</td><td>同上</td></tr><tr><td>GET DIAGNOSTICS</td><td>支持</td><td><code>exec_stmt_getdiag</code></td></tr><tr><td>COMMIT/ROLLBACK</td><td>treebased</td><td><code>exec_stmt_treebased_transaction</code></td></tr><tr><td>EXECUTE IMMEDIATE</td><td>treebased</td><td>动态SQL</td></tr><tr><td>异常处理 EXCEPTION</td><td>支持</td><td><code>exec_exception_begin/end</code></td></tr><tr><td>嵌套匿名块</td><td>支持</td><td><code>exec_block_init/begin/end</code></td></tr><tr><td>嵌套RECORD类型</td><td>支持</td><td></td></tr><tr><td>cursor FOR循环</td><td>支持</td><td><code>forc_prepare</code> + <code>forc</code></td></tr><tr><td>WHILE循环</td><td>支持</td><td><code>loopwhile</code></td></tr><tr><td>FOR IN REVERSE循环</td><td>支持</td><td><code>fori_prepare_reverse</code> + <code>fori_reverse</code></td></tr><tr><td>CONTINUE语句</td><td>支持</td><td></td></tr><tr><td>EXIT/EXIT label</td><td>支持</td><td></td></tr><tr><td>cursor属性 <code>c%rowcount</code></td><td>支持</td><td><code>loadn_cursor_attributes</code></td></tr><tr><td>函数内调用其他函数</td><td>支持</td><td><code>invokemethod_definer</code></td></tr><tr><td>带出参函数直接赋值 <code>v := f(o)</code></td><td>支持</td><td><code>procedure expression</code></td></tr><tr><td>REFCURSOR出参</td><td>支持</td><td><code>loadn_return_cursor</code></td></tr><tr><td>varray出参</td><td>支持</td><td></td></tr><tr><td>复合类型出参</td><td>支持</td><td></td></tr><tr><td>表类型出参</td><td>支持</td><td></td></tr></tbody></table>
+<h2 id="无法触发的bc日志码">无法触发的BC日志码</h2>
+<p>以下BC日志码在本次测试中未能通过SQL语句触发，原因各不相同：</p>
+<table><thead><tr><th>BC码</th><th>原因分析</th></tr></thead><tbody><tr><td>BC001</td><td>只有非A兼容模式才会触发，当前环境为A模式</td></tr><tr><td>BC002</td><td>package初始化匿名块本身不作为字节码对象，内部procedure仍支持</td></tr><tr><td>BC008</td><td>无法通过正常DDL创建含"无效参数类型"的函数</td></tr><tr><td>BC016</td><td>processStatement异常，内部错误</td></tr><tr><td>BC017/BC018</td><td>内部错误，找不到proc或language tuple</td></tr><tr><td>BC020</td><td>所有测试的表达式类型均支持字节码</td></tr><tr><td>BC022</td><td>$1参数在字节码中被正常处理为<code>loadn 0</code></td></tr><tr><td>BC023</td><td>访问null record的字段正常支持</td></tr><tr><td>BC024/BC025</td><td>无法构造出"incorrect type"或"invalid op"的场景</td></tr><tr><td>BC028</td><td>返回复合类型/refcursor均支持</td></tr><tr><td>BC029</td><td>所有测试的语句类型均支持或treebased</td></tr><tr><td>BC031</td><td>无权在pg_catalog创建对象</td></tr><tr><td>BC032</td><td>表类型/复合类型出参均支持</td></tr><tr><td>BC033</td><td>GET DIAGNOSTICS对record变量字段赋值正常支持</td></tr><tr><td>BC034</td><td>RESULT_OID诊断类型正常支持</td></tr><tr><td>BC037</td><td>tableof类型转text正常支持</td></tr><tr><td>BC038</td><td>bytea类型转换正常支持</td></tr><tr><td>BC041/BC042/BC044</td><td>数组下标访问正常支持</td></tr><tr><td>BC043</td><td>无效字段名在运行时报错，不触发BC日志</td></tr><tr><td>BC045</td><td>XML类型操作正常支持</td></tr><tr><td>BC046</td><td>集合类型操作正常支持</td></tr><tr><td>BC047/BC049</td><td>cursor/record赋值均正常支持</td></tr><tr><td>BC048</td><td>无法创建含无效typeoid的对象</td></tr><tr><td>BC052</td><td>子查询作为表达式编译为exec_stmt_treebased，但非BC052</td></tr><tr><td>BC056</td><td>关闭proc_outparam_override时触发的是BC074而非BC056</td></tr><tr><td>BC058</td><td>函数无返回值时运行报错，dump显示Not supported但无BC日志</td></tr><tr><td>BC060</td><td>procedure带RETURN值时编译报错，无法执行</td></tr><tr><td>BC064</td><td>调用方不提供out参数时函数找不到</td></tr><tr><td>BC065</td><td>出参类型转换正常支持</td></tr><tr><td>BC067</td><td>系统函数调用时被当作普通函数调用，不影响调用方</td></tr><tr><td>BC071/BC073</td><td>表达式类型变更/复杂化未触发</td></tr><tr><td>BC075</td><td>变量数不匹配的EXECUTE INTO正常treebased</td></tr><tr><td>BC076</td><td>processExpr异常，内部错误</td></tr><tr><td>BC078</td><td>栈大小异常，内部错误</td></tr><tr><td>BC079</td><td>权限回收后函数仍显示支持字节码</td></tr><tr><td>exit/continue label not match</td><td>标签不匹配的procedure编译为invalid</td></tr><tr><td>outparam only supports var &amp; row type</td><td>refcursor/varray出参均正常支持</td></tr></tbody></table>
+<p>其中BC056和BC079值得说明。BC056的日志文本是"bytecode doesn't support function with outparam when proc_outparam_override is off"，但实际关闭<code>proc_outparam_override</code>后触发的是BC074（"Please check the GUC parameter behavior_compat_flags"），可能是BC056在代码中被BC074覆盖了，或者BC056在更早的版本中使用，507版本改为BC074。BC079的日志文本是"func doesn't support bytecode because of permission error"，但revoke execute权限后，函数仍然在第一次执行时生成了字节码（因为函数owner和执行者是同一用户，revoke不影响owner的权限）。</p>
+<h2 id="更新后的bc日志码汇总表">更新后的BC日志码汇总表</h2>
+<p>在上一篇表格基础上，补充本次新命中的BC日志码：</p>
+<table><thead><tr><th>日志</th><th>是否约束</th><th>对应文档</th><th>是否有命中日志</th><th>自测是否支持字节码</th><th>备注</th></tr></thead><tbody><tr><td>BC053 bytecode only support select statement.</td><td>Y</td><td></td><td>Y(本次新增)</td><td>Y(局部treebased)</td><td>DML语句(INSERT/UPDATE/DELETE/MERGE)和TRIGGER均触发，语句编译为exec_stmt_treebased</td></tr><tr><td>BC054 Simple expr check occurs exeception.</td><td>Y</td><td></td><td>Y(本次新增)</td><td>Y(局部treebased)</td><td>简单表达式求值检查异常，如1/0，语句编译为exec_stmt_treebased</td></tr><tr><td>BC055 function(%u) with outparam called in simple expr does not support.</td><td>Y</td><td></td><td>Y(本次新增)</td><td>Y(局部treebased)</td><td>带出参函数在SELECT表达式中调用，语句编译为exec_stmt_treebased</td></tr><tr><td>BC061 not spport func with out param used in execsql statement</td><td>Y</td><td></td><td>Y(本次新增)</td><td>Y(局部treebased)</td><td>带出参函数在PERFORM语句中使用，日志有拼写错误"spport"</td></tr><tr><td>BC074 This function can not supports bytecode...Please check behavior_compat_flags.</td><td>Y</td><td>兼容性参数要求</td><td>Y(本次新增)</td><td>N</td><td>proc_outparam_override关闭时，带出参函数整体不支持</td></tr><tr><td>BC030 Stmt GOTO does not support with some error</td><td>Y</td><td></td><td>Y(本次新增)</td><td>N</td><td>GOTO语句导致整个存储过程不支持字节码</td></tr><tr><td>BC068 ...nor subtype.</td><td>Y</td><td>不支持子程序</td><td>Y(已命中+本次新触发)</td><td>N</td><td>同package内定义的subtype或匿名块内subtype也会触发</td></tr><tr><td>BC077 bulk collect does not support.</td><td>Y</td><td>不支持BULK COLLECT</td><td>Y(已命中)</td><td>Y(局部treebased)</td><td>SELECT BULK COLLECT和FETCH BULK COLLECT均触发，语句编译为exec_stmt_treebased</td></tr></tbody></table>
+<h2 id="总结">总结</h2>
+<p>本次测试新命中了6个之前未覆盖的BC日志码（BC053、BC054、BC055、BC061、BC074、BC030），并发现了BC068的新触发场景（同package subtype）。加上上一篇已命中的，目前二进制中grep出的约50条BC日志码中，已命中约20条。</p>
+<p>未能命中的BC日志码大致可分为三类：</p>
+<ol>
+<li><strong>内部错误类</strong>（BC016/BC017/BC018/BC076/BC078）：属于代码内部的异常处理路径，正常SQL无法触发</li>
+<li><strong>编译报错类</strong>（BC058/BC060/exit label）：代码本身就不合规，创建时或执行时就报错了，字节码引擎来不及处理</li>
+<li><strong>实际支持类</strong>（BC020/BC022/BC023/BC028/BC037/BC038/BC041~BC049/BC052等）：测试了各种场景都正常支持字节码，可能这些日志只在特定内部条件下触发，或者对应的功能在507版本已经支持但日志保留了下来</li>
+</ol>
+<p>一个比较有意思的发现是，很多不支持场景并不是"全有或全无"的，而是"局部treebased"——不支持的语句编译为<code>exec_stmt_treebased</code>指令（字节码引擎执行到该指令时调用AST引擎处理这一条语句），存储过程整体仍然走字节码框架。真正导致整个存储过程不支持字节码的只有以下场景：</p>
+<ul>
+<li>BC003: TRIGGER</li>
+<li>BC004: 返回集合的函数（returns setof/table）</li>
+<li>BC007: 参数默认值为PACKAGE变量</li>
+<li>BC027 + BC030: FORALL with SAVE EXCEPTIONS</li>
+<li>BC039: （汇总日志，表示该函数不支持）</li>
+<li>BC057: 带出参的FUNCTION返回复合类型</li>
+<li>BC066: 对入参进行赋值</li>
+<li>BC068: 嵌套子程序或同package/匿名块内subtype</li>
+<li>BC070: 伪类型参数</li>
+<li>BC074: behavior_compat_options不满足要求</li>
+<li>BC030: GOTO语句</li>
+</ul>
+<p>换句话说，只要避开以上场景，存储过程基本都能走字节码框架，即使内部有些语句以treebased方式执行，整体性能仍然会有提升。</p>
+<blockquote>
+<p>本文由 wps灵犀claw 使用 GLM-5.2 模型 测试及编写，使用提示词：</p>
+<p>“C:\work\github\gaussdb-bytecode-test2<br/>
+读下这个目录里的两篇文章，在第二篇的约束里，我本想明确穷举出哪些是不支持的，或者命中所有的从gaussdb二进制程序里grep出来的字节码日志，但官方文档和日志描述都不是太完善，成了个遗憾，你看看能不能帮我造一些测试用例再更多我没有命中到的日志。数据库连接信息我放setup.cfg里了，你可以用这个目录里的gaussdbjdbc.jar这个jdbc驱动连接数据库执行测试用例。注意不要修改我文章里的内容，测试过程你可以单独记录到第三篇文章里”</p>
+</blockquote>
+<blockquote>
+<p>测试用例我大概肉眼核对了一下，没有大问题，小问题基本不影响结论，虽然AI又测出了几个日志，但是仍然有大量日志未触发。<br/>
+本文仅供参考，实际字节码功能的覆盖场景以华为官方口径为准。<br/>
+关于GaussDB的PLSQL字节码能力暂时就写到这，后续如果有新的发现足够写一篇新的文章就再来第四篇。</p>
+</blockquote>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-507-new-feature-plsql-bytecode-part2/">【GaussDB】507内核新特性-PLSQL字节码（二） &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

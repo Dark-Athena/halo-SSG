@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核新特性-PLSQL字节码（一） - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核新特性-PLSQL字节码（一） 这个字节码内容较多，一篇讲不完，这篇先讲基础概念和正常使用的情况 官方文档介绍 《字节码简介》 字节码和汇编指令类似，是为PL/SQL专门定义的一组用于实现PL/SQL语义的指令，通过将PL/SQL语句转化为字节码完成用户的指令。一个字节码">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核新特性-PLSQL字节码（一）</h1>
+    <div class="meta">
+        
+        <span>2026-07-19</span>
+        
+        <span>19 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核新特性-plsql字节码一">【GaussDB】507内核新特性-PLSQL字节码（一）</h1>
+<p>这个字节码内容较多，一篇讲不完，这篇先讲基础概念和正常使用的情况</p>
+<h2 id="官方文档介绍">官方文档介绍</h2>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0731.html">《字节码简介》</a></p>
+<blockquote>
+<p>字节码和汇编指令类似，是为PL/SQL专门定义的一组用于实现PL/SQL语义的指令，通过将PL/SQL语句转化为字节码完成用户的指令。一个字节码对应一个原子化的操作，一条语句对应一个或多个字节码。通过逐条解析存储过程内的语句，将存储过程语句的执行转化为顺序执行字节码组成的数组。</p>
+</blockquote>
+<blockquote>
+<p>字节码通过将传统存储过程基于AST（Abstract Syntax Tree，抽象语法树）的解释执行引擎转变为基于字节码的解释执行引擎，可以有效提升支持场景下存储过程的执行性能。通过调整GUC参数plsql_code_type，可以验证字节码框架对存储过程的性能提升。当GUC参数plsql_code_type设置为BYTECODE时，存储过程在支持字节码的场景下执行路径为字节码框架，不支持字节码的场景下执行路径为传统AST框架；设置为INTERPRETED时，存储过程执行路径为传统AST框架。</p>
+</blockquote>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0732.html">《字节码规格约束》</a></p>
+<blockquote>
+<p>规格</p>
+<ul>
+<li>通过GUC参数plsql_code_type进行控制，设置为INTERPRETED时，通过传统AST框架执行存储过程；设置为BYTECODE时，通过字节码框架执行存储过程，当存储过程存在不支持字节码的场景，则存储过程以传统引擎框架进行执行；不支持将GUC参数plsql_code_type设置为其他值。</li>
+<li>该特性仅在A兼容模式数据库中生效，当A兼容性参数behavior_compat_options设置中包含compat_cursor、allow_procedure_compile_check、proc_outparam_override、dynamic_sql_compat、proc_outparam_transfer_length以及varray_compat参数选项时，支持执行字节码。</li>
+</ul>
+<p>约束</p>
+<ul>
+<li>目前不支持的DFX功能：PLDEBUGGER（打开PLDEBUGGER时，函数或存储过程将通过传统引擎执行），PG_STAT_USER_FUNCTIONS视图（仅统计通过传统引擎执行存储过程或函数的时间）。</li>
+<li>不支持PACKAGE实例化。</li>
+<li>不支持匿名块。</li>
+<li>不支持TRIGGER。</li>
+<li>不支持返回集合的函数。</li>
+<li>不支持高级包以及系统函数。</li>
+<li>不支持带有出参的FUNCTION在表达式中嵌套调用。</li>
+<li>不支持RETURN复合类型的带有出参的FUNCTION。</li>
+<li>不支持PROCEDURE显式指定RETURN值（正常用法PROCEDURE无需RETURN值）。</li>
+<li>不支持子程序。</li>
+<li>主事务不支持嵌套调用自治事务的表达式执行字节码（自治事务创建的新SESSION执行存储过程可以通过字节码框架执行）。</li>
+<li>不支持SUBTYPE类型。</li>
+<li>不支持游标循环语句SELECT返回的列数与语句中的游标变量列数不一致。</li>
+<li>不支持RECORD变量的读取和赋值列值（如：va record; va.c1 := 1;）。</li>
+<li>不支持PACKAGE中RECORD变量的读取和复制。</li>
+<li>不支持REFCURSOR类型的出入参转换为其他类型（例如：REFCURSOR转换为VARCHAR2，或进行拼接运算操作等）。</li>
+<li>不支持伪类型（具体请参见伪类型）作为函数或存储过程出入参。</li>
+<li>不支持循环游标语句使用跨PACKAGE的CURSOR变量。</li>
+<li>不支持包含对入参进行赋值的存储过程或函数。</li>
+<li>不支持BULK COLLECT语句。</li>
+<li>不支持FORALL批量查询语句带有SAVE EXCEPTIONS。</li>
+<li>不支持函数或存储过程的参数默认值为PACKAGE变量。</li>
+<li>不支持存储过程或函数OUT出参具有多个列或带有数组下标的复杂变量（如：type arrayInt is varray(16) of int; val arrayInt; val(1) = 1;）。</li>
+<li>对于存储过程或函数INOUT参数，仅不包含运算的单一参数类型变量支持字节码框架。</li>
+</ul>
+</blockquote>
+<p>注意约束中说的"不支持PACKAGE实例化"，指的是一个字节码对象的维度，package中的存储过程和函数是可以支持字节码的，也就是说，字节码是按pg_proc中的oid来生成的。"不支持匿名块"，但实际上存储过程里嵌套匿名块是支持的，这里指的是直接执行的匿名块是不支持的，因为它没有pg_proc的记录。其他的后面再看要不要举例，毕竟文档里缺了对于不支持场景的例子，写测试用例和验证挺麻烦的，而且我暂不确定GaussDB这些一句话的描述AI是否真的能真的看得懂。</p>
+<h2 id="关于guc参数">关于GUC参数</h2>
+<p>光GUC参数就埋了个暗坑，GaussDB从506版本起，a_format_dev_version默认为s7，强制覆盖了behavior_compat_options的配置，而覆盖的这份配置，不包含字节码要求的allow_procedure_compile_check和varray_compat，因此需要手动把a_format_dev_version改为s6，然后再根据需要显式配置behavior_compat_options。</p>
+<pre><code class="language-bash">gs_guc reload -I all -N all -c "a_format_dev_version='s6'"
+gs_guc reload -I all -N all -c "behavior_compat_options='aformat_null_test,aformat_regexp_match,allow_procedure_compile_check,bind_procedure_searchpath,compat_cursor,convert_string_digit_to_numeric,correct_to_number,current_sysdate,display_leading_zero,dynamic_sql_compat,enable_bpcharlikebpchar_compare,enable_case_when_alias,enable_crosstype_integer_operator,enable_ora_joinop_in_updatestmt,enable_use_ora_timestamptz,end_month_calculate,forbid_package_function_with_prefix,forbid_skip_tableof_empty_str_elem,forbid_update_multi_same_tables,plsql_rollback_keep_user,plsql_security_definer,plstmt_implicit_savepoint,proc_implicit_for_loop_variable,proc_outparam_override,proc_outparam_transfer_length,rownum_type_compat,show_full_error_lineno,sys_function_without_brackets,tableof_elem_constraints,time_constexpr_compact,truncate_numeric_tail_zero,unbind_divide_bound,varray_compat'"
+gs_guc reload -I all -N all -c "plsql_code_type='BYTECODE'"
+</code></pre>
+<p>另外，字节码主要的控制参数为文档里字节码这个章节里提到的<code>plsql_code_type</code></p>
+<blockquote>
+<p>plsql_code_type<br/>
+参数说明：控制存储过程在支持字节码的场景下是否按照基于字节码的执行框架进行执行。该参数可在PDB级别设置。<br/>
+参数类型：枚举类型<br/>
+参数单位：无<br/>
+取值范围：<br/>
+•INTERPRETED：表示存储过程按照基于AST的执行框架执行。<br/>
+•BYTECODE：表示存储过程在支持字节码的场景下，将按照基于字节码的执行框架执行，否则按照基于传统AST的执行框架执行。<br/>
+默认值：INTERPRETED。<br/>
+设置方式：该参数属于USERSET类型参数，请参见表1中对应设置方法进行设置。<br/>
+设置建议：推荐使用默认值。<br/>
+设置不当的风险与影响：请在充分理解参数含义，并经过测试验证后进行修改。</p>
+</blockquote>
+<p>但是搜索整个文档，发现还有个字节码相关的参数</p>
+<blockquote>
+<p>expr_engine<br/>
+参数说明：控制表达式的执行方式。该参数可在PDB级别设置。<br/>
+参数类型：字符串<br/>
+参数单位：无<br/>
+取值范围：<br/>
+•EXPR_TREE：表示使用表达式的递归引擎。<br/>
+•EXPR_FLATTEN：表示使用表达式的展平引擎。<br/>
+•EXPR_BYTECODE：表示使用表达式的字节码引擎。<br/>
+默认值：EXPR_FLATTEN。在PDB场景内，若未设置该参数，则继承来自全局的设置。<br/>
+设置方式：该参数属于USERSET类型参数，请参见表1中对应设置方法进行设置。<br/>
+设置建议：推荐使用默认值。<br/>
+设置不当的风险与影响：使用EXPR_FLATTEN或EXPR_BYTECODE会少量增加优化器运行开销。</p>
+</blockquote>
+<p>在整个文档中搜索这个参数，除了这个参数本身的说明外，只能得到这么几个信息</p>
+<ol>
+<li>分布式中不支持EXPR_BYTECODE/EXPR_FLATTEN。</li>
+<li>M模式不支持EXPR_BYTECODE/EXPR_FLATTEN。</li>
+<li>部分执行计划相关演示之前手动配置了<code>SET expr_engine = EXPR_TREE;</code></li>
+</ol>
+<p>第3点配置的目的是为了避免使用表达式展平，让输出的执行计划和SQL中的逻辑更匹配，否则实际执行计划和演示不一样，还得进行额外的解释。也就是说，文档中实际上未对expr_engine这个参数表达式的字节码做任何示例。</p>
+<p>我粗略测了几个场景，未能观测到EXPR_BYTECODE是否生效，因此本文暂且不管expr_engine，仅针对plsql_code_type来进行测试。</p>
+<h2 id="如何识别是否支持字节码">如何识别是否支持字节码</h2>
+<p>判断一个存储过程是否支持字节码，有两种方式，但这两种方式都要求存储过程要实际执行一次。</p>
+<ul>
+<li>方法一： 创建存储过程后，执行一次存储过程，然后使用<code>dump_plsql_bytecode(function_oid Oid)</code>函数进行查询，输出存储过程oid，返回一行记录，其中字段<code>bytecode</code>显示为<code>Not supported</code>，则表示不支持，如果支持，则会显示具体的字节码信息。</li>
+</ul>
+<pre><code>[0] iconst0 
+[1] castfunction func: numeric 
+[14] storen_copy1 10 
+[19] exec_stmt_begin 
+[40] loopwhile 
+[45] exec_stmt_begin
+...
+</code></pre>
+<ul>
+<li>方法二： 打开字节码的模块日志，然后执行一次存储过程，就会输出对应的日志</li>
+</ul>
+<pre><code>set logging_module = 'on(BYTECODE)';
+set client_min_messages = log;
+</code></pre>
+<p>输出中包含<code>LOG:  Start ByteCode!</code>就是支持（注意不一定会输出<code>This function supports bytecode</code>）;<br/>
+输出中包含<code>bytecode doesn't support</code>就是不支持。不支持时会具体说明由于什么原因不支持，部分不支持原因会具体到代码行。</p>
+<h2 id="与global-plsql-cache的关系">与Global Plsql Cache的关系</h2>
+<p>507版本集中式默认开启Global Plsql Cache功能，只要一个会话执行过一个支持字节码的存储过程，其他会话是可以共享这个字节码的，此时通过dump_plsql_bytecode查询，<code>pid,sessionid,global_sessionid</code> 这三个字段是null。</p>
+<h2 id="测试字节码">测试字节码</h2>
+<h3 id="功能测试">功能测试</h3>
+<p>下面通过一个简单的例子来观察这个字节码的执行效果。</p>
+<pre><code class="language-sql">gaussdb=&gt; set plsql_code_type=BYTECODE;
+SET
+gaussdb=&gt; CREATE OR REPLACE PROCEDURE bc_loop(i int) as
+gaussdb$&gt;   L_COUNT NUMBER:=0;
+gaussdb$&gt; begin
+gaussdb$&gt;   LOOP
+gaussdb$&gt;     IF L_COUNT &gt; i THEN
+gaussdb$&gt;       RAISE INFO 'count is %',L_COUNT;
+gaussdb$&gt;       EXIT;
+gaussdb$&gt;     END IF;
+gaussdb$&gt;     L_COUNT:=L_COUNT+1;
+gaussdb$&gt;   END LOOP;
+gaussdb$&gt; END;
+gaussdb$&gt; /
+CREATE PROCEDURE
+## 创建完后查不到字节码
+gaussdb=&gt; SELECT * FROM pg_catalog.dump_plsql_bytecode('bc_loop'::regproc);
+(No rows)
+gaussdb=&gt; alter procedure bc_loop compile;
+ALTER PROCEDURE
+## 手动编译也查不到字节码
+gaussdb=&gt; SELECT * FROM pg_catalog.dump_plsql_bytecode('bc_loop'::regproc);
+(No rows)
+gaussdb=&gt; call bc_loop(10);
+INFO:  count is 11
+-[ RECORD 1 ]
+bc_loop | 
+## 必须执行一次后才能查到字节码
+gaussdb=&gt; SELECT * FROM pg_catalog.dump_plsql_bytecode('bc_loop'::regproc);
+-[ RECORD 1 ]----+---------------------------------------------------------------------------------------------
+pid              | 
+sessionid        | 
+global_sessionid | 
+databaseid       | 13764
+pkg_id           | 0
+func_id          | 16948
+func_signature   | name: bc_loop(integer), fn_collation: 0, search_path: addUser: false, schemas: 16577,11,2200
+bytecode         | [0] iconst0 
+                 | [1] castfunction func: numeric 
+                 | [14] storen_copy1 10 
+                 | [19] exec_stmt_begin 
+                 | [40] loopwhile 
+                 | [45] exec_stmt_begin 
+                 | [66] loadn 10 
+                 | [71] loadn 0 
+                 | [76] function func: numericint4gt 
+                 | [89] if_or_when 96 
+                 | [94] exec_stmt_begin 
+                 | [115] exec_stmt_treebased  
+                 | [128] exec_stmt_end 
+                 | [141] exec_stmt_begin 
+                 | [162] exec_stmt_end 
+                 | [175] goto 94 
+                 | [180] goto 5 
+                 | [185] exec_stmt_end 
+                 | [198] exec_stmt_begin 
+                 | [219] loadn 10 
+                 | [224] const64 
+                 | [233] function func: numeric_add 
+                 | [246] storen_copy1 10 
+                 | [251] exec_stmt_end 
+                 | [264] goto -224 
+                 | [269] exec_stmt_end 
+                 | [282] exec_stmt_begin 
+                 | [303] exec_stmt_end 
+                 | [316] return0 5 
+                 | 
+</code></pre>
+<h3 id="性能对比测试">性能对比测试</h3>
+<p>进行5*2轮开关字节码的对比测试</p>
+<pre><code>gaussdb=&gt; \timing on
+Timing is on.
+gaussdb=&gt; set plsql_code_type=BYTECODE;
+SET
+Time: 0.377 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 5.299 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 8.448 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 5.042 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 4.980 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 6.513 ms
+gaussdb=&gt; set plsql_code_type=INTERPRETED;
+SET
+Time: 0.603 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 15.091 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 14.844 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 14.945 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 18.484 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 15.694 ms
+gaussdb=&gt; set plsql_code_type=BYTECODE;
+SET
+Time: 0.457 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 6.742 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 5.969 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 5.616 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 4.958 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 5.164 ms
+gaussdb=&gt; set plsql_code_type=INTERPRETED;
+SET
+Time: 0.462 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 15.028 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 14.992 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 15.332 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 14.408 ms
+gaussdb=&gt; call bc_loop(10000);
+INFO:  count is 10001
+-[ RECORD 1 ]
+bc_loop | 
+
+Time: 16.702 ms
+gaussdb=&gt; 
+</code></pre>
+<h4 id="测试明细">测试明细</h4>
+<table><thead><tr><th>批次</th><th>第 1 次 (ms)</th><th>第 2 次 (ms)</th><th>第 3 次 (ms)</th><th>第 4 次 (ms)</th><th>第 5 次 (ms)</th></tr></thead><tbody><tr><td>BYTECODE 首轮</td><td>5.299</td><td>8.448</td><td>5.042</td><td>4.980</td><td>6.513</td></tr><tr><td>INTERPRETED 首轮</td><td>15.091</td><td>14.844</td><td>14.945</td><td>18.484</td><td>15.694</td></tr><tr><td>BYTECODE 二轮</td><td>6.742</td><td>5.969</td><td>5.616</td><td>4.958</td><td>5.164</td></tr><tr><td>INTERPRETED 二轮</td><td>15.028</td><td>14.992</td><td>15.332</td><td>14.408</td><td>16.702</td></tr></tbody></table>
+<h4 id="汇总统计">汇总统计</h4>
+<table><thead><tr><th>编译模式</th><th>测试次数</th><th>平均耗时 (ms)</th><th>性能提升</th></tr></thead><tbody><tr><td>INTERPRETED</td><td>10</td><td>15.552</td><td>—</td></tr><tr><td>BYTECODE</td><td>10</td><td>5.873</td><td>—</td></tr><tr><td><strong>对比</strong></td><td></td><td></td><td><strong>+62.23%</strong></td></tr></tbody></table>
+<p>从测试结果来看，效果是很明显的，而且多轮测试也比较稳定</p>
+<h3 id="真实业务逻辑测试">真实业务逻辑测试</h3>
+<p>简单测试验证通过了，接下来上真实业务逻辑。</p>
+<p>正好我之前有用AI分析过一个"CRR (Cox-Ross-Rubinstein) 二叉树期权定价模型"在GaussDB的PLSQL算法，<a href="https://www.darkathena.top/archives/binomial-option-pricing-7-languages-program-report">《美式期权二叉树算法 — 七语言实现与交叉验证报告》</a> ，可以说是AI已经用尽了浑身解数，最终得出结论:</p>
+<blockquote>
+<p>claude opus 4.8:但要达到 Oracle 的 4ms，差距仍然是 GaussDB PL/SQL 引擎的解释执行效率问题——Oracle 对 PL/SQL 有深度优化（原生编译、内联、循环展开等）。如果 GaussDB 支持的话，可以查看是否有类似 Oracle 的 <code>PLSQL_OPTIMIZE_LEVEL</code> 或 <code>PLSQL_CODE_TYPE=NATIVE</code> 的编译选项。</p>
+</blockquote>
+<p>GaussDB的PLSQL_CODE_TYPE这不就来了嘛！</p>
+<p>这里使用AI优化过的最终版本作为基准，再开启GaussDB的字节码特性，看看是否还能有性能提升</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION binomial_amer_opt_v3_opt (
+    p_s0    float8,
+    p_k     float8,
+    p_t     float8,
+    p_r     float8,
+    p_sigma float8,
+    p_n     INTEGER,
+    p_is_call INTEGER,      -- 1=看涨, 0=看跌
+    p_is_amer INTEGER       -- 1=美式, 0=欧式
+) RETURNS float8 AS $$
+DECLARE
+    v_dt        float8;
+    v_u         float8;
+    v_d         float8;
+    v_p         float8;
+    v_disc      float8;
+    v_dd        float8;
+    v_1mp       float8;
+    v_sign      float8;
+    v_signK     float8;
+    v_intrStep  float8;
+    v_base      float8;
+    v_intr      float8;
+    v_cont      float8;
+    v_opt       float8[];
+    i           INTEGER;
+    j           INTEGER;
+BEGIN
+    v_dt   := p_t / p_n;
+    v_u    := exp(p_sigma * sqrt(v_dt));
+    v_d    := 1.0 / v_u;
+    v_p    := (exp(p_r * v_dt) - v_d) / (v_u - v_d);
+    v_1mp  := 1.0 - v_p;
+    v_disc := exp(-p_r * v_dt);
+    v_dd   := v_d * v_d;
+
+    IF p_is_call = 1 THEN v_sign := 1.0; ELSE v_sign := -1.0; END IF;
+    v_signK    := v_sign * p_k;
+    v_intrStep := v_signK * (v_dd - 1.0);
+
+    v_opt := array_fill(0.0, ARRAY[p_n + 2]);
+    FOR i IN 1 .. p_n + 1 LOOP
+        v_opt[i] := greatest(0.0, v_sign * (p_s0 * power(v_u, p_n) * power(v_dd, i - 1) - p_k));
+    END LOOP;
+
+    v_base := p_s0 * power(v_u, p_n) * v_d;
+    FOR i IN REVERSE p_n .. 1 LOOP
+        v_intr := v_sign * v_base - v_signK;
+        FOR j IN 1 .. i LOOP
+            v_cont := v_disc * (v_p * v_opt[j] + v_1mp * v_opt[j + 1]);
+            IF p_is_amer = 1 THEN v_opt[j] := greatest(v_cont, v_intr);
+            ELSE v_opt[j] := v_cont; END IF;
+            v_intr := v_intr * v_dd + v_intrStep;
+        END LOOP;
+        v_base := v_base * v_d;
+    END LOOP;
+
+    RETURN v_opt[1];
+END;
+$$ LANGUAGE plpgsql;
+
+create or replace procedure test_benchmark(n int) is
+declare
+v_v1 number;
+v_start timestamp;
+begin
+    v_start := clock_timestamp();
+    for i in 1..n loop
+     v_v1 := binomial_amer_opt_v3_opt(100, 100, 1.0, 0.05, 0.2, 200, 0, 1);
+    end loop;
+raise notice '%',clock_timestamp()-v_start;
+end;
+/
+</code></pre>
+<p>对比测试4轮，每轮调用算法函数100次</p>
+<pre><code class="language-sql">gaussdb=&gt; set plsql_code_type=BYTECODE;
+SET
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:02.141342
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:01.99412
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:02.039277
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:02.019245
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; set plsql_code_type=INTERPRETED;
+SET
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:05.816567
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:05.824375
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:05.693762
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; call test_benchmark(100);
+NOTICE:  00:00:05.794074
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+
+</code></pre>
+<p>补测一轮调用算法函数1000次的</p>
+<pre><code class="language-sql">gaussdb=&gt; set plsql_code_type=BYTECODE;
+SET
+gaussdb=&gt; call test_benchmark(1000);
+NOTICE:  00:00:20.146643
+ test_benchmark 
+----------------
+ 
+(1 row)
+
+gaussdb=&gt; set plsql_code_type=INTERPRETED;
+SET
+gaussdb=&gt; call test_benchmark(1000);
+NOTICE:  00:00:57.356876
+ test_benchmark 
+----------------
+ 
+(1 row)
+</code></pre>
+<table><thead><tr><th>plsql_code_type</th><th>调用函数次数</th><th>第 1 次 (s)</th><th>第 2 次 (s)</th><th>第 3 次 (s)</th><th>第 4 次 (s)</th></tr></thead><tbody><tr><td>BYTECODE</td><td>100</td><td>2.141</td><td>1.994</td><td>2.039</td><td>2.019</td></tr><tr><td>INTERPRETED</td><td>100</td><td>5.817</td><td>5.824</td><td>5.694</td><td>5.794</td></tr><tr><td>BYTECODE</td><td>1000</td><td>20.147</td><td></td><td></td><td></td></tr><tr><td>INTERPRETED</td><td>1000</td><td>57.357</td><td></td><td></td><td></td></tr></tbody></table>
+<p>通过以上多种测试，基本可以看出使用字节码后的耗时差不多是原本耗时的三分之一稍多一点。</p>
+<h2 id="字节码支持场景">字节码支持场景</h2>
+<p>官方文档有介绍字节码支持哪些场景，我就不搬过来了:</p>
+<ol>
+<li>表达式 - <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0734.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0734.html</a></li>
+<li>语句 - <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0735.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0735.html</a></li>
+</ol>
+<p>下一篇讲讲字节码的使用约束。</p>
+<p><strong>未完待续~</strong></p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-507-new-feature-plsql-bytecode-part2/">&larr; 【GaussDB】507内核新特性-PLSQL字节码（二）</a>
+    
+    
+    <a href="../gaussdb-analyze-subquery-update-coredump/">【GaussDB】分析一个使用子查询进行update导致的coredump &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

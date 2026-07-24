@@ -5,6 +5,31 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part3</loc>
+    <lastmod>2026-07-19</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part2</loc>
+    <lastmod>2026-07-19</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-utf8-gbk-substrb</loc>
+    <lastmod>2026-07-18</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-analyze-subquery-update-coredump</loc>
+    <lastmod>2026-07-22</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part1</loc>
+    <lastmod>2026-07-19</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/DiffusionGemma-on-ai-max-395-test</loc>
     <lastmod>2026-06-23</lastmod>
     <priority>0.8</priority>
@@ -16,7 +41,7 @@
   </url>
   <url>
     <loc>https://www.darkathena.top/archives/gaussdb-coredump-vip-jdbc-keepalive-hang-half-socket</loc>
-    <lastmod>2026-06-15</lastmod>
+    <lastmod>2026-07-08</lastmod>
     <priority>0.8</priority>
   </url>
   <url>

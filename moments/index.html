@@ -148,6 +148,15 @@
 
 <div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
     
+    <div class="meta">2026/07/22 09:25:06</div>
+    
+    <div class="post-body"><div class="content-wrp">
+<p style="">查找duckdb指定版本的插件的源码commit号，以1.4.5版本的postgres_scanner为例，组装url访问该文件</p><p style="">https://github.com/duckdb/duckdb/blob/v1.4.5/.github/config/extensions/postgres_scanner.cmake</p><p style="">里面有<code>GIT_TAG b9fce43bc5d36bc6db70844f28b7b146e756eb22</code>  ，这个就是。另外在已安装了插件的duckdb里，查<code>select * from duckdb_extensions();</code>  也可以在version里获取短的commit号</p>
+</div></div>
+</div>
+
+<div style="padding: 16px 0; border-bottom: 1px solid var(--border);">
+    
     <div class="meta">2026/06/17 12:00:39</div>
     
     <div class="post-body"><div class="content-wrp">
