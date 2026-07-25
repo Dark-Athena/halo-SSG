@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】507内核版本新特性-rowid</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-rowid</link>
+      <description>【GaussDB】507内核版本新特性-rowid 国产数据库做ORACLE兼容的都知道，rowid这个特性点始终是绕不过去的，尽管有些等价修改方案，但并非适用于所有场景。大部分国产数据库都早早实现了rowid，而GaussDB的rowid却迟迟不出，直到今年刚发布的507内核版本，rowid终于是</description>
+      <pubDate>Sat, 25 Jul 2026 08:25:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>【DuckDB】开发DuckDB插件连接GaussDB/openGauss</title>
+      <link>https://www.darkathena.top/archives/duckdb-extension-for-the-openGauss-family</link>
+      <description>【DuckDB】开发DuckDB插件连接GaussDB/openGauss 背景 之前我有写过一篇使用DuckDB查询GaussDB里数据的文章【GaussDB】在duckdb中查询GaussDB的数据 ，部分大量数据的查询场景下，使用DuckDB来查询的性能的确优于直接在GaussDB里查询。但是</description>
+      <pubDate>Sat, 25 Jul 2026 08:24:54 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】507内核新特性-PLSQL字节码（三）</title>
       <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part3</link>
       <description>【GaussDB】507内核新特性-PLSQL字节码（三） 上一篇《【GaussDB】507内核新特性-PLSQL字节码（二）》在结尾提到，官方文档和日志描述都不太完善，二进制里grep出来的字节码日志有很多没有命中，成了个遗憾。本文根据日志描述反向倒推测试场景，尝试命中更多上一篇没有覆盖到的BC日</description>
@@ -307,21 +319,6 @@
       <link>https://www.darkathena.top/archives/Errors-on-the-6th-Run-of-the-Same-SQL-or-Stored-Procedure-in-GaussDB</link>
       <description>【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查 背景 最近有客户遇到了一个问题，原始反馈是 客户：“我在GaussDB里调用这个sp报错，相同sp在ORACLE里调用不报错” 我：“报什么错？” 客户：“invalid input syntax for type</description>
       <pubDate>Sat, 10 Jan 2026 12:27:59 +0000</pubDate>
-    </item>
-    <item>
-      <title>【ORACLE】分析一个全局临时表drop报错不合理的问题</title>
-      <link>https://www.darkathena.top/archives/oracle-drop-global-template-table-error</link>
-      <description>【ORACLE】分析一个全局临时表drop报错不合理的问题 背景 有次在验证全局临时表相关特性时，偶然遇到这么一个问题，整个数据库就我一个客户端会话，我刚建的表，自己drop还报错，说正在被使用中，很是让人费解。 复现用例 下面是简单的复现用例 SQL&gt; create table t_test(PR</description>
-      <pubDate>Sun, 04 Jan 2026 14:26:53 +0000</pubDate>
-      <category>ORACLE数据库</category>
-    </item>
-    <item>
-      <title>【openGauss】用Qoder修复openGauss的一处BUG</title>
-      <link>https://www.darkathena.top/archives/fix-an-opengauss-bug-with-qoder</link>
-      <description>【openGauss】用Qoder修复openGauss的一处BUG 背景 最近遇到一个openGauss的BUG，经验证，在5.0/6.0/7.0RC2上都存在,部分基于openGauss的商业发行版也有这个BUG。 [og600@kylinv10sp3-node1 ~]$ gsql -r
-gsq</description>
-      <pubDate>Sat, 03 Jan 2026 13:32:32 +0000</pubDate>
-      <category>openGauss</category>
     </item>
   </channel>
 </rss>

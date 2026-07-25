@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核版本新特性-rowid - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核版本新特性-rowid 国产数据库做ORACLE兼容的都知道，rowid这个特性点始终是绕不过去的，尽管有些等价修改方案，但并非适用于所有场景。大部分国产数据库都早早实现了rowid，而GaussDB的rowid却迟迟不出，直到今年刚发布的507内核版本，rowid终于是">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核版本新特性-rowid</h1>
+    <div class="meta">
+        
+        <span>2026-07-25</span>
+        
+        <span>2 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核版本新特性-rowid">【GaussDB】507内核版本新特性-rowid</h1>
+<p>国产数据库做ORACLE兼容的都知道，rowid这个特性点始终是绕不过去的，尽管有些等价修改方案，但并非适用于所有场景。大部分国产数据库都早早实现了rowid，而GaussDB的rowid却迟迟不出，直到今年刚发布的507内核版本，rowid终于是千呼万唤始出来。</p>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/devg-cent/gaussdb-42-1131.html">《GaussDB文档中心特性使用指导开发指南（集中式）ROWID表 特性概述<br/>
+》</a></p>
+<p>三年前我写了一篇关于openGauss的一种rowid替代方案(未公开发布)，有用到 <code>with (hasuids= on)</code>，会自动创建一个<code>gs_tuple_uid</code>字段，是行的唯一标识，但是它插入的时候为空，要更新第一次后才确定值是多少。也就是说，确定表内唯一行需要使用<code>nvl(gs_tuple_uid,ctid)</code> 类似的做法，但两列的数据类型不一样，处理起来稍有麻烦。而且新增了物理存储列会导致插入性能下降。</p>
+<p>我在之前另一篇公开文章中(具体哪篇不说了，有兴趣的可以去我的博客 <a href="http://www.darkathena.top">www.darkathena.top</a> 搜"rowid"相关文章) ，曾经有详细介绍关于rowid的很多使用场景及表现，并测试了很多国产数据库，但几乎所有源自postgresql的数据库都无法在不新增物理字段存储的情况下满足文章里列出所有的rowid使用场景。这次我就拿之前这篇文章里的场景来在GaussDB 5.0.7版本上测一测，看看是个什么情况。</p>
+<p>首先，GaussDB这个rowid不是默认就启用的，创建表时要额外指定表的属性才能在表上带rowid字段，例如<code>create table t_test(a int) with(hasrowid);</code>,且无法通过修改GUC参数全局打开。</p>
+<p>本文测试环境 GaussDB 507.0.0 集中式。内核部分行为在分布式存在差异。</p>
+<h2 id="rowid功能测试">rowid功能测试</h2>
+<h3 id="1select--不显示rowid">1.select * 不显示rowid</h3>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update(id number,content varchar2(200))with(hasrowid);
+CREATE TABLE
+gaussdb=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+gaussdb=# select * from test_rowid_update ;
+ id | content 
+----+---------
+  1 | 1
+(1 row)
+
+gaussdb=# drop table test_rowid_update;
+DROP TABLE
+gaussdb=# 
+</code></pre>
+<p>测试通过</p>
+<h3 id="2select-rowid-不报错">2.select rowid 不报错</h3>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update(id number,content varchar2(200))with(hasrowid);
+CREATE TABLE
+gaussdb=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+gaussdb=# select rowid,t.rowid,t.* from test_rowid_update t ;
+             rowid             |             rowid             | id | content 
+-------------------------------+-------------------------------+----+---------
+ AAAAAAAAAP//AAAKUYAAAAAAAAAAB | AAAAAAAAAP//AAAKUYAAAAAAAAAAB |  1 | 1
+(1 row)
+
+gaussdb=# drop table test_rowid_update;
+DROP TABLE
+gaussdb=# 
+</code></pre>
+<p>测试通过</p>
+<h3 id="3通过rowid快速检索数据">3.通过rowid快速检索数据</h3>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update(id number,content varchar2(200)) with(hasrowid);
+CREATE TABLE
+gaussdb=# insert into test_rowid_update select id,'id_'||id from generate_series(1,1000) id;
+INSERT 0 1000
+gaussdb=# analyze test_rowid_update;
+ANALYZE
+gaussdb=# select rowid from test_rowid_update  where content='id_50';
+             rowid             
+-------------------------------
+ AAAAAAAAAP//AAAKLvAAAAAAAAAAy
+(1 row)
+
+gaussdb=# 
+gaussdb=# explain analyze select  t.* from test_rowid_update t where rowid = 'AAAAAAAAAP//AAAKLvAAAAAAAAAAy';
+                                                                    QUERY PLAN                        
+                                            
+------------------------------------------------------------------------------------------------------
+--------------------------------------------
+ Index Scan using test_rowid_update_rowno_idx on test_rowid_update t  (cost=0.00..2.27 rows=1 width=11
+) (actual time=0.024..0.025 rows=1 loops=1)
+   Index Cond: (rowno = 50::bigint), (Expression Flatten Optimized)
+   Filter: (tableoid = 41711::oid), (Expression Flatten Optimized)
+ Total runtime: 0.260 ms
+(4 rows)
+
+gaussdb=# explain analyze select  t.* from test_rowid_update t where rowid = (select rowid from test_rowid_update  where content='id_50') ;
+                                                                     QUERY PLAN                       
+                                              
+------------------------------------------------------------------------------------------------------
+----------------------------------------------
+ Index Scan using test_rowid_update_rowno_idx on test_rowid_update t  (cost=35.00..37.28 rows=1 width=
+11) (actual time=0.843..0.845 rows=1 loops=1)
+   Index Cond: (rowno = rowid_sequence($1)), (Expression Flatten Optimized)
+   Filter: (tableoid = rowid_tableoid($0)), (Expression Flatten Optimized)
+   InitPlan 1 (returns $0)
+     -&gt;  Seq Scan on test_rowid_update  (cost=0.00..17.50 rows=1 width=24) (actual time=0.050..0.368 r
+ows=1 loops=1)
+           Filter: ((content)::text = 'id_50'::text), (Expression Flatten Optimized)
+           Rows Removed by Filter: 999
+   InitPlan 2 (returns $1)
+     -&gt;  Seq Scan on test_rowid_update  (cost=0.00..17.50 rows=1 width=24) (actual time=0.063..0.438 r
+ows=1 loops=1)
+           Filter: ((content)::text = 'id_50'::text), (Expression Flatten Optimized)
+           Rows Removed by Filter: 999
+ Total runtime: 1.121 ms
+(12 rows)
+
+gaussdb=# explain analyze select  t.* from test_rowid_update t where rowno = (select rowno from test_rowid_update  where content='id_50');
+                                                                     QUERY PLAN                       
+                                              
+------------------------------------------------------------------------------------------------------
+----------------------------------------------
+ Index Scan using test_rowid_update_rowno_idx on test_rowid_update t  (cost=17.50..19.77 rows=1 width=
+11) (actual time=0.308..0.309 rows=1 loops=1)
+   Index Cond: (rowno = $0), (Expression Flatten Optimized)
+   InitPlan 1 (returns $0)
+     -&gt;  Seq Scan on test_rowid_update  (cost=0.00..17.50 rows=1 width=8) (actual time=0.040..0.287 ro
+ws=1 loops=1)
+           Filter: ((content)::text = 'id_50'::text), (Expression Flatten Optimized)
+           Rows Removed by Filter: 999
+ Total runtime: 0.417 ms
+(7 rows)
+
+gaussdb=# drop table test_rowid_update;
+DROP TABLE
+gaussdb=#
+</code></pre>
+<p>这个用是能用，但执行计划有毛病，在 <code>rowid in select rowid</code>时出现了两个InitPlan,额外多扫描了一次表，而用rowno则只有一个（后面会介绍这个rowno和rowid的关系）</p>
+<h3 id="4对同一个rowid进行多次更新">4.对同一个rowid进行多次更新</h3>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update(id number,content varchar2(200))with(hasrowid);
+CREATE TABLE
+gaussdb=# insert into test_rowid_update values (1,'1');
+INSERT 0 1
+gaussdb=# 
+gaussdb=# declare
+gaussdb-# i int;
+gaussdb-# begin
+gaussdb$# for rec in (select rowid rd from test_rowid_update) loop
+gaussdb$# update test_rowid_update set content='2' where rowid=rec.rd;
+gaussdb$# update test_rowid_update set content='3' where rowid=rec.rd;
+gaussdb$# end loop;
+gaussdb$# select 1 into i from test_rowid_update where id=1 and content='3';
+gaussdb$# end;
+gaussdb$# /
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# select * from test_rowid_update where  id=1 and content='3';
+ id | content 
+----+---------
+  1 | 3
+(1 row)
+
+gaussdb=# drop table test_rowid_update ;
+DROP TABLE
+gaussdb=# 
+</code></pre>
+<p>测试通过</p>
+<h3 id="5删除表中重复记录">5.删除表中重复记录</h3>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update with(hasrowid) as select id,'n_'||id as content from generate_series(1,10) id;
+INSERT 0 10
+gaussdb=# 
+gaussdb=# insert into test_rowid_update select id,'d_'||id from generate_series(1,5) id;
+INSERT 0 5
+gaussdb=# 
+gaussdb=# DELETE FROM test_rowid_update t1
+gaussdb-# WHERE t1.rowid &gt; (
+gaussdb(# SELECT MIN(t2.rowid)
+gaussdb(# FROM test_rowid_update t2
+gaussdb(# WHERE t1.id= t2.id
+gaussdb(# );
+DELETE 5
+gaussdb=# select * from test_rowid_update;
+ id | content 
+----+---------
+  1 | n_1
+  2 | n_2
+  3 | n_3
+  4 | n_4
+  5 | n_5
+  6 | n_6
+  7 | n_7
+  8 | n_8
+  9 | n_9
+ 10 | n_10
+(10 rows)
+
+gaussdb=# 
+</code></pre>
+<p>测试通过</p>
+<p>通过以上基本测试可以发现，GaussDB的这个rowid没有出现执行结果错误的情况。</p>
+<p>但是这其实是有代价的。</p>
+<h2 id="rowid引入的元数据">rowid引入的元数据</h2>
+<p>看一下 pg_attribute</p>
+<pre><code class="language-sql">gaussdb=# create table test_rowid_update(id number,content varchar2(200))with(hasrowid);
+CREATE TABLE
+gaussdb=# select attname,atttypid,attlen,attnum,atttypmod,attbyval from pg_attribute where attrelid='t
+est_rowid_update'::regclass;
+   attname    | atttypid | attlen | attnum | atttypmod | attbyval 
+--------------+----------+--------+--------+-----------+----------
+ rowno        |       20 |      8 |    -13 |        -1 | t
+ rowid        |     8662 |     24 |    -12 |        -1 | f
+ xc_node_hash |       23 |      4 |    -11 |        -1 | t
+ xc_node_id   |       23 |      4 |     -8 |        -1 | t
+ tableoid     |       26 |      4 |     -7 |        -1 | t
+ cmax         |       29 |      4 |     -6 |        -1 | t
+ xmax         |       28 |      8 |     -5 |        -1 | t
+ cmin         |       29 |      4 |     -4 |        -1 | t
+ xmin         |       28 |      8 |     -3 |        -1 | t
+ ctid         |       27 |      6 |     -1 |        -1 | f
+ id           |     1700 |     -1 |      1 |        -1 | f
+ content      |     1043 |     -1 |      2 |       204 | f
+(12 rows)
+</code></pre>
+<p>可以看到新增了两个隐藏字段 ，<code>rowid</code>和<code>rowno</code> 。</p>
+<p>新增一个这样的字段，往往会在这个字段上创建一个唯一索引或者主键，</p>
+<pre><code class="language-sql">gaussdb=# create table t_test_rowid(id int,a text) WITH ( hasrowid = ON);
+CREATE TABLE
+gaussdb=# select pg_get_tabledef('t_test_rowid');
+                                                          pg_get_tabledef                             
+                             
+------------------------------------------------------------------------------------------------------
+-----------------------------
+ SET search_path = public;                                                                            
+                            +
+ CREATE TABLE t_test_rowid (                                                                          
+                            +
+     id integer,                                                                                      
+                            +
+     a text                                                                                           
+                            +
+ )                                                                                                    
+                            +
+ WITH (orientation=row, hasrowid=on, compression=no, storage_type=USTORE, segment=off);               
+                            +
+ CREATE UNIQUE INDEX t_test_rowid_rowno_idx ON t_test_rowid USING ubtree (rowno) WITH (storage_type=US
+TORE) TABLESPACE pg_default;
+(1 row)
+
+gaussdb=#
+</code></pre>
+<p>可以看到GaussDB选择的是创建唯一索引，而不是主键。这个索引的名称是表名后面接<code>_idx</code>。<br/>
+实测，如果在pg_class中已存在同名对象，那么创建这个表时，索引的名称会创建成<code>t_test_rowid_rowno_idx1</code>。</p>
+<p>千万别手贱把自动创建的索引加成主键，因为自动创建的索引是不能直接删除的，删主键默认会级联删除索引，但这里会删除报错。</p>
+<p>然后，rowno的值是个整数，从1开始</p>
+<pre><code class="language-sql">gaussdb=# drop table if  exists t_test_rowid;
+DROP TABLE
+gaussdb=# create table t_test_rowid(id int,a text) WITH ( hasrowid = ON);
+CREATE TABLE
+gaussdb=# insert into t_test_rowid select id,'xxxxxxxxxx' from pg_catalog.generate_series (1,3) id;
+INSERT 0 3
+gaussdb=# select * from t_test_rowid;
+ id |     a      
+----+------------
+  1 | xxxxxxxxxx
+  2 | xxxxxxxxxx
+  3 | xxxxxxxxxx
+(3 rows)
+
+gaussdb=# select rowid,rowno,* from t_test_rowid;
+             rowid             | rowno | id |     a      
+-------------------------------+-------+----+------------
+ AAAAAAAAAP//AAAKKfAAAAAAAAAAB |     1 |  1 | xxxxxxxxxx
+ AAAAAAAAAP//AAAKKfAAAAAAAAAAC |     2 |  2 | xxxxxxxxxx
+ AAAAAAAAAP//AAAKKfAAAAAAAAAAD |     3 |  3 | xxxxxxxxxx
+(3 rows)
+
+gaussdb=# 
+</code></pre>
+<p>那么必然有个序列</p>
+<pre><code class="language-sql">gaussdb=# select relname,relkind from pg_class where relname like 't_test_rowid%' and relowner=pg_current_userid();
+        relname         | relkind 
+------------------------+---------
+ t_test_rowid           | r
+ t_test_rowid_rowno_idx | i
+ t_test_rowid_seq       | S
+(3 rows)
+
+gaussdb=# \x
+Expanded display is on.
+gaussdb=# select * from t_test_rowid_seq;
+-[ RECORD 1 ]-+--------------------
+sequence_name | t_test_rowid_seq
+last_value    | 10
+start_value   | 1
+increment_by  | 1
+max_value     | 9223372036854775807
+min_value     | 1
+cache_value   | 10
+log_cnt       | 32
+is_cycled     | f
+is_called     | t
+uuid          | 0
+
+</code></pre>
+<p>限制来了，最大值9223372036854775807，也就是说最多只能插入这么多行，这不是指表最多这么多行，而是纯指insert的累计总行数。而且cache是10，也就是说如果是短连接，在没开启GaussDB507版本新特性--<strong>节点级序列缓存</strong>功能的情况下，序列值的可用数量能掉到十分之一，甚至更低。</p>
+<p>在我之前关于rowid的那篇文章中，我有这个这样的分析</p>
+<blockquote>
+<p>PG系如果要支持rowid，目前已知的大致有四种方案:</p>
+<ol>
+<li>借用ctid，但由于分区表的不同分区里可能出现相同的ctid，因此需要结合tableoid和ctid两个字段；如果是分布式的，还需要结合节点字段。但是记录被update时，ctid一定会变，不能使用同一个ctid去对某条记录进行两次更新。</li>
+<li>在表上直接加一个物理存储的列，用于存储rowid，并且给它加上唯一约束或索引，而其值本身可能直接使用一个全局序列的值。</li>
+<li>也是在表上直接加一个物理存储的列，但需要引入每个表的序列管理，这个序列值结合tableoid计算出一个base64编码的值，存到这个表里。</li>
+<li>新增一种存储引擎，update数据时在原行上更新，不像astore这种更新实际上是插入了新行。</li>
+</ol>
+<p>简单来说，PG系rowid实现其实也就两种，一种是再建一个字段存储唯一值，另一种就是ctid或其变种。前者带来大量性能损耗，后者一update就会变。</p>
+</blockquote>
+<p>众所周知，Oracle的rowid是一个没有实际存储的虚拟列，它的值表示的是这一行数据所在的物理地址，因此rowid的存在本身，并不会对数据插入带来性能损耗。</p>
+<p>而GaussDB比较像第3种方案，不过它只把序列的值进行了物理存储，即rowno，然后rowno结合tableoid计算出rowid作为虚拟列。</p>
+<p>很是奇怪，明明GaussDB有了ustore，且为默认存储引擎，天然具备ctid稳定的优势，可以用tableoid结合ctid去做rowid,为何还要搞个有实际存储的列去存序列号？</p>
+<p>我有两个猜测，一是就算在ustore下，某些场景的update数据仍然会发生ctid的变化，而且他们也没打算基于版本链的方式解决ctid变化的问题；二是GaussDB至今仍未引入tidrangescan算子，而index range scan是本身就具备的。</p>
+<p>元数据聊完，看看加上rowid的性能表现吧。</p>
+<h2 id="rowid性能测试">rowid性能测试</h2>
+<pre><code class="language-sql">drop table if  exists  t_test;
+create table t_test(id int,a text);
+explain analyze insert into t_test select id,'xxxxxxxxxx' from pg_catalog.generate_series (1,10000000) id;
+
+Insert on t_test  (cost=0.00..10.00 rows=1000 width=4) (actual time=1241.054..35016.026 rows=10000000 loops=1)
+  -&gt;  Function Scan on generate_series id  (cost=0.00..10.00 rows=1000 width=4) (actual time=1241.038..3803.907 rows=10000000 loops=1)
+Total runtime: 35040.289 ms
+</code></pre>
+<pre><code class="language-sql">drop table if  exists t_test_rowid;
+create table t_test_rowid(id int,a text) WITH ( hasrowid = ON);
+explain analyze insert into t_test_rowid select id,'xxxxxxxxxx' from pg_catalog.generate_series (1,10000000) id;
+
+Insert on t_test_rowid  (cost=0.00..10.00 rows=1000 width=4) (actual time=1274.390..88646.218 rows=10000000 loops=1)
+  -&gt;  Function Scan on generate_series id  (cost=0.00..10.00 rows=1000 width=4) (actual time=1274.370..3843.351 rows=10000000 loops=1)
+Total runtime: 88652.343 ms
+</code></pre>
+<p>两个字段的表，插入一千万行，不带rowid只要35秒，带rowid要88秒。</p>
+<p>再测十个字段的表，一百万行：</p>
+<pre><code class="language-sql">gaussdb=# drop table if exists t_test;
+DROP TABLE
+gaussdb=# drop table if exists t_test_rowid;
+DROP TABLE
+gaussdb=# create table t_test(c1 varchar(10),c2 varchar(10),c3 varchar(10), c4 varchar(10),c5 varchar(10),c6 varchar(10),c7 varchar(10),c8 varchar(10),c9 varchar(10),c10 varchar(10));
+CREATE TABLE
+gaussdb=# explain analyze insert into t_test select 'abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij' from generate_series(1,1000000);
+
+ id |                operation                |  A-time   | A-rows  | E-rows | Peak Memory | A-width |
+ E-width |    E-costs    
+----+-----------------------------------------+-----------+---------+--------+-------------+---------+
+---------+---------------
+  1 | -&gt;  Insert on t_test                    | 10511.589 | 1000000 |   1000 | 484KB       |         |
+       0 | 0.003..10.002
+  2 |    -&gt;  Function Scan on generate_series | 525.974   | 1000000 |   1000 | 7314KB      |         |
+       0 | 0.003..10.002
+(2 rows)
+
+        ====== Query Summary =====        
+------------------------------------------
+ Datanode executor start time: 0.198 ms
+ Datanode executor run time: 10511.617 ms
+ Datanode executor end time: 5.040 ms
+ Planner runtime: 0.324 ms
+ Query Id: 6918936402524748121
+ Total runtime: 10516.876 ms
+(6 rows)
+
+gaussdb=# 
+gaussdb=# create table t_test_rowid(c1 varchar(10),c2 varchar(10),c3 varchar(10), c4 varchar(10),c5 varchar(10),c6 varchar(10),c7 varchar(10),c8 varchar(10),c9 varchar(10),c10 varchar(10)) with(hasrowid); 
+CREATE TABLE
+gaussdb=# explain analyze insert into t_test select 'abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij','abcdefghij' from generate_series(1,1000000);
+ id |                operation                |  A-time   | A-rows  | E-rows | Peak Memory | A-width |
+ E-width |    E-costs    
+----+-----------------------------------------+-----------+---------+--------+-------------+---------+
+---------+---------------
+  1 | -&gt;  Insert on t_test                    | 19775.692 | 1000000 |   1000 | 484KB       |         |
+       0 | 0.003..10.002
+  2 |    -&gt;  Function Scan on generate_series | 548.358   | 1000000 |   1000 | 7314KB      |         |
+       0 | 0.003..10.002
+(2 rows)
+
+        ====== Query Summary =====        
+------------------------------------------
+ Datanode executor start time: 0.063 ms
+ Datanode executor run time: 19775.717 ms
+ Datanode executor end time: 5.482 ms
+ Planner runtime: 0.209 ms
+ Query Id: 6918936402524748129
+ Total runtime: 19781.279 ms
+(6 rows)
+
+gaussdb=# 
+
+</code></pre>
+<p>不带rowid 10秒，带rowid 19秒。字段越多，rowid对插入性能的影响会越小，但始终是存在不可忽视的影响的。</p>
+<p>但由于创建了一个唯一索引，在字段数多的时候，count就不用全表扫描了，indexonlyscan会更快。</p>
+<pre><code class="language-sql">gaussdb=# explain analyze select count(1) from t_test;
+ id |         operation         | A-time  | A-rows  | E-rows | Peak Memory | A-width | E-width |      
+ E-costs        
+----+---------------------------+---------+---------+--------+-------------+---------+---------+------
+----------------
+  1 | -&gt;  Aggregate             | 694.211 |       1 |      1 | 22KB        |         |       8 | 43070
+.113..43070.123
+  2 |    -&gt;  Seq Scan on t_test | 468.275 | 2000000 | 686969 | 45KB        |         |       0 | 0.000
+..41352.690
+(2 rows)
+
+       ====== Query Summary =====       
+----------------------------------------
+ Datanode executor start time: 0.072 ms
+ Datanode executor run time: 694.250 ms
+ Datanode executor end time: 0.018 ms
+ Planner runtime: 0.152 ms
+ Query Id: 6918936402524748222
+ Total runtime: 694.353 ms
+(6 rows)
+
+gaussdb=# explain analyze select count(1) from t_test;
+ id |         operation         | A-time  | A-rows  | E-rows | Peak Memory | A-width | E-width |      
+ E-costs        
+----+---------------------------+---------+---------+--------+-------------+---------+---------+------
+----------------
+  1 | -&gt;  Aggregate             | 695.078 |       1 |      1 | 22KB        |         |       8 | 43070
+.113..43070.123
+  2 |    -&gt;  Seq Scan on t_test | 463.986 | 2000000 | 686969 | 45KB        |         |       0 | 0.000
+..41352.690
+(2 rows)
+
+       ====== Query Summary =====       
+----------------------------------------
+ Datanode executor start time: 0.058 ms
+ Datanode executor run time: 695.104 ms
+ Datanode executor end time: 0.017 ms
+ Planner runtime: 0.153 ms
+ Query Id: 6918936402524748224
+ Total runtime: 695.189 ms
+(6 rows)
+
+gaussdb=# explain analyze select count(1) from t_test_rowid;
+ id |                              operation                              | A-time | A-rows | E-rows |
+ Peak Memory | A-width | E-width |   E-costs    
+----+---------------------------------------------------------------------+--------+--------+--------+
+-------------+---------+---------+--------------
+  1 | -&gt;  Aggregate                                                       | 0.071  |      1 |      1 |
+ 22KB        |         |       8 | 4.733..4.743
+  2 |    -&gt;  Index Only Scan using t_test_rowid_rowno_idx on t_test_rowid | 0.064  |      0 |    199 |
+ 27KB        |         |       0 | 0.000..4.235
+(2 rows)
+
+       ====== Query Summary =====       
+----------------------------------------
+ Datanode executor start time: 0.117 ms
+ Datanode executor run time: 0.097 ms
+ Datanode executor end time: 0.013 ms
+ Planner runtime: 0.643 ms
+ Query Id: 6918936402524748227
+ Total runtime: 0.248 ms
+(6 rows)
+
+gaussdb=# explain analyze select count(1) from t_test_rowid;
+ id |                              operation                              | A-time | A-rows | E-rows |
+ Peak Memory | A-width | E-width |   E-costs    
+----+---------------------------------------------------------------------+--------+--------+--------+
+-------------+---------+---------+--------------
+  1 | -&gt;  Aggregate                                                       | 0.016  |      1 |      1 |
+ 22KB        |         |       8 | 4.733..4.743
+  2 |    -&gt;  Index Only Scan using t_test_rowid_rowno_idx on t_test_rowid | 0.010  |      0 |    199 |
+ 27KB        |         |       0 | 0.000..4.235
+(2 rows)
+
+       ====== Query Summary =====       
+----------------------------------------
+ Datanode executor start time: 0.058 ms
+ Datanode executor run time: 0.035 ms
+ Datanode executor end time: 0.010 ms
+ Planner runtime: 0.234 ms
+ Query Id: 6918936402524748229
+ Total runtime: 0.116 ms
+(6 rows)
+
+gaussdb=# 
+</code></pre>
+<p>695.189ms VS 0.116ms ，全表count的性能提升巨大。然而真实业务场景对大表做全表count的情况非常少，就运维场景可能会经常用。</p>
+<h2 id="rowid值的算法">rowid值的算法</h2>
+<p>接下来说明一下这个rowid值的算法。</p>
+<table><thead><tr><th>字段</th><th>含义</th><th>字符长度</th><th>取值范围（BASE64编码）</th></tr></thead><tbody><tr><td>reserve_flag</td><td>保留位。</td><td>6</td><td>当前版本0（AAAAAA）。</td></tr><tr><td>node_slice</td><td>节点的分片编号。</td><td>3</td><td>最小值0（AAA），最大值65535（P//），实际最大值为集群分片数量。集中式固定为0（AAA）</td></tr><tr><td>bucket_id</td><td>hash bucket表的bucket编号。</td><td>3</td><td>最小值0（AAA），最大值32767（H//），实际最大值为表的最大bucket编号。对于非hash bucket表而言，该字段值固定为65535（P//）。集中式固定为65535（P//）</td></tr><tr><td>table_oid</td><td>表的oid。</td><td>6</td><td>最小值0（AAAAAA），最大值4294967295（D/////）。</td></tr><tr><td>row_no</td><td>行的编号。</td><td>11</td><td>最小值0（AAAAAAAAAAA），最大值9223372036854775807（H//////////）。</td></tr></tbody></table>
+<p>可以看到对于集中式而言，前三个值都是固定的，只有后面的tableoid和rowno是不同的。这也印证了我前面提到的PG系各种rowid实现方案。</p>
+<p>GaussDB 提供了几个rowid函数，可以基于rowid计算出对应的这几个值</p>
+<ul>
+<li>rowid_tableoid(rowid)     -&gt;tableoid</li>
+<li>rowid_sequence(rowid)     -&gt;rowno</li>
+<li>rowid_nodeid(rowid)       -&gt;node_slice  （集中式没有此函数）</li>
+<li>rowid_hashbucketid(rowid) -&gt;bucket_id   （集中式没有此函数）</li>
+</ul>
+<p>但是GaussDB并没有提供基于这几个值反向计算出rowid的方法。</p>
+<p>官方文档说是BASE64，但我尝试用数据库内置的decode/encode按base64编码去算是算不出来的。</p>
+<p>换做以前，我可能会自己去推算这个算法，因为我以前真做过多种类似BASE64的算法推演，但那太费时间了，现在有AI，我就直接让AI帮我去推算了。</p>
+<p>这次使用的是 wps灵犀claw ,模型选择为GLM5.2</p>
+<blockquote>
+<p>我：<br/>
+阅读这个文档<br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0029.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0029.html</a><br/>
+,我给你一个gaussdb环境“192.168.163.227:5732/postgres admin/Gaussdb@123”，jdbc驱动在"C:\work\github\gaussdbjdbc\gaussdbjdbc.jar" ,尝试分析出如何使用sql或者其他方式，通过给定的reserve_flag、node_slice、bucket_id、table_oid、row_no值计算出对应的rowid的值 。这是一个创建带rowid表的示例 <code>CREATE TABLE t1 (c1 varchar2(20)) WITH ( hasrowid = ON);</code></p>
+</blockquote>
+<blockquote>
+<p>灵犀：<br/>
+GaussDB ROWID 编码算法分析<br/>
+ROWID 结构<br/>
+ROWID 是一个 29 字符的 BASE64 编码字符串，由 5 个字段按固定顺序拼接而成：</p>
+<table><thead><tr><th>字段</th><th>字符长度</th><th>比特位</th><th>取值范围</th><th>默认值</th></tr></thead><tbody><tr><td>reserve_flag</td><td>6</td><td>36</td><td>当前版本固定 0</td><td>AAAAAA</td></tr><tr><td>node_slice</td><td>3</td><td>18</td><td>分片编号</td><td>AAA (=0)</td></tr><tr><td>bucket_id</td><td>3</td><td>18</td><td>hash bucket 编号</td><td>P// (=65535)</td></tr><tr><td>table_oid</td><td>6</td><td>36</td><td>表的 OID (最大 2^32-1)</td><td>—</td></tr><tr><td>row_no</td><td>11</td><td>66</td><td>行编号 (最大 2^63-1)</td><td>—</td></tr></tbody></table>
+<p>编码算法<br/>
+使用标准 BASE64 字母表：A=0, B=1, ..., Z=25, a=26, ..., z=51, 0=52, ..., 9=61, +=62, /=63</p>
+<p>每个字段独立编码为大端序 (big-endian) 的 base-64 整数，左侧用 A（即 0）填充到固定宽度，最后 5 个字段直接字符串拼接。</p>
+<p>编码公式：对于宽度为 w 的字段，值为 v：</p>
+<pre><code>result = ""
+for i in 1..w:
+   result = B64_ALPHABET[v mod 64] + result
+   v = v div 64
+</code></pre>
+<p>已在 GaussDB 中创建了两个 SQL 函数（已验证可用）：</p>
+<ol>
+<li>编码（组件值 → ROWID）：</li>
+</ol>
+<pre><code class="language-sql">SELECT compute_rowid(
+   p_reserve_flag := 0,      -- 保留位，默认0
+   p_node_slice   := 0,      -- 分片编号
+   p_bucket_id    := 65535,  -- bucket编号，非hash表默认65535
+   p_table_oid    := 41355,  -- 从 pg_class.oid 获取
+   p_row_no       := 1       -- 行编号
+);
+</code></pre>
+<p>-- 返回: AAAAAAAAAP//AAAKGLAAAAAAAAAAB<br/>
+2. 解码（ROWID → 各组件值）：</p>
+<pre><code class="language-sql">SELECT 
+   rowid_decode_field(substr(rowid, 1, 6))  AS reserve_flag,
+   rowid_decode_field(substr(rowid, 7, 3))  AS node_slice,
+   rowid_decode_field(substr(rowid, 10, 3)) AS bucket_id,
+   rowid_decode_field(substr(rowid, 13, 6)) AS table_oid,
+   rowid_decode_field(substr(rowid, 19, 11)) AS row_no
+FROM rowid_test;
+</code></pre>
+<p>Python 版函数</p>
+<pre><code class="language-python">import string
+
+B64 = string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/"
+
+def encode_field(value, width):
+   chars = []
+   for _ in range(width):
+       chars.append(B64[value &amp; 0x3F])
+       value &gt;&gt;= 6
+   return ''.join(reversed(chars))
+
+def compute_rowid(reserve_flag, node_slice, bucket_id, table_oid, row_no):
+   return ''.join([
+       encode_field(reserve_flag, 6),
+       encode_field(node_slice, 3),
+       encode_field(bucket_id, 3),
+       encode_field(table_oid, 6),
+       encode_field(row_no, 11),
+   ])
+
+</code></pre>
+</blockquote>
+<blockquote>
+<p>我：<br/>
+这个base64算法和数据库内置decode/encode函数里的base64算法有什么区别么？</p>
+</blockquote>
+<blockquote>
+<p>灵犀：<br/>
+ROWID base64 vs 数据库内置 base64 的区别<br/>
+两者虽然使用相同的字母表（A-Z a-z 0-9 + /，即 RFC 4648 标准），但编码逻辑完全不同，不能互换使用。</p>
+<p>核心差异</p>
+<table><thead><tr><th>维度</th><th>ROWID base64</th><th>数据库内置 encode/decode(..., 'base64')</th></tr></thead><tbody><tr><td>编码对象</td><td>整数值</td><td>字节流 (bytea)</td></tr><tr><td>编码单位</td><td>按 6-bit 分组，大端序排列</td><td>按 3 字节 (24 bit) → 4 字符</td></tr><tr><td>Padding</td><td>无 = 填充，左侧用 A（0）补齐到固定宽度</td><td>有 = 填充（长度不是 4 倍数时补尾）</td></tr><tr><td>输入宽度</td><td>固定字符宽度（3/6/11）由字段定义决定</td><td>由输入字节数决定输出字符数（⌈n/3⌉×4）</td></tr><tr><td>输出长度</td><td>固定（每个字段长度不变）</td><td>可变（取决于输入字节数）</td></tr><tr><td>可逆性</td><td>整数 ↔ 字符串，无信息丢失</td><td>字节 ↔ 字符串，无信息丢失</td></tr></tbody></table>
+<p>具体对比实例<br/>
+以数值 65535 为例：</p>
+<p>ROWID 编码 (width=3):  P//          ← 3字符，无 padding<br/>
+DB base64 (4字节):     AAD//w==     ← 8字符，含 == padding<br/>
+DB base64 (8字节):     AAAAAAAA//8= ← 12字符，含 = padding<br/>
+以数值 1 为例：</p>
+<p>ROWID 编码 (width=11): AAAAAAAAAAB  ← 11字符，无 padding<br/>
+DB base64 (8字节):     AAAAAAAAAAE= ← 12字符，含 = padding<br/>
+用数据库 decode 能否解码 ROWID 字段？<br/>
+不能。 实测中 decode('P//', 'base64') 直接报错 invalid end sequence，因为标准 base64 要求输入字符数是 4 的倍数（不足补 =），而 ROWID 字段长度为 3、6、11，都不是 4 的倍数。</p>
+<p>即使强行补 = 也不行——标准 base64 的 3 字符 P//= 会被解码为 2 字节 0x3F 0xFF（= 16383），而 ROWID 的实际值是 65535。原因是：</p>
+<p>ROWID 解码 P//:  15×64² + 63×64 + 63 = 65535   (将3字符当作18-bit大端序整数)<br/>
+DB   解码 P//:  001111 111111 111111 → 0x3F 0xFF + 丢弃尾部2bit = 16383  (按字节流切分)<br/>
+标准 base64 把 3 个字符（18 bit）切成 2 个完整字节 + 2 个剩余 bit（被丢弃），而 ROWID 把 3 个字符完整还原为 18-bit 整数，不丢弃任何 bit。</p>
+<p>一句话总结<br/>
+ROWID 的 base64 是一种整数编码（big-endian，固定宽度，无 padding），而数据库内置的 base64 是 RFC 4648 字节流编码（变长，有 padding）。两者字母表相同但语义完全不同，无法通过 encode/decode 互换。</p>
+</blockquote>
+<p>AI在数据库里创建了这样几个函数</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION compute_rowid(p_reserve_flag bigint DEFAULT 0, p_node_slice bigint DEFAULT 0, p_bucket_id bigint DEFAULT 65535, p_table_oid bigint, p_row_no bigint)
+ RETURNS text
+ LANGUAGE plpgsql
+ IMMUTABLE AUTHID DEFINER NOT FENCED NOT SHIPPABLE immutable
+AS $function$
+BEGIN
+    RETURN rowid_encode_field(p_reserve_flag, 6)
+        || rowid_encode_field(p_node_slice, 3)
+        || rowid_encode_field(p_bucket_id, 3)
+        || rowid_encode_field(p_table_oid, 6)
+        || rowid_encode_field(p_row_no, 11);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION rowid_decode_field(s text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ AUTHID DEFINER NOT FENCED NOT SHIPPABLE immutable
+AS $function$
+DECLARE
+    chars TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    result BIGINT := 0;
+    i INT;
+    idx INT;
+BEGIN
+    FOR i IN 1..length(s) LOOP
+        idx := position(substr(s, i, 1) IN chars) - 1;
+        result := result * 64 + idx;
+    END LOOP;
+    RETURN result;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION rowid_encode_field(value bigint, field_width integer)
+ RETURNS text
+ LANGUAGE plpgsql
+ AUTHID DEFINER NOT FENCED NOT SHIPPABLE immutable
+AS $function$
+DECLARE
+    chars TEXT[] := ARRAY[
+        'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+        'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+        '0','1','2','3','4','5','6','7','8','9','+','/'
+    ];
+    result TEXT := '';
+    v BIGINT;
+    i INT;
+BEGIN
+    v := value;
+    FOR i IN 1..field_width LOOP
+        result := chars[(v &amp; 63) + 1] || result;
+        v := v &gt;&gt; 6;
+    END LOOP;
+    RETURN result;
+END;
+$function$;
+</code></pre>
+<p>这3个函数的immutable属性是我自己额外加上去的，AI生成的不带。</p>
+<p>我手动测试了一下，编码和解码rowid都是正确的。</p>
+<p>我本来指望着可以用这几个函数实现基于rowid的切片并发扫描，可是无法得到理想中按表物理页面切割多线程查询的效果，而是按rowno走了个索引扫描。</p>
+<pre><code class="language-sql">explain analyze select  * from t_test_rowid where 
+rowid between compute_rowid(0,0,65535,'t_test_rowid'::regclass::oid::int,10) 
+and compute_rowid(0,0,65535,'t_test_rowid'::regclass::oid::int,1000) ;
+
+QUERY PLAN                                                                                                                             |
+---------------------------------------------------------------------------------------------------------------------------------------+
+[Bypass]                                                                                                                               |
+Index Scan using t_test_rowid_rowno_idx1 on t_test_rowid  (cost=0.00..5.35 rows=5 width=15) (actual time=0.126..1.301 rows=991 loops=1)|
+  Index Cond: ((rowno &gt;= 10::bigint) AND (rowno &lt;= 1000::bigint)), (Expression Flatten Optimized)                                      |
+Total runtime: 1.647 ms                                                                                                                |
+</code></pre>
+<p>原因就要涉及到目前GaussDB里如何根据rowid来查数据的机制了。</p>
+<h2 id="rowid查询机制">rowid查询机制</h2>
+<p>看一下前文演示过的一个执行计划</p>
+<pre><code class="language-sql">gaussdb=# explain analyze select  t.* from test_rowid_update t where rowid = 'AAAAAAAAAP//AAAKLvAAAAAAAAAAy';
+                                                                    QUERY PLAN                        
+                                            
+------------------------------------------------------------------------------------------------------
+--------------------------------------------
+ Index Scan using test_rowid_update_rowno_idx on test_rowid_update t  (cost=0.00..2.27 rows=1 width=11
+) (actual time=0.024..0.025 rows=1 loops=1)
+   Index Cond: (rowno = 50::bigint), (Expression Flatten Optimized)
+   Filter: (tableoid = 41711::oid), (Expression Flatten Optimized)
+ Total runtime: 0.260 ms
+(4 rows)
+</code></pre>
+<p>where 条件只用了rowid，但是执行计划却是，使用rowno=50做索引扫描，查出数据后再用tableoid过滤。注意到这是走了常量折叠，改成PBE看下</p>
+<pre><code class="language-sql">gaussdb=# prepare p1 as select t.* from test_rowid_update t where rowid =$1;
+PREPARE
+gaussdb=# explain analyze execute p1('AAAAAAAAAP//AAAKL7AAAAAAAAAAy');
+                                                                    QUERY PLAN                        
+                                            
+------------------------------------------------------------------------------------------------------
+--------------------------------------------
+ Index Scan using test_rowid_update_rowno_idx on test_rowid_update t  (cost=0.00..2.28 rows=1 width=11
+) (actual time=0.078..0.080 rows=1 loops=1)
+   Index Cond: (rowno = rowid_sequence($1)), (Expression Flatten Optimized)
+   Filter: (tableoid = rowid_tableoid($1)), (Expression Flatten Optimized)
+ Total runtime: 0.197 ms
+(4 rows)
+
+</code></pre>
+<p>从这个执行计划可以发现，本质上它只是把 <code>rowid=$1</code> 替换成了<code>rowno = rowid_sequence($1) and tableoid = rowid_tableoid($1)</code> 然后再去执行，这仅仅只是优化器里改写了一下SQL。</p>
+<p>这里有个吐槽的点，明明对于一个非分区表的普通表，tableoid每一行的值都是一样的，这里还要filter一下，也没把这个字段放到索引里。</p>
+<p>opt_behavior_knob里增加了ROWID_OPT，可以控制优化器的行为,默认是开启的，尝试手动关闭看看区别</p>
+<pre><code class="language-sql">gaussdb=# show opt_behavior_knob;
+                                                                                   opt_behavior_knob  
+                                                                                  
+------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
+ ALL,on(ROWID_OPT,SUBPLAN_SORTED_PATH_FIX,PARAM_PATH_SKIP_CACHING_VARRATIO,PREFER_UNIQUE_INDEX,PREFER_
+LONGER_INDEX,PPI_COST_MODEL1,PREDICATE_INFER_ENHANCE,ACTUAL_RANGE_BY_INDEX),off()
+(1 row)
+
+gaussdb=# set opt_behavior_knob='off(ROWID_OPT)';
+SET
+gaussdb=# show opt_behavior_knob;
+                                                                                   opt_behavior_knob  
+                                                                                 
+------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+ ALL,on(SUBPLAN_SORTED_PATH_FIX,PARAM_PATH_SKIP_CACHING_VARRATIO,PREFER_UNIQUE_INDEX,PREFER_LONGER_IND
+EX,PPI_COST_MODEL1,PREDICATE_INFER_ENHANCE,ACTUAL_RANGE_BY_INDEX),off(ROWID_OPT)
+(1 row)
+
+gaussdb=# explain analyze select t.* from test_rowid_update t where rowid ='AAAAAAAAAP//AAAKL7AAAAAAAAAAy';
+                                                    QUERY PLAN                                        
+            
+------------------------------------------------------------------------------------------------------
+------------
+ Seq Scan on test_rowid_update t  (cost=0.00..17.50 rows=1000 width=11) (actual time=0.039..0.260 rows
+=1 loops=1)
+   Filter: (rowid = 'AAAAAAAAAP//AAAKL7AAAAAAAAAAy'::rowid), (Expression Flatten Optimized)
+   Rows Removed by Filter: 999
+ Total runtime: 0.335 ms
+(4 rows)
+</code></pre>
+<p>走了个全表扫然后过滤，也就是优化被关闭了。</p>
+<p>当然上面只是举了个谓词<code>=</code>的例子，实际上还有谓词的范围查询、order by优化、min/max优化、分区剪枝等，但使用约束也挺多，具体可参考官方文档 <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/devg-cent/gaussdb-42-1135.html">《rowid - dml》</a> 的示例，本文不做搬运。</p>
+<h2 id="总结">总结</h2>
+<p>GaussDB 507版本新增的rowid特性，弥补了GaussDB长久以来不支持rowid的缺憾。但是，我建议不要轻易使用这个功能，因为其对于性能的影响远超SQL不兼容的影响。SQL不兼容改改就好了，插入性能太慢无解。尽管华为在这个上面是有一点创新想法的，但依旧落入了PG系解决rowid的套路陷阱。总体来说，这个实现方案中规中矩，没有惊喜。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../duckdb-extension-for-the-openGauss-family/">【DuckDB】开发DuckDB插件连接GaussDB/openGauss &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
