@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核版本新特性-视图失效重编译 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核版本新特性-视图失效重编译 背景 众所周知，原生postgresql的视图如果引用了一个表，那么对这个表进行删除或者修改字段类型或者字段长度时，大概率会报错，说有视图依赖，但相同的场景在oracle并不会发生。 举个常见的场景： 业务表都在数据库A用户下，另外有个B用户权">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核版本新特性-视图失效重编译</h1>
+    <div class="meta">
+        
+        <span>2026-08-09</span>
+        
+        <span>13 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核版本新特性-视图失效重编译">【GaussDB】507内核版本新特性-视图失效重编译</h1>
+<h2 id="背景">背景</h2>
+<p>众所周知，原生postgresql的视图如果引用了一个表，那么对这个表进行删除或者修改字段类型或者字段长度时，大概率会报错，说有视图依赖，但相同的场景在oracle并不会发生。</p>
+<p>举个常见的场景：</p>
+<p>业务表都在数据库A用户下，另外有个B用户权限低，申请访问A用户下的部分数据，于是A用户就把几张表授权给了B用户，然后B用户为了方便查询，创建了一个视图来关联这几张表查询，A用户并不知情。某天A用户需要对其中一张表的一个字段扩长，此时不同数据库的表现差异就来了：</p>
+<ul>
+<li>ORACLE 中顺利执行字段长度修改</li>
+<li>原生PG中 执行字段长度修改报错</li>
+</ul>
+<blockquote>
+<p>我改我的东西还要问你意见？</p>
+</blockquote>
+<p>在这个数据库中，A地位明显高于B的地位，B用户甚至可能不跑业务，只是偶尔查下数据，于是原生PG这个设定让很多开发及运维人员感到头疼。</p>
+<p>在GaussDB 507 版本，终于支持了<strong>视图失效重编译</strong>这个功能</p>
+<h2 id="官方文档">官方文档</h2>
+<p><a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/devg-cent/gaussdb-42-0935.html">GaussDB官方文档-特性使用指导-失效重编译</a></p>
+<p>注意《失效重编译》存在同名章节，一个在《参考-存储过程》里，一个在《特性使用指导》里，有部分内容重叠，各自又有多的内容。</p>
+<h2 id="简单测试">简单测试</h2>
+<p>先看看未开启这个功能时是什么情况：</p>
+<pre><code class="language-sql">gaussdb=# show  enable_view_invalidation;
+ enable_view_invalidation 
+--------------------------
+ off
+(1 row)
+
+gaussdb=# create table t_test_view_depend (a number(12,3),b varchar2(20));
+CREATE TABLE
+gaussdb=# create view v_test_view_depend as select * from t_test_view_depend;
+CREATE VIEW
+gaussdb=# alter table t_test_view_depend MODIFY   b varchar2(30);
+ERROR:  cannot alter type of a column used by a view or rule
+DETAIL:  rule _RETURN on view v_test_view_depend depends on column "b"
+gaussdb=# alter table t_test_view_depend MODIFY   a number(13,4);
+ERROR:  cannot alter type of a column used by a view or rule
+DETAIL:  rule _RETURN on view v_test_view_depend depends on column "a"
+gaussdb=# drop table  t_test_view_depend;
+ERROR:  table t_test_view_depend cannot be dropped because other objects depend on it.
+DETAIL:  view v_test_view_depend depends on table t_test_view_depend
+HINT:  Use DROP ... CASCADE to drop the dependent objects.
+gaussdb=# 
+</code></pre>
+<p>无论是删表还是改字段长度都不行。</p>
+<p>然后打开开关，</p>
+<pre><code class="language-sql">gaussdb=# set enable_view_invalidation to on;
+SET
+gaussdb=# alter table t_test_view_depend MODIFY   b varchar2(30);
+ALTER TABLE
+gaussdb=# alter table t_test_view_depend MODIFY   a number(13,4);
+ALTER TABLE
+gaussdb=# select * from v_test_view_depend;
+ a | b 
+---+---
+(0 rows)
+
+gaussdb=# drop table t_test_view_depend;
+DROP TABLE
+gaussdb=# select * from v_test_view_depend;
+ERROR:  View "v_test_view_depend" is invalid and please check view definition.
+LINE 1: select * from v_test_view_depend;
+                      ^
+gaussdb=# create table t_test_view_depend (a number(12,3),b varchar2(20));
+CREATE TABLE
+gaussdb=# select * from v_test_view_depend;
+ a | b 
+---+---
+(0 rows)
+
+gaussdb=# 
+</code></pre>
+<p>可以看到打开enable_view_invalidation后，表的字段就可以被修改了，改完后查询视图也没有报错；表也可以被drop了，重建表后视图查询也不报错。</p>
+<h2 id="历史问题测试">历史问题测试</h2>
+<p>顺便测一下之前我这篇文章<a href="https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a>里提到的视图依赖coredump场景。</p>
+<pre><code class="language-sql">drop view if exists v_test_dep;
+drop package if exists pkg_test_dep;
+drop package if exists pkg_subtype;
+create or replace package pkg_subtype is 
+    subtype varchar_8 is varchar(8);
+end;
+/
+create or replace package pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8;
+end;
+/
+create or replace package body pkg_test_dep is
+    function func(i int) return pkg_subtype.varchar_8 is
+    begin
+        return i::text;
+    end;
+end;
+/
+create or replace view v_test_dep as
+    select 1 from dual where pkg_test_dep.func('1')='1';
+
+create or replace package pkg_subtype is 
+    subtype varchar_8 is int;
+end;
+/
+
+select * from v_test_dep;
+</code></pre>
+<p>先测没打开视图依赖的表现：</p>
+<pre><code class="language-sql">gaussdb=# select * from v_test_dep;
+ERROR:  The function 57554 header changes during execution.
+DETAIL:  N/A
+gaussdb=# select * from v_test_dep;
+Connection has been closed by peer, remote ip:(null), port:5432.
+The connection to the server was lost. Attempting reset: Failed.
+!&gt; 
+</code></pre>
+<p>和506版本有所变化，之前是查询视图就coredump，到507版本后，第一次查询报错，第二次才触发coredump</p>
+<p>然后测打开视图依赖的表现，这里又要分两种情况：</p>
+<ul>
+<li>在修改了视图依赖对象后，查询视图之前打开开关,还是会coredump</li>
+</ul>
+<pre><code class="language-sql">gaussdb=# create or replace package pkg_subtype is 
+gaussdb$#     subtype varchar_8 is int;
+gaussdb$# end;
+gaussdb$# /
+gaussdb=# set enable_view_invalidation to on;
+SET
+gaussdb=# select * from v_test_dep;
+Connection has been closed by peer, remote ip:(null), port:5432.
+The connection to the server was lost. Attempting reset: Failed.
+!&gt; 
+</code></pre>
+<ul>
+<li>在修改视图依赖之前打开开关,不coredump了,视图直接变为可查询。</li>
+</ul>
+<pre><code class="language-sql">gaussdb=# set enable_view_invalidation to on;
+SET
+gaussdb=# create or replace package pkg_subtype is 
+gaussdb$#     subtype varchar_8 is int;
+gaussdb$# end;
+gaussdb$# /
+CREATE PACKAGE
+gaussdb=# select * from v_test_dep;
+ ?column? 
+----------
+        1
+(1 row)
+</code></pre>
+<p>也就是说华为引入的这个视图失效重编译特性，意外解决了这个coredump问题。</p>
+<p>为什么说是意外，因为如果他们知道这个coredump场景，就不会只在打开这个参数时才不coredump，数据库默认是关闭了这个参数的。</p>
+<h2 id="乱序创建场景">乱序创建场景</h2>
+<p>以上是失效重编译，对应的场景是按顺序正常创建对象后再去修改视图依赖的对象；其实还有另一个场景，就是不按顺序创建，比如先建视图，再建视图里的表，这个场景在GaussDB 507版本中也得到了支持，不过是另一个参数 <strong>enable_force_create_obj</strong> ，这个参数在之前版本只覆盖pl对象，即 <strong>package/procedure/function</strong> ，而在507版本中，新增了对 <strong>view</strong> 的覆盖。</p>
+<p>从文档也可以看到变化：</p>
+<ul>
+<li>506：</li>
+</ul>
+<blockquote>
+<p>参数说明：用于控制一次性入库功能的开启与关闭。开启该参数后，若创建或重建函数、包时存在未定义的对象，会创建一个虚拟的对象用于编译，并在函数体编译的过程中通过try catch捕获异常，使创建或重建过程能够运行成功。多租场景下，该参数可在PDB级别设置。</p>
+</blockquote>
+<ul>
+<li>507：</li>
+</ul>
+<blockquote>
+<p>参数说明：用于控制一次性入库功能的开启与关闭。开启该参数后，若创建或重建函数、包时存在未定义的对象，会创建一个虚拟的对象用于编译，并在函数体编译的过程中通过try catch捕获异常，使创建或重建过程能够运行成功； <strong>创建视图时，如果视图依赖的对象不存在或缺少查询权限，该视图仍能够创建成功。</strong> 多租场景下，该参数可在PDB级别设置。</p>
+</blockquote>
+<p>这个参数就不进行测试演示了，文档已经说清楚了效果。如果展开具体场景，细节会非常多，对本文而言有点喧宾夺主了。不过需要注意的是，这个参数也是默认关闭的，但对于存储过程依赖多的，建议还是打开。</p>
+<h2 id="元数据">元数据</h2>
+<ul>
+<li>
+<p>pg_depend<br/>
+原生PG对于视图内对象的依赖关系管理，在GaussDB中还是保留的，即pg_depend，这个不再多言，可以自行查找相关材料，或者看我以前写的这篇文章<a href="https://www.darkathena.top/archives/System-Metadata-Design-of-MogDB-openGauss-PostgreSQL-Starting-from-pg_depend-and-pg_class">《从pg_depend和pg_class开始了解MogDB/openGauss/postgresql的系统元数据设计》</a>。</p>
+</li>
+<li>
+<p>pg_object<br/>
+视图的生效失效状态记录在<code>pg_object.valid</code>，但要注意，这个状态为<code>false</code>时并不代表视图就无法查询，这个处理逻辑和ORACLE是类似的：</p>
+</li>
+</ul>
+<p>当修改视图内引用的对象时，视图变为无效，下次查询视图时自动重新编译，编译通过则变为有效，并返回查询结果；或者手动编译为有效后再查询。不过什么样的修改会导致视图变为无效，GaussDB和ORACLE不完全一样，这个我也懒得展开说了。</p>
+<ul>
+<li>gs_dep_source<br/>
+<code>gs_dep_source</code>里面对于每个视图，会有一条<code>object_type</code>为<code>v</code>的记录，里面的source会记录展开后的完整SQL，包括schema和select *的字段,操作符也会变成operator的语法，自动类型转换也会显示出来。比如本文中的两个例子。</li>
+</ul>
+<pre><code class="language-sql">CREATE OR REPLACE VIEW public.v_test_dep("?column?") AS SELECT 1 AS "?column?" FROM pg_catalog.dual WHERE ((public.pkg_test_dep.func(1))::text OPERATOR(pg_catalog.=) '1');
+</code></pre>
+<pre><code class="language-sql">CREATE OR REPLACE VIEW admin.v_test_view_depend(a, b) AS SELECT t_test_view_depend.a, t_test_view_depend.b FROM admin.t_test_view_depend;
+</code></pre>
+<ul>
+<li>pg_rewrite<br/>
+<code>pg_rewrite.ev_action_def</code>里会记录视图的查询语句部分，但这里面的东西并不保持稳定不变：</li>
+</ul>
+<ol>
+<li>这里在正常创建视图，且未做任何修改操作时，记录的是创建视图的 "真原始SQL:</li>
+</ol>
+<pre><code class="language-sql">select * from t_test_view_depend
+</code></pre>
+<ol start="2">
+<li>在经历过视图失效重编译成生效后，会变成和<code>gs_dep_source.source</code>里记录的查询SQL部分一样，比如</li>
+</ol>
+<pre><code class="language-sql">SELECT t_test_view_depend.a, t_test_view_depend.b FROM admin.t_test_view_depend
+</code></pre>
+<h2 id="内置函数变化">内置函数变化</h2>
+<ul>
+<li>引入了一个新内置函数 transform_view_dep_source()</li>
+</ul>
+<blockquote>
+<p>描述：刷新GS_DEP_SOURCE系统表的source字段。即将视图定义语句中SELECT *的星号扩展；将视图创建时对象使用的schema补充写入；刷新视图依赖关系。该函数仅支持管理员用户调用。<br/>
+参数：无<br/>
+返回值类型：void</p>
+</blockquote>
+<p>个人猜测这个是在从低版本升级到507时自动执行的，因为低版本的gs_dep_source之前记录的是原始SQL，而不是展开后的SQL。然后我去507的升级脚本里搜了一下，果然搜到了</p>
+<p>"upgrade_catalog_otherdb\upgrade-post_catalog_otherdb_98_145.sql"</p>
+<pre><code class="language-sql">SET LOCAL inplace_upgrade_next_system_object_oids = IUO_PROC, 8401;
+CREATE OR REPLACE FUNCTION pg_catalog.transform_view_dep_source()
+RETURNS void
+LANGUAGE internal
+AS $function$transform_view_dep_source$function$;
+
+SET LOCAL inplace_upgrade_next_system_object_oids = IUO_PROC, 0;
+
+SELECT pg_catalog.transform_view_dep_source();
+</code></pre>
+<p>也就是说实际上在507使用过程中，这个函数一般是用不上的。</p>
+<ul>
+<li>修改了一个原有内置函数 gs_compile_schema(schema_name in varchar2 default null, compile_all in boolean default false, retry_times in int default 10)</li>
+</ul>
+<p>原本只支持对PL对象的编译，现在新增了对视图的编译。</p>
+<h2 id="总结">总结</h2>
+<p>GaussDB 507引入的这个视图无效重编译特性是非常有必要的,无论是从ORACLE迁移还是新开发系统，视图不应该阻碍对表定义的修改。我大概测试下来，各项行为基本符合预期,不过我也没去做更复杂的测试。但个人认为,这个参数还是先打开再去跑PoC业务验证更好,有问题也能尽早报给华为去修复。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-507-gs_dump-feature/">&larr; 【GaussDB】507版本gs_dump功能更新</a>
+    
+    
+    <a href="../gaussdb-507-new-feature-rowid/">【GaussDB】507内核版本新特性-rowid &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

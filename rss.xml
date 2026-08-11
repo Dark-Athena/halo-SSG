@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】507版本gs_dump功能更新</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-gs_dump-feature</link>
+      <description>【GaussDB】507版本gs_dump功能更新 前言 GaussDB 507内核版本的gs_dump有了不少更新，而且客户在之前版本的实际使用过程中，的确发现了不少毛病，但版本说明书上并未列全所有新增和修改，这次就来借助AI看一下到底动了些啥，并且对之前版本的一些问题进行测试 比较这两个文档的差</description>
+      <pubDate>Sun, 09 Aug 2026 08:20:47 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】507内核版本新特性-视图失效重编译</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-feature-view-invaild-recompile</link>
+      <description>【GaussDB】507内核版本新特性-视图失效重编译 背景 众所周知，原生postgresql的视图如果引用了一个表，那么对这个表进行删除或者修改字段类型或者字段长度时，大概率会报错，说有视图依赖，但相同的场景在oracle并不会发生。 举个常见的场景： 业务表都在数据库A用户下，另外有个B用户权</description>
+      <pubDate>Sun, 09 Aug 2026 08:20:31 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】507内核版本新特性-rowid</title>
       <link>https://www.darkathena.top/archives/gaussdb-507-new-feature-rowid</link>
       <description>【GaussDB】507内核版本新特性-rowid 国产数据库做ORACLE兼容的都知道，rowid这个特性点始终是绕不过去的，尽管有些等价修改方案，但并非适用于所有场景。大部分国产数据库都早早实现了rowid，而GaussDB的rowid却迟迟不出，直到今年刚发布的507内核版本，rowid终于是</description>
@@ -306,19 +318,6 @@
       <link>https://www.darkathena.top/archives/gaussdb-analyze-hotpatch</link>
       <description>【GaussDB】解析GaussDB热补丁机制 前言 热补丁（Hot Patching）是指在程序运行过程中，无需停止或重启程序，直接对其进行修补或更新的一种技术。 作为企业级数据库软件的GaussDB,也同样有热补丁的能力。 熟悉openGauss的可能比较好奇，openGauss绝大部分的内核代</description>
       <pubDate>Wed, 14 Jan 2026 07:55:44 +0000</pubDate>
-    </item>
-    <item>
-      <title>【ORACLE】分区表数据倾斜会发生什么</title>
-      <link>https://www.darkathena.top/archives/oracle-What-Happens-When-Data-Skew-Occurs-in-Partitioned-Tables</link>
-      <description>【ORACLE】分区表数据倾斜会发生什么 背景 有经验的ORACLE DBA可能经常遇到,每当跨年和跨月的时候,有些应用系统1号早上一来就卡爆了,查数据库会话,一堆会话在执行几个相同的慢SQL,而且这个慢SQL里大概率有个分区表。 遇到这种场景的时候,做下最近的几个分区的统计信息收集或者全表的统计信</description>
-      <pubDate>Sat, 10 Jan 2026 12:37:33 +0000</pubDate>
-      <category>ORACLE</category>
-    </item>
-    <item>
-      <title>【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查</title>
-      <link>https://www.darkathena.top/archives/Errors-on-the-6th-Run-of-the-Same-SQL-or-Stored-Procedure-in-GaussDB</link>
-      <description>【GaussDB】数据静止状态下同一个SQL或同一个存储过程执行第6次报错的问题排查 背景 最近有客户遇到了一个问题，原始反馈是 客户：“我在GaussDB里调用这个sp报错，相同sp在ORACLE里调用不报错” 我：“报什么错？” 客户：“invalid input syntax for type</description>
-      <pubDate>Sat, 10 Jan 2026 12:27:59 +0000</pubDate>
     </item>
   </channel>
 </rss>

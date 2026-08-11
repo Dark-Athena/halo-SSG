@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507版本gs_dump功能更新 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507版本gs_dump功能更新 前言 GaussDB 507内核版本的gs_dump有了不少更新，而且客户在之前版本的实际使用过程中，的确发现了不少毛病，但版本说明书上并未列全所有新增和修改，这次就来借助AI看一下到底动了些啥，并且对之前版本的一些问题进行测试 比较这两个文档的差">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507版本gs_dump功能更新</h1>
+    <div class="meta">
+        
+        <span>2026-08-09</span>
+        
+        <span>10 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507版本gs_dump功能更新">【GaussDB】507版本gs_dump功能更新</h1>
+<h2 id="前言">前言</h2>
+<p>GaussDB 507内核版本的gs_dump有了不少更新，而且客户在之前版本的实际使用过程中，的确发现了不少毛病，但版本说明书上并未列全所有新增和修改，这次就来借助AI看一下到底动了些啥，并且对之前版本的一些问题进行测试</p>
+<blockquote>
+<p>比较这两个文档的差异<br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0940.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/rf-cent/gaussdb-38-0940.html</a><br/>
+<a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.32/tg-cent/gaussdb-38-0012.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/25.1.32/tg-cent/gaussdb-38-0012.html</a></p>
+</blockquote>
+<h1 id="gaussdb-gs_dump-文档差异对比">GaussDB gs_dump 文档差异对比</h1>
+<p>两个文档均为 <strong>"gs_dump导出数据库信息"</strong> 页面，分别来自不同版本：</p>
+<table><thead><tr><th>属性</th><th>旧版 (25.1.32)</th><th>新版 (26.861.0)</th></tr></thead><tbody><tr><td>文档版本</td><td>25.1.32</td><td>26.861.0</td></tr><tr><td>内核版本</td><td>505.2.1.SPC0800</td><td>507.0.0</td></tr><tr><td>URL路径</td><td><code>/tg-cent/gaussdb-38-0012.html</code></td><td><code>/rf-cent/gaussdb-38-0940.html</code></td></tr><tr><td>文档分类</td><td>工具参考（集中式）</td><td>参考（集中式）</td></tr><tr><td>内容长度</td><td>~20,234 字符</td><td>~24,244 字符</td></tr><tr><td>版权年份</td><td>2024</td><td>2024</td></tr></tbody></table>
+<hr/>
+<h2 id="一工具介绍部分">一、工具介绍部分</h2>
+<table><thead><tr><th>差异项</th><th>旧版 (25.1.32)</th><th>新版 (26.861.0)</th></tr></thead><tbody><tr><td>默认数据库描述</td><td>"支持导出的数据库可以是<strong>默认数据库postgres</strong>"</td><td>"支持导出的数据库可以是<strong>默认数据库</strong>"（去掉了具体名称）</td></tr><tr><td>归档格式导入工具说明</td><td>"使用gs_restore可以选择要从自定义归档/目录归档/tar归档导出文件中导入相应的数据库对象"</td><td>"<strong>这三种归档格式，必须使用5.7.5-gs_restore</strong>进行对象和数据的导入。gs_restore也可以选择要导入的数据库对象"</td></tr></tbody></table>
+<hr/>
+<h2 id="二注意事项部分变化最大">二、注意事项部分（变化最大）</h2>
+<h3 id="新增的注意事项旧版没有新版新增">新增的注意事项（旧版没有，新版新增）</h3>
+<ol>
+<li><strong>CREATE EVENT定时任务检查</strong>：通过CREATE EVENT语法创建的定时任务若无法被导出，请检查gs_job_attribute表中定时任务job_style属性是否为EVENT</li>
+<li><strong>触发器导出要求</strong>：当导出对象中包含触发器时，需要加上参数<code>--use-set-session-authorization --all</code>，并通过文本模式导出</li>
+<li><strong>model对象</strong>：使用gs_dump不会转储model对象</li>
+<li><strong>系统管理员导出限制</strong>：系统管理员导出时不会导出初始用户创建的对象，需使用初始用户进行导出</li>
+<li><strong>依赖PACKAGE内部函数的视图</strong>：首次导入目标端时会报错，需使用<code>gs_dump --schema-only</code>备份元数据再次导入</li>
+<li><strong>高级压缩库级策略定义</strong>：需全库导出且系统管理员权限，否则策略以表/分区级独立策略形式导出</li>
+<li><strong>间隔分区表</strong>：只能导出range分区部分，不能导出interval分区部分</li>
+<li><strong>ddl_invalid_mode=invalid的影响</strong>：函数和包drop操作时不级联删除，导出时会因依赖关系找不到对象而报错</li>
+<li><strong>失效视图</strong>：默认导出失效视图，可指定<code>--ignore-invalid-views</code>不导出</li>
+<li><strong>rowid系统列</strong>：不导出rowid系统列上的数据，仅导出rowid作为数据类型时用户列的数据</li>
+<li><strong>M-Compatibility零字符截断</strong>：含零字符('\0')数据进行gs_dump操作时存在数据截断</li>
+</ol>
+<h3 id="删除的注意事项旧版有新版去掉">删除的注意事项（旧版有，新版去掉）</h3>
+<ol>
+<li><del>gs_dump时生成列不会被转储</del>（已删除）</li>
+<li><del>初始用户创建的表上含用户自定义函数的表达式索引，系统管理员导出后需用初始用户导入</del>（已删除）</li>
+</ol>
+<h3 id="修改的注意事项">修改的注意事项</h3>
+<table><thead><tr><th>项目</th><th>旧版</th><th>新版</th></tr></thead><tbody><tr><td>IMCV元信息位置</td><td>在注意事项中间</td><td>移至注意事项开头，措辞微调</td></tr><tr><td>锁描述</td><td>"gs_dump会对需要转储的表设置<strong>共享锁</strong>"</td><td>"gs_dump<strong>默认</strong>会对需要转储的表设置<strong>ACCESS SHARE级别锁</strong>"，新增"锁与锁之间的冲突请参见LOCK"</td></tr><tr><td>不导出的表</td><td>"以matviewmap_和mlog_前缀开头的表"</td><td>新增"<strong>带有internal_mask选项的表</strong>、<strong>回收站中的表</strong>"</td></tr><tr><td>普通用户导出权限</td><td>"仅会导出owner归属于该普通用户的<strong>对象</strong>"</td><td>"仅会导出owner归属于该普通用户的<strong>所有对象</strong>"</td></tr><tr><td>对象数量过多措辞</td><td>"不适合<strong>使用在</strong>"</td><td>"不适合<strong>应用于</strong>"</td></tr></tbody></table>
+<hr/>
+<h2 id="三参数说明部分">三、参数说明部分</h2>
+<h3 id="新增参数旧版没有">新增参数（旧版没有）</h3>
+<table><thead><tr><th>参数</th><th>说明</th></tr></thead><tbody><tr><td><code>--ignore-invalid-views</code></td><td>不导出失效视图，导出时发现有失效视图会打印提示</td></tr><tr><td><code>-j, --jobs=NUM</code></td><td><strong>并行导出</strong>，指定并行数，不支持超过客户端CPU核数两倍。仅支持目录归档格式，与--inserts/--query等冲突。支持表内并行导出</td></tr><tr><td><code>--disable-inter-table-parallel</code></td><td>关闭表内并行，使用表级别并行导出</td></tr><tr><td><code>--include-query-file=FILENAME</code></td><td>通过文件批量配置谓词过滤条件，支持<code>[schema_name.][table_name:] query_clause</code>格式</td></tr><tr><td><code>--query=[schema_name.][table_name:]query_clause</code></td><td>谓词过滤导出数据，支持多表多条件，包含详细的使用示例和转义规则</td></tr><tr><td><code>--with-copy-format=FILE_FORMAT</code></td><td>指定导出数据文件格式（TEXT/CSV），默认TEXT，CSV仅支持目录归档模式</td></tr><tr><td><code>--no-transaction</code></td><td>DDL语句不再被额外包裹在BEGIN/COMMIT中</td></tr><tr><td><code>--log-level=LOG|DEBUG|DEBUG1|DEBUG2|DEBUG3</code></td><td>指定gs_dump日志级别</td></tr></tbody></table>
+<h3 id="修改的参数">修改的参数</h3>
+<table><thead><tr><th>参数</th><th>旧版</th><th>新版</th></tr></thead><tbody><tr><td><code>-a, --data-only</code></td><td>"转储表数据、<strong>大对象</strong>和序列值"</td><td>"转储表数据和序列值"（去掉大对象）</td></tr><tr><td><code>-c, --clean</code></td><td>仅简单描述</td><td>新增非级联删除DROP命令说明和具体报错示例</td></tr><tr><td><code>-C, --create</code></td><td>描述分两段</td><td>合并为一段；"创<strong>出</strong>"改为"创<strong>建出</strong>"</td></tr><tr><td><code>-E, --encoding</code></td><td>"也可以得到相同的结果" 改为 "与该选项功能相同"</td><td>措辞调整；转码场景描述微调</td></tr><tr><td><code>-o, --oids</code></td><td>无限制说明</td><td>新增"不能与--inserts/--column-inserts选项一起使用"</td></tr><tr><td><code>-t, --table</code></td><td>示例在参数说明末尾</td><td>示例移至参数定义后；新增多分隔符说明（倒数两个分隔符生效）</td></tr><tr><td><code>-Z, --compress</code></td><td>无取值规则说明</td><td>新增"系统将取遇到的第一个非数字字符之前的部分"</td></tr><tr><td><code>--lock-wait-timeout</code></td><td>"在转储开始时不一直等待获取共享表锁"</td><td>"请勿在转储刚开始时一直等待以获取共享表锁"，新增"参数单位为ms（毫秒）"</td></tr><tr><td><code>--non-lock-table</code></td><td>"对<strong>表</strong>的加锁行为"、"要导出的<strong>TABLE</strong>"</td><td>"对<strong>表</strong>加锁的行为"、"要导出的<strong>table</strong>"（大小写调整）</td></tr><tr><td><code>--use-set-session-authorization</code></td><td>描述无空行分隔</td><td>新增空行分隔，"以上使用范围的限制"</td></tr><tr><td><code>-?, --help</code></td><td>"显示gs_dump命令行参数帮助信息"</td><td>"显示gs_dump命令行参数帮助，<strong>然后退出</strong>"</td></tr><tr><td><code>--binary-upgrade</code></td><td>仅"扩展预留接口"</td><td>新增"M-Compatibility模式数据库不支持该选项"</td></tr><tr><td><code>--exclude-with</code></td><td>"末尾不添加WITH(...)这样的描述"</td><td>"末尾不添加WITH(...)等描述"</td></tr><tr><td><code>--extension</code></td><td>"不建议用户使用"</td><td>"只允许操作数据库内部的高级包或扩展"</td></tr></tbody></table>
+<h3 id="删除的参数说明">删除的参数说明</h3>
+<ul>
+<li><del>M-Compatibility兼容模式下<code>-n</code>参数受<code>lower_case_table_names</code>影响的说明</del>（已删除）</li>
+<li><del>M-Compatibility兼容模式下<code>-t</code>参数受<code>lower_case_table_names</code>影响的说明</del>（已删除）</li>
+</ul>
+<h3 id="新增的连接参数说明">新增的连接参数说明</h3>
+<ul>
+<li>普通用户权限导出/导入时，需在导入前赋权：<code>GRANT CREATE ON DATABASE db_xxx TO user_xxx</code></li>
+</ul>
+<hr/>
+<h2 id="四其他变化">四、其他变化</h2>
+<table><thead><tr><th>项目</th><th>旧版</th><th>新版</th></tr></thead><tbody><tr><td>DBNAME使用方式</td><td>无</td><td>新增"DBNAME详细使用方式参见gsql使用指导中表6"</td></tr><tr><td>相关工具</td><td>"gs_dumpall导出所有数据库信息，gs_restore导入数据"</td><td>新增"gsql连接数据库"</td></tr><tr><td>M-Compatibility兼容模式措辞</td><td>"M-Compatibility<strong>兼容模式</strong>下"</td><td>"M-Compatibility<strong>模式</strong>数据库下"（多处统一修改）</td></tr></tbody></table>
+<hr/>
+<h2 id="五总结">五、总结</h2>
+<p>新版 (26.861.0) 相比旧版 (25.1.32) 主要有以下方向的增强：</p>
+<ol>
+<li><strong>并行导出能力</strong>：新增 <code>-j/--jobs</code>、<code>--disable-inter-table-parallel</code> 等并行导出参数，支持表内并行和表级别并行</li>
+<li><strong>谓词过滤导出</strong>：新增 <code>--query</code> 和 <code>--include-query-file</code> 参数，支持按条件导出部分表数据</li>
+<li><strong>数据文件格式</strong>：新增 <code>--with-copy-format</code> 支持 CSV 格式导出</li>
+<li><strong>失效视图处理</strong>：新增 <code>--ignore-invalid-views</code> 参数</li>
+<li><strong>事务控制</strong>：新增 <code>--no-transaction</code> 参数</li>
+<li><strong>日志级别</strong>：新增 <code>--log-level</code> 参数</li>
+<li><strong>注意事项大幅扩充</strong>：新增间隔分区表、触发器导出、高级压缩策略、rowid系统列等十余条注意事项</li>
+<li><strong>锁机制描述更精确</strong>：从"共享锁"改为"ACCESS SHARE级别锁"，并补充锁冲突参考</li>
+</ol>
+<hr/>
+<h2 id="分析文档差异">分析文档差异</h2>
+<p>从文档里的修改点来看，算是非常扣细节了，个人猜测要么是请了个有强迫症（褒义）的文档专家，要么就是用了AI。</p>
+<p>除了官方产品文档上体现的差异，还有一个点仅体现在版本说明书里</p>
+<blockquote>
+<p>3.版本号、兼容性等重复查询SQL归一化复用优化；对函数、视图、表等容易出现超多对象的类型在dump过程中的sql进行分析合并，减少SQL执行次数。</p>
+</blockquote>
+<p>这个点其实很重要，因为实践中经常会遇到，要导出指定的一个表，gs_dump元数据查询处理用了10分钟，然后实际对于这个表的导出本身，只用了1秒。这是PG系一直饱受诟病的依赖对象解环排序处理所导致的。即就算指定了要导出的对象，也仍然会扫描库中所有的对象，识别依赖关系去进行排序。当对象多、依赖关系复杂时，这个处理过程就会非常慢。不过我暂不确定GaussDB 507版本的这个优化效果到底怎样，但至少华为是有行动了。</p>
+<p>综合以上内容，个人判断，对于一个正常的用户环境，历史上用户最关心的两个问题--<br/>
+<strong>gs_dump的导出性能和导出范围控制</strong>，在GaussDB 507 版本上都得到了加强。其中最为重要的为以下四个能力</p>
+<ol>
+<li>并行导出（性能）</li>
+<li>元数据查询SQL合并（性能）</li>
+<li>谓词过滤导出（导出范围控制）</li>
+<li>不导出无效视图（导出范围控制）</li>
+</ol>
+<p>大概设计几个测试场景</p>
+<ul>
+<li>
+<p>并行导出（建新库）</p>
+<ul>
+<li>一张表十个字段百万行 并行 1到4</li>
+<li>两张表十个字段百万行 并行 1到4</li>
+</ul>
+</li>
+<li>
+<p>元数据查询SQL合并（建新库）</p>
+<ul>
+<li>十万张空表</li>
+<li>一万个自定义类型，一百个package，每个package里一百个function，均引用不同自定义类型，一百个视图，每个视图引用一百个package里的函数</li>
+</ul>
+</li>
+<li>
+<p>谓词过滤导出（建新库）</p>
+<ul>
+<li>三张表，两个基于日期，一个不带日期</li>
+</ul>
+</li>
+<li>
+<p>不导出无效视图（建新库）</p>
+<ul>
+<li>打开视图依赖开关，创建表，创建视图，删除表 ，观察导出全库，看是否报错，再配置上不导出无效视图，看效果</li>
+</ul>
+</li>
+</ul>
+<hr/>
+<p>我让AI读了本文以上部分，生成了测试shell脚本，内容太多且有多个文件，我就不发出来了，不过我另外让AI再生成了一份手动测试命令的文档，以供参考：</p>
+<blockquote>
+<h1 id="gaussdb-507-gs_dump-手动测试命令清单">GaussDB 507 gs_dump 手动测试命令清单</h1>
+<blockquote>
+<p>从 01~04 测试脚本中提取所有 gsql / gs_dump 执行命令，按场景顺序排列，可直接复制运行。<br/>
+导出文件默认放当前目录，如需统一存放可自行加路径前缀。</p>
+</blockquote>
+<h2 id="0-连接方式说明">0. 连接方式说明</h2>
+<p>脚本中 gsql / gs_dump 均采用默认连接（依赖 <code>PGHOST</code>/<code>PGPORT</code>/<code>PGUSER</code> 环境变量或 <code>~/.pgpass</code>）。如需显式指定：</p>
+<pre><code class="language-bash"># 默认（推荐，配好 .pgpass 后最简洁）
+gsql -d test_parallel -c "SELECT 1;"
+
+# 显式指定连接参数
+gsql -h 127.0.0.1 -p 5432 -U gaussdb -W '密码' -d test_parallel -c "SELECT 1;"
+gs_dump -h 127.0.0.1 -p 5432 -U gaussdb -W '密码' test_parallel -F d ...
+</code></pre>
+<p>下文命令均按默认连接写法。耗时手动测可在命令前加 <code>time</code>。</p>
+<hr/>
+<h2 id="场景1并行导出-j----jobs">场景1：并行导出（-j / --jobs）</h2>
+<h3 id="10-建库">1.0 建库</h3>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_parallel;"
+gsql -d postgres -c "CREATE DATABASE test_parallel;"
+</code></pre>
+<h3 id="11-建表--生成数据2-表--100-万行">1.1 建表 + 生成数据（2 表 × 100 万行）</h3>
+<pre><code class="language-bash">gsql -d test_parallel -c "
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+   id bigint ,
+   c1 bigint, c2 bigint, c3 numeric(18,2),
+   c4 text, c5 varchar(64), c6 varchar(64),
+   c7 timestamp, c8 boolean, c9 integer
+);
+INSERT INTO t1 (id,c1,c2,c3,c4,c5,c6,c7,c8,c9)
+SELECT g,g, g*2, g*1.23, 'text_'||g, 'vc_'||(g%1000), 'name_'||(g%500),
+      now() - (g || ' seconds')::interval, (g%2=0), g%9999
+FROM generate_series(1, 10000000) g;
+CREATE TABLE t2 as SELECT * FROM t1;
+"
+</code></pre>
+<h3 id="12-校验行数">1.2 校验行数</h3>
+<pre><code class="language-bash">gsql -d test_parallel -t -A -c "SELECT count(*),pg_table_size('t1') FROM t1;"  
+gsql -d test_parallel -t -A -c "SELECT count(*),pg_table_size('t2') FROM t2;"  
+</code></pre>
+<h3 id="13-单表-t1-并行导出jobs-14目录归档--f-d">1.3 单表 t1 并行导出（jobs 1→4，目录归档 -F d）</h3>
+<pre><code class="language-bash">rm -rf out_t1_j1 &amp;&amp; time gs_dump test_parallel -F d -j 1 -t public.t1 -f out_t1_j1
+rm -rf out_t1_j2 &amp;&amp; time gs_dump test_parallel -F d -j 2 -t public.t1 -f out_t1_j2
+rm -rf out_t1_j3 &amp;&amp; time gs_dump test_parallel -F d -j 3 -t public.t1 -f out_t1_j3
+rm -rf out_t1_j4 &amp;&amp; time gs_dump test_parallel -F d -j 4 -t public.t1 -f out_t1_j4
+</code></pre>
+<blockquote>
+<p>注意：gs_dump <code>-F d</code> 要求 <code>-f</code> 目录<strong>不存在</strong>，由 gs_dump 自行创建，故先 <code>rm -rf</code>。</p>
+</blockquote>
+<h3 id="14-双表-t1t2-并行导出默认表内并行">1.4 双表 t1+t2 并行导出（默认表内并行）</h3>
+<pre><code class="language-bash">rm -rf out_t1t2_j1 &amp;&amp; time gs_dump test_parallel -F d -j 1 -t public.t1 -t public.t2 -f out_t1t2_j1
+rm -rf out_t1t2_j2 &amp;&amp; time gs_dump test_parallel -F d -j 2 -t public.t1 -t public.t2 -f out_t1t2_j2
+rm -rf out_t1t2_j3 &amp;&amp; time gs_dump test_parallel -F d -j 3 -t public.t1 -t public.t2 -f out_t1t2_j3
+rm -rf out_t1t2_j4 &amp;&amp; time gs_dump test_parallel -F d -j 4 -t public.t1 -t public.t2 -f out_t1t2_j4
+</code></pre>
+<h3 id="15-双表-t1t2-表级别并行--disable-inter-table-parallel">1.5 双表 t1+t2 表级别并行（--disable-inter-table-parallel）</h3>
+<pre><code class="language-bash">rm -rf out_t1t2_tbl_j1 &amp;&amp; time gs_dump test_parallel -F d -j 1 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tbl_j1
+rm -rf out_t1t2_tbl_j2 &amp;&amp; time gs_dump test_parallel -F d -j 2 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tbl_j2
+rm -rf out_t1t2_tbl_j3 &amp;&amp; time gs_dump test_parallel -F d -j 3 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tbl_j3
+rm -rf out_t1t2_tbl_j4 &amp;&amp; time gs_dump test_parallel -F d -j 4 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tbl_j4
+</code></pre>
+<hr/>
+<h2 id="场景2元数据查询sql合并">场景2：元数据查询SQL合并</h2>
+<h3 id="20-建库空表环境">2.0 建库（空表环境）</h3>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_meta_merge;"
+gsql -d postgres -c "CREATE DATABASE test_meta_merge;"
+</code></pre>
+<h3 id="21-生成-n-张空表">2.1 生成 N 张空表</h3>
+<p>完整规模（10 万张，耗时很长）：</p>
+<pre><code class="language-bash">awk 'BEGIN{for(i=1;i&lt;=100000;i++) printf("CREATE TABLE empty_t_%d (id int);\n", i)}' &gt; gen_empty_tables.sql
+gsql -d test_meta_merge -f gen_empty_tables.sql
+</code></pre>
+<p>小规模验证（1 万张，先跑通流程）：</p>
+<pre><code class="language-bash">awk 'BEGIN{for(i=1;i&lt;=10000;i++) printf("CREATE TABLE empty_t_%d (id int);\n", i)}' &gt; gen_empty_tables.sql
+gsql -d test_meta_merge -f gen_empty_tables.sql
+</code></pre>
+<h3 id="22-空表库全库-schema-only-导出">2.2 空表库全库 schema-only 导出</h3>
+<pre><code class="language-bash">rm -f meta_empty_all.dmp &amp;&amp; time gs_dump test_meta_merge -F c -s -f meta_empty_all.dmp
+</code></pre>
+<h3 id="23-空表库单表-schema-only-导出验证指定单对象是否仍扫描全库依赖">2.3 空表库单表 schema-only 导出（验证指定单对象是否仍扫描全库依赖）</h3>
+<pre><code class="language-bash">rm -f meta_empty_one.dmp &amp;&amp; time gs_dump test_meta_merge -F c -s -t public.empty_t_1 -f meta_empty_one.dmp
+</code></pre>
+<h3 id="24-建库复杂依赖环境">2.4 建库（复杂依赖环境）</h3>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_meta_complex;"
+gsql -d postgres -c "CREATE DATABASE test_meta_complex;"
+</code></pre>
+<h3 id="25-生成复杂依赖对象-ddl-文件">2.5 生成复杂依赖对象 DDL 文件</h3>
+<blockquote>
+<p>完整规模：1 万类型 + 100 包×100 函数 + 100 视图。小规模把 10000 改 1000、100 改 10。</p>
+</blockquote>
+<pre><code class="language-bash"># 1) 1万个自定义类型
+awk 'BEGIN{for(i=1;i&lt;=10000;i++) printf("CREATE TYPE typ_%d AS (a int, b varchar(32));\n", i)}' &gt; gen_complex_objects.sql
+
+# 2) 100个package，每个100个function，引用不同类型
+awk 'BEGIN{
+ for(pi=1;pi&lt;=100;pi++){
+   printf("CREATE OR REPLACE PACKAGE pkg_%d IS\n", pi);
+   for(fi=1;fi&lt;=100;fi++) printf("  FUNCTION f_%d RETURN typ_%d;\n", fi, (pi-1)*100+fi);
+   printf("END;\n/\n");
+   printf("CREATE OR REPLACE PACKAGE BODY pkg_%d IS\n", pi);
+   for(fi=1;fi&lt;=100;fi++) printf("  FUNCTION f_%d RETURN typ_%d IS\n  BEGIN RETURN NULL; END;\n", fi, (pi-1)*100+fi);
+   printf("END;\n/\n");
+ }
+}' &gt;&gt; gen_complex_objects.sql
+
+# 3) 100个视图，每个引用100个package里的function
+awk 'BEGIN{
+ for(k=1;k&lt;=100;k++){
+   printf("CREATE OR REPLACE VIEW v_%d AS SELECT ", k);
+   for(pi=1;pi&lt;=100;pi++){
+     printf("pkg_%d.f_%d() AS c%d", pi, k, pi);
+     if(pi&lt;100) printf(", ");
+   }
+   printf(" FROM dual;\n");
+ }
+}' &gt;&gt; gen_complex_objects.sql
+</code></pre>
+<h3 id="26-执行复杂对象创建">2.6 执行复杂对象创建</h3>
+<pre><code class="language-bash">gsql -d test_meta_complex -f gen_complex_objects.sql
+</code></pre>
+<h3 id="27-复杂依赖库全库-schema-only-导出">2.7 复杂依赖库全库 schema-only 导出</h3>
+<pre><code class="language-bash">rm -f meta_complex_all.dmp &amp;&amp; time gs_dump test_meta_complex -F c -s -f meta_complex_all.dmp
+</code></pre>
+<hr/>
+<h2 id="场景3谓词过滤导出--query----include-query-file">场景3：谓词过滤导出（--query / --include-query-file）</h2>
+<h3 id="30-建库">3.0 建库</h3>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_query_filter;"
+gsql -d postgres -c "CREATE DATABASE test_query_filter;"
+</code></pre>
+<h3 id="31-建表--生成数据3-表--10-万行">3.1 建表 + 生成数据（3 表 × 10 万行）</h3>
+<pre><code class="language-bash">gsql -d test_query_filter -c "
+DROP TABLE IF EXISTS orders1;
+DROP TABLE IF EXISTS orders2;
+DROP TABLE IF EXISTS products;
+CREATE TABLE orders1 (id bigserial PRIMARY KEY, amt numeric(18,2), create_date date);
+CREATE TABLE orders2 (id bigserial PRIMARY KEY, amt numeric(18,2), create_date date);
+CREATE TABLE products (id bigserial PRIMARY KEY, name varchar(64), price numeric(18,2));
+INSERT INTO orders1 (amt, create_date)
+ SELECT g*1.5, timestamp '2025-01-01' + (g % 365) FROM generate_series(1, 100000) g;
+INSERT INTO orders2 (amt, create_date)
+ SELECT g*2.5, timestamp '2025-01-01' + (g % 365) FROM generate_series(1, 100000) g;
+INSERT INTO products (name, price)
+ SELECT 'p_'||g, g*9.9 FROM generate_series(1, 100000) g;
+"
+</code></pre>
+<h3 id="32-校验源库行数">3.2 校验源库行数</h3>
+<pre><code class="language-bash">gsql -d test_query_filter -t -A -c "SELECT count(*) FROM orders1;"
+gsql -d test_query_filter -t -A -c "SELECT count(*) FROM orders2;"
+gsql -d test_query_filter -t -A -c "SELECT count(*) FROM products;"
+</code></pre>
+<h3 id="33---query-单表日期过滤导出orders1-三月数据">3.3 --query 单表日期过滤导出（orders1 三月数据）</h3>
+<pre><code class="language-bash"># 预期行数
+gsql -d test_query_filter -t -A -c "SELECT count(*) FROM orders1 WHERE create_date &gt;= timestamp '2025-03-01' AND create_date &lt; timestamp '2025-04-01';"
+
+# 导出
+rm -f query_single.sql
+gs_dump test_query_filter -F p -a -t public.orders1 \
+ --query="orders1:WHERE create_date &gt;= timestamp '2025-03-01' AND create_date &lt; timestamp '2025-04-01'" \
+ -f query_single.sql
+
+# 校验导出行数(COPY块数据行)
+awk '/^COPY[ \t].*orders1[ \t(]/{f=1;next} f&amp;&amp;/^\\\.$/{f=0} f{c++} END{print c+0}' query_single.sql
+</code></pre>
+<h3 id="34---include-query-file-多表批量过滤orders1orders2-六月数据">3.4 --include-query-file 多表批量过滤（orders1/orders2 六月数据）</h3>
+<pre><code class="language-bash"># 谓词配置文件
+cat &gt; query_filter.conf &lt;&lt;'EOF'
+orders1:WHERE create_date &gt;= timestamp '2025-06-01' AND create_date &lt; timestamp '2025-07-01'
+orders2:WHERE create_date &gt;= timestamp '2025-06-01' AND create_date &lt; timestamp '2025-07-01'
+EOF
+
+# 预期行数
+gsql -d test_query_filter -t -A -c "SELECT count(*) FROM orders1 WHERE create_date &gt;= timestamp '2025-06-01' AND create_date &lt; timestamp '2025-07-01';"
+gsql -d test_query_filter -t -A -c "SELECT count(*) FROM orders2 WHERE create_date &gt;= timestamp '2025-06-01' AND create_date &lt; timestamp '2025-07-01';"
+
+# 导出
+rm -f query_multi.sql
+gs_dump test_query_filter -F p -a -t public.orders1 -t public.orders2 \
+ --include-query-file=query_filter.conf -f query_multi.sql
+
+# 校验导出行数
+awk '/^COPY[ \t].*orders1[ \t(]/{f=1;next} f&amp;&amp;/^\\\.$/{f=0} f{c++} END{print c+0}' query_multi.sql
+awk '/^COPY[ \t].*orders2[ \t(]/{f=1;next} f&amp;&amp;/^\\\.$/{f=0} f{c++} END{print c+0}' query_multi.sql
+</code></pre>
+<h3 id="35-不带日期表全量导出products-对照">3.5 不带日期表全量导出（products 对照）</h3>
+<pre><code class="language-bash">rm -f query_products.sql
+gs_dump test_query_filter -F p -a -t public.products -f query_products.sql
+
+# 校验
+awk '/^COPY[ \t].*products[ \t(]/{f=1;next} f&amp;&amp;/^\\\.$/{f=0} f{c++} END{print c+0}' query_products.sql
+</code></pre>
+<hr/>
+<h2 id="场景4不导出失效视图--ignore-invalid-views">场景4：不导出失效视图（--ignore-invalid-views）</h2>
+<h3 id="40-建库">4.0 建库</h3>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_invalid_views;"
+gsql -d postgres -c "CREATE DATABASE test_invalid_views;"
+</code></pre>
+<h3 id="41-建表--建视图--查询删除前">4.1 建表 + 建视图 + 查询（删除前）</h3>
+<pre><code class="language-bash">gsql -d test_invalid_views -c "
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+CREATE TABLE t1 (id int, name varchar(32));
+INSERT INTO t1 VALUES (1,'a'),(2,'b');
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+"
+gsql -d test_invalid_views -c "SELECT count(*) FROM v1;"
+</code></pre>
+<h3 id="42-打开视图依赖开关--删除表使视图失效">4.2 打开视图依赖开关 + 删除表使视图失效</h3>
+<blockquote>
+<p><code>enable_view_invalidation</code> 必须与 <code>DROP TABLE</code> 在<strong>同一 session</strong> 才生效（gsql <code>-c</code> 每次是新 session），故合并执行：</p>
+</blockquote>
+<pre><code class="language-bash">gsql -d test_invalid_views -c "
+SET enable_view_invalidation = on;
+DROP TABLE t1;
+"
+</code></pre>
+<blockquote>
+<p>若 <code>SET</code> 报参数不存在或为 SIGHUP/POSTMASTER 级别，改用全局设置后重连：</p>
+<pre><code class="language-bash">gs_guc reload -D $PGDATA -c "enable_view_invalidation=on"
+gsql -d test_invalid_views -c "DROP TABLE t1;"
+</code></pre>
+</blockquote>
+<h3 id="43-确认视图已失效">4.3 确认视图已失效</h3>
+<pre><code class="language-bash">gsql -d test_invalid_views -c "SELECT viewname FROM pg_views WHERE viewname='v1';"
+# 查询 v1 应报错(依赖对象不存在)
+gsql -d test_invalid_views -c "SELECT * FROM v1;"
+</code></pre>
+<h3 id="44-全库默认导出观察是否报错--是否导出失效视图">4.4 全库默认导出（观察是否报错 / 是否导出失效视图）</h3>
+<pre><code class="language-bash">rm -f inv_default.sql
+gs_dump test_invalid_views -F p -f inv_default.sql
+echo "退出码: $?"
+grep -c "VIEW v1\|view v1" inv_default.sql   # 是否含 v1 定义
+</code></pre>
+<h3 id="45---ignore-invalid-views-全库导出">4.5 --ignore-invalid-views 全库导出</h3>
+<pre><code class="language-bash">rm -f inv_ignore.sql
+gs_dump test_invalid_views -F p --ignore-invalid-views -f inv_ignore.sql
+echo "退出码: $?"
+grep -c "VIEW v1\|view v1" inv_ignore.sql    # 应为 0(跳过失效视图)
+grep -iE "invalid|ignore|skip" inv_ignore.sql # 观察是否有跳过提示
+</code></pre>
+<hr/>
+<h2 id="附清理测试库">附：清理测试库</h2>
+<pre><code class="language-bash">gsql -d postgres -c "DROP DATABASE IF EXISTS test_parallel;"
+gsql -d postgres -c "DROP DATABASE IF EXISTS test_meta_merge;"
+gsql -d postgres -c "DROP DATABASE IF EXISTS test_meta_complex;"
+gsql -d postgres -c "DROP DATABASE IF EXISTS test_query_filter;"
+gsql -d postgres -c "DROP DATABASE IF EXISTS test_invalid_views;"
+</code></pre>
+</blockquote>
+<h2 id="测试日志">测试日志</h2>
+<h3 id="大表并行">大表并行</h3>
+<p>百万行十个字段 并行测试</p>
+<pre><code>[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 1 -f testdir1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:38]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:39]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:43]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:43]: total time: 5706  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 2 -f testdir2
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:52]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:53]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:56]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:29:56]: total time: 3754  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 3 -f testdir3
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:05]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:06]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:08]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:08]: total time: 3064  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 4 -f testdir4
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:16]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:17]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:18]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:18]: total time: 2700  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 5 -f testdir5
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:24]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:25]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:26]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:26]: total time: 2602  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 6 -f testdir6
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:33]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:34]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:35]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:35]: total time: 2501  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 7 -f testdir7
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:42]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:43]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:45]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:45]: total time: 2847  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 8 -f testdir8
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:52]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:53]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:54]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:30:54]: total time: 2409  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 7 -f testdir7
+could not create directory "/home/gaussdb/gs_dump_507_test/testdir7": File exists
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ rm -rf testdir7
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_parallel -F d -j 7 -f testdir7
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:31:18]: The total objects number is 493.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:31:19]: [100.00%] 493 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:31:20]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 01:31:20]: total time: 2411  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ 
+</code></pre>
+<p>千万行十个字段 并行测试</p>
+<pre><code>[gaussdb@c93206eee3b8 ~]$ gsql -d postgres -c "DROP DATABASE IF EXISTS test_parallel;"
+DROP DATABASE
+[gaussdb@c93206eee3b8 ~]$ gsql -d postgres -c "CREATE DATABASE test_parallel;"
+CREATE DATABASE
+[gaussdb@c93206eee3b8 ~]$ gsql -d test_parallel -c "
+&gt; DROP TABLE IF EXISTS t1;
+&gt; DROP TABLE IF EXISTS t2;
+&gt; CREATE TABLE t1 (
+&gt;     id bigint ,
+&gt;     c1 bigint, c2 bigint, c3 numeric(18,2),
+&gt;     c4 text, c5 varchar(64), c6 varchar(64),
+&gt;     c7 timestamp, c8 boolean, c9 integer
+&gt; );
+&gt; INSERT INTO t1 (id,c1,c2,c3,c4,c5,c6,c7,c8,c9)
+&gt; SELECT g,g, g*2, g*1.23, 'text_'||g, 'vc_'||(g%1000), 'name_'||(g%500),
+&gt;        now() - (g || ' seconds')::interval, (g%2=0), g%9999
+&gt; FROM generate_series(1, 10000000) g;
+&gt; CREATE TABLE t2 as SELECT * FROM t1;
+&gt; "
+NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+NOTICE:  table "t2" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 10000000
+INSERT 0 10000000
+[gaussdb@c93206eee3b8 ~]$ gsql -d test_parallel -t -A -c "SELECT count(*),pg_table_size('t1') FROM t1;"  
+10000000|1005723648
+[gaussdb@c93206eee3b8 ~]$ gsql -d test_parallel -t -A -c "SELECT count(*),pg_table_size('t2') FROM t2;"  
+10000000|1005723648
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 1 -t public.t1 -f out_t1_j1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:28:05]: The total objects number is 480.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:28:06]: [100.00%] 480 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:28:28]: dump table public.t1 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:28:28]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:28:28]: total time: 23696  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 2 -t public.t1 -f out_t1_j2
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:00]: The total objects number is 480.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:01]: [100.00%] 480 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:14]: dump table public.t1 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:14]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:14]: total time: 13760  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 4 -t public.t1 -f out_t1_j4
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:42]: The total objects number is 480.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:42]: [100.00%] 480 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:50]: dump table public.t1 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:50]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:29:50]: total time: 8638  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 8 -t public.t1 -f out_t1_j8
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:30:02]: The total objects number is 480.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:30:03]: [100.00%] 480 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:30:08]: dump table public.t1 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:30:08]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:30:08]: total time: 6334  ms
+[gaussdb@c93206eee3b8 ~]$ du -h out* -d 1
+260M    out_t1_j1
+260M    out_t1_j2
+260M    out_t1_j4
+260M    out_t1_j8
+</code></pre>
+<p>并行效果挺好</p>
+<p>双表测试 不关闭表内并行</p>
+<pre><code>[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 1 -t public.t1 -t public.t2 -f out_t1t2_j1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:33:44]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:33:45]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:34:29]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:34:29]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:34:29]: total time: 45921  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 2 -t public.t1 -t public.t2 -f out_t1t2_j2
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:34:57]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:34:58]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:22]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:22]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:22]: total time: 25039  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 4 -t public.t1 -t public.t2 -f out_t1t2_j4
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:36]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:37]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:52]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:52]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:35:52]: total time: 16018  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 8 -t public.t1 -t public.t2 -f out_t1t2_j8
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:36:05]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:36:06]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:36:16]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:36:16]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:36:16]: total time: 11802  ms
+[gaussdb@c93206eee3b8 ~]$ 
+</code></pre>
+<p>双表测试 关闭表内并行</p>
+<pre><code>[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 1 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tbl_j1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:38:04]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:38:05]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:38:49]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:38:49]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:38:49]: total time: 45657  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 2 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tb
+l_j2
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:03]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:04]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:28]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:28]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:28]: total time: 25193  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 4 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tb
+l_j4
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:39]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:39:40]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:04]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:04]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:04]: total time: 25486  ms
+[gaussdb@c93206eee3b8 ~]$ gs_dump test_parallel -F d -j 8 -t public.t1 -t public.t2 --disable-inter-table-parallel -f out_t1t2_tb
+l_j8
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:15]: The total objects number is 482.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:15]: [100.00%] 482 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:40]: dump table public.t1 public.t2 successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:40]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 02:40:40]: total time: 25527  ms
+</code></pre>
+<p>可以看到由于只有两张表，并行度2、4、8的耗时一样。</p>
+<p>另外还有个需要注意的点，其实GaussDB这个表内并行就是按页面拆分查询,比如<code>where ctid &gt;= '(0,0)'::tid and ctid &lt; '(4077,0)'::tid</code>，但由于GaussDB 这个版本仍未引入<code>tidrangescan</code>，因此仍旧是全表扫再过滤，性能仍有优化空间。</p>
+<h3 id="大量对象">大量对象</h3>
+<p>10万张空表导出的测试，等了一个小时没有动静，查看pg_stat_activity，发现gs_dump在查行级权限，而且是一张表一张表的查</p>
+<pre><code>test_meta_merge=# explain analyze SELECT rlspolicy.polrelid, rlspolicy.oid, rlspolicy.polname, rlspolicy.polcmd, rlspolicy.polpermissive, CASE WHEN rlspolicy.polroles = '{0}' THEN 'public' ELSE pg_catalog.array_to_string(ARRAY(SELECT pg_roles.rolname FROM pg_catalog.pg_roles WHERE pg_roles.oid = ANY(rlspolicy.polroles) ORDER BY pg_roles.rolname), ', ') END AS polroles, pg_catalog.pg_get_expr(rlspolicy.polqual, rlspolicy.polrelid) AS polqual FROM pg_catalog.pg_rlspolicy rlspolicy WHERE rlspolicy.polrelid = 84062;
+ id |                                           operation                                           | A-time | A-rows | E-rows | Peak Memory | A-width | E-width |
+  E-costs
+----+-----------------------------------------------------------------------------------------------+--------+--------+--------+-------------+---------+---------+--
+-------------
+  1 | -&gt;  Index Scan using pg_rlspolicy_polrelid_polname_index on pg_rlspolicy rlspolicy            | 0.015  |      0 |      2 | 99KB        |         |     138 | 0
+.000..19.861
+  2 |    -&gt;  Index Scan using pg_authid_rolname_index on pg_authid  [1, SubPlan 3]                  |        |        |      6 |             |         |      72 | 4
+.541..8.280
+  3 |       -&gt;  Index Scan using pg_authid_rolname_index on pg_authid  [2, InitPlan 1 (returns $0)] |        |        |      1 |             |         |       1 | 0
+.003..2.270
+  4 |       -&gt;  Index Scan using pg_authid_rolname_index on pg_authid  [2, InitPlan 2 (returns $1)] |        |        |      1 |             |         |       1 | 0
+.003..2.270
+(4 rows)
+
+                                           Predicate Information (identified by plan id)
+-----------------------------------------------------------------------------------------------------------------------------------
+   1 --Index Scan using pg_rlspolicy_polrelid_polname_index on pg_rlspolicy rlspolicy
+         Index Cond: (polrelid = 84062::oid), (Expression Flatten Optimized)
+   2 --Index Scan using pg_authid_rolname_index on pg_authid
+         Filter: (((rolname = "current_user"()) OR $0 OR $1) AND (oid = ANY (rlspolicy.polroles))), (Expression Flatten Optimized)
+   3 --Index Scan using pg_authid_rolname_index on pg_authid
+         Index Cond: (rolname = "current_user"()), (Expression Flatten Optimized)
+   4 --Index Scan using pg_authid_rolname_index on pg_authid
+         Index Cond: (rolname = "current_user"()), (Expression Flatten Optimized)
+(8 rows)
+
+       ====== Query Summary =====
+----------------------------------------
+ Datanode executor start time: 0.113 ms
+ Datanode executor run time: 0.057 ms
+ Datanode executor end time: 0.018 ms
+ Planner runtime: 0.986 ms
+ Query Id: 6920906727361986907
+ Total runtime: 0.204 ms
+(6 rows)
+
+</code></pre>
+<p>循环这么查，开销挺大，实测一个小时查了不到两万张表，而十万张表创建也才10分钟。如果一开始就全量查一下，没有配置，后续就不处理rls了；如果有配置，后续也可以直接用查出来的东西，这样性能可能会更好。不过如果表只有1000张，那么导出只要4秒，表越多，性能成指数下降.</p>
+<p>openGauss也有这段代码，来自于6年前，从首次开源起就没改过</p>
+<pre><code class="language-cpp">        /* get the row level security policy from pg_rlspolicy(skip policies for system catalog) */
+        appendPQExpBuffer(query,
+            "SELECT rlspolicy.polrelid, rlspolicy.oid, rlspolicy.polname, "
+            "rlspolicy.polcmd, rlspolicy.polpermissive, "
+            "CASE WHEN rlspolicy.polroles = '{0}' THEN 'public' ELSE "
+            "pg_catalog.array_to_string(ARRAY(SELECT pg_roles.rolname FROM pg_roles "
+            "WHERE pg_roles.oid = ANY(rlspolicy.polroles) ORDER BY pg_roles.rolname), ', ') END AS polroles, "
+            "pg_catalog.pg_get_expr(rlspolicy.polqual, rlspolicy.polrelid) AS polqual "
+            "FROM pg_catalog.pg_rlspolicy rlspolicy WHERE rlspolicy.polrelid = %u;",
+            (Oid)tbinfo-&gt;dobj.catId.oid);
+        res = ExecuteSqlQuery(fout, query-&gt;data, PGRES_TUPLES_OK);
+</code></pre>
+<p>偶尔也可以看到有这样的SQL，也是一张表一张表的查，当然还有其他sql也是这样，只是开销最大的应该还是上面那个行级规则</p>
+<pre><code>SELECT pr.tableoid, pr.oid, p.pubname FROM pg_catalog.pg_publication_rel pr,     pg_catalog.pg_publication p WHERE pr.prrelid = '456779'  AND p.oid = pr.prpubid
+</code></pre>
+<pre><code>============================================================
+| 场景                 | 测试项                      |      耗时 | 备注
+| ---------------------- | ------------------------------ | ----------- | ----
+| 元数据SQL合并-建表 | 1000张空表                  |      6.135 s | 数据准备耗时
+| 元数据SQL合并     | 空表库全库schema-only     |      4.165 s | 对象=1000
+| 元数据SQL合并     | 空表库单表schema-only     |      1.156 s | 指定1表/库内1000表
+| 元数据SQL合并-建对象 | 类型10000+包100x100+视图100 |    253.204 s | 数据准备耗时
+| 元数据SQL合并     | 复杂依赖全库schema-only  |    118.783 s | 对象=类型+包+函数+视图
+</code></pre>
+<pre><code>| 场景                 | 测试项                      |      耗时 | 备注
+| ---------------------- | ------------------------------ | ----------- | ----
+| 元数据SQL合并-建表 | 10000张空表                 |     65.163 s | 数据准备耗时
+| 元数据SQL合并     | 空表库全库schema-only     |    192.759 s | 对象=10000
+| 元数据SQL合并     | 空表库单表schema-only     |      1.691 s | 指定1表/库内10000表
+</code></pre>
+<p>1000 4秒  VS 10000张表 192秒。</p>
+<p>对于存储过程依赖的补充测试，在有大量plsql对象的库里新创建一张只有一个字段的空表，再gs_dump导出单张表，耗时42秒</p>
+<pre><code>gs_dump test_meta_complex -t public.t
+
+....
+....这里狂刷屏
+....
+gs_dump[user='gaussdb'][localhost][port='5432'][sorter][2026-08-07 04:08:57]: WARNING: could not resolve dependency loop among these items:
+gs_dump[user='gaussdb'][localhost][port='5432'][sorter][2026-08-07 04:08:57]:   FUNCTION f_100  (ID 11459 OID 424837)
+gs_dump[user='gaussdb'][localhost][port='5432'][sorter][2026-08-07 04:08:57]:   PACKAGE pkg_85  (ID 35869 OID 424737)
+gs_dump[user='gaussdb'][localhost][port='5432'][sorter][2026-08-07 04:08:57]:   PRE-DATA BOUNDARY  (ID 35872)
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:08:57]: The total objects number is 480.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:09:05]: [100.00%] 480 objects have been dumped.
+--
+-- GaussDB database dump
+--
+
+SET statement_timeout = 0;
+SET session_timeout = 0;
+SET idle_in_transaction_timeout = 0;
+SET xmloption = content;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SET check_function_bodies = false;
+SET session_replication_role = replica;
+SET enable_extension = on;
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:09:05]: WARNING:  Extension is not a secure feature, and it may cause unexpected errors.
+SET client_min_messages = warning;
+SET nls_date_format = 'YYYY-MM-DD HH24:MI:SS BC';
+
+SET search_path = public;
+
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
+--
+-- Name: t; Type: TABLE; Schema: public; Owner: gaussdb; Tablespace:
+--
+
+BEGIN;
+CREATE TABLE public.t (
+    a integer
+)
+WITH (orientation=row, compression=no, storage_type=USTORE, segment=off);
+
+
+ALTER TABLE public.t OWNER TO gaussdb;
+
+COMMIT;
+--
+-- Data for Name: t; Type: TABLE DATA; Schema: public; Owner: gaussdb
+--
+
+COPY public.t (a) FROM stdin;
+\.
+;
+
+--
+-- GaussDB database dump complete
+--
+
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:09:05]: dump table public.t successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:09:05]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 04:09:05]: total time: 42863  ms
+</code></pre>
+<p>也就是导出的流程还是和原本一样，需要先做全库的依赖排序，尽管指定的这个表并不存在其他依赖关系（实际上还是会有type/namespace/authid等依赖）。</p>
+<pre><code class="language-sql">SELECT classid, objid, refclassid, refobjid, deptype FROM pg_catalog.pg_depend WHERE deptype != 'p' AND deptype != 'e' AND deptype != 'c' ORDER BY 1,2 
+</code></pre>
+<p>由于在这种场景下并没有优化，因此在指定导出单张表时，最好不要使用gs_dump，而是要用pg_get_tabledef导出DDL，然后用copy导出数据，这样更快。</p>
+<p>测试一下超多表的情况下，并行是否能提升性能</p>
+<pre><code>[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_meta_merge -F d -j 4  --disable-inter-table-parallel -f meta4
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:30]: The total objects number is 20479.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:41]: [ 48.83%] 10000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:41]: [ 97.66%] 20000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:41]: [100.00%] 20479 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:43]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:20:43]: total time: 85478  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_meta_merge -F d -j 8  --disable-inter-table-parallel -f meta8
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:22:49]: The total objects number is 20479.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:23:00]: [ 48.83%] 10000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:23:00]: [ 97.66%] 20000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:23:00]: [100.00%] 20479 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:23:01]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:23:01]: total time: 86939  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_meta_merge -F d -j 8  -f meta8_1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:24:47]: The total objects number is 20479.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:25:00]: [ 48.83%] 10000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:25:01]: [ 97.66%] 20000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:25:01]: [100.00%] 20479 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:25:01]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:25:01]: total time: 103226  ms
+[gaussdb@c93206eee3b8 gs_dump_507_test]$ gs_dump test_meta_merge -F d -j 4  -f meta4_1
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:44]: The total objects number is 20479.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:57]: [ 48.83%] 10000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:58]: [ 97.66%] 20000 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:58]: [100.00%] 20479 objects have been dumped.
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:59]: dump database successfully
+gs_dump[user='gaussdb'][localhost][port='5432'][2026-08-07 06:35:59]: total time: 100663  ms
+</code></pre>
+<p>这个测试可以看出表多且没有数据的时候，开并发是没有性能提升的，而且如果不关闭表内并行，性能甚至会更差。也就是说，没有超大表时，用表间并行即可，有超大表时才要开表内并行。</p>
+<p>对于客户而言，除了并行有非常明显的收益以外，元数据查询的优化似乎没得到期望中的效果，可能相比之前性能是有提升，但对于客户而言，导出耗时里仍然还是包含了大量的"无用功时间"。</p>
+<h3 id="其他">其他</h3>
+<p>至于不导出失效视图的测试，测试结论就是，对于失效视图</p>
+<ul>
+<li>加参数 <code>--ignore-invalid-views</code>， 不导出失效视图，日志<code>NOTICE: options --ignore-invalid-views is set, ignore invalid view v1 with oid 458867</code></li>
+<li>不加参数<code>--ignore-invalid-views</code>，导出失效视图，不报错不中断 ，日志<code>WARNING: Dump invalid view v1 with oid 458867</code></li>
+</ul>
+<p>谓词过滤导出也是符合预期的，我也不贴测试结果了。</p>
+<h2 id="总结">总结</h2>
+<p>GaussDB 507内核版本gs_dump使用建议</p>
+<ul>
+<li>性能方面：</li>
+</ul>
+<ol>
+<li>gs_dump空库底噪2~3秒，无论是否有需要导出的东西</li>
+<li>存在超大表，开并行，不关闭表内并行</li>
+<li>表非常多，无超大表，开并行，并关闭表内并行</li>
+<li>表非常多，无存储过程，导出单张表或少量表，只有底噪的额外影响</li>
+<li>表非常多，无存储过程，导出所有表，每张表附加新的底糙，性能很差，表越多，性能指数级下降，并行无法减少底噪耗时开销，因为并行是针对数据导出阶段，而查元数据本身没有并行，建议分批导出</li>
+<li>存储过程非常多，会加大底噪，导出单张表或少量表会浪费很多时间，不如写sql脚本分别导出表定义和表数据</li>
+</ol>
+<ul>
+<li>导出范围控制：</li>
+</ul>
+<ol>
+<li>谓词过滤：可以针对表使用谓词过滤条件，导出前可以一次性写好哪些大表的历史数据不导出，方便用于测试环境</li>
+<li>失效视图：根据需要选择是否导出失效视图，因为失效视图在部分版本上可能会导入报错。</li>
+</ol>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-507-feature-view-invaild-recompile/">【GaussDB】507内核版本新特性-视图失效重编译 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
