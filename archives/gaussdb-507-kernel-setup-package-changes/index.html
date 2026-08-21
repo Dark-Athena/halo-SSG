@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】507内核版本安装包的调整 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】507内核版本安装包的调整 背景 GaussDB 507这个版本的安装包有较大调整，正常安装基本照着官方文档操作就行（这个版本的安装文档阅读不如之前版本流畅，需要反复在多个文档页面来回跳转，建议多打开几份），但有时候会有一些特殊情况可能会有应急非标操作、故障排查、甚至源码分析，所以">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】507内核版本安装包的调整</h1>
+    <div class="meta">
+        
+        <span>2026-08-21</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb507内核版本安装包的调整">【GaussDB】507内核版本安装包的调整</h1>
+<h2 id="背景">背景</h2>
+<p>GaussDB 507这个版本的安装包有较大调整，正常安装基本照着官方文档操作就行（这个版本的安装文档阅读不如之前版本流畅，需要反复在多个文档页面来回跳转，建议多打开几份），但有时候会有一些特殊情况可能会有应急非标操作、故障排查、甚至源码分析，所以需要对这些安装包有一些了解。</p>
+<p>官方文档 <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbqlh/26.861.0/install/qlh_06_0151.html">《软件包概述》</a></p>
+<p>本文主要描述507版本相对于506版本在安装包和文档上的一些改动</p>
+<h2 id="gaussdb的各种版本号">GaussDB的各种版本号</h2>
+<p>这里先明确一下各种版本号的含义</p>
+<table><thead><tr><th>华为云Stack版本</th><th>GaussDB版本</th><th>GaussDB数据库引擎版本</th><th>GaussDB内核引擎版本</th></tr></thead><tbody><tr><td>8.6.1</td><td>26.861.0</td><td>V2.0-10.0.0</td><td>507.0.0</td></tr><tr><td>8.6.0</td><td>25.860.0-LTS</td><td>V2.0-8.219.0</td><td>505.2.1.SPC0900</td></tr><tr><td>8.6.0</td><td><del>25.860.0-LTS.1</del></td><td><del>V2.0-9.0.0</del></td><td><del>506.0.0.SPC0900</del></td></tr><tr><td>8.5.1</td><td>25.1.32</td><td>V2.0-8.218.0</td><td>505.2.1.SPC0800</td></tr><tr><td>8.5.1</td><td><del>25.1.32.20</del></td><td><del>V2.0-9.0.0</del></td><td><del>506.0.0.SPC0500</del></td></tr><tr><td>8.5.1</td><td><del>25.1.30.10</del></td><td><del>V2.0-9.0.0</del></td><td><del>506.0.0.SPC0100</del></td></tr><tr><td>8.5.0</td><td>24.7.30.10</td><td>V2.0-8.202.0</td><td>505.2.0.SPC0100</td></tr><tr><td>8.3.1</td><td>24.1.30</td><td>V2.0-8.102.0</td><td>505.1.0</td></tr><tr><td>8.3.0</td><td>2.23.07.210</td><td>V2.0-8.1</td><td>505.0.0.SPC0100</td></tr><tr><td>8.2.1</td><td>2.23.01.210</td><td>V2.0-3.202.0</td><td>503.1.0SPC0300</td></tr></tbody></table>
+<ul>
+<li>华为云Stack版本 ：又叫解决方案版本，软件维护的生命周期是跟着这个版本走的，一套解决方案下可以有多个GaussDB内核的版本，也就是说，光提GaussDB内核版本，无法区分其生命周期，华为方面可以随时调整将旧版本GaussDB内核打个补丁再放到新的解决方案版本里。</li>
+<li>GaussDB版本 ：又叫数据库服务版本，这里其实是包含TPOPS及GaussDB内核在一起的整合版本号</li>
+<li>GaussDB数据库引擎版本 ：又叫数据库界面内核版本，直白点讲就是销售合同上的版本号，这里列的都是v2.0，即国测通过的版本</li>
+<li>GaussDB内核引擎版本 ：又叫数据库后台内核版本，内核软件里写的版本号，和内核研发沟通时用这个版本号对齐版本</li>
+</ul>
+<p>搞这么多版本号其实还是用的云产品多组件的那套玩法，一个GaussDB内核二进制其实只有几十MB（503.1.0.SPC1700_Kylin 56MB）到一百多MB（507.0.0_Euler 125MB），但是发给客户的安装介质高达十几GB。GaussDB内核只是GaussDB的一个组件而已。</p>
+<p>其中V2.0-9.0.0这个引擎版本（即506内核版本）的产品文档，已经从华为官方的 support.huawei.com 及 doc.hcs.huawei.com 网站上删除，这里我特意把表格补充了一下，未来备查，因为最外层安装包文件名上是看不到内核版本号的，只能看到"25.1.30.10"、"26.861.0"这样的版本号。</p>
+<h2 id="tpops包">TPOPS包</h2>
+<p>tpops安装时需要的包打成了分arm64/amd64的两个大包</p>
+<ul>
+<li>TPOPS-GaussDB-Server_x86_64_V2.0_26.861.0.20260601164122.132474918.tar.gz</li>
+<li>TPOPS-GaussDB-Server_aarch64_V2.0_26.861.0.20260601164122.132474918.tar.gz</li>
+</ul>
+<p>解压后是一个TPOPS-GaussDB-Server目录，里面放了和之前一样的几个包</p>
+<ul>
+<li>DBS-docker-service*.tar.gz</li>
+<li>DBS-GaussDBConsole-Server*.tar.gz</li>
+<li>DBS-GaussDB-Server*.tar.gz</li>
+<li>DBS-Platform-Server*.tar.gz</li>
+<li>GaussDB_OS_PATCH*.zip</li>
+</ul>
+<p>减少了需要分发的文件，挺好。但是本质上安装需要的东西还是一样的，只是额外又打了一层包而已。</p>
+<h2 id="内核安装包">内核安装包</h2>
+<h3 id="操作系统cpu的合并与拆分">操作系统/CPU的合并与拆分</h3>
+<p>之前是每个操作系统对应一个内核安装包，arm64和amd64的在一个包里，且带符号表，现在合并成了改为3个操作系统乘以2个cpu架构一共6个内核安装包，不带符号表。</p>
+<p>GaussDB这么一改，我之前写的提取内核安装包的脚本就不适用了(<a href="https://www.darkathena.top/archives/GaussDB-How-to-Extract-Kernel-Binaries-from-the-Release-Package">【GaussDB】如何从GaussDB发布包中提取出内核二进制文件</a>)。</p>
+<p>3个操作系统分别为Hce/Euler/Suse，但这并不意味着就只支持这三个操作系统，其实这三个只是标识，真正对应的是三个分支及其发行版</p>
+<table><thead><tr><th>安装包名</th><th>Linux分支</th><th>官方支持的操作系统</th></tr></thead><tbody><tr><td>DBS-GaussDB-Suse-Kernel*</td><td>SUSE</td><td>SUSE 12 SP5 (Linux 4.x)<br/>SUSE 15 SP7 (Linux 6.x)</td></tr><tr><td>DBS-GaussDB-Euler-Kernel*</td><td>openEuler 20* (Linux 4.x)</td><td>麒麟 V10 SP1<br/>麒麟 V10 SP2<br/>麒麟 V10 SP3<br/>麒麟 V10 SP3 2403(arm64)<br/>统信 V20 1050e<br/>BClinux 21.10(arm64/intel)<br/>BClinux R8U2(海光)(基于Anolis OS 8.2)<br/><strong>中科方德 V4.0</strong><br/>麒麟信安 v3.4.5 update1(arm64)<br/><strong>CTyunOS V2.0 22.06(Linux 5.x)</strong></td></tr><tr><td>DBS-GaussDB-Hce-Kernel*</td><td>openEuler 22/24(Linux 5.x/6.x)</td><td>HCE 2.0<br/>openEuler 22.03<br/><strong>麒麟 V11 2503(arm64)</strong></td></tr></tbody></table>
+<p>这种合并有利于减少厂家发布的安装包体积以及分发到客户的安装包体积（符号表不用发，内核包只发对应CPU架构的），而且对于原厂的测试工作量来说也会少很多（暂不确定华为是否有针对不同操作系统搭了完整测试流水线，还是仅做了基本兼容性测试）。</p>
+<p>这个分法其实很奇怪，一开始我以为是按Linux内核版本，后面细看不对，SUSE还是混了两个内核版本（当然安装步骤有些特殊要求，就当是例外了）；CTyunOS 是基于openEuler 22的，对应的是Linux 5.x；HCE2.0 是 Linux 5.x;麒麟V11 是Linux 6.x。</p>
+<p>再细看官方文档，发现有个特殊的点</p>
+<blockquote>
+<p>如果主机的操作系统是麒麟 V10、统信、中科方德、麒麟信安、CTyunOS或者BCLINUX，则支持的Python版本为3.7.9；如果主机的操作系统是麒麟 V11，则支持的Python版本为3.11.6；如果主机的操作系统是HCE或者openEuler，则支持的Python版本为3.9.9；如果主机的操作系统为SUSE12.5，则支持的Python版本为3.8.5。如果主机的操作系统为SUSE15.7，则支持的Python版本为3.11.4。</p>
+</blockquote>
+<p>也就是说，抛开SUSE不看，其实只有两个特殊情况，即CTyunOS 22和麒麟v11，后者是唯一的Linux 6.x，前者是把默认的Liunx 5.x的python 3.9.9改成了3.7.9,所以归到了openEuler 20的那一组。然后还有个特殊的，中科方德v4.0其实有基于openEular 20、22SP2两个版本的，这里没有区分，不知道是华为没测还是这两个版本的python版本也一样。</p>
+<p>所以真正的分组方式可以说是按操作系统默认的python版本来的，SUSE不算，3.7.9一组，大于等于3.9.9一组。（在版本兼容性方面最恶心的高级开发语言）</p>
+<p>另外，不同操作系统总会有些小版本补丁，之前505和506版本时，对操作系统版本要求明确到了小版本号，实施时发现小版本对不上又得重装操作系统，而操作系统厂家说这个版本有漏洞要升级，数据库文档又明确只能用指定得版本，无法实施。到507这个版本则去掉了对小版本的指定，在GaussDB版本说明书里有这样一段说明:</p>
+<blockquote>
+<p>Kylin在同一个SP会发布小补丁版本，比如表中SP1小补丁版本4.19.90-23.35、4.19.90-23.42、4.19.90-23.48等，这种小补丁主要针对漏洞和问题修复，Kylin确认接口保持前向兼容的情况下，GaussDB默认是兼容的。如果局点需要验证，可在现场使用《GaussDB 验收测试指南》快速完成验证。</p>
+</blockquote>
+<p><a href="https://support.huawei.com/enterprise/zh/doc/EDOC1100576189?idPath=22658044%7C7919788%7C9856606%7C253384033%7C265624857&amp;section=j002">《GaussDB V2.0-26.861.0 集中式版验收测试指南(for 轻量化部署形态) 01.docx》</a></p>
+<p>但这个测试里，对于数据库本身的测试，只有建库、建schema、建用户、授权、建表、增删改查。</p>
+<h3 id="部署形态新增及飞腾的支持">部署形态新增及飞腾的支持</h3>
+<p>之前有内核有集中式/分布式两个版本，包名带"ha"的是集中式，不带"ha"的是分布式；现在变成了5个，分别为</p>
+<ul>
+<li>集中式 v10.0.0-GaussDBV5-install-euler-ha-aarch64_5e56410e558bd0e6e034289287885539053de7c9d9e6e7aed26cb7252a26d70f.tar.gz</li>
+<li>分布式 v10.0.0-GaussDBV5-install-euler-aarch64_832c43e8b76864ebdb3965b188eb48d093151ad08015c4225a6924632aafe32c.tar.gz</li>
+<li>集中式 noLSE v10.0.0-GaussDBV5-install-euler-ha-aarch64_5e56410e558bd0e6e034289287885539053de7c9d9e6e7aed26cb7252a26d70f.tar.gz</li>
+<li>分布式 noLSE v10.0.0-GaussDBV5-install-euler-noLSE-aarch64_bd184f01beed2f409edc3e02a73fd7acb50f4866bcda0d24f372d187403b2f53.tar.gz</li>
+<li>透明多写（cloudnative） v10.0.0-GaussDBV5-install-euler-cloudnative-aarch64_ebbda1430bb1695618cad18dbca607462be53bc416f00a34046ff8ec92de95a4.tar.gz</li>
+</ul>
+<p>noLSE是针对飞腾CPU的支持，虽然和鲲鹏920同为arm64架构，但飞腾cpu不支持<strong>LSE</strong>指令（旧版本openGauss在飞腾机器上跑不起来就是这个原因），所以内核需要额外编译一个不同的版本。505.2SPC0800版本飞腾的包是单独的大包。</p>
+<p>对于透明多写这个，我相当想吐槽，为何包名要叫"云原生"？但后来去了解了下GaussDB的透明多写，不再是传统架构了，而是使用多计算节点、内存池化、分布式共享存储、PDB级日志流等重构了资源的使用方式，符合常规意义上的云原生架构。</p>
+<p>透明多写的相关说明可参考 <a href="https://www.modb.pro/db/1967420255785988096">《专家实录｜GaussDB池化透明多写架构带来的三重突破》</a></p>
+<h2 id="符号表">符号表</h2>
+<p>原本符号表是在内核安装包里的，现在拆出来了，比如GaussDB的Euler版本对应的符号表包</p>
+<ul>
+<li>DBS-GaussDB-Euler-Symbol_aarch64_V2.0-10.0.0_26.861.0.0.1109004653171008.tar.gz</li>
+<li>DBS-GaussDB-Euler-Symbol_x86_64_V2.0-10.0.0_26.861.0.0.1109004653171008.tar.gz</li>
+</ul>
+<p>注意，解压后会区分不同的系统版本，安装文档里未提及，比如Hce2.0和Hce3.0、Euler2.5和Euler2.10。</p>
+<ul>
+<li>Euler2.5的Linux内核是3.x （没找到对应的数据库内核二进制）</li>
+<li>Euler2.10的Linux内核是4.x</li>
+<li>HCE 2.0基于openEuler 22.03 LTS版本，对应Linux 5.x</li>
+<li>HCE 3.0基于openEuler 24.03 LTS SP1版本,对应Linux 6.x （对应了麒麟V11的Linux版本）</li>
+</ul>
+<h2 id="驱动包">驱动包</h2>
+<p>在505版本里，除了单独的driver包，内核包里也带了连接驱动；506版本内核包里就不带驱动了；507版本同样不在内核包里带驱动，driver包也拆成了arm64和amd64两个。</p>
+<p>driver包里的python驱动不是按照操作系统默认的python版本来了，而是统一改成了基于python 3.11的（<a href="https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow">【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow<br/>
+</a>之前这篇文章里提到的在麒麟v10arm64使用python3.10和3.11调用psycopg2会coredump的问题，改用这个包就没问题了）。</p>
+<p>505 的jdbc驱动只有 jdk8的，506增加了jdk17的，507又增加了jdk21的。</p>
+<h2 id="om-agent包和dbmind包">OM-AGENT包和DBMIND包</h2>
+<p>这两个包没有变化，仍然是<br/>
+DBS-GaussDB-Kernel_*.tar.gz  --  OM-AGENT<br/>
+DBS-DBMind-Manual_*.tar.gz  --  DBMIND</p>
+<h2 id="文档包">文档包</h2>
+<p>这个版本的产品文档可以免登录直接下载:<a href="https://support.huawei.com/enterprise/zh/cloud-computing/hcs-gaussdb-v2.0-software-pid-265624857">https://support.huawei.com/enterprise/zh/cloud-computing/hcs-gaussdb-v2.0-software-pid-265624857</a></p>
+<p>产品文档包发生了变化，里面除了原本的chm文件，还多了一个zip，这个zip和外面这个zip同名，解压的时候注意不要覆盖了。里面的zip解压后是一个html版本的文档，支持简单的搜索，但首次搜索很慢，还需要消耗浏览器2GB内存(这个内存会慢慢降到700MB左右)。</p>
+<p>于是我顺便用AI优化了一下，增强了搜索，优化了性能，节省了内存占用，文档优化补丁的代码可以从这里获取 <a href="https://cnb.cool/darkathena/gaussdb-507-docs-html-patch">https://cnb.cool/darkathena/gaussdb-507-docs-html-patch</a> 。</p>
+<p>多了一个 <a href="https://support.huawei.com/enterprise/zh/doc/EDOC1100549153?idPath=22658044%7C7919788%7C9856606%7C253384033%7C265624857">"GaussDB V2.0-26.861.0 虚拟化最佳实践(for 轻量化部署形态) 01 "</a>，里面是如何在虚拟机里部署tpops及GaussDB，这算是从官方层面认可了GaussDB可以在虚拟机上使用，之前华为交付上都是把在虚拟机部署GaussDB认为是非标安装，出现问题可以不负责的。</p>
+<p>多了一个 <a href="https://support.huawei.com/enterprise/zh/doc/EDOC1100576391/3b72c5c?idPath=22658044%7C7919788%7C9856606%7C253384033%7C265624857">"GaussDB AI助手 V2.0-26.861.0.1 产品文档(for 轻量化部署形态)"</a>，基本就是一个带知识库的、能对接TPOPS及HCS获取主机及实例信息的AI对话工具，用户需自行提供大模型api。</p>
+<p>另外有一个点需要提一下，" GaussDB V2.0-26.861.0 账户一览表(for 轻量化部署形态) 01 "这个文件里，部分之前版本有写的密码，在新版本中不再提供了，比如tpops的元库core用户的密码，如果需要获取密码，需要在tpops服务器上使用以下命令获取</p>
+<pre><code class="language-bash">sh /data/docker-service/action/common/metadb_operator.sh query_pwd core
+</code></pre>
+<p>其他文档我就没细去对比了。</p>
+<h2 id="support">support</h2>
+<p>GaussDB这个版本起，support网站的路径都发生了变化，原本是"GaussDB"和"GaussDB inside",改到了"HCS GaussDB V2.0 Software"<br/>
+<a href="https://support.huawei.com/enterprise/zh/cloud-computing/hcs-gaussdb-v2.0-software-pid-265624857">https://support.huawei.com/enterprise/zh/cloud-computing/hcs-gaussdb-v2.0-software-pid-265624857</a></p>
+<h2 id="总结">总结</h2>
+<p>从文档和安装介质上的变更来看，GaussDB 507这个版本的确是做了不少东西，能够看到华为在GaussDB上面的投入量还是挺大的。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors/">&larr; 【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错</a>
+    
+    
+    <a href="../gaussdb-507-gs_dump-feature/">【GaussDB】507版本gs_dump功能更新 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

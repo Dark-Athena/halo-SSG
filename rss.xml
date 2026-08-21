@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错</title>
+      <link>https://www.darkathena.top/archives/GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors</link>
+      <description>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错 背景 其实这个问题最早我是在几年前(2023年11月)，客户现场openGauss的一个发行版上发现的，当时有一个数据库连接驱动，会去执行一个这样的SQL select parameter_mode, pa</description>
+      <pubDate>Fri, 21 Aug 2026 01:05:47 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】507内核版本安装包的调整</title>
+      <link>https://www.darkathena.top/archives/gaussdb-507-kernel-setup-package-changes</link>
+      <description>【GaussDB】507内核版本安装包的调整 背景 GaussDB 507这个版本的安装包有较大调整，正常安装基本照着官方文档操作就行（这个版本的安装文档阅读不如之前版本流畅，需要反复在多个文档页面来回跳转，建议多打开几份），但有时候会有一些特殊情况可能会有应急非标操作、故障排查、甚至源码分析，所以</description>
+      <pubDate>Fri, 21 Aug 2026 00:56:53 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】507版本gs_dump功能更新</title>
       <link>https://www.darkathena.top/archives/gaussdb-507-gs_dump-feature</link>
       <description>【GaussDB】507版本gs_dump功能更新 前言 GaussDB 507内核版本的gs_dump有了不少更新，而且客户在之前版本的实际使用过程中，的确发现了不少毛病，但版本说明书上并未列全所有新增和修改，这次就来借助AI看一下到底动了些啥，并且对之前版本的一些问题进行测试 比较这两个文档的差</description>
@@ -306,18 +318,6 @@
       <description>【GaussDB】UNION结果顺序探索 背景 在报表类SQL中，经常会用UNION来合并明细行和汇总行，一般来说应该要使用UNION ALL，但是由于部分开发人员未理解数据库中的UNION和UNION ALL的区别，很可能就用了UNION 而没有使用UNION ALL，然后恰巧数据中并没有重复，也</description>
       <pubDate>Wed, 21 Jan 2026 13:56:44 +0000</pubDate>
       <category>openGauss</category>
-    </item>
-    <item>
-      <title>【GaussDB】分析函数性能优化案例-row_number改写</title>
-      <link>https://www.darkathena.top/archives/gaussdb-row_number-rewrite-performance-optimization</link>
-      <description>【GaussDB】分析函数性能优化案例-row_number改写 背景 在应用查询SQL中，分组top-N查询是很常见的，因此分析函数row_number/rank/dense_rank经常会出现在ORACLE的SQL中，GaussDB同样也支持这些函数，因此将ORACLE中这样的SQL迁移到Gau</description>
-      <pubDate>Wed, 21 Jan 2026 13:46:08 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】解析GaussDB热补丁机制</title>
-      <link>https://www.darkathena.top/archives/gaussdb-analyze-hotpatch</link>
-      <description>【GaussDB】解析GaussDB热补丁机制 前言 热补丁（Hot Patching）是指在程序运行过程中，无需停止或重启程序，直接对其进行修补或更新的一种技术。 作为企业级数据库软件的GaussDB,也同样有热补丁的能力。 熟悉openGauss的可能比较好奇，openGauss绝大部分的内核代</description>
-      <pubDate>Wed, 14 Jan 2026 07:55:44 +0000</pubDate>
     </item>
   </channel>
 </rss>

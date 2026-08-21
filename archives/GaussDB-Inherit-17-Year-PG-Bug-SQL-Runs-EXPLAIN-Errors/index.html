@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错 背景 其实这个问题最早我是在几年前(2023年11月)，客户现场openGauss的一个发行版上发现的，当时有一个数据库连接驱动，会去执行一个这样的SQL select parameter_mode, pa">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错</h1>
+    <div class="meta">
+        
+        <span>2026-08-21</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb一个原生pg延续十七年的bug被继承sql执行不报错explain报错">【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错</h1>
+<h2 id="背景">背景</h2>
+<p>其实这个问题最早我是在几年前(2023年11月)，客户现场openGauss的一个发行版上发现的，当时有一个数据库连接驱动，会去执行一个这样的SQL</p>
+<pre><code class="language-sql">select parameter_mode, parameter_name, pg_type.oid 
+from information_schema.parameters 
+join pg_catalog.pg_type 
+on pg_type.typname = udt_name 
+where upper(specific_name) = upper('%') 
+and upper(specific_schema) = upper('%') 
+order by ordinal_position; 
+</code></pre>
+<p>当参数为值为null时，会报错:</p>
+<blockquote>
+<p>ERROR:  failed to find plan for subquery ss</p>
+</blockquote>
+<h2 id="分析与临时解决">分析与临时解决</h2>
+<p>当时这套应用已经上线生产环境了，在生产环境上没有报错，测试环境上报错。客户对比两个环境的数据库参数，发现有个参数不一样，<code>track_stmt_stat_level</code> 在生产环境是<code>OFF,L0</code>,在测试环境是<code>OFF,L1</code>。</p>
+<p>当时我和我们内核研发一起定位，分析出了原因，是因为information_schema.parameters这个视图里有个子查询，由于<code>任何值=null</code>恒为false，因此子查询实际不需要再产生执行计划，可以被直接裁剪掉，但由于子查询的一个嵌套列在子查询外面被引用作为目标列，反解析目标列名称的时候发现没有这个子查询的计划，就报错了。</p>
+<p>原本的视图长这样</p>
+<pre><code class="language-sql">CREATE OR REPLACE VIEW information_schema.parameters
+AS SELECT current_database()::information_schema.sql_identifier AS specific_catalog, 
+    ss.n_nspname::information_schema.sql_identifier AS specific_schema, 
+    ((ss.proname::text || '_'::text) || ss.p_oid::text)::information_schema.sql_identifier AS specific_name, 
+    (ss.x).n::information_schema.cardinal_number AS ordinal_position, 
+        CASE
+            WHEN ss.proargmodes IS NULL THEN 'IN'::text
+            WHEN ss.proargmodes[(ss.x).n] = 'i'::"char" THEN 'IN'::text
+            WHEN ss.proargmodes[(ss.x).n] = 'o'::"char" THEN 'OUT'::text
+            WHEN ss.proargmodes[(ss.x).n] = 'b'::"char" THEN 'INOUT'::text
+            WHEN ss.proargmodes[(ss.x).n] = 'v'::"char" THEN 'IN'::text
+            WHEN ss.proargmodes[(ss.x).n] = 't'::"char" THEN 'OUT'::text
+            ELSE NULL::text
+        END::information_schema.character_data AS parameter_mode, 
+    'NO'::character varying::information_schema.yes_or_no AS is_result, 
+    'NO'::character varying::information_schema.yes_or_no AS as_locator, 
+    NULLIF(ss.proargnames[(ss.x).n], NULL::text)::information_schema.sql_identifier AS parameter_name, 
+        CASE
+            WHEN t.typelem &lt;&gt; 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
+            WHEN nt.nspname = 'pg_catalog'::name THEN format_type(t.oid, NULL::integer)
+            ELSE 'USER-DEFINED'::text
+        END::information_schema.character_data AS data_type, 
+    NULL::integer::information_schema.cardinal_number AS character_maximum_length, 
+    NULL::integer::information_schema.cardinal_number AS character_octet_length, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_schema, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_name, 
+    NULL::character varying::information_schema.sql_identifier AS collation_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS collation_schema, 
+    NULL::character varying::information_schema.sql_identifier AS collation_name, 
+    NULL::integer::information_schema.cardinal_number AS numeric_precision, 
+    NULL::integer::information_schema.cardinal_number AS numeric_precision_radix, 
+    NULL::integer::information_schema.cardinal_number AS numeric_scale, 
+    NULL::integer::information_schema.cardinal_number AS datetime_precision, 
+    NULL::character varying::information_schema.character_data AS interval_type, 
+    NULL::integer::information_schema.cardinal_number AS interval_precision, 
+    current_database()::information_schema.sql_identifier AS udt_catalog, 
+    nt.nspname::information_schema.sql_identifier AS udt_schema, 
+    t.typname::information_schema.sql_identifier AS udt_name, 
+    NULL::character varying::information_schema.sql_identifier AS scope_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS scope_schema, 
+    NULL::character varying::information_schema.sql_identifier AS scope_name, 
+    NULL::integer::information_schema.cardinal_number AS maximum_cardinality, 
+    (ss.x).n::information_schema.sql_identifier AS dtd_identifier
+   FROM pg_type t, pg_namespace nt, 
+    ( SELECT n.nspname AS n_nspname, p.proname, p.oid AS p_oid, p.proargnames, 
+            p.proargmodes, 
+            information_schema._pg_expandarray(COALESCE(p.proallargtypes, p.proargtypes::oid[])) AS x
+           FROM pg_namespace n, pg_proc p
+          WHERE n.oid = p.pronamespace AND (pg_has_role(p.proowner, 'USAGE'::text) OR has_function_privilege(p.oid, 'EXECUTE'::text))) ss
+  WHERE t.oid = (ss.x).x AND t.typnamespace = nt.oid;
+</code></pre>
+<p>关键就在 <code>(ss.x).n</code> 的引用和 <code>ss</code> 这个子查询，我当时的紧急方案是修改这个视图，解了一层嵌套，把<code>(ss.x).n</code>转化为 <code>ss.n</code>如下：</p>
+<pre><code class="language-sql">CREATE OR REPLACE VIEW information_schema.parameters
+AS SELECT current_database()::information_schema.sql_identifier AS specific_catalog, 
+    ss.n_nspname::information_schema.sql_identifier AS specific_schema, 
+    ((ss.proname::text || '_'::text) || ss.p_oid::text)::information_schema.sql_identifier AS specific_name, 
+    ss.n::information_schema.cardinal_number AS ordinal_position, 
+        CASE
+            WHEN ss.proargmodes IS NULL THEN 'IN'::text
+            WHEN ss.proargmodes[ss.n] = 'i'::"char" THEN 'IN'::text
+            WHEN ss.proargmodes[ss.n] = 'o'::"char" THEN 'OUT'::text
+            WHEN ss.proargmodes[ss.n] = 'b'::"char" THEN 'INOUT'::text
+            WHEN ss.proargmodes[ss.n] = 'v'::"char" THEN 'IN'::text
+            WHEN ss.proargmodes[ss.n] = 't'::"char" THEN 'OUT'::text
+            ELSE NULL::text
+        END::information_schema.character_data AS parameter_mode, 
+    'NO'::character varying::information_schema.yes_or_no AS is_result, 
+    'NO'::character varying::information_schema.yes_or_no AS as_locator, 
+    NULLIF(ss.proargnames[ss.n], NULL::text)::information_schema.sql_identifier AS parameter_name, 
+        CASE
+            WHEN t.typelem &lt;&gt; 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
+            WHEN nt.nspname = 'pg_catalog'::name THEN format_type(t.oid, NULL::integer)
+            ELSE 'USER-DEFINED'::text
+        END::information_schema.character_data AS data_type, 
+    NULL::integer::information_schema.cardinal_number AS character_maximum_length, 
+    NULL::integer::information_schema.cardinal_number AS character_octet_length, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_schema, 
+    NULL::character varying::information_schema.sql_identifier AS character_set_name, 
+    NULL::character varying::information_schema.sql_identifier AS collation_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS collation_schema, 
+    NULL::character varying::information_schema.sql_identifier AS collation_name, 
+    NULL::integer::information_schema.cardinal_number AS numeric_precision, 
+    NULL::integer::information_schema.cardinal_number AS numeric_precision_radix, 
+    NULL::integer::information_schema.cardinal_number AS numeric_scale, 
+    NULL::integer::information_schema.cardinal_number AS datetime_precision, 
+    NULL::character varying::information_schema.character_data AS interval_type, 
+    NULL::integer::information_schema.cardinal_number AS interval_precision, 
+    current_database()::information_schema.sql_identifier AS udt_catalog, 
+    nt.nspname::information_schema.sql_identifier AS udt_schema, 
+    t.typname::information_schema.sql_identifier AS udt_name, 
+    NULL::character varying::information_schema.sql_identifier AS scope_catalog, 
+    NULL::character varying::information_schema.sql_identifier AS scope_schema, 
+    NULL::character varying::information_schema.sql_identifier AS scope_name, 
+    NULL::integer::information_schema.cardinal_number AS maximum_cardinality, 
+    ss.n::information_schema.sql_identifier AS dtd_identifier
+   FROM pg_type t, pg_namespace nt, 
+    ( SELECT n.nspname AS n_nspname, p.proname, p.oid AS p_oid, p.proargnames, 
+            p.proargmodes, 
+            information_schema._pg_expandarray(COALESCE(p.proallargtypes, p.proargtypes::oid[])) AS x,
+            (information_schema._pg_expandarray(COALESCE(p.proallargtypes, p.proargtypes::oid[]))).n as n
+           FROM pg_namespace n, pg_proc p
+          WHERE n.oid = p.pronamespace AND (pg_has_role(p.proowner, 'USAGE'::text) OR has_function_privilege(p.oid, 'EXECUTE'::text))) ss
+  WHERE t.oid = (ss.x).x AND t.typnamespace = nt.oid;
+</code></pre>
+<h2 id="简化用例">简化用例</h2>
+<p>然后我简化出来了两个用例,不需要调整参数即可复现</p>
+<pre><code class="language-sql">MogDB=# select * from information_schema.parameters where specific_name = null ;
+ specific_catalog | specific_schema | specific_name | ordinal_position | parameter_mode | is_result | as_locator | parameter_n
+ame | data_type | character_maximum_length | character_octet_length | character_set_catalog | character_set_schema | character
+_set_name | collation_catalog | collation_schema | collation_name | numeric_precision | numeric_precision_radix | numeric_scal
+e | datetime_precision | interval_type | interval_precision | udt_catalog | udt_schema | udt_name | scope_catalog | scope_sche
+ma | scope_name | maximum_cardinality | dtd_identifier
+------------------+-----------------+---------------+------------------+----------------+-----------+------------+------------
+----+-----------+--------------------------+------------------------+-----------------------+----------------------+----------
+----------+-------------------+------------------+----------------+-------------------+-------------------------+-------------
+--+--------------------+---------------+--------------------+-------------+------------+----------+---------------+-----------
+---+------------+---------------------+----------------
+(0 rows)
+
+MogDB=# explain select * from information_schema.parameters where specific_name = null ;
+                QUERY PLAN
+------------------------------------------
+ Result  (cost=0.00..0.06 rows=1 width=0)
+   One-Time Filter: false
+(2 rows)
+
+MogDB=# explain analyze select * from information_schema.parameters where specific_name = null ;
+                                     QUERY PLAN
+------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.06 rows=1 width=0) (actual time=0.009..0.009 rows=0 loops=1)
+   One-Time Filter: false
+ Total runtime: 1.893 ms
+(3 rows)
+
+MogDB=# explain performance select * from information_schema.parameters where specific_name = null ;
+ERROR:  failed to find plan for subquery ss
+MogDB=#
+
+</code></pre>
+<pre><code class="language-sql">explain performance 
+SELECT  (ss.x).n AS ordinal_position
+    FROM pg_type t,
+         (SELECT information_schema._pg_expandarray(p.proallargtypes) AS x
+          FROM  pg_proc p
+          WHERE proname='aclexplode') AS ss
+    WHERE t.oid = (ss.x).x and 1&lt;&gt;1;
+</code></pre>
+<p>像上面这两个SQL，都是执行不报错、explain 不报错、explain analyze 不报错，只在 explain performance 报错。</p>
+<p>然后由于当时项目中有优先级更高的问题，这个有规避方案的问题就暂且搁置了，后续我也没有持续跟踪。</p>
+<h2 id="gaussdbopengausspostgresql">GaussDB/openGauss/postgresql</h2>
+<p>几年后的今天（20260818），我和客户在讨论GaussDB为什么不在statement_history记录更准确的细化到每步的开销，而是只记了个参考的。我说记录更详细对性能的影响更大，而且explain performance和实际执行，走的逻辑其实是有区别的，正好举出了本文的例子，对于同一个SQL，直接查询不报错，explain performance报错。</p>
+<p>提到这，我就顺便在GaussDB最新的507版本上测试了一下，发现该问题在507版本上依然存在：</p>
+<pre><code class="language-sql">gaussdb=# EXPLAIN PERFOrMANCE
+SELECT  (ss.x).n AS ordinal_position
+    FROM pg_type t,
+         (SELECT information_schema._pg_expandarray(p.proallargtypes) AS x
+          FROM  pg_proc p
+          WHERE proname='aclexplode') AS ss
+    WHERE t.oid = (ss.x).x and 1&lt;&gt;1;
+ERROR:  failed to find plan for subquery ss
+gaussdb=# SELECT  (ss.x).n AS ordinal_position
+gaussdb-#     FROM pg_type t,
+gaussdb-#          (SELECT information_schema._pg_expandarray(p.proallargtypes) AS x
+gaussdb(#           FROM  pg_proc p
+gaussdb(#           WHERE proname='aclexplode') AS ss
+gaussdb-#     WHERE t.oid = (ss.x).x and 1&lt;&gt;1;
+ ordinal_position 
+------------------
+(0 rows)
+</code></pre>
+<p>然后又顺便在最新的openGauss 7.0上测了下，发现问题也还在，就打算让AI基于openGauss源码分析一下这个问题。</p>
+<p>这次我用了copilotcli接了opencode go的kimi k3，输出贼慢。</p>
+<p>AI思考过程中，我看到AI联想到了原生PG似乎有类似问题，但是<code>explain performance</code>是openGauss独有的，原生PG不支持，但支持 <code>verbose</code>，那么会不会<code>explain verbose</code> 也有这个问题？（kimi k3不会搞混openGauss和postgresql，在未使用网络搜索的情况下，<code>performance</code>这种语法差异细节都注意到了，这点好评）</p>
+<p>于是我没等AI分析完，直接去 <a href="https://dbfiddle.uk/j7FJ4LYX">https://dbfiddle.uk/j7FJ4LYX</a> 用<code>explain verbose</code>的方式，在线逐个PG版本进行验证，发现从PG12开始就不报错了，PG9.3到PG11的报错和openGauss一模一样。</p>
+<p>这大概率就是一个已知的原生PG的BUG了，后面版本进行了修复。</p>
+<p>于是我开了个临时免费的mimo claw，让AI去找下这个问题在原生PG里是哪个commit被修复的。</p>
+<p>AI分析过程中，我"土法"搜索了一下，发现了PG社区上这个问题近年来还在被讨论。2024年，有人在PG16.3上执行一个类似的SQL也报错了<br/>
+<a href="https://postgrespro.ru/list/thread-id/2708652">BUG #18576: Using EXPLAIN (VERBOSE) in information_schema.element_types returns ERROR: failed to find plan for</a></p>
+<blockquote>
+<p>Bug reference:      18576<br/>
+Logged by:          Vasya B<br/>
+Email address:      <a href="mailto:vasiliy.boytsov@gmail.com">vasiliy.boytsov@gmail.com</a><br/>
+PostgreSQL version: 16.3<br/>
+Operating system:   Ubuntu 24.04<br/>
+Description:</p>
+<p>From a clean DB, one can execute:<br/>
+EXPLAIN (VERBOSE) SELECT FROM information_schema.element_types WHERE<br/>
+object_type = 'TABLE';<br/>
+Which returns:<br/>
+ERROR:  failed to find plan for subquery ss<br/>
+While the expected result was a working query.<br/>
+W/O VERBOSE this query works.</p>
+</blockquote>
+<p>然后mimo claw的分析结果也出来了，和我土法搜索得到的BUG是同一个（mimo有点偷懒，下面这个报告是第三轮对话的结果）</p>
+<blockquote>
+<p>好，现在信息完整了。以下是最终报告。</p>
+<hr/>
+<h2 id="postgresql-explain-verbose-报错-failed-to-find-plan-for-subquery-完整分析">PostgreSQL <code>EXPLAIN (VERBOSE)</code> 报错 <code>failed to find plan for subquery</code> 完整分析</h2>
+<h3 id="一问题复现">一、问题复现</h3>
+<pre><code class="language-sql">EXPLAIN (VERBOSE)
+SELECT (ss.x).n AS ordinal_position
+FROM pg_type t,
+    (SELECT information_schema._pg_expandarray(p.proallargtypes) AS x
+     FROM pg_proc p
+     WHERE proname='aclexplode') AS ss
+WHERE t.oid = (ss.x).x AND 1&lt;&gt;1;
+</code></pre>
+<p>在多个 PG 版本上执行均报错：</p>
+<pre><code>ERROR:  failed to find plan for subquery ss
+</code></pre>
+<h3 id="二错误代码位置">二、错误代码位置</h3>
+<p><code>src/backend/utils/adt/ruleutils.c</code> → <code>get_name_for_var_field()</code> 函数。</p>
+<p>当 EXPLAIN 尝试反解 <code>(ss.x).n</code> 这种"对子查询 RECORD 类型输出的字段引用"时，需要找到子查询的执行计划来确定字段的真实类型。核心逻辑如下：</p>
+<pre><code class="language-c">/*
+* We're deparsing a Plan tree so we don't have complete
+* RTE entries (in particular, rte-&gt;subquery is NULL). But
+* the only place we'd see a Var directly referencing a
+* SUBQUERY RTE is in a SubqueryScan plan node, and we can
+* look into the child plan's tlist instead.
+*/
+if (!dpns-&gt;inner_plan)          /* PG 9.3 用 inner_planstate */
+   elog(ERROR, "failed to find plan for subquery %s",
+        rte-&gt;eref-&gt;aliasname);
+</code></pre>
+<p><strong>设计假设</strong>：引用 SUBQUERY RTE 的 Var 一定出现在 SubqueryScan 计划节点中。当优化器以任何方式消除了 SubqueryScan 节点，<code>inner_plan</code> 为 NULL，触发报错。</p>
+<h3 id="三错误引入时间线">三、错误引入时间线</h3>
+<table><thead><tr><th>版本</th><th>是否存在该 elog</th><th>说明</th></tr></thead><tbody><tr><td>PG 8.2</td><td>❌</td><td><code>get_name_for_var_field</code> 尚未依赖 SubqueryScan 节点</td></tr><tr><td>PG 8.3</td><td>✅</td><td>Tom Lane 于 2007-02-23 引入（CVS r1.251）</td></tr><tr><td>PG 8.4 ~ PG 9.5</td><td>✅</td><td>持续存在，但特定查询模式下未必触发</td></tr><tr><td>PG 9.6</td><td>✅</td><td><code>3fc6e2d7f</code> 引入新的触发路径（见下文）</td></tr><tr><td>PG 10 ~ PG 11</td><td>✅</td><td>同上</td></tr><tr><td>PG 12+</td><td>✅→修复</td><td>2024-08-09 修复并 back-patch</td></tr></tbody></table>
+<p><strong>引入 commit</strong>（2007-02-23，Tom Lane，开发版本 8.3）：</p>
+<blockquote>
+<p>Now that plans have flat rangetable lists, it's a lot easier to get EXPLAIN to drill down into subplan targetlists... Along the way, fix an EXPLAIN bug I introduced by suppressing subqueries from execution-time range tables: <code>get_name_for_var_field()</code> assumed it could look at <code>rte-&gt;subquery</code> to find out the real type of a RECORD var. That doesn't work anymore, but instead we can look at the input plan of the SubqueryScan plan node.</p>
+</blockquote>
+<p>这次重构把 <code>get_name_for_var_field()</code> 从"读取 RTE 的 subquery 字段"改为"读取 SubqueryScan 子计划的 targetlist"。当 SubqueryScan 不存在时，就产生了这个错误。</p>
+<h3 id="四后续恶化的触发路径">四、后续恶化的触发路径</h3>
+<p><strong>commit <code>3fc6e2d7f5b652b417fa6937c34de2438d60fa9f</code></strong>（2016-03-07，Tom Lane，PG 9.6）</p>
+<blockquote>
+<p>Make the upper part of the planner work by generating and comparing Paths.</p>
+</blockquote>
+<p>这是一个大规模的优化器重构。在此之前，常量 FALSE 条件下的子查询会被优化为 <code>Result -&gt; Result</code>（子 Result 保留了原始 targetlist），<code>get_name_for_var_field</code> 仍能从中获取字段信息。重构之后，优化器直接去掉了子 Result 节点，只保留一个空的父 Result，导致该函数在更多场景下触发报错。</p>
+<p>Tom Lane 对简化用例的 bisection 结果：9.5 正常，9.6 开始失败。</p>
+<h3 id="五不同查询模式触发同一错误">五、不同查询模式触发同一错误</h3>
+<p>该错误可以通过不同的优化路径触发：</p>
+<table><thead><tr><th>查询模式</th><th>触发版本</th><th>触发机制</th></tr></thead><tbody><tr><td>简单 SRF + 常量 FALSE（Tom 的测试用例）</td><td>≥ 9.6</td><td><code>3fc6e2d7f</code> 后优化器直接消除子 Result</td></tr><tr><td>Join + SRF + 常量 FALSE（你的查询）</td><td>≥ 8.3</td><td>Join 消除/约束推导等优化消除 SubqueryScan</td></tr><tr><td><code>information_schema.element_types</code>（Bug #18576）</td><td>≥ 9.6</td><td>同 Tom 用例机制</td></tr></tbody></table>
+<p>你的查询在 PG 9.3 就报错，是因为 join 场景下优化器通过<strong>不同于</strong> <code>3fc6e2d7f</code> 的路径（可能是 join 消除或约束推导）去掉了 SubqueryScan 节点。这条路径从 PG 8.3 起就存在。</p>
+<h3 id="六修复">六、修复</h3>
+<p><strong>commit <code>120dd033761dbd70ad6267ff7255430bc8a989ed</code></strong>（2024-08-09）</p>
+<ul>
+<li>作者：Richard Guo &amp; Tom Lane</li>
+<li>Bug：#18576</li>
+<li>修改文件：<code>src/backend/utils/adt/ruleutils.c</code>、<code>src/backend/optimizer/plan/createplan.c</code></li>
+</ul>
+<p>修复逻辑：当发现子查询已被优化为空的 Result 节点（无 <code>inner_plan</code>）时，不再 <code>elog(ERROR)</code>，而是 fallback 返回 <code>"fN"</code>（N 为字段序号）作为字段名：</p>
+<pre><code class="language-c">if (!dpns-&gt;inner_plan)
+{
+   char *dummy_name = palloc(32);
+   Assert(IsA(dpns-&gt;plan, Result));
+   snprintf(dummy_name, 32, "f%d", fieldno);
+   return dummy_name;
+}
+</code></pre>
+<p><strong>Back-patch 情况</strong>：</p>
+<table><thead><tr><th>版本</th><th>EOL 时间</th><th>是否收到修复</th></tr></thead><tbody><tr><td>PG 11</td><td>2023-11-09</td><td>❌ 已 EOL，未修复</td></tr><tr><td>PG 12</td><td>2024-11-14</td><td>✅</td></tr><tr><td>PG 13</td><td>2025-11-13</td><td>✅</td></tr><tr><td>PG 14+</td><td>更晚</td><td>✅</td></tr></tbody></table>
+<h3 id="七总结">七、总结</h3>
+<p>该错误的本质是 <code>ruleutils.c</code> 中一个<strong>存在了 17 年的设计缺陷</strong>（2007—2024）：<code>get_name_for_var_field()</code> 假设引用子查询的 Var 一定有对应的 SubqueryScan 计划节点，但优化器可以在多种场景下消除该节点。2016 年的优化器重构（<code>3fc6e2d7f</code>）扩大了触发面，2024 年的修复（<code>120dd033761dbd70ad6267ff7255430bc8a989ed</code>）通过 fallback 策略彻底解决了问题。PG 11 因已 EOL 未收到修复，PG 12 及以上版本均已修复。<br/>
+原来并不是在PG12上进行的修复，而是2024年8月份修的，只是这个修复回合到PG12上去了。</p>
+</blockquote>
+<p>kimi k3的openGauss源码分析结果也出来了</p>
+<blockquote>
+<p>分析完成。所有环节均已在这台运行实例（同版本 3700f950）上复现验证。</p>
+<h2 id="结论这是-explain-反解析deparse的一个缺陷不是查询本身的问题">结论：这是 EXPLAIN 反解析（deparse）的一个缺陷，不是查询本身的问题</h2>
+<p><strong>触发需同时满足 4 个条件：</strong></p>
+<ol>
+<li>WHERE 含常量假条件（<code>1&lt;&gt;1</code>），整个查询被优化成<strong>无子节点的 dummy plan</strong></li>
+<li>子查询无法被展平消除</li>
+<li>目标列引用了<strong>子查询输出中 RECORD 类型字段的成员</strong> <code>(ss.x).n</code></li>
+<li>EXPLAIN 需要打印 Output 列表（VERBOSE，或 PERFORMANCE——explain.cpp:414 强制 <code>verbose=true</code>）</li>
+</ol>
+<p><strong>完整因果链（源码级）：</strong></p>
+<ol>
+<li><code>1&lt;&gt;1</code> 经常量折叠成 FALSE，<code>make_join_rel</code> 中 <code>restriction_is_constant_false()</code> 命中 → <code>mark_dummy_rel()</code>（joinrels.cpp:677），joinrel 得到无子路径的 dummy AppendPath</li>
+<li><code>create_append_plan</code> 对空 subpaths 生成<strong>无子节点的 Result</strong>（<code>One-Time Filter: false</code>，createplan.cpp:1586）。但该 Result 的 targetlist 仍保留原表达式 <code>(ss.x).n</code>——一个指向 RTE <code>ss</code> 的 RECORD 型 Var 的 FieldSelect</li>
+<li><code>set_plan_references</code> 展平 rangetable 时清空了 <code>newrte-&gt;subquery = NULL</code>（setrefs.cpp:236），最终计划里 RTE 已不带子查询 Query 树</li>
+<li>VERBOSE 打印 "Output:" 时 → <code>get_rule_expr</code> 处理 FieldSelect（ruleutils.cpp:10379）→ <code>get_name_for_var_field</code> 需要下钻解析 record 字段名</li>
+<li>RTE_SUBQUERY 分支中 <code>rte-&gt;subquery == NULL</code>，只能走"plan-tree"分支，期望通过 SubqueryScan 节点的 <code>inner_planstate</code> 找子计划——但计划树里<strong>根本没有 SubqueryScan 节点</strong>（顶层是无子节点 Result）→ ruleutils.cpp:9402 报错</li>
+</ol>
+<p><strong>验证过的边界情况：</strong></p>
+<table><thead><tr><th>场景</th><th>结果</th></tr></thead><tbody><tr><td>原查询直接执行 / plain EXPLAIN / EXPLAIN ANALYZE</td><td>正常（不反解析 Output）</td></tr><tr><td>EXPLAIN VERBOSE / PERFORMANCE</td><td><strong>报错</strong></td></tr><tr><td>去掉 <code>1&lt;&gt;1</code> 或改 <code>1=1</code></td><td>正常（SubqueryScan 存在）</td></tr><tr><td>只输出 <code>ss.x</code>（不取 <code>.n</code> 字段）+ 常假</td><td>正常（走 get_variable 简单路径）</td></tr><tr><td>子查询可展平时（如 case C）</td><td>正常（Var 被内联，不再引用 RTE ss）</td></tr></tbody></table>
+<p><strong>本质</strong>：优化器可以生成彻底消除 SubqueryScan 节点的 dummy plan，但反解析器的 plan-tree 回退分支假设"凡引用 RTE_SUBQUERY 必有对应 SubqueryScan 节点"，两者不匹配。修复方向：ruleutils.cpp:9402 处在 <code>inner_planstate == NULL</code> 时，对无法解析的 record 字段降级处理（如用 <code>rte-&gt;eref</code> 中的别名兜底），而非直接 ereport。</p>
+<p><strong>临时规避</strong>：用 plain EXPLAIN 或 EXPLAIN ANALYZE；或去掉常量假条件；或避免在可能被整体短路的查询中对子查询 record 列取字段。</p>
+</blockquote>
+<h2 id="总结">总结</h2>
+<p>简单来说，这个BUG的表现就是，特定的一些SQL，直接执行不报错，但<code>explain performance</code> 或者<code>explain verbose</code>会报错，或者<code>track_stmt_stat_level</code>第二个值开到<code>L1</code>时再执行SQL会报错。</p>
+<p>当年遇到的一个小问题，如今回过头来细查，竟然翻出了个在postgresql上持续17年的BUG。要说准确点，其实我这个BUG场景是没有被其他人报告的：2007年被 Tom Lane 引入，2016年又被 Tom Lane 做了另一个BUG路径的错误修复，引来了2024年 Richard Guo 的再次修复，巧合之下把我遇到这个的场景也修复了。</p>
+<p>回想起来，我发现这个问题时是2023年，当时正在做一个非常重要的项目，非常忙，文章都写得少了（全年只发布10篇），也没往原生PG上想，要不然这个问题至少报告人就是我了。有意思的是，这个修复人 <strong>Richard Guo</strong>（郭峰） 是个中国人，是PG的 Major Contributor 之一。</p>
+<p>至于openGauss里这个BUG我要不要去修，我暂时没心情。如果有谁看到了我这篇文章想去修的话，可以在issue里顺便提一下我这篇文章。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+        <a class="tag" href="../../tags/postgresql/">postgresql</a>
+        
+        <a class="tag" href="../../tags/opengauss/">opengauss</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-507-kernel-setup-package-changes/">【GaussDB】507内核版本安装包的调整 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

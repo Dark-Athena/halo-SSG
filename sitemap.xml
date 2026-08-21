@@ -5,6 +5,16 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors</loc>
+    <lastmod>2026-08-21</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-507-kernel-setup-package-changes</loc>
+    <lastmod>2026-08-21</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/gaussdb-507-feature-view-invaild-recompile</loc>
     <lastmod>2026-08-09</lastmod>
     <priority>0.8</priority>
