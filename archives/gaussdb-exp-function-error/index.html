@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】真相比你想的更复杂--执行exp函数报错 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】真相比你想的更复杂--执行exp函数报错 背景 客户有个正态分布计算的存储过程从ORACLE迁移到GaussDB 506.0.0SPC0500，运行时发现报错ERROR: value out of range: underflow，但相同的SQL和相同的数据在ORACLE没有报错。">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】真相比你想的更复杂--执行exp函数报错</h1>
+    <div class="meta">
+        
+        <span>2026-09-01</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb真相比你想的更复杂--执行exp函数报错">【GaussDB】真相比你想的更复杂--执行exp函数报错</h1>
+<h2 id="背景">背景</h2>
+<p>客户有个正态分布计算的存储过程从ORACLE迁移到GaussDB 506.0.0SPC0500，运行时发现报错<code>ERROR: value out of range: underflow</code>，但相同的SQL和相同的数据在ORACLE没有报错。经过排查，发现是执行到exp函数时报的错。我大概搜了一下，了解到postgresql系的数据库exp函数入参的确是有个范围的，有人甚至利用这个报错来对应用进行SQL注入。我自己实际测试了一下，发现不报错的整数范围是 -745 到 709 ，大了小了都会报错。</p>
+<h2 id="oracle为什么不报错">ORACLE为什么不报错</h2>
+<p>为什么ORACLE不报错？我之前有分析过ORACLE的NUMBER类型存储算法(<a href="https://www.darkathena.top/archives/about-utl-raw-and-emulate-cal">【ORACLE】详解oracle数据库UTL_RAW包各个函数的模拟算法</a>)，想着应该与这个存储算法有关系，就来推理一下。</p>
+<p>ORACLE 的NUMBER类型最多38个有效数字 ，在数据字典dba_tab_cols里可以看到NUMBER类型的字段DATA_LENGTH为22，但ORACLE官方文档则说NUMBER是21个字节。</p>
+<p>正数范围 <code>1.0*power(10, −130)</code> 到  <code>9.99...9*power(10,125)</code>  (38个9)<br/>
+负数范围 <code>-9.99...9×power(10,125)</code>  (38个9) 到 <code>-1.0×power(10, −130)</code></p>
+<p>对于power函数，当第一个参数为10时：<br/>
+第二个参数大于125会报错；<br/>
+第二个参数小于-130会返回0</p>
+<p>这个边界和ORACLE官方文档一致。</p>
+<p>对于exp函数，输入参数大于 290 时会报错，输入参数小于 -300 时会返回0。</p>
+<p>从power函数和exp函数的测试结果来看，可以发现小数部分小到一定程度，就直接舍弃了；而正数部分超过一定程度会报错。</p>
+<p>这是因为NUMBER类型的存储机制决定的：<br/>
+最小正数的的NUMBER十六进制存储为<code>8002</code>,两个字节，<br/>
+<code>80</code>是指数位，要减193，得-65，<br/>
+02减1，得1，<br/>
+则为 <code>1*100^-65</code> ，即 <code>1E-130</code></p>
+<p>而<code>80</code>则是表示0，所以大于0的最小正数就是<code>8002</code>了（不存在<code>8001</code>，因为那会和<code>80</code>算出来的结果一样）</p>
+<p>而最大的一个有效数字的整数情况是<code>FF5B</code>，第一个字节最大<code>FF</code>，减193后，指数就为62了，<code>5B</code>减1的十进制是90， 即<code>90*100^62</code> ，即 <code>9E+125</code>。（更大的<code>FF65</code> 是 <code>1E126</code>，已经无法使用了）</p>
+<p>如果整数的38位有效数字填满情况，则接近于 <code>power(10,125)*9.9999999999999999999999999999999999999</code> ，存储为 <code>FF64646464646464646464646464646464646464</code>，<br/>
+<code>64</code>减1就是十进制的99了，38个9，占了19个字节，算上前面的指数位<code>FF</code>，一共20个字节，但此时这个存储的值已经无法正常显示了，utl_raw.cast_to_number会变成<code>1E126</code>，再to_char会返回<code>~</code>,</p>
+<p>如果再多一个9 （39个9）,就存储为<code>FF646464646464646464646464646464646464645B</code> ，最后的<code>5B</code>就是90，此时占到了21个字节，已经逼近了NUMBER的22字节上限，如果再加一个9 （40个9），此时其实还是21个字节，但其实已经溢出。（其实手动解析是能解到最多40个有效数字的，但ORACLE做了限制，38个9和39个9和40个9都是<code>1E126</code>，不过并不相等，42个9已经超了范围，和40个9是相等的）</p>
+<pre><code class="language-sql">SQL&gt; select 1 as r from dual where
+  2  utl_raw.cast_to_number('FF64646464646464646464646464646464646464') --38个9
+  3  =
+  4  utl_raw.cast_to_number('FF6464646464646464646464646464646464646464'); --40个9
+
+         R
+----------
+
+
+SQL&gt; select 1 as r from dual where
+  2  utl_raw.cast_to_number('FF646464646464646464646464646464646464646464') --42个9
+  3  =
+  4  utl_raw.cast_to_number('FF6464646464646464646464646464646464646464'); --40个9
+
+         R
+----------
+         1
+
+SQL&gt; select
+  2  utl_raw.cast_to_number('FF64646464646464646464646464646464646464') as c1,--38个9
+  3  utl_raw.cast_to_number('FF646464646464646464646464646464646464645B') as c2,--39个9
+  4  utl_raw.cast_to_number('FF6464646464646464646464646464646464646464') as c3,--40个9
+  5  utl_raw.cast_to_number('FF646464646464646464646464646464646464646464') as c4 --42个9
+  6  from dual;
+
+        C1         C2         C3         C4
+---------- ---------- ---------- ----------
+     1E126      1E126      1E126      1E126
+
+SQL&gt; 
+SQL&gt; select
+  2  to_char(utl_raw.cast_to_number('FF64646464646464646464646464646464646464')) as c1, --38个9
+  3  to_char(utl_raw.cast_to_number('FF646464646464646464646464646464646464645B')) as c2, --39个9
+  4  to_char(utl_raw.cast_to_number('FF6464646464646464646464646464646464646464')) as c3, --40个9
+  5  to_char(utl_raw.cast_to_number('FF646464646464646464646464646464646464646464')) as c4 --42个9
+  6  from dual;
+
+C1   C2   C3   C4
+---- ---- ---- ----
+~    ~    ~    ~
+
+</code></pre>
+<p>ORACLE官方文档有说</p>
+<blockquote>
+<p>Oracle stores values of the NUMBER datatype in a variable-length format. The first byte is the exponent and is followed by 1 to 20 mantissa bytes.<br/>
+Oracle 以变长格式存储 NUMBER 数据类型的值。第一个字节为指数，其后跟随 1 至 20 个尾数字节。</p>
+</blockquote>
+<blockquote>
+<p>Up to 20 data bytes can represent the mantissa. However, only 19 are guaranteed to be accurate.<br/>
+最多 20 个数据字节可表示尾数。但只有 19 个字节保证精确。</p>
+</blockquote>
+<p>即，数据字典22字节，官方文档21字节，表示数字的20字节，其中实际19字节保证精确。计算时(不限于)，小数小到一定程度则忽略，而大数大到一定程度则报错。</p>
+<h2 id="pg为什么报错">PG为什么"报错"</h2>
+<p>回头看看为什么PG系会报错。我先在GaussDB上测试</p>
+<pre><code>power(10,-324) 报错
+power(10,-323) = 9.88131291682493088e-324
+power(10,308) = 9.99999999999999909e-309
+power(10,309) 报错
+</code></pre>
+<p>power函数第一个参数为10时：<br/>
+第二个参数的整数范围为-323 到 308 ，大了小了都会报错</p>
+<p>让AI捞了下PG的源码，说是PG直接用的标准C库里的pow函数，IEEE 754标准的确就有这个限制。</p>
+<p>而对于exp函数的限制，也是设计如此，在openGauss的测试用例集里已经包含了exp的边界测试:<br/>
+<a href="https://gitcode.com/opengauss/Yat/blob/6.0.2/openGaussBase/testcase/SQL/INNERFUNC/numeric/Opengauss_Function_Innerfunc_Exp_Case0006.sql">https://gitcode.com/opengauss/Yat/blob/6.0.2/openGaussBase/testcase/SQL/INNERFUNC/numeric/Opengauss_Function_Innerfunc_Exp_Case0006.sql</a></p>
+<pre><code>-- @testpoint: exp函数入参范围校验，合理报错
+select exp(709);
+select exp(710);
+select exp(-745);
+select exp(-746);
+</code></pre>
+<p>不过这个时候我注意到了，AI给出来的源码引用并不是numeric类型的，而是float.c里的。而且我在numeric的power函数里，并没有看到使用标准的pow函数，于是乎我做了个测试<code>select power(10,-324::numeric)</code> 并没有报错,numeric会不会有新的边界呢？</p>
+<p>我又分别针对numeric的power和exp函数做了下测试</p>
+<ul>
+<li>power</li>
+</ul>
+<pre><code>  power(10,131072::numeric) 报错
+  power(10,131071::numeric) 131072位数
+  power(10,-16::numeric) = 0.0000000000000001
+  power(10,-17::numeric) = 0
+  power(10,-1000000::numeric) 0
+  --numeric的有效范围内，继续小都一直返回0了
+ 
+</code></pre>
+<ul>
+<li>exp</li>
+</ul>
+<pre><code>  exp(6000::numeric) 报错
+  exp(5999::numeric) 不报错,2606位精确数
+  exp(-2303::numeric) = 1E-1000
+  exp(-2304::numeric) = 0
+  exp(-5999::numeric) = 0
+  exp(-6000::numeric)  报错
+</code></pre>
+<p>很明显的不对劲，power第二个参数小那么多都不报错，而exp在-6000时就报错了。</p>
+<p>以上都是在GaussDB上进行的测试，然而当我把相同的用例搬到多个PG版本上时（ <a href="https://dbfiddle.uk/XSOhWTce">https://dbfiddle.uk/XSOhWTce</a> ），测试结果又发生了变化：</p>
+<p>从pg9.6起 ，exp(-6000::numeric) 不报错了，让AI去查了下</p>
+<blockquote>
+<p><strong>Commit:</strong> <code>7d9a4737c268f61fb8800957631f12d3f13be218</code><br/>
+<strong>Author:</strong> Dean Rasheed<br/>
+<strong>Date:</strong> 2015-11-14<br/>
+<strong>Message:</strong> Improve type numeric's calculations for ln(), log(), exp(), pow().</p>
+<p>这个 commit 彻底重写了 <code>exp_var()</code> 的实现逻辑：</p>
+<blockquote>
+<p>In exp_var(), get rid entirely of the logic that separated the calculation into integer and fractional parts: that was neither accurate nor particularly fast. The existing range-reduction method of dividing by 2^n can be applied across the full input range instead of only 0..1, as long as we are careful to set an appropriate rscale for each step.</p>
+</blockquote>
+<p>旧实现把参数拆成整数部分和小数部分分别计算，对大负数会溢出报错。新实现改用统一的 range-reduction（除以 2^n）方式处理整个输入范围，<code>exp(-6000)</code> 这种情况就不会再报错了。</p>
+<p><strong>影响版本：</strong></p>
+<ul>
+<li>首次发布于 <strong>PostgreSQL 9.6</strong>（2016-09-29）</li>
+<li><strong>没有回移</strong>到 9.5 及更早版本。Tom Lane 原话："This is arguably a bug fix, but in view of the lack of field complaints, it does not seem worth the risk of back-patching."</li>
+</ul>
+</blockquote>
+<p>当年没有"complaints"，现在有了，在GaussDB上。</p>
+<p>也就是说，GaussDB上exp函数报错，可以认为的确是个BUG。</p>
+<p>另外，虽然说PG9.5和GaussDB 都报错，但是报错不一样</p>
+<ul>
+<li>PG9.5是<code>ERROR:  argument for function "exp" too big</code></li>
+<li>GaussDB是<code>ERROR: value overflows numeric format</code></li>
+</ul>
+<p>所以我又让AI去对比了一下PG和openGauss的源码</p>
+<blockquote>
+<hr/>
+<h2 id="三家-exp_var-核心溢出检查对比">三家 <code>exp_var()</code> 核心溢出检查对比</h2>
+<h3 id="pg-95--旧算法拆整数小数">PG 9.5 — 旧算法（拆整数/小数）</h3>
+<pre><code class="language-c">// 把 |x| 的整数部分逐位累加到 xintval
+while (x.weight &gt;= 0)
+{
+   xintval *= NBASE;
+   if (x.ndigits &gt; 0)
+       xintval += x.digits[0];
+   x.digits++;
+   x.ndigits--;
+   x.weight--;
+
+   if (xintval &gt;= NUMERIC_MAX_RESULT_SCALE * 3)   // ← 只检查正方向
+       ereport(ERROR,
+               (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+                errmsg("argument for function \"exp\" too big")));
+}
+</code></pre>
+<ul>
+<li>取绝对值后逐位提取整数部分，一旦超限就报错</li>
+<li><strong>不区分正负</strong>，<code>exp(-6000)</code> 取绝对值后 xintval=6000，超限 → 报错</li>
+<li>错误信息是 <strong>exp 专用</strong>的：<code>argument for function "exp" too big</code></li>
+</ul>
+<hr/>
+<h3 id="pg-96--新算法range-reduction--taylor-有-underflow-处理">PG 9.6 — 新算法（range-reduction + Taylor）✅ 有 underflow 处理</h3>
+<pre><code class="language-c">val = numericvar_to_double_no_overflow(&amp;x);
+
+/* Guard against overflow/underflow */
+if (Abs(val) &gt;= NUMERIC_MAX_RESULT_SCALE * 3)
+{
+   if (val &gt; 0)                                    // 正数 → 溢出报错
+       ereport(ERROR,
+               (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+                errmsg("value overflows numeric format")));
+   zero_var(result);                               // 负数 → 返回 0
+   result-&gt;dscale = rscale;
+   return;
+}
+</code></pre>
+<ul>
+<li>先转 double 估算范围</li>
+<li><strong>区分正负</strong>：<code>val &gt; 0</code> 报溢出，<code>val &lt; 0</code> 直接 <code>zero_var(result)</code> 返回 0</li>
+<li><code>exp(-6000)</code> → val ≈ -6000，走 <code>zero_var</code> → <strong>返回 0，不报错</strong></li>
+</ul>
+<hr/>
+<h3 id="opengauss--基于-96-算法--缺少-underflow-处理">openGauss — 基于 9.6 算法 ❌ 缺少 underflow 处理</h3>
+<pre><code class="language-c">val = numericvar_to_double_no_overflow(&amp;x);
+
+/* Guard against overflow */                        // ← 注释只写了 overflow
+if (Abs(val) &gt;= NUMERIC_MAX_RESULT_SCALE * 3)
+   ereport(ERROR,                                  // ← 无差别报错
+           (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+            errmsg("value overflows numeric format")));
+</code></pre>
+<ul>
+<li>算法框架和 PG 9.6 一样（range-reduction + Taylor）</li>
+<li><strong>但漏掉了 <code>val &lt;= 0</code> 的分支处理</strong>，不管正负一律报错</li>
+<li><code>exp(-6000)</code> → val ≈ -6000，直接走 ereport → <strong>报错 <code>value overflows numeric format</code></strong></li>
+</ul>
+<hr/>
+<h2 id="一图总结">一图总结</h2>
+<pre><code>输入: exp(-6000::numeric)
+
+PG 9.5:  旧算法，xintval=6000 超限
+        → ERROR: argument for function "exp" too big
+
+PG 9.6:  新算法，val≈-6000 &lt; 0，走 zero_var()
+        → 返回 0  ✅
+
+openGauss: 新算法，val≈-6000，但无 val&gt;0/val≤0 分支
+          → ERROR: value overflows numeric format
+</code></pre>
+<p><strong>根因：</strong> openGauss 从 PG 9.6 搬代码时，只搬了溢出检查的"壳"（<code>Abs(val) &gt;= 阈值 → 报错</code>），没搬 PG 9.6 里区分 overflow/underflow 的分支逻辑（<code>if (val &gt; 0) ... else zero_var()</code>）。看起来是合入时的遗漏。</p>
+</blockquote>
+<p>是不是感觉已经真相了？不，基于我理性的判断，openGauss不可能在搬代码的时候漏了这个逻辑。我猜测它搬的时候，原生PG里的代码就长这样，于是继续让AI查</p>
+<blockquote>
+<hr/>
+<h2 id="时间线">时间线</h2>
+<table><thead><tr><th>时间</th><th>事件</th><th><code>exp_var()</code> 溢出检查</th></tr></thead><tbody><tr><td><strong>2015-11-14</strong></td><td><code>7d9a4737c2</code> — 重写 exp_var，进入 PG 9.6 开发分支</td><td><code>if (Abs(val) &gt;= 阈值) 报错 "value overflows numeric format"</code> — <strong>不区分正负</strong></td></tr><tr><td><strong>2016-09-29</strong></td><td><strong>PG 9.6.0 发布</strong></td><td>同上，没有 underflow 处理</td></tr><tr><td><strong>2021-07-31</strong></td><td><code>5cf350ce02</code> — backport 到 <strong>REL9_6_STABLE</strong></td><td>加上 <code>if (val &gt; 0)</code> 分支，负数走 <code>zero_var()</code> 返回 0</td></tr><tr><td><strong>2021-11-11</strong></td><td><strong>PG 9.6.24 发布</strong>（含上述 backport）</td><td><code>exp(-6000)</code> → 返回 0 ✅</td></tr><tr><td><strong>openGauss fork</strong></td><td>基于 PG 9.6 代码（2021 年 backport 之前）</td><td>和 9.6.0 一样，不区分正负</td></tr></tbody></table>
+<hr/>
+<h2 id="关键-diff5cf350ce02rel9_6_stable-的-backport">关键 diff（<code>5cf350ce02</code>，REL9_6_STABLE 的 backport）</h2>
+<pre><code class="language-diff">-	/* Guard against overflow */
++	/* Guard against overflow/underflow */
+	if (Abs(val) &gt;= NUMERIC_MAX_RESULT_SCALE * 3)
+-		ereport(ERROR,
+-				(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
+-				 errmsg("value overflows numeric format")));
++	{
++		if (val &gt; 0)
++			ereport(ERROR,
++					(errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE),
++					 errmsg("value overflows numeric format")));
++		zero_var(result);
++		result-&gt;dscale = rscale;
++		return;
++	}
+</code></pre>
+<hr/>
+<h2 id="结论">结论</h2>
+<p><strong>openGauss 的代码没有遗漏，它就是 PG 9.6.0 的原版逻辑。</strong></p>
+<p>underflow → 0 的处理是 2021 年才 backport 到 REL9_6_STABLE 的（9.6.24），openGauss fork 的时间点在这个 backport 之前，所以它的 <code>exp_var()</code> 和 PG 9.6.0 完全一致——<code>Abs(val)</code> 超限就无差别报错。</p>
+<p>三方代码实际对应的是：</p>
+<pre><code>PG 9.5       → 旧算法，专用报错 "argument for function \"exp\" too big"
+PG 9.6.0     → 新算法，通用报错 "value overflows numeric format"  ← openGauss 就是这个
+PG 9.6.24+   → 新算法 + underflow 分支，负数返回 0
+</code></pre>
+</blockquote>
+<p>看了下openGauss的这段代码，从首次开源起就没改过，时间点是在 2020-06-30 ,刚好在2015-11-14(7d9a4737c2) 到 2021-07-31(5cf350ce02) 之间，即使用了新算法，但是没特殊处理小于0的分支。但众所周知，openGauss的PG内核版本锁在了9.2.4，但开源时的这段代码却长得和9.6.0一样。</p>
+<pre><code>  lishifu   6 years ago (June 30th, 2020 5:38 PM) 
+
+first commit for openGauss server
+
+ 815a977         |        |    Explain   |      |   
+
++     /* Guard against overflow */
+Changes added in  815a977   |   
+
+
+</code></pre>
+<p>所以我直接去找了PG9.2.4的代码</p>
+<p><a href="https://github.com/postgres/postgres/blob/REL9_2_4/src/backend/utils/adt/numeric.c">https://github.com/postgres/postgres/blob/REL9_2_4/src/backend/utils/adt/numeric.c</a></p>
+<p>PG9.2.4的确没有合入来自PG9.6.0的这个新算法，所以openGauss虽然是基于9.2.4版本，但是首次开源的时候，就已经包含了一些新版PG的代码了。</p>
+<p>到此，真相终于大白。</p>
+<h2 id="总结">总结</h2>
+<p>ORACLE 和最新的PG，在exp的入参是个绝对值很大的负NUMBER/NUMERIC值时（-6000），都不会报错；而PG9.6.24之前（不含）和openGauss/GaussDB会报错。</p>
+<p>追寻真相的过程中，AI的确帮我节省了不少时间，但是一开始AI生成的看上去很靠谱的分析报告，却并不是真相。AI的幻觉问题，后续通过大模型能力提升肯定是可以减轻的。但是当下阶段使用AI，最好还是保持清醒的认知，不要让AI做凌驾于你认知之上的事，哪天被AI忽悠瘸了还不知道；如果要这么做，也要有确保可信的手段去核实真假。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../GaussDB-Privilege-Escalation-Vulnerability-HWSA25-084897515/">&larr; 【GaussDB】（HWSA25-084897515）普通用户非法提权的漏洞分析</a>
+    
+    
+    <a href="../GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors/">【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

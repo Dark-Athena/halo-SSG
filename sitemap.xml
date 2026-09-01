@@ -5,8 +5,13 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-exp-function-error</loc>
+    <lastmod>2026-09-01</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors</loc>
-    <lastmod>2026-08-21</lastmod>
+    <lastmod>2026-08-25</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
@@ -312,6 +317,11 @@
   <url>
     <loc>https://www.darkathena.top/archives/query-gaussdb-with-duckdb</loc>
     <lastmod>2025-10-27</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/GaussDB-Privilege-Escalation-Vulnerability-HWSA25-084897515</loc>
+    <lastmod>2026-09-01</lastmod>
     <priority>0.8</priority>
   </url>
   <url>

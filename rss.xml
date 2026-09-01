@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】（HWSA25-084897515）普通用户非法提权的漏洞分析</title>
+      <link>https://www.darkathena.top/archives/GaussDB-Privilege-Escalation-Vulnerability-HWSA25-084897515</link>
+      <description>【GaussDB】（HWSA25-084897515）普通用户非法提权的漏洞分析 漏洞发现时间 2025年9月 漏洞表现 若数据库中存在A/B两个用户，只要将B用户的一个对象授权给了用户A，那么用户A在不知道B用户密码的情况下，可以通过执行特定的SQL，将自己伪造成B用户，并同时获取了B用户的所有权</description>
+      <pubDate>Tue, 01 Sep 2026 15:56:57 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】真相比你想的更复杂--执行exp函数报错</title>
+      <link>https://www.darkathena.top/archives/gaussdb-exp-function-error</link>
+      <description>【GaussDB】真相比你想的更复杂--执行exp函数报错 背景 客户有个正态分布计算的存储过程从ORACLE迁移到GaussDB 506.0.0SPC0500，运行时发现报错ERROR: value out of range: underflow，但相同的SQL和相同的数据在ORACLE没有报错。</description>
+      <pubDate>Tue, 01 Sep 2026 14:47:46 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错</title>
       <link>https://www.darkathena.top/archives/GaussDB-Inherit-17-Year-PG-Bug-SQL-Runs-EXPLAIN-Errors</link>
       <description>【GaussDB】一个原生PG延续十七年的BUG被继承，SQL执行不报错，explain报错 背景 其实这个问题最早我是在几年前(2023年11月)，客户现场openGauss的一个发行版上发现的，当时有一个数据库连接驱动，会去执行一个这样的SQL select parameter_mode, pa</description>
@@ -305,19 +317,6 @@
       <link>https://www.darkathena.top/archives/gaussdb-506-date-type-oracle</link>
       <description>【GaussDB】GaussDB506版本A模式中的date类型 GuassDB 在506.0版本中引入了一个新的数据类型，datea，用于兼容ORACLE的date类型。而在此版本前，GaussDB只是在ORACL兼容模式下，把位于数据类型位置的date，转换成了timestamp(0) with</description>
       <pubDate>Sun, 25 Jan 2026 11:30:33 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】合入原生PG的PR来修复CVE-2025-1094漏洞后产生的严重隐患</title>
-      <link>https://www.darkathena.top/archives/gaussdb-about-cve-2025-1094</link>
-      <description>【GaussDB】合入原生PG的PR来修复CVE-2025-1094漏洞后产生的严重隐患 注意：本文篇幅很长,请预留好充足的阅读时间 背景 近期有应用开发人员发现，自己编写的C程序使用GaussDB 506.0SPC0100的libpq往GaussDB数据库插入数据时，原本有值，但是到了数据库里就变</description>
-      <pubDate>Sun, 25 Jan 2026 09:17:34 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】UNION结果顺序探索</title>
-      <link>https://www.darkathena.top/archives/gaussdb-union-result-order-seek</link>
-      <description>【GaussDB】UNION结果顺序探索 背景 在报表类SQL中，经常会用UNION来合并明细行和汇总行，一般来说应该要使用UNION ALL，但是由于部分开发人员未理解数据库中的UNION和UNION ALL的区别，很可能就用了UNION 而没有使用UNION ALL，然后恰巧数据中并没有重复，也</description>
-      <pubDate>Wed, 21 Jan 2026 13:56:44 +0000</pubDate>
-      <category>openGauss</category>
     </item>
   </channel>
 </rss>

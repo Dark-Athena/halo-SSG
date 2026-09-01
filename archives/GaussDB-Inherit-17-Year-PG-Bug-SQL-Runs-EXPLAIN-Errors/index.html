@@ -149,7 +149,7 @@
         
         <span>2026-08-21</span>
         
-        <span>0 阅读</span>
+        <span>30 阅读</span>
         
     </div>
     <div class="post-body">
@@ -471,6 +471,10 @@ if (!dpns-&gt;inner_plan)          /* PG 9.3 用 inner_planstate */
 <p>当年遇到的一个小问题，如今回过头来细查，竟然翻出了个在postgresql上持续17年的BUG。要说准确点，其实我这个BUG场景是没有被其他人报告的：2007年被 Tom Lane 引入，2016年又被 Tom Lane 做了另一个BUG路径的错误修复，引来了2024年 Richard Guo 的再次修复，巧合之下把我遇到这个的场景也修复了。</p>
 <p>回想起来，我发现这个问题时是2023年，当时正在做一个非常重要的项目，非常忙，文章都写得少了（全年只发布10篇），也没往原生PG上想，要不然这个问题至少报告人就是我了。有意思的是，这个修复人 <strong>Richard Guo</strong>（郭峰） 是个中国人，是PG的 Major Contributor 之一。</p>
 <p>至于openGauss里这个BUG我要不要去修，我暂时没心情。如果有谁看到了我这篇文章想去修的话，可以在issue里顺便提一下我这篇文章。</p>
+<h2 id="20260825更新">20260825更新</h2>
+<p>openGauss社区已合入修复此问题的代码,神速<br/>
+issue <a href="https://gitcode.com/opengauss/openGauss-server/issues/8424">https://gitcode.com/opengauss/openGauss-server/issues/8424</a><br/>
+pr <a href="https://gitcode.com/opengauss/openGauss-server/pull/9621">https://gitcode.com/opengauss/openGauss-server/pull/9621</a></p>
 
 </div>
 </article>
@@ -489,7 +493,7 @@ if (!dpns-&gt;inner_plan)          /* PG 9.3 用 inner_planstate */
 </article>
 <div style="margin-top: 3em; display: flex; justify-content: space-between;">
     
-    <span></span>
+    <a href="../gaussdb-exp-function-error/">&larr; 【GaussDB】真相比你想的更复杂--执行exp函数报错</a>
     
     
     <a href="../gaussdb-507-kernel-setup-package-changes/">【GaussDB】507内核版本安装包的调整 &rarr;</a>
