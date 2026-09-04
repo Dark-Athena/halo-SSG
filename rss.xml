@@ -6,6 +6,12 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>FDE、本体建模与AI落地：从概念争议到国家正名</title>
+      <link>https://www.darkathena.top/archives/fde-ontology-ai-delivery</link>
+      <description>FDE、本体建模与AI落地：从概念争议到国家正名 引子：一场被政策终结的辩论 2026年初，行业里还在争论一个问题：本体论、FDE（前沿部署工程师）到底是不是新东西？是不是又一轮概念包装？有人说，这不就是知识图谱换了个说法；有人说，FDE不就是早年IBM、Oracle的驻场顾问吗？ 辩论尚未结束，国</description>
+      <pubDate>Fri, 04 Sep 2026 10:14:20 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】（HWSA25-084897515）普通用户非法提权的漏洞分析</title>
       <link>https://www.darkathena.top/archives/GaussDB-Privilege-Escalation-Vulnerability-HWSA25-084897515</link>
       <description>【GaussDB】（HWSA25-084897515）普通用户非法提权的漏洞分析 漏洞发现时间 2025年9月 漏洞表现 若数据库中存在A/B两个用户，只要将B用户的一个对象授权给了用户A，那么用户A在不知道B用户密码的情况下，可以通过执行特定的SQL，将自己伪造成B用户，并同时获取了B用户的所有权</description>
@@ -311,12 +317,6 @@
       <link>https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow</link>
       <description>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow 背景 现有很多python组件都有python运行版本的要求，linux操作系统里用yum install python3安装的python3，可能版本太低，不足以运行这些python组件，因此应用项目就只能选</description>
       <pubDate>Fri, 30 Jan 2026 15:08:52 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】GaussDB506版本A模式中的date类型</title>
-      <link>https://www.darkathena.top/archives/gaussdb-506-date-type-oracle</link>
-      <description>【GaussDB】GaussDB506版本A模式中的date类型 GuassDB 在506.0版本中引入了一个新的数据类型，datea，用于兼容ORACLE的date类型。而在此版本前，GaussDB只是在ORACL兼容模式下，把位于数据类型位置的date，转换成了timestamp(0) with</description>
-      <pubDate>Sun, 25 Jan 2026 11:30:33 +0000</pubDate>
     </item>
   </channel>
 </rss>
