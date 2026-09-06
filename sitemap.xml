@@ -5,6 +5,11 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/mysql-PIPES_AS_CONCAT-performance-test-report</loc>
+    <lastmod>2026-09-05</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/fde-ontology-ai-delivery</loc>
     <lastmod>2026-09-04</lastmod>
     <priority>0.8</priority>
@@ -1409,6 +1414,10 @@
   <url>
     <loc>https://www.darkathena.top/categories/default</loc>
     <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/tags/mysql</loc>
+    <priority>0.4</priority>
   </url>
   <url>
     <loc>https://www.darkathena.top/tags/MCP</loc>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【MySQL】PIPES_AS_CONCAT-性能影响分析验证报告 - DA-技术分享-静态站</title>
+    <meta name="description" content="MySQL sql_mode=PIPES_AS_CONCAT 性能影响分析验证报告 测试日期：2026-09-03 测试人：DarkAthena 更新：2026-09-03 补充 §5.7（|| 链式拼接展开方式的源码与实验验证）、§5.8（金融证券业务风险场景实测）、§5.9（ORM 方言处理调研">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【MySQL】PIPES_AS_CONCAT-性能影响分析验证报告</h1>
+    <div class="meta">
+        
+        <span>2026-09-05</span>
+        
+        <span>5 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="mysql-sql_modepipes_as_concat-性能影响分析验证报告">MySQL sql_mode=PIPES_AS_CONCAT 性能影响分析验证报告</h1>
+<ul>
+<li>测试日期：2026-09-03</li>
+<li>测试人：DarkAthena</li>
+<li>更新：2026-09-03 补充 §5.7（<code>||</code> 链式拼接展开方式的源码与实验验证）、§5.8（金融证券业务风险场景实测）、§5.9（ORM 方言处理调研）；并根据同行评审意见修订：§5.4 归因（RTT 分摊而非预热）、§5.1 拼接净边际口径、行数/过程数等事实性数据、§5.8 用例 1/3 描述；第二轮评审：RTT 采样固化为 60 轮×20 次并记录采样参数、§3.2/§3.3 交叉引用更正、「链式比较」措辞精确化、§5.5 payload 表述更正；第三轮评审：RTT 生成入口固化（bench_rtt.py，ping 一并留念），全文 RTT 口径统一为 ≈50ms 并重算 §5.4 扣除表</li>
+<li>数据库：MySQL Community Server 8.0.11（Docker，192.168.163.227:3307）</li>
+</ul>
+<hr/>
+<h2 id="1-摘要">1. 摘要</h2>
+<p>本次通过<strong>服务端存储过程循环计时</strong>（消除网络往返干扰）＋客户端大结果集/并发压测，共执行 <strong>200 万+ 次拼接运算</strong>，覆盖 2/3/8 操作数、字段拼字段、常量拼字段、8B~64KB 拼接长度、10 万行全表扫描、1~32 并发等场景。核心结论：</p>
+<blockquote>
+<p><strong>PIPES_AS_CONCAT 对运行时性能的影响可以忽略（绝大多数场景差异 &lt;5%，且在 Run-to-Run 噪声范围内）。真正消耗 CPU 的是"拼接"这个动作本身（内存分配与拷贝），而不是 <code>||</code> 这个语法入口。</strong></p>
+</blockquote>
+<p>另外一个<strong>比性能更重要的工程发现</strong>：MySQL 存储过程/函数会绑定<strong>创建时刻</strong>的 sql_mode，调用方的会话 sql_mode 对例程内的表达式不生效，迁移改造时必须重建例程，否则会留下语义炸弹（详见 §3.2、§7）。</p>
+<h2 id="2-背景与原理">2. 背景与原理</h2>
+<p><code>PIPES_AS_CONCAT</code> 开启后，MySQL 将 <code>||</code> 运算符从<strong>逻辑 OR</strong> 重新解释为<strong>字符串拼接</strong>，用于兼容 Oracle/PostgreSQL 的写法：</p>
+<pre><code class="language-sql">-- 默认模式
+SELECT 'a' || 'b';   -- 0（逻辑 OR：'a'→0，'b'→0，即 0 OR 0 = 0）
+-- PIPES_AS_CONCAT
+SET sql_mode = '...,PIPES_AS_CONCAT';
+SELECT 'a' || 'b';   -- 'ab'
+</code></pre>
+<p>从实现层面，<code>||</code> 在解析阶段即被重写为 <code>CONCAT()</code> 内部表达式树，其类型推导、字符集聚合、NULL 传播规则与 <code>CONCAT()</code> 完全一致（本次已逐一实测验证，见 §6.1）。因此预期的性能特征为：</p>
+<ul>
+<li>解析/重写开销：一次性的，只在 prepare/optimize 阶段发生；</li>
+<li>求值开销：与 <code>CONCAT()</code> 共用同一条代码路径，理论上无差别；</li>
+<li>需要关注的其实是<strong>拼接本身</strong>的代价：结果字符串的内存分配、拷贝、char_length 换算，以及结果集 payload 变大带来的网络与临时表压力。</li>
+</ul>
+<h2 id="3-测试设计">3. 测试设计</h2>
+<h3 id="31-网络开销的消除关键方法">3.1 网络开销的消除（关键方法）</h3>
+<p>实测链路 RTT 情况：</p>
+<table><thead><tr><th>指标</th><th>值</th></tr></thead><tbody><tr><td>ping 延迟</td><td>52~56ms（均值 54ms；4 次，记录于 env.json）</td></tr><tr><td><code>SELECT 1</code> 应用层往返（<strong>60 轮×每轮 20 次采样</strong>，每轮独立连接、每轮取均值作为样本；采样参数与原始值记录于 env.json，由 scripts/bench_rtt.py 生成）</td><td>min 46.8ms / <strong>median 49.9ms</strong> / p95 53.7ms</td></tr></tbody></table>
+<p>单次拼接运算的服务端耗时是<strong>微秒级</strong>的，约 50ms 的往返噪声比它大 4 个数量级。客户端逐条循环测短 SQL 完全不可行。因此采用以下方法：</p>
+<table><thead><tr><th>维度</th><th>方法</th></tr></thead><tbody><tr><td>单条表达式/点查耗时</td><td><strong>服务端存储过程内部循环 N 次</strong>（<code>SELECT &lt;expr&gt; INTO trash</code>），全部计算在服务端完成，客户端只测 CALL 总时长（1 次往返；计时窗口按用例成本标定在 0.3~7.1s，约 50ms 的 RTT 在核心用例占比最高约 16% 且为固定偏移，组间对比互抵；n 较小的规模维度场景已按 RTT 分摊定量扣除，见 §5.4）</td></tr><tr><td>全表扫描</td><td>存储过程外层循环 × <code>SELECT SUM(CHAR_LENGTH(...))</code> 聚合（结果不回客户端）</td></tr><tr><td>结果集传输维度</td><td>客户端 fetchall 拉取完整结果集，此时网络是<strong>被测对象</strong>之一，刻意保留</td></tr><tr><td>基线对照</td><td>每个用例配"无拼接"对照组（同形状 SQL、同数据路径），隔离拼接的边际开销</td></tr><tr><td>重复性</td><td>核心用例 3 轮取最小值；规模/传输维度 2~3 轮取最小值；规模维度按 3k/12k/48k 循环数交叉验证</td></tr></tbody></table>
+<h3 id="32-一个绕不开的坑存储过程-sql_mode-绑定实测验证">3.2 一个绕不开的坑：存储过程 sql_mode 绑定（实测验证）</h3>
+<p>MySQL 会记录<strong>创建时</strong>的 sql_mode，并在每次 CALL 时切换到该模式执行，<strong>与调用方会话的 sql_mode 无关</strong>。实测：</p>
+<pre><code class="language-sql">-- PIPES 模式下创建的过程
+CREATE PROCEDURE p_bind_test() SELECT 'a' || 'b' AS r;
+-- 切回默认模式调用 → 仍返回 'ab'
+
+-- 默认模式创建的过程
+CREATE PROCEDURE p_bind_test2() SELECT a || b AS r FROM t_bind;   -- a=1,b=1
+-- 切到 PIPES 模式调用 → 仍返回 1（逻辑 OR 的结果）！
+</code></pre>
+<p>这意味着：</p>
+<ol>
+<li>测试方法论上，<code>||</code> 版与 <code>CONCAT()</code> 版过程必须<strong>分别在两种 sql_mode 会话下创建</strong>，保证解析行为固定、不受调用时模式干扰（本次 42 个基准过程：PIPES 会话创建 14 个 <code>||</code> 版，默认会话创建 14 个 <code>CONCAT()</code> 版 + 14 个对照版，均按此处理）；</li>
+<li>生产上，<strong>开启/关闭 PIPES_AS_CONCAT 不会即时改变已有存储过程的语义</strong>，必须 DROP + CREATE 重建才能生效（反过来，升级脚本对例程的改造也可能悄悄"锁死"旧语义）；</li>
+<li>同一系统里两个会话看到同一过程返回不同数据形态的风险存在——<strong>迁移改造切记全量重建例程</strong>。</li>
+</ol>
+<h3 id="33-对比组设计">3.3 对比组设计</h3>
+<table><thead><tr><th>组</th><th>表达式形态</th><th>创建/调用 sql_mode</th></tr></thead><tbody><tr><td>PIPES</td><td><code>a || b</code>（<code>||</code> 写法）</td><td>默认 + PIPES_AS_CONCAT</td></tr><tr><td>CONCAT</td><td><code>CONCAT(a, b)</code></td><td>实例默认（不含 PIPES_AS_CONCAT）</td></tr><tr><td>对照</td><td>无拼接的相同 SQL</td><td>两种模式等价（<code>||</code> 不出现）</td></tr></tbody></table>
+<p>其余 sql_mode 保持实例默认值：<code>ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION</code>。</p>
+<p>注：默认模式下 <code>a || b</code> 是逻辑 OR，<strong>不能与拼接语义同 SQL 对比</strong>；故"PIPES 开 vs 关"的性能对比只能通过"同语义的 <code>||</code> vs <code>CONCAT()</code>"两条等价路径进行——这恰好也是迁移改造时 SQL 改造前后的真实对比。</p>
+<h3 id="34-测试数据合计约-31mb全部缓存在-128mb-buffer-pool-内">3.4 测试数据（合计约 31MB，全部缓存在 128MB buffer pool 内）</h3>
+<table><thead><tr><th>表</th><th>行数</th><th>列</th><th>用途</th></tr></thead><tbody><tr><td>t_small</td><td>100,000（<code>information_schema.TABLES.TABLE_ROWS</code> 估算值为 99,324，实测 COUNT(*)=100,000）</td><td>c1/c2/c3 VARCHAR(32)，MD5 值</td><td>字段拼接、扫描</td></tr><tr><td>t_len</td><td>20,000</td><td>v8/v64/v512</td><td>拼接长度维度</td></tr><tr><td>t_utf8</td><td>50,000</td><td>u1/u2 utf8mb4 中文</td><td>多字节字符维度</td></tr><tr><td>t_bind</td><td>1</td><td>int</td><td>sql_mode 绑定验证</td></tr></tbody></table>
+<h2 id="4-环境信息">4. 环境信息</h2>
+<table><thead><tr><th>项</th><th>值</th></tr></thead><tbody><tr><td>版本</td><td>MySQL 8.0.11（Community，Linux 容器）</td></tr><tr><td>字符集</td><td>utf8mb4 / utf8mb4_0900_ai_ci</td></tr><tr><td>InnoDB buffer pool</td><td>128MB（测试数据全量可缓存）</td></tr><tr><td>max_connections</td><td>151；performance_schema ON</td></tr><tr><td>客户端</td><td>Windows + PyMySQL 2.2.8，RTT ≈50ms</td></tr><tr><td>测试库</td><td>concat_bench（独立库，含 42 个基准过程 + 8 个嵌套验证过程 + 2 个 sql_mode 绑定验证过程）</td></tr></tbody></table>
+<h2 id="5-测试场景与结果">5. 测试场景与结果</h2>
+<h3 id="51-a组纯值表达式常量与-repeat-生成的长值无表访问循环-35-万次对照组为同长度不拼接表达式">5.1 A组：纯值表达式（常量与 <code>REPEAT()</code> 生成的长值，无表访问，循环 3~5 万次；对照组为同长度不拼接表达式）</h3>
+<table><thead><tr><th>用例</th><th>PIPES <code>||</code></th><th>CONCAT()</th><th>无拼接对照</th><th>PIPES vs CONCAT</th></tr></thead><tbody><tr><td>2 操作数（12B）</td><td>7.454 μs</td><td>7.159 μs</td><td>6.895 μs</td><td><strong>+4.1%</strong></td></tr><tr><td>3 操作数</td><td>7.223 μs</td><td>7.164 μs</td><td>6.784 μs</td><td>+0.8%</td></tr><tr><td>8 操作数</td><td>8.383 μs</td><td>7.463 μs</td><td>6.784 μs</td><td><strong>+12.3%</strong></td></tr><tr><td>2 操作数（4KB）</td><td>22.31 μs</td><td>21.83 μs</td><td>21.25 μs</td><td>+2.2%</td></tr><tr><td>2 操作数（64KB）</td><td>236.4 μs</td><td>237.5 μs</td><td>233.5 μs</td><td>−0.5%</td></tr></tbody></table>
+<p><img alt="image-DjPx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-DjPx.png" srcset="../../upload/image-DjPx.png?width=1600 1600w, ../../upload/image-DjPx.png?width=800 800w, ../../upload/image-DjPx.png?width=1200 1200w, ../../upload/image-DjPx.png?width=400 400w"/></p>
+<p>解读：</p>
+<ul>
+<li>拼接的<strong>净边际开销</strong>（相对同构对照组）随结果长度温和增长：12B <strong>+0.56μs</strong>、4KB <strong>+1.06μs</strong>、64KB <strong>+2.96μs</strong>。真正的拼接成本（内存分配+拷贝）始终很小，与语法入口无关；长串用例的总耗时（22/236μs）大头是 <code>REPEAT()</code> 求值与缓冲区操作，<strong>对照组不拼接同样承担</strong>（21.25/233.5μs），不能归因到拼接头上——该口径与 §5.7 长串实验（三者趋平）互为印证；</li>
+<li><code>||</code> 相对 <code>CONCAT()</code> 的差距普遍 &lt;1μs/次；唯一明显点出现在 <strong>8 操作数</strong>（+0.9μs/+12%）。该差异已从源码与实验两个层面落实：<code>||</code> 链在解析器里被展开为<strong>嵌套二元 CONCAT</strong>，而多参数 <code>CONCAT()</code> 是单个函数调用，详见 §5.7；但绝对值仍在亚微秒级；</li>
+<li>64KB 大串场景两者完全持平——注意这只能说明<strong>拼接入口无差异</strong>；长串总耗时被 <code>REPEAT()</code> 长值生成与缓冲区操作主导，拼接边际（~3μs）占比仅 1% 量级，不可见。</li>
+</ul>
+<h3 id="52-b组字段拼字段主键点查t_small-100k-行--12-万次循环">5.2 B组：字段拼字段（主键点查，t_small 100k 行 × 1.2 万次循环）</h3>
+<table><thead><tr><th>用例</th><th>PIPES <code>||</code></th><th>CONCAT()</th><th>无拼接对照</th><th>PIPES vs CONCAT</th></tr></thead><tbody><tr><td>c1||c2（2 列 32B）</td><td>29.56 μs</td><td>29.04 μs</td><td>28.79 μs</td><td>+1.8%</td></tr><tr><td>c1||c2||c3（3 列）</td><td>29.14 μs</td><td>29.41 μs</td><td>28.40 μs</td><td>−0.9%</td></tr><tr><td>常量||列</td><td>30.13 μs</td><td>29.06 μs</td><td>28.34 μs</td><td>+3.7%</td></tr><tr><td>v8||v8</td><td>28.74 μs</td><td>30.31 μs</td><td>28.48 μs</td><td>−5.2%（噪声）</td></tr><tr><td>v64||v64</td><td>28.30 μs</td><td>28.33 μs</td><td>28.36 μs</td><td>−0.1%</td></tr><tr><td>v512||v512</td><td>29.93 μs</td><td>29.33 μs</td><td>29.03 μs</td><td>+2.1%</td></tr><tr><td>u1||u2（utf8mb4 中文）</td><td>30.62 μs</td><td>30.09 μs</td><td>28.10 μs</td><td>+1.8%</td></tr></tbody></table>
+<p><img alt="image-Rzau.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-Rzau.png" srcset="../../upload/image-Rzau.png?width=1600 1600w, ../../upload/image-Rzau.png?width=800 800w, ../../upload/image-Rzau.png?width=1200 1200w, ../../upload/image-Rzau.png?width=400 400w"/><br/>
+解读：</p>
+<ul>
+<li>点查场景<strong>绝对大头是行获取（buffer pool 命中+字段解码）≈28.5μs</strong>，拼接只贡献 0.3~1.3μs，占比 &lt;5%；</li>
+<li>各长度档（8B~512B）下 <code>||</code> 与 <code>CONCAT()</code> 互有胜负且都在噪声带内——<strong>可以认为完全等价</strong>；</li>
+<li>中文 utf8mb4 与 ASCII 无显著差异（本例均为同序 utf8mb4_0900_ai_ci，字符集聚合无额外换算）。</li>
+</ul>
+<h3 id="53-c组全表扫描10-万行聚合不返回数据外层循环-20-次取均值">5.3 C组：全表扫描（10 万行，聚合不返回数据，外层循环 20 次取均值）</h3>
+<table><thead><tr><th>用例</th><th>PIPES <code>||</code></th><th>CONCAT()</th><th>无拼接对照</th><th>PIPES vs CONCAT</th></tr></thead><tbody><tr><td>SUM(LENGTH(c1||c2))</td><td>44.07 ms</td><td>43.77 ms</td><td>29.12 ms</td><td>+0.7%</td></tr><tr><td>SUM(LENGTH(c1||c2||c3))</td><td>57.82 ms</td><td>55.34 ms</td><td>29.06 ms</td><td><strong>+4.5%</strong></td></tr></tbody></table>
+<p><img alt="image-MOip.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-MOip.png" srcset="../../upload/image-MOip.png?width=1600 1600w, ../../upload/image-MOip.png?width=800 800w, ../../upload/image-MOip.png?width=1200 1200w, ../../upload/image-MOip.png?width=400 400w"/></p>
+<p>解读：</p>
+<ul>
+<li><strong>拼接本身的成本在扫描场景才真正可见</strong>：10 万行加一次双字段拼接，扫描从 29ms → 44ms（+51%）；三字段 → 57ms（+99%）。拼接 ≈ 15ms/10万行 ≈ <strong>0.15μs/行/次拼接</strong>，与 A 组短串边际开销吻合；</li>
+<li><code>||</code> 与 <code>CONCAT()</code> 差距 ≤4.5%，属临界噪声；<strong>真正要省性能，应该减少拼接次数或下推/物化，而不是纠结语法形态</strong>。</li>
+</ul>
+<h3 id="54-d组规模稳定性多轮不同循环次数">5.4 D组：规模稳定性（多轮不同循环次数）</h3>
+<table><thead><tr><th>循环次数</th><th>PIPES μs/op</th><th>CONCAT μs/op</th><th>对照 μs/op</th></tr></thead><tbody><tr><td>3,000</td><td>40.66</td><td>42.30</td><td>39.38</td></tr><tr><td>12,000</td><td>30.07</td><td>28.82</td><td>29.52</td></tr><tr><td>48,000</td><td>26.15</td><td>26.26</td><td>25.72</td></tr></tbody></table>
+<p><img alt="image-eMNH.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-eMNH.png" srcset="../../upload/image-eMNH.png?width=1600 1600w, ../../upload/image-eMNH.png?width=800 800w, ../../upload/image-eMNH.png?width=1200 1200w, ../../upload/image-eMNH.png?width=400 400w"/></p>
+<p>解读：PIPES 与 CONCAT 两组在三档规模下始终贴合。三档原始 per-op 的差异完全由 <strong>CALL 往返固定开销（≈50ms）随循环次数摊薄</strong>造成，与所谓预热无关（MySQL 8.0 存储过程为解释执行，也不存在 JIT）。以 PIPES 组为例、按 RTT 中位数 49.9ms 扣除后：</p>
+<table><thead><tr><th>循环次数 n</th><th>原始 μs/op</th><th>49.9ms 分摊</th><th>扣除 RTT 后 μs/op</th></tr></thead><tbody><tr><td>3,000</td><td>40.66</td><td>16.6</td><td>24.0</td></tr><tr><td>12,000</td><td>30.07</td><td>4.2</td><td>25.9</td></tr><tr><td>48,000</td><td>26.15</td><td>1.0</td><td>25.1</td></tr></tbody></table>
+<p>扣除后三档高度一致（CONCAT 与对照组同样如此，均落在 23~26μs），说明<strong>单位耗时与循环规模无关</strong>，无"规模放大后 PIPES 劣化"的迹象。同时这也是方法学边界的一个好的证明：n 较小时 RTT 占比显著升高（n=3,000 时约 40%），跨规模比较必须先扣除固定往返开销，直接比较原始值会得出错误结论。</p>
+<h3 id="55-e组结果集传输维度客户端拉取-10-万行">5.5 E组：结果集传输维度（客户端拉取 10 万行）</h3>
+<table><thead><tr><th>查询形态</th><th>最佳耗时</th></tr></thead><tbody><tr><td><code>SELECT c1,c2,c3</code>（3 列不拼）</td><td>3,126 ms</td></tr><tr><td><code>SELECT c1 || '-' || c2 || '-' || c3</code></td><td>2,564 ms</td></tr><tr><td><code>SELECT CONCAT(c1,'-',c2,'-',c3)</code></td><td>3,517 ms</td></tr></tbody></table>
+<p>解读：约 10MB 结果在约 50ms RTT 链路上跑 2.5~3.5 秒，<strong>传输时间与拼接方式完全脱钩</strong>（该维度两次运行间波动比两种语法差异还大）。顺带观察到拼成单列后耗时反而略低，但这不是 payload 变小：按 MySQL 文本行协议，3 列×32B 与单列 98B 的逐行 payload 相同（值 + 长度前缀均约 99B/行），差异仅在于结果集头部少 2 个列定义包（一次性、百字节级），不足以解释 500ms 级波动，应归为运行噪声。收益不确定，不建议作为优化手段。</p>
+<h3 id="56-f组并发压测每线程-8-次-10-万行扫描">5.6 F组：并发压测（每线程 8 次 10 万行扫描）</h3>
+<table><thead><tr><th>线程数</th><th>PIPES QPS</th><th>CONCAT QPS</th></tr></thead><tbody><tr><td>1</td><td>7.1</td><td>7.2</td></tr><tr><td>8</td><td>48.1</td><td>50.7</td></tr><tr><td>16</td><td>84.3</td><td>81.9</td></tr><tr><td>32</td><td>116.7</td><td>117.8</td></tr></tbody></table>
+<p><img alt="image-ccGe.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-ccGe.png" srcset="../../upload/image-ccGe.png?width=1600 1600w, ../../upload/image-ccGe.png?width=800 800w, ../../upload/image-ccGe.png?width=1200 1200w, ../../upload/image-ccGe.png?width=400 400w"/></p>
+<p>解读：1~32 并发下两组吞吐曲线完全拟合，CPU 争用不会放大 <code>||</code> 的微小差异。</p>
+<h3 id="57-g组-链--嵌套-concat-的落实验证51-异常点溯源">5.7 G组：<code>||</code> 链 = 嵌套 CONCAT 的落实验证（§5.1 异常点溯源）</h3>
+<p><strong>源码层证据</strong>（MySQL 8.0.11 源码）：</p>
+<ol>
+<li>词法层 <code>sql/sql_lex.cc:831-834</code>：扫描到 <code>||</code> 时按会话 sql_mode 发不同 token——开启 PIPES_AS_CONCAT 时返回 <code>OR_OR_SYM</code>，否则返回 <code>OR2_SYM</code>（进入逻辑 OR 规则）：
+<pre><code class="language-cpp">if ((symbol-&gt;tok == OR_OR_SYM) &amp;&amp;
+    !(lip-&gt;m_thd-&gt;variables.sql_mode &amp; MODE_PIPES_AS_CONCAT))
+  return OR2_SYM;
+</code></pre>
+</li>
+<li>语法层 <code>sql/sql_yacc.yy:9215-9218</code>：<code>simple_expr OR_OR_SYM simple_expr</code> 每次归约只构造一个<strong>二元</strong> <code>Item_func_concat</code>：
+<pre><code class="language-yy">| simple_expr OR_OR_SYM simple_expr
+  {
+    $$= NEW_PTN Item_func_concat(@$, $1, $3);
+  }
+</code></pre>
+</li>
+<li>结合性 <code>sql/sql_yacc.yy:1240</code>：<code>%left OR_OR_SYM ...</code> 左结合 → <code>a||b||...||h</code> 归约为 <code>CONCAT(CONCAT(...(a,b)...),h)</code>，<strong>7 层嵌套</strong>；而 <code>CONCAT(a,...,h)</code> 是单个 8 参数调用。</li>
+</ol>
+<p><strong>行为层验证</strong>：把操作数全部换成本地变量（彻底排除常量折叠影响），对比四种形态（各 3 轮取最小）：</p>
+<table><thead><tr><th>形态</th><th>32B 短串 μs/次</th><th>512B 长串 μs/次</th></tr></thead><tbody><tr><td><code>v1||v2</code>（2 操作数控制组）</td><td>7.913</td><td>—</td></tr><tr><td><code>CONCAT(v1,v2)</code>（2 操作数控制组）</td><td>7.902</td><td>—</td></tr><tr><td><code>v1||...||v8</code>（8 连 <code>||</code>）</td><td><strong>9.704</strong></td><td>17.20</td></tr><tr><td>手写 7 层嵌套 CONCAT</td><td><strong>9.991</strong></td><td>17.69</td></tr><tr><td>扁平 <code>CONCAT(v1,...,v8)</code></td><td><strong>8.947</strong></td><td>17.37</td></tr></tbody></table>
+<p><img alt="image-yhTr.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-yhTr.png" srcset="../../upload/image-yhTr.png?width=1600 1600w, ../../upload/image-yhTr.png?width=800 800w, ../../upload/image-yhTr.png?width=1200 1200w, ../../upload/image-yhTr.png?width=400 400w"/></p>
+<p>解读：</p>
+<ul>
+<li>2 操作数控制组完全相等（差 0.14%），说明 <code>a||b</code> 与 <code>CONCAT(a,b)</code> 就是同一个 <code>Item_func_concat</code>；</li>
+<li>8 操作数下 <strong>8 连 <code>||</code> ≈ 手写 7 层嵌套</strong>（9.70 vs 9.99μs，差 2.9% 噪声内），均明显慢于扁平 CONCAT（8.95μs）——假设坐实：差距来自<strong>函数调用深度</strong>（7 层嵌套逐层 fix_fields/求值/类型聚合），而非单个拼接更慢；</li>
+<li>长串（512B）下三者趋平：逐层中间串的额外拷贝在现代内存带宽下仅约 0.3μs，占比过小，短串时函数调用开销才是主要矛盾；</li>
+<li>附带一个重要语法细节：拼接规则定义在 <code>simple_expr</code> 产生式内，使得拼接态 <code>||</code> 的<strong>实际结合优先级高于比较运算符与 AND/OR</strong>（与 <code>%left</code> 声明的观感相反）。探针实测：<code>SELECT 1 = 1 || 2</code> 返回 <strong>0</strong>，即解析为二元比较 <code>1 = (1||2)</code>（右侧拼接为 <code>'12'</code>，<code>1 = '12'</code> 不成立）；而默认的 OR 语义下同一 SQL 解析为 <code>(1=1) OR 2</code>，结果为 1。这意味着含 <code>||</code> 的谓词在切换模式后不仅语义变、<strong>括号结构也变</strong>（被重新分组），风险比想象中大（见 §5.8 用例 1/5）。</li>
+</ul>
+<p><strong>工程含义</strong>：多字段拼接若追求极限性能，改写为扁平 <code>CONCAT(a,b,c,...)</code> 可同时消除语义与性能两处差异；但差距量级为亚微秒/次，且仅在 ≥4 级链式拼接时出现，常规业务无需为此改写存量 SQL。</p>
+<h3 id="58-h组金融证券业务场景下的--风险已实测">5.8 H组：金融证券业务场景下的 <code>||</code> 风险（已实测）</h3>
+<p>以下用例全部在测试库 <code>concat_bench</code> 中按两种模式真实执行，表结构：委托表 <code>t_order</code>（资金账号/营业部号/子账户序号/委托金额/委托数量/状态）、清算表 <code>t_settle</code>（本息 DOUBLE）。</p>
+<p><strong>用例 1：风控告警查询——谓词被重新分组，结果静默漂移</strong></p>
+<pre><code class="language-sql">-- 意图：大额委托 或 状态异常的委托
+SELECT COUNT(*) FROM t_order
+WHERE amount &gt; 500000 || order_status = 'X';
+</code></pre>
+<table><thead><tr><th>模式</th><th>实测结果</th><th>机理</th></tr></thead><tbody><tr><td>默认</td><td><strong>2</strong>，命中 {1, 2}（正确：1 笔大额 + 1 笔异常）</td><td><code>(amount&gt;500000) OR (order_status='X')</code></td></tr><tr><td>PIPES</td><td><strong>3</strong>，命中 {2, 3, 4}：不仅多召回 3、4 两笔小额委托，<strong>而且漏掉了唯一的大额委托（order_id=1，60 万元）</strong></td><td>拼接态 <code>||</code> 优先级高于比较运算符，实际解析为 <code>(amount &gt; (500000||order_status)) = 'X'</code>（MySQL 比较运算为左结合的二元运算，先算左侧比较再与 <code>'X'</code> 比较），已用等效 SQL 逐行验证吻合</td></tr></tbody></table>
+<p>告警规则从 SQL 迁移/下发时一旦发生模式漂移，风控漏报/误报且<strong>不会报错</strong>——对风控而言，漏掉唯一一笔大额委托的后果远比误报小额严重。</p>
+<p><strong>用例 2：主键拼接（清算对账编号）——OR 值写入对账字段</strong></p>
+<pre><code class="language-sql">SELECT order_id, branch_no || acct_no AS full_acct FROM t_order;
+</code></pre>
+<table><thead><tr><th>模式</th><th>实测结果</th></tr></thead><tbody><tr><td>默认</td><td><code>1</code>（所有行 full_acct = 1，逻辑 OR 值）</td></tr><tr><td>PIPES</td><td><code>0188001234</code>（营业部+资金账号拼接）</td></tr></tbody></table>
+<p>Oracle 迁移过来的对账 SQL 拿到默认模式 MySQL 上执行不报错、每行返回 1——对账编号全乱但流程照跑。反向同理：默认模式的过滤写进 PIPES 会话则返回拼接字符串。</p>
+<p><strong>用例 3：三要素账号拼接——NULL 传播导致整行主键丢失</strong></p>
+<pre><code class="language-sql">SELECT order_id,
+       acct_no || '-' || branch_no || '-' || acct_seq AS k FROM t_order;
+</code></pre>
+<p>PIPES 模式实测：三笔正常返回（<code>88001234-01-01</code> / <code>88001235-01-01</code> / <code>88001237-01-02</code>，各不相同），<strong>子账户序号为 NULL 的第 3 笔整串变 NULL</strong>。对账文件出现空关键字/漏行。补救：<code>CONCAT_WS('-', ...)</code> 自动跳过 NULL，与 <code>||</code>/<code>CONCAT</code> 语义不同，迁移时不能无脑替换。</p>
+<p><strong>用例 4：清算差异描述拼接——DOUBLE 精度污染监管报送</strong></p>
+<pre><code class="language-sql">SELECT acct_no, '息差:' || (principal - 15000000) AS d
+FROM t_settle WHERE acct_no = '88001234';
+</code></pre>
+<p>PIPES 模式实测返回 <code>息差:0.7400000002235174</code>。本意是 0.74 元的文字说明，DOUBLE 存储的本金做差后浮点尾差被拼接直接固化进展示文本；金额字段应用 DECIMAL，拼接前显式 <code>CAST(... AS DECIMAL(18,2))</code> 或 <code>FORMAT()</code>。</p>
+<p><strong>用例 5：比较与逻辑混排——结果集直接清空</strong></p>
+<pre><code class="language-sql">SELECT order_id, qty FROM t_order
+WHERE order_status = 'X' || qty &gt; 5000;
+</code></pre>
+<table><thead><tr><th>模式</th><th>实测结果</th></tr></thead><tbody><tr><td>默认</td><td>2 行（正确）</td></tr><tr><td>PIPES</td><td><strong>0 行</strong>（实际解析为 <code>(order_status = ('X'||qty)) &gt; 5000</code>，逐行验证吻合，恒不成立）</td></tr></tbody></table>
+<p>告警/稽核类查询直接返空，比多返更隐蔽——因为“查不到问题”本身就是问题。</p>
+<blockquote>
+<p>小结：用例 1/5 揭示的<strong>括号重组</strong>是最危险的一类——SQL 文本没变、不报错，结果集却按照另一套括号逻辑计算；用例 2/3/4 则是迁移改造时最常见的事故形态。</p>
+</blockquote>
+<h3 id="59-i组orm-框架对-mysql--语义的处理调研">5.9 I组：ORM 框架对 MySQL <code>||</code> 语义的处理（调研）</h3>
+<p>问题：“ORM 会不会把数据库识别成 MySQL 却错误使用 <code>||</code> 语义？”核查结论：<strong>主流 ORM 的方言层都把 MySQL 正确渲染为 <code>CONCAT()</code> 函数调用，反而不会用 <code>||</code></strong>：</p>
+<table><thead><tr><th>框架</th><th>拼接的渲染方式</th><th>证据</th></tr></thead><tbody><tr><td>Django</td><td><code>ConcatPair.as_mysql()</code> 显式走 <code>CONCAT(...)</code> 函数，仅 SQLite 等后端用 <code>||</code></td><td>django 1.8 <code>django/db/models/functions.py</code> 源码</td></tr><tr><td>SQLAlchemy</td><td>MySQL方言将 <code>concat</code> 运算符编译为 <code>CONCAT()</code>；<code>||</code> 仅用于 PG/SQLite/Oracle 方言</td><td>方言编译器实现</td></tr><tr><td>Hibernate/JPQL</td><td>JPQL 标准拼接符是 <code>||</code>，但方言层按目标库翻译，MySQLDialect 渲染 <code>concat(...)</code></td><td>官方方言架构</td></tr><tr><td>jOOQ</td><td><code>DSL.concat()</code>　按方言渲染，MySQL → <code>CONCAT()</code></td><td>官方文档</td></tr></tbody></table>
+<p>真正的踩坑点不在“识别成 MySQL”，而在 ORM <strong>管不着的通道</strong>：</p>
+<ol>
+<li><strong>Native SQL / MyBatis XML（金融存量最常见）</strong>：<code>@Query(nativeQuery = true)</code>、MyBatis XML、<code>text()</code>、<code>literal_column()</code> 都绕过方言翻译直发服务端。Oracle 迁移项目把 <code>'01' || acct_no</code> 抄进 XML，唯一“省事”方案就是开 PIPES_AS_CONCAT——这类存量代码正是本报告 §5.8 风险的高发区。</li>
+<li><strong>方言自动识别错配（经中间件或兼容库时）</strong>：Hibernate 6 自动方言从 JDBC metadata 推断。经 ShardingSphere-Proxy、MyCat 或连接 TiDB/OceanBase（MySQL 模式租户）时，上报的都是“MySQL”，但服务端对 <code>||</code> 的解释不同：ShardingSphere 用自己的 SQL 解析器按 MySQL 方言把 <code>||</code> 判成 OR；<a href="https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000005285576">OceanBase 的 <code>sql_mode</code> 有自己独立的实现与取值范围</a>。ORM 渲染的 CONCAT 依旧安全，但<strong>任何绕过 ORM 的原生拼接 SQL 在经过这些链路时语义不可移植</strong>。</li>
+<li><strong>连接池/读写分离下的 sql_mode 漂移</strong>：主库参数组开了 PIPES、报表从库没开（或连接串 <code>sessionVariables</code> 不一致），连接池随机命中两套语义，表现为“时好时坏”的灵异 bug——这也是建议用 <code>SET PERSIST</code> 统一持久化并做全节点巡检的原因。</li>
+</ol>
+<p>结论：<strong>升级 ORM 解决不了 <code>||</code> 风险，唯一的根治手段是全量排查直发 SQL（含 XML、存储过程、视图、触发器、事件、调度脚本）并统一各节点 sql_mode。</strong></p>
+<h2 id="6-正确性旁证开启后行为是否忠实">6. 正确性旁证（开启后行为是否忠实）</h2>
+<h3 id="61-语义一致性">6.1 语义一致性</h3>
+<table><thead><tr><th>检查项</th><th>结果</th></tr></thead><tbody><tr><td><code>'a' || 'b'</code></td><td><code>'ab'</code> ✓</td></tr><tr><td><code>1 || 'a'</code></td><td><code>'1a'</code>（隐式转字符串）✓ 与 CONCAT 一致</td></tr><tr><td><code>'x' || NULL</code></td><td><code>NULL</code> ✓ 与 CONCAT 一致</td></tr><tr><td>CHARSET/COLLATION 聚合</td><td>常量、列、utf8mb4 中文场景均与 CONCAT 完全一致（utf8mb4 / utf8mb4_0900_ai_ci）✓</td></tr></tbody></table>
+<h3 id="62-需要警惕的功能性风险">6.2 需要警惕的功能性风险</h3>
+<blockquote>
+<p><code>WHERE a || b</code> 在开启后语义从逻辑 OR 变成拼接，而残留拼接串在布尔上下文中按<strong>前导数字</strong>转数值判断真假（<code>'abc'</code>→0 为假、<code>'1abc'</code>→1 为真），判断结果几乎任意——<strong>历史 SQL 一旦混入这种写法会静默错查</strong>。开启前必须全量扫描 SQL（含视图、触发器、存储过程、事件）确保无歧义用法；已有的例程还需重建（§3.2）。</p>
+</blockquote>
+<h2 id="7-结论与建议">7. 结论与建议</h2>
+<ol>
+<li><strong>性能结论：放心开。</strong> <code>PIPES_AS_CONCAT</code> 只在解析期多一次重写，求值与 <code>CONCAT()</code> 同路径；在 2~8 操作数、8B~64KB 长度、点查/扫描/并发、小中大规模的全部组合下，<code>||</code> 与 <code>CONCAT()</code> 差异普遍 ≤5%、绝大多数在噪声带内；唯一可复现的例外是 ≥4 级链式拼接（嵌套 CONCAT 展开所致，机制与数据见 §5.7），极限差距 8~12%，但绝对值仅亚微秒/次。<strong>不存在"PIPES_AS_CONCAT 拖慢数据库"的问题。</strong></li>
+<li><strong>拼接本身才是成本</strong>：短串净边际 ~0.6μs/行，64KB 大串的拼接净边际也仅 ~3μs/次（长串总耗时的大头是 <code>REPEAT()</code> 求值，不是拼接本身）；但在全表扫描下拼接被逐行放大——10 万行扫描加一次拼接的增量成本 ≈+51%。优化方向永远是少拼、短拼、结果物化，与 sql_mode 无关。</li>
+<li><strong>工程上的真正风险是语义而非性能</strong>（§5.8 全部实测复现）：
+<ul>
+<li>历史 <code>||</code>（OR 语义）SQL 会被静默改变——且不仅仅是 OR 变拼接，<strong>拼接态 <code>||</code> 优先级高于比较运算符，谓词括号会被重新分组</strong>，结果集静默漂移而不报错，开启前必须全量排查；</li>
+<li>拼接的 NULL 传播（整串为 NULL）、DOUBLE 精度污染、对账主键完整等问题需按场景加固（<code>CONCAT_WS</code>、<code>CAST</code>）；</li>
+<li>存储过程/函数/触发器/视图绑定创建时 sql_mode——切换模式后<strong>必须重建</strong>才能生效；</li>
+<li>主流 ORM（Django/SQLAlchemy/Hibernate/jOOQ）对 MySQL 正确渲染 <code>CONCAT()</code>，风险集中在 <strong>native SQL / MyBatis XML 等绕过方言的直发通道</strong>，以及<strong>经中间件/兼容库（ShardingSphere、TiDB、OceanBase）时的方言识别错配</strong>（§5.9）；</li>
+<li>建议在 VM/容器镜像层的初始化脚本里统一 <code>SET GLOBAL sql_mode</code> 并持久化（<code>SET PERSIST</code>），并巡检全部从库/代理节点，避免节点间配置漂移。</li>
+</ul>
+</li>
+<li><strong>适用建议</strong>：Oracle/PostgreSQL 迁移场景、ORM 生成 <code>||</code> 的场景可直接开启；新项目更推荐显式写 <code>CONCAT()</code>（可移植、无模式依赖）。</li>
+</ol>
+<h2 id="8-复现方法">8. 复现方法</h2>
+<pre><code class="language-bash">scripts/
+  dbutil.py          # 连接配置、RTT 测量、客户端 bench 工具
+  setup.py           # 建库装数（seq/t_small/t_len/t_utf8）
+  verify.py          # 语义与 sql_mode 绑定验证
+  build_procs.py     # 构建 42 个基准存储过程（按模式成对：PIPES 14 + 默认 28）
+  calibrate.py       # 循环次数标定
+  bench_core.py      # 核心场景（服务端循环计时）
+  bench_extra.py     # 规模/传输/并发
+  verify_nested.py   # §5.7 嵌套CONCAT验证实验
+  demo_finance_risks.py # §5.8 金融风险场景实测
+  make_charts.py     # 生成图表
+data/
+  env.json / results_core.json / results_extra.json
+</code></pre>
+<h2 id="9-附录原始数据">9. 附录：原始数据</h2>
+<table><thead><tr><th>文件</th><th>内容</th></tr></thead><tbody><tr><td><code>../data/results_core.json</code></td><td>14 个用例 × 3 变体 × 3 轮完整计时</td></tr><tr><td><code>../data/results_extra.json</code></td><td>规模/传输/并发原始结果</td></tr><tr><td><code>../data/results_nested.json</code></td><td>§5.7 嵌套验证原始结果</td></tr><tr><td><code>../data/results_finance_risks.json</code></td><td>§5.8 金融风险场景两种模式逐行结果</td></tr><tr><td><code>../data/env.json</code></td><td>实例参数与 RTT 基线</td></tr></tbody></table>
+<p>测试脚本及结果数据打包下载：<br/>
+<a href="/upload/PIPES_AS_CONCAT-test-scripts.zip">PIPES_AS_CONCAT-test-scripts.zip</a></p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/mysql/">mysql</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../fde-ontology-ai-delivery/">FDE、本体建模与AI落地：从概念争议到国家正名 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

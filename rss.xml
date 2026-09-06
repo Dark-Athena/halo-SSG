@@ -6,6 +6,12 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【MySQL】PIPES_AS_CONCAT-性能影响分析验证报告</title>
+      <link>https://www.darkathena.top/archives/mysql-PIPES_AS_CONCAT-performance-test-report</link>
+      <description>MySQL sql_mode=PIPES_AS_CONCAT 性能影响分析验证报告 测试日期：2026-09-03 测试人：DarkAthena 更新：2026-09-03 补充 §5.7（|| 链式拼接展开方式的源码与实验验证）、§5.8（金融证券业务风险场景实测）、§5.9（ORM 方言处理调研</description>
+      <pubDate>Sat, 05 Sep 2026 09:41:02 +0000</pubDate>
+    </item>
+    <item>
       <title>FDE、本体建模与AI落地：从概念争议到国家正名</title>
       <link>https://www.darkathena.top/archives/fde-ontology-ai-delivery</link>
       <description>FDE、本体建模与AI落地：从概念争议到国家正名 引子：一场被政策终结的辩论 2026年初，行业里还在争论一个问题：本体论、FDE（前沿部署工程师）到底是不是新东西？是不是又一轮概念包装？有人说，这不就是知识图谱换了个说法；有人说，FDE不就是早年IBM、Oracle的驻场顾问吗？ 辩论尚未结束，国</description>
@@ -311,12 +317,6 @@
       <link>https://www.darkathena.top/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting</link>
       <description>大表数据高效切片：基于主键的无排序Where条件生成算法 背景 在异构数据库迁移的项目中，核对迁移前后的大表数据一致性始终是一个难题，我之前有写过一个在库内计算全表特征值的对比工具（【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案），但只适用于比对ORAC</description>
       <pubDate>Fri, 30 Jan 2026 15:11:44 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow</title>
-      <link>https://www.darkathena.top/archives/gaussdb-build-psycopg2-with-different-python-versions-for-compat-airflow</link>
-      <description>【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow 背景 现有很多python组件都有python运行版本的要求，linux操作系统里用yum install python3安装的python3，可能版本太低，不足以运行这些python组件，因此应用项目就只能选</description>
-      <pubDate>Fri, 30 Jan 2026 15:08:52 +0000</pubDate>
     </item>
   </channel>
 </rss>
