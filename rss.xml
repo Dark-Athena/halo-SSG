@@ -6,6 +6,12 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>中国移动梧桐数据库（磐维OLAP）初上手</title>
+      <link>https://www.darkathena.top/archives/chinamobile-wutongdb-panweiolap-first-study</link>
+      <description>中国移动梧桐数据库（磐维OLAP）初上手 背景 最近我收到了一批关于中国移动梧桐数据库的学习资料。 大概看了下，和GP很像，然后有很多oushudb的痕迹，但是有些文档又称其为磐维数据库。网上搜了下，原来梧桐数据库是中国移动和偶数联合研发，然后在中国移动统一品牌的策略下，梧桐数据库也归到了磐维的品牌</description>
+      <pubDate>Mon, 14 Sep 2026 13:40:37 +0000</pubDate>
+    </item>
+    <item>
       <title>【MySQL】PIPES_AS_CONCAT-性能影响分析验证报告</title>
       <link>https://www.darkathena.top/archives/mysql-PIPES_AS_CONCAT-performance-test-report</link>
       <description>MySQL sql_mode=PIPES_AS_CONCAT 性能影响分析验证报告 测试日期：2026-09-03 测试人：DarkAthena 更新：2026-09-03 补充 §5.7（|| 链式拼接展开方式的源码与实验验证）、§5.8（金融证券业务风险场景实测）、§5.9（ORM 方言处理调研</description>
@@ -311,12 +317,6 @@
       <link>https://www.darkathena.top/archives/gaussdb-index-skip-scan-wrong-result</link>
       <description>【GaussDB】排查创建索引后查询数据行数发生变化的问题 背景 客户开发反馈，有个复杂的SQL，本来查询行数有几千行，针对其中一个表创建索引后，这个SQL查询行数只有一百多行了,重复多次执行都可以复现。 确认版本 GaussDB 内核为 506.0.0SPC0100， 已打修复跳扫BUG的热补丁（</description>
       <pubDate>Mon, 02 Feb 2026 13:17:59 +0000</pubDate>
-    </item>
-    <item>
-      <title>大表数据高效切片：基于主键的无排序Where条件生成算法</title>
-      <link>https://www.darkathena.top/archives/Efficient-Data-Slicing-for-Large-Tables-WHERE-Condition-Algorithm-Without-Sorting</link>
-      <description>大表数据高效切片：基于主键的无排序Where条件生成算法 背景 在异构数据库迁移的项目中，核对迁移前后的大表数据一致性始终是一个难题，我之前有写过一个在库内计算全表特征值的对比工具（【openGauss】Oracle与openGauss/GaussDB数据一致性高效核对方案），但只适用于比对ORAC</description>
-      <pubDate>Fri, 30 Jan 2026 15:11:44 +0000</pubDate>
     </item>
   </channel>
 </rss>
