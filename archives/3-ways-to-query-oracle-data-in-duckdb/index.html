@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【DuckDB】在DuckDB中查询ORACLE的数据的三种方式 - DA-技术分享-静态站</title>
+    <meta name="description" content="【DuckDB】在DuckDB中查询ORACLE的数据的三种方式 背景 DuckDB出来好多年了（2019~xxxx），早就有了查mysql和postgresql数据库的插件，但是对于查ORACLE，却一直只能通过odbc转，用着很不方便。我都想自己用AI搓一个出来。但最近瞅到德哥的数据库新闻，发现">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【DuckDB】在DuckDB中查询ORACLE的数据的三种方式</h1>
+    <div class="meta">
+        
+        <span>2026-09-17</span>
+        
+        <span>5 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="duckdb在duckdb中查询oracle的数据的三种方式">【DuckDB】在DuckDB中查询ORACLE的数据的三种方式</h1>
+<h2 id="背景">背景</h2>
+<p>DuckDB出来好多年了（2019~xxxx），早就有了查mysql和postgresql数据库的插件，但是对于查ORACLE，却一直只能通过odbc转，用着很不方便。我都想自己用AI搓一个出来。但最近瞅到德哥的数据库新闻，发现DuckDB的社区插件里有oracle_scanner了，就来看看是怎么回事。</p>
+<blockquote>
+<p>注：DuckDB的插件有区分官方插件和社区插件。社区插件也是要官方评审后才能进入插件目录的。</p>
+</blockquote>
+<p>（前一阵子我用AI搓了个 <a href="https://github.com/Dark-Athena/duckdb-opengauss-scanner">opengauss_scanner</a> 出来了，当然和oracle相比，难度不可同日而语）</p>
+<h2 id="调研">调研</h2>
+<p>首先我直接搜 DuckDB + oracle_scanner ,发现竟然有两个不同的插件：</p>
+<ul>
+<li>一个是被社区收录的 <a href="https://github.com/krokozyab/quack-oracle">https://github.com/krokozyab/quack-oracle</a> (<a href="https://duckdb.org/community_extensions/extensions/oracle_scanner">https://duckdb.org/community_extensions/extensions/oracle_scanner</a>)</li>
+<li>还有一个是没被社区收录的 <a href="https://github.com/cofin/duckdb-oracle">https://github.com/cofin/duckdb-oracle</a></li>
+</ul>
+<p>前者是自行模拟了ORACLE的原生协议，因此使用无需安装任何ORACLE客户端；</p>
+<p>而后者是使用ORACLE INSTANCE CLIENT，所以需要用户自备ORACLE客户端。</p>
+<p>再加上早就有的ODBC，也就是目前至少有3种方式在DuckDB里访问ORACLE数据库了。</p>
+<p>之前（<strong>20260810</strong>）我让AI做过调研：</p>
+<blockquote>
+<h1 id="duckdb-为什么没有-oracle-原生-scanner">DuckDB 为什么没有 Oracle 原生 Scanner</h1>
+<h2 id="调研结论">调研结论</h2>
+<p>基于对 DuckDB 官方文档、扩展仓库、路线图以及相关技术资料的调研，以下是完整的分析。</p>
+<hr/>
+<h3 id="现状概览">现状概览</h3>
+<p>DuckDB 目前有三种数据库连接方式：</p>
+<table><thead><tr><th>连接方式</th><th>类型</th><th>支持的数据库</th></tr></thead><tbody><tr><td><strong>原生 Scanner</strong>（核心扩展）</td><td>直连原生协议</td><td>PostgreSQL、MySQL、SQLite</td></tr><tr><td><strong>ODBC 扩展</strong>（核心扩展）</td><td>通过 ODBC 驱动</td><td>Oracle、SQL Server、DB2、PostgreSQL、MySQL 等</td></tr><tr><td><strong>社区扩展</strong>（427 个）</td><td>各种方式</td><td>BigQuery、ClickHouse 等，<strong>无 Oracle</strong></td></tr></tbody></table>
+<p>DuckDB 的 ODBC 扩展已将 Oracle 列为 <strong>Tier 1</strong> 类型覆盖支持（最高级别），文档中直接提供了 Oracle 连接示例：</p>
+<pre><code class="language-sql">LOAD odbc;
+
+SET VARIABLE conn = odbc_connect('Driver={Oracle driver};DBQ=//127.0.0.1:1521/XE', 'scott', 'tiger');
+
+FROM odbc_query(getvariable('conn'), 'SELECT SYSTIMESTAMP FROM DUAL');
+</code></pre>
+<p>但始终没有 <code>oracle_scanner</code> 这样的原生扩展。原因有多层。</p>
+<hr/>
+<h3 id="原因一oracle-网络协议是闭源私有的">原因一：Oracle 网络协议是闭源私有的</h3>
+<p>这是最根本的技术壁垒。</p>
+<p>DuckDB 原生 Scanner 的工作原理是<strong>直接使用目标数据库的客户端/服务端协议进行高效数据传输</strong>。以 Postgres Scanner 为例，Hannes Mühleisen 在<a href="https://duckdb.org/2022/09/30/postgres-scanner">官方博客</a>中详细说明了实现方式：</p>
+<blockquote>
+<p>"We use the rarely-used <strong>binary transfer mode</strong> of the Postgres client-server protocol. This format is quite similar to the on-disk representation of Postgres data files and avoids some of the otherwise expensive to-string and from-string conversions."</p>
+</blockquote>
+<p>PostgreSQL 和 MySQL 的网络协议都是<strong>公开文档化的开放协议</strong>：</p>
+<ul>
+<li>PostgreSQL 的前端/后端协议有完整的<a href="https://www.postgresql.org/docs/current/protocol.html">官方文档</a></li>
+<li>MySQL 的协议同样有公开规范</li>
+</ul>
+<p>而 Oracle 使用的是 <strong>TNS（Transparent Network Substrate）/ Oracle Net</strong> 协议。这是一个<strong>专有闭源协议</strong>，Oracle 从未公开其完整规范。虽然可以通过 Wireshark 等工具进行抓包分析，但协议极其复杂，包含多版本兼容、安全握手、字符集协商、LOB 处理等大量细节，逆向工程的成本和风险极高。</p>
+<hr/>
+<h3 id="原因二oracle-客户端库的许可证限制">原因二：Oracle 客户端库的许可证限制</h3>
+<p>DuckDB 原生 Scanner 的另一个关键设计是<strong>静态链接客户端库</strong>并随扩展一起分发预编译二进制文件：</p>
+<table><thead><tr><th>Scanner</th><th>静态链接的库</th><th>库的许可证</th><th>可否自由分发</th></tr></thead><tbody><tr><td><code>postgres_scanner</code></td><td>libpq</td><td>PostgreSQL License (BSD-like)</td><td>可以</td></tr><tr><td><code>mysql_scanner</code></td><td>libmysqlclient</td><td>GPL / LGPL</td><td>可以（LGPL 部分）</td></tr><tr><td><code>sqlite_scanner</code></td><td>无需（SQLite 是嵌入式）</td><td>Public Domain</td><td>可以</td></tr><tr><td><strong><code>oracle_scanner</code></strong></td><td><strong>OCI / OCCI / ODP.NET</strong></td><td><strong>Oracle 专有许可</strong></td><td><strong>不可以</strong></td></tr></tbody></table>
+<p>Oracle 的客户端库（OCI - Oracle Call Interface、Oracle Instant Client）受 Oracle 的专有许可条款约束。关键限制包括：</p>
+<ul>
+<li><strong>不可自由再分发</strong>：Oracle Instant Client 的许可条款要求从 Oracle 官方渠道下载，不能随意打包到第三方项目中分发</li>
+<li><strong>出口管制条款</strong>：Oracle 许可包含美国出口管制限制</li>
+<li><strong>非开源许可</strong>：与 DuckDB 的 MIT 许可证不兼容</li>
+</ul>
+<p>这意味着即使有人写出了 Oracle Scanner 的 C++ 代码，也无法像 Postgres Scanner 那样把 OCI 库静态链接进去、打包成 <code>.duckdb_extension</code> 文件放到 DuckDB 的扩展仓库供人 <code>INSTALL</code>。用户每次都需要自行安装 Oracle Instant Client 并配置环境，这大大削弱了原生 Scanner 相比 ODBC 方案的优势。</p>
+<hr/>
+<h3 id="原因三duckdb-团队的优先级和定位">原因三：DuckDB 团队的优先级和定位</h3>
+<p>DuckDB 由非营利组织 DuckDB Foundation 和公司 DuckLabs 维护。查看其<a href="https://duckdb.org/roadmap">路线图（2026 年 6 月更新）</a>，<strong>完全没有提及 Oracle 支持</strong>——既不在"计划功能"中，也不在"未来工作/寻求资助"中。</p>
+<p>DuckDB 的定位是<strong>嵌入式分析型数据库</strong>，核心场景是数据科学、数据分析、湖仓格式（Iceberg/Delta/Lance）等。核心团队的优先级明确：</p>
+<ol>
+<li>湖仓格式持续改进（Iceberg、Delta、Lance、DuckLake）</li>
+<li>异步 I/O、PEG 解析器、Quack 协议等核心引擎能力</li>
+<li>连接<strong>开源</strong>数据库（PostgreSQL、MySQL、SQLite）</li>
+</ol>
+<p>Oracle 作为商业企业级 OLTP 数据库，不是 DuckDB 的核心关注场景。而 ODBC 扩展已经"够用"了——虽然性能不如原生协议直连，但功能上已经覆盖了 Oracle 的类型系统（Tier 1 支持）。</p>
+<hr/>
+<h3 id="原因四社区无人填补空白">原因四：社区无人填补空白</h3>
+<p>DuckDB 社区扩展仓库目前有 <strong>427 个</strong>社区扩展，涵盖从 BigQuery 到 ClickHouse 到 Google Sheets 的各种数据源连接器，但<strong>没有任何一个</strong>是 Oracle 数据库的原生 Scanner。</p>
+<p>这并非因为没人有这个需求（实际上 Oracle 用户群体庞大），而是因为上述技术壁垒和许可证限制使得社区贡献者也面临同样的困境：</p>
+<ul>
+<li>写原生协议实现 → 需要逆向 TNS 协议，工程量巨大且法律风险高</li>
+<li>链接 OCI 库 → 无法作为预编译扩展分发，用户体验与 ODBC 方案无异</li>
+<li>用 ODP.NET 或 ODPI-C 等封装 → 仍然依赖 Oracle 专有运行时</li>
+</ul>
+<hr/>
+<h3 id="现有方案的局限性">现有方案的局限性</h3>
+<p>目前通过 ODBC 连接 Oracle 的方案存在以下已知局限：</p>
+<ol>
+<li><strong>性能开销</strong>：ODBC 是通用接口，数据需要经过 ODBC Driver Manager → Oracle ODBC Driver → OCI → TNS 协议的多层转换，相比原生协议直连有明显开销</li>
+<li><strong>部署复杂</strong>：需要安装 unixODBC + Oracle Instant Client + 配置 ODBC DSN，环境依赖重</li>
+<li><strong>并发限制</strong>：DuckDB ODBC 扩展的连接在多线程环境下有局限，同一连接不能在多个线程中并发查询</li>
+<li><strong>无 ATTACH 语法</strong>：不像 <code>ATTACH 'postgres:...' AS db</code> 那样可以直接挂载为数据库，需要通过 <code>odbc_query()</code> 函数式调用</li>
+<li><strong>无谓词下推</strong>：Postgres Scanner 支持将过滤条件推到远端执行，ODBC 方案在这方面能力有限</li>
+</ol>
+<hr/>
+<h3 id="可能的未来方向">可能的未来方向</h3>
+<p>虽然目前没有原生 Oracle Scanner，但有几个可能的技术演进方向：</p>
+<ol>
+<li><strong>ADBC（Arrow Database Connectivity）</strong>：DuckDB 已有 ADBC 支持，社区也有 <code>adbc</code> 和 <code>adbc_scanner</code> 扩展。如果 Oracle 未来提供 ADBC 驱动（目前没有），这可以成为一个比 ODBC 更高效的替代方案</li>
+<li><strong>Oracle 开源客户端库</strong>：如果 Oracle 像近年开源某些组件一样，将客户端协议库开源（可能性很低），则可以像 Postgres Scanner 一样实现原生扩展</li>
+<li><strong>社区原生协议实现</strong>：理论上社区可以基于对 TNS 协议的逆向分析，纯从零实现一个不依赖 Oracle 库的 Oracle 协议客户端（类似 Python 的 <code>cx_Oracle</code> 之前的纯 Python 实现尝试），但工程量和维护成本极高</li>
+<li><strong>商业支持驱动</strong>：DuckLabs 提供商业支持和功能优先级服务，如果有企业客户出资赞助，可能会推动开发</li>
+</ol>
+<hr/>
+<h3 id="总结">总结</h3>
+<p>DuckDB 没有 Oracle 原生 Scanner，是 <strong>技术壁垒（闭源协议）、法律壁垒（许可证限制）和优先级选择（团队聚焦开源生态）</strong> 三者共同作用的结果。ODBC 方案虽然不完美，但在现有约束下是唯一可行的通用方案，DuckDB 团队也通过将 Oracle 列为 ODBC 扩展的 Tier 1 支持目标来弥补这一缺憾。</p>
+</blockquote>
+<p>这个调研里，其实已经提前说明了目前已有的三种（ODBC/原生协议/链接OCI库）在 DuckDB 里访问ORACLE的优缺点。</p>
+<h2 id="艰难跑通cofinduckdb-oracle">艰难跑通cofin/duckdb-oracle</h2>
+<p>我先尝试把三个插件都跑通，对于ODBC和oracle_scanner（原生协议） 这两个插件， 按官方文档的用法，用起来都很顺利；</p>
+<p>而cofin/duckdb-oracle 用不起来，一堆问题。</p>
+<p>首先cofin/duckdb-oracle预编译版本要求 GLIBC 2.38 ，我当前操作系统是2.35，不能直接用，只能再编译一个了；</p>
+<p>然后AI在我的ubuntu 22上编译，发现源码有BUG，会编译失败，又临时改了代码：</p>
+<table><thead><tr><th>问题</th><th>位置</th><th>改动</th></tr></thead><tbody><tr><td>GCC 11 + DuckDB 1.5 unique_ptr 包装类无隐式派生→基类转换，编译失败</td><td>oracle_secret.cpp:180、oracle_scan.cpp:47/209/401、oracle_schema_entry.cpp:212</td><td>return x; → return std::move(x);（与 DuckDB 自身写法一致）</td></tr><tr><td>入口点签名过时：DuckDB 1.5.5 以 ext_init_fun_t = void(*)(ExtensionLoader&amp;) 调用，扩展声明的是 DatabaseInstance&amp;，导致类型错认、在垃圾对象上加锁 → LOAD 永久死锁</td><td>oracle_extension.cpp:37</td><td>改为接收 ExtensionLoader&amp; 并直接调 OracleExtension::Load(loader)</td></tr><tr><td>ALTER SESSION 漏设 NLS_TIMESTAMP_TZ_FORMAT，带时区时间戳按 Oracle 默认 AMERICAN 格式返回，而解析器只认 ISO</td><td>oracle_connection_manager.cpp:314（注释本就写着 "Set NLS date/timestamp format to ISO"）</td><td>补上该参数；格式取 '...FF.TZHTZM' 且时区前不能有空格——实测 DuckDB 把 "... +00:00"（带空格）判为"非 UTC"而拒绝，"...+00:00" 才接受</td></tr></tbody></table>
+<p>最后编译好了终于能用了，但又发现了几个工程设计上的问题：</p>
+<ol>
+<li>RUNPATH 烧死了构建机绝对路径。readelf -d 显示扩展的 RUNPATH 是 /data/qoder-space/duckdb-oracle/oracle_sdk/instantclient_23_26，换机器后这个路径不存在 → libclntsh.so.23.1: cannot open shared object file。三选一：设 LD_LIBRARY_PATH；或把 Instant Client 装到同一路径；或用 patchelf --set-rpath '$ORIGIN' oracle.duckdb_extension 改成相对自身查找（配合把 so 和 instant client 放同级目录，最利于打包）。</li>
+<li>libaio：Ubuntu 24.04 上 apt install libaio1t64 后需 ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1，否则 libclntsh 加载失败。</li>
+<li>glibc 下限：如果目标机是 RHEL 8 / Ubuntu 20.04 这类老 glibc，别想着装兼容库——直接在那台机器（或同版本容器）里重新 make release，产物才能跑。</li>
+</ol>
+<p>这意味着换环境很可能要重新编译插件才能用。</p>
+<p>原作者恐怕是直接用便宜AI搓的，测试还不到位。</p>
+<p>所以我暂时不推荐严格场景下使用这个未被DuckDB官方认可的插件。</p>
+<p>至于我这边用AI修复的代码，我就不放出来了，我没精力去保证这个代码质量，本次仅仅只是为了做跑通验证。</p>
+<h2 id="大表扫描性能测试">大表扫描性能测试</h2>
+<p>脑海里突然冒出一个想法，让AI测试一下三种方式的性能（我未事先观察这三种方式是否有使用direct path,先测了再看），因为ODBC肯定会慢，但慢多少只有实测才能知道。</p>
+<blockquote>
+<h2 id="测试环境">测试环境</h2>
+<p>Oracle 19c EE 19.13（PDB1，UTC，SGA 1.15GB / buffer cache <strong>336MB</strong>）；客户端 Ubuntu 22.04 4 核 3.9GB；DuckDB 1.5.5，<code>threads=2</code>。数据用我新建的 <code>SYSTEM.BENCH_BIG</code>（501万行 / 1571MB / 201,080 块，非分区，是缓存的 4.7 倍）+ 已有的 <code>SYSTEM.TEST01</code>（160MB / 250万行）。每轮前 <code>ALTER SYSTEM FLUSH BUFFER_CACHE</code>。所有查询都返回全 Table 列，行数逐轮校验（无 <code>!!</code> 报警）。</p>
+<h2 id="一direct-path-read三种方式全部命中">一、direct path read：三种方式全部命中</h2>
+<table><thead><tr><th>表</th><th>方式</th><th>物理读</th><th>其中 direct</th><th><code>table scans (direct read)</code></th><th>elapsed</th></tr></thead><tbody><tr><td>BENCH_BIG</td><td>odbc / oracle_scanner / cofin</td><td>~200,42x</td><td><strong>200,412</strong></td><td>1</td><td>7.5s</td></tr><tr><td>TEST01</td><td>同上</td><td>~20,03x</td><td><strong>20,035</strong></td><td>1</td><td>0.7–0.8s</td></tr></tbody></table>
+<p><code>physical reads</code> 里 <strong>99.99% 是 direct</strong>，<code>table scans (direct read)</code> 每次 +1，<code>direct path read</code> 等待约 200ms。两个推论：</p>
+<ul>
+<li><strong>buffer cache 完全没参与</strong>：direct path 绕过缓存，所以"冷/热"两轮耗时一模一样（1571MB 表 7.48s vs 7.42s），重复查询不会变快。</li>
+<li>这个量级下 direct path 是<strong>好事</strong>——它让扫描直接贴住存储上限（服务端纯扫描下限 7.39s ≈ 212 MB/s，三种方式 7.45–7.57s，差别 1–2%）。想让 Oracle 复用缓存得显式关掉（会话级 <code>"_serial_direct_read"=NEVER</code> 或 event 10949），但这会让首轮变慢。</li>
+</ul>
+<h2 id="二性能分两个口径结论完全不同">二、性能：分两个口径，结论完全不同</h2>
+<p><strong>口径 A：聚合成服务端下推（扫描成本 + 连接开销）</strong> — 三者基本无差别，都贴住 I/O 天花板：</p>
+<table><thead><tr><th>表</th><th>odbc</th><th>oracle_scanner</th><th>cofin</th></tr></thead><tbody><tr><td>BENCH_BIG</td><td>7.45s</td><td>7.57s (1.02x)</td><td>7.52s (1.01x)</td></tr><tr><td>TEST01</td><td>0.78s (1.09x)</td><td>0.80s (1.11x)</td><td><strong>0.72s</strong></td></tr></tbody></table>
+<p><strong>口径 B：全量行传输（500万行真的过网络，DuckDB 侧算外层 COUNT）</strong> — 差距 5 倍以上，瓶颈转移到连接器：</p>
+<table><thead><tr><th>表</th><th>odbc</th><th>oracle_scanner</th><th>cofin 默认</th><th>cofin 调优后</th></tr></thead><tbody><tr><td>BENCH_BIG 1571MB</td><td>109.7s (46k 行/s)</td><td>28.6s (175k 行/s)</td><td>110.8s (45k 行/s)</td><td><strong>19.4s (258k 行/s)</strong></td></tr><tr><td>TEST01 160MB</td><td>20.4s (122k 行/s)</td><td>40.4s (62k 行/s)</td><td>4.3s (581k 行/s)</td><td><strong>3.5s (711k 行/s)</strong></td></tr></tbody></table>
+<h2 id="三最有价值的一条cofin-默认参数是性能陷阱">三、最有价值的一条：cofin 默认参数是性能陷阱</h2>
+<p>根因是 <code>oracle_array_size=256</code>、<code>oracle_prefetch_rows=1024</code> 太小，宽表下往返次数爆炸。两条 SET 提速 5.5 倍：</p>
+<pre><code class="language-sql">SET oracle_array_size = 2048;        -- 上限就是 STANDARD_VECTOR_SIZE，实测封顶
+SET oracle_prefetch_rows = 1000000;  -- 最大 1,000,000，这才是真正的旋钮
+</code></pre>
+<p>扫描后补充的验证：重复两轮 20.17s / 19.16s（稳定）；<strong>不要</strong>设 <code>oracle_prefetch_memory</code>（显式给 256MB 反而退化到 25.3s）；<code>threads=4</code> 与 2 无差别（并行不是杠杆）。</p>
+<h2 id="四给你选型的建议">四、给你选型的建议</h2>
+<ul>
+<li><strong>要快就读 cofin + 上面两条 SET</strong>：宽表 258k 行/s，比 oracle_scanner 快 1.5 倍、比 odbc 快 5.7 倍；窄表 711k 行/s 也是三者最快。</li>
+<li><strong>odbc 无法通过 DuckDB 设置调优</strong>（它的设置里没有任何取数相关项），宽表下稳定垫底，且 TEST01 上还比 cofin 慢 4.75 倍。</li>
+<li><strong>oracle_scanner 表现不稳</strong>：宽表第二、窄表最慢（9.4x），不可调；它还有个 <code>oracle_session_pool_size=4</code>。</li>
+<li>若查询本身能下推到 Oracle（聚合/过滤），三者差异可忽略——<strong>瓶颈永远先看 SQL 能不能让 Oracle 干活</strong>。</li>
+</ul>
+<h2 id="说明">说明</h2>
+<ul>
+<li>剩下 81 MB/s 与 212 MB/s 存储上限的差距我没有继续追（已试 preload memory 与线程数，均无效），要更接近上限可能得改扩展的取数循环。</li>
+<li><code>SYSTEM.BENCH_BIG</code>（1.5GB）我留在库里方便你复测，不需要就 <code>DROP TABLE system.bench_big;</code>。</li>
+<li>压测脚本都在本地工作区（<code>create_bench_table.py</code>、<code>bench_read_perf.py</code>、<code>bench_transfer.py</code>、<code>bench_tune_cofin.py</code>、<code>bench_tune_confirm.py</code>），需要的话我推到服务器或提交到项目里。</li>
+</ul>
+<p><strong>一句话</strong>：direct path read 三种方式都在用、且是性能正确选择；真正的性能差距在客户端取数实现，cofin 改两个参数即可从最慢变最快。</p>
+</blockquote>
+<p>结果是，配合好参数的情况下，链接OCI的cofin/duckdb-oracle最快，可惜这个插件目前问题有点多。</p>
+<h2 id="总结-1">总结</h2>
+<p>再等等看看吧，既然DuckDB社区已经放出基于模拟原生协议的独立oracle_scanner插件了，后面经过一段时间使用、反馈和优化，应该会慢慢变好的。至于cofin/duckdb-oracle这个插件，可以保持一定的关注度，没准后续能优化成生产级，但目前使用要慎重。而ODBC，算了吧，除非你不在乎性能也不在乎架构复杂度。</p>
+<p>本次AI工具的使用情况：</p>
+<ul>
+<li>调研使用了灵犀claw接GLM-5.2（灵犀claw最近转正式版开始订阅收费了，但目前和workbuddy一样，可以每日领取积分）</li>
+<li>开发测试使用全新qoder（非IDE，可以自定义大模型api端点），接我本机部署的qwen3.8-flash-next模型（从25tok/s到最后满上下文7tok/s，复杂问题的确能打了，就是有点慢）</li>
+</ul>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/duckdb/">duckdb</a>
+        
+        <a class="tag" href="../../tags/oracle/">oracle</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../ditch-docker-desktop-run-containers-on-win11/">&larr; 拒绝Docker Desktop-在win11上运行docker容器的替代方案</a>
+    
+    
+    <a href="../gaussdb-transcation-async-commit-delay-clean-issues/">【GaussDB】内核事务异步提交（延迟清理）相关问题记录 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

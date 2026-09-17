@@ -5,6 +5,11 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/3-ways-to-query-oracle-data-in-duckdb</loc>
+    <lastmod>2026-09-17</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/chinamobile-wutongdb-panweiolap-first-study</loc>
     <lastmod>2026-09-14</lastmod>
     <priority>0.8</priority>
@@ -12,6 +17,11 @@
   <url>
     <loc>https://www.darkathena.top/archives/mysql-PIPES_AS_CONCAT-performance-test-report</loc>
     <lastmod>2026-09-05</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/ditch-docker-desktop-run-containers-on-win11</loc>
+    <lastmod>2026-09-17</lastmod>
     <priority>0.8</priority>
   </url>
   <url>
@@ -65,6 +75,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-transcation-async-commit-delay-clean-issues</loc>
+    <lastmod>2026-09-15</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/gaussdb-utf8-gbk-substrb</loc>
     <lastmod>2026-07-18</lastmod>
     <priority>0.8</priority>
@@ -77,6 +92,11 @@
   <url>
     <loc>https://www.darkathena.top/archives/gaussdb-507-new-feature-plsql-bytecode-part1</loc>
     <lastmod>2026-07-19</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.darkathena.top/archives/gaussdb-an-ustore-table-bloat-in-plsql</loc>
+    <lastmod>2026-09-15</lastmod>
     <priority>0.8</priority>
   </url>
   <url>

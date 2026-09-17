@@ -6,6 +6,31 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>拒绝Docker Desktop-在win11上运行docker容器的替代方案</title>
+      <link>https://www.darkathena.top/archives/ditch-docker-desktop-run-containers-on-win11</link>
+      <description>拒绝Docker Desktop-在win11上运行docker容器的替代方案 背景 在Windows上用docker的，应该都知道Docker Desktop这个软件，但是很多人没注意的是，Docker Desktop并不是完全免费的软件： Docker Desktop 根据 Docker 订阅服</description>
+      <pubDate>Thu, 17 Sep 2026 14:08:20 +0000</pubDate>
+      <category>docker</category>
+    </item>
+    <item>
+      <title>【DuckDB】在DuckDB中查询ORACLE的数据的三种方式</title>
+      <link>https://www.darkathena.top/archives/3-ways-to-query-oracle-data-in-duckdb</link>
+      <description>【DuckDB】在DuckDB中查询ORACLE的数据的三种方式 背景 DuckDB出来好多年了（2019~xxxx），早就有了查mysql和postgresql数据库的插件，但是对于查ORACLE，却一直只能通过odbc转，用着很不方便。我都想自己用AI搓一个出来。但最近瞅到德哥的数据库新闻，发现</description>
+      <pubDate>Thu, 17 Sep 2026 10:13:16 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】内核事务异步提交（延迟清理）相关问题记录</title>
+      <link>https://www.darkathena.top/archives/gaussdb-transcation-async-commit-delay-clean-issues</link>
+      <description>【GaussDB】内核事务异步提交（延迟清理）相关问题记录 背景 【GaussDB】会话里出现大量idle in transaction状态的问题排查 【GaussDB】排查一起ustore表在存储过程里膨胀的问题 谁能联想到,上面这两个问题竟然存在相关性。 近期发现有好几个问题似乎都与GaussD</description>
+      <pubDate>Tue, 15 Sep 2026 15:05:32 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】排查一起ustore表在存储过程里膨胀的问题</title>
+      <link>https://www.darkathena.top/archives/gaussdb-an-ustore-table-bloat-in-plsql</link>
+      <description>【GaussDB】排查一起ustore表在存储过程里膨胀的问题 背景 最近客户测试环境一台单机的GaussDB变成了只读，检查发现是磁盘使用率超过85%了，然后去数据库里查，发现有一张六十几万行的表占到了五百多GB。 环境信息: kylin v10 sp3 arm64 GaussDB 506.0SP</description>
+      <pubDate>Tue, 15 Sep 2026 12:42:55 +0000</pubDate>
+    </item>
+    <item>
       <title>中国移动梧桐数据库（磐维OLAP）初上手</title>
       <link>https://www.darkathena.top/archives/chinamobile-wutongdb-panweiolap-first-study</link>
       <description>中国移动梧桐数据库（磐维OLAP）初上手 背景 最近我收到了一批关于中国移动梧桐数据库的学习资料。 大概看了下，和GP很像，然后有很多oushudb的痕迹，但是有些文档又称其为磐维数据库。网上搜了下，原来梧桐数据库是中国移动和偶数联合研发，然后在中国移动统一品牌的策略下，梧桐数据库也归到了磐维的品牌</description>
@@ -293,30 +318,6 @@
       <link>https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7</link>
       <description>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow 上一篇(【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动)弄清楚了gaussdb(psycopg3)的安装方式，这一篇就开始整sqlalchemy的方言了 直接v</description>
       <pubDate>Mon, 02 Mar 2026 01:51:51 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动</title>
-      <link>https://www.darkathena.top/archives/install-test-gaussdb-python-driver-based-on-psycopg3</link>
-      <description>【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动 前言 前面几篇提过了这个驱动，这个psycopg3是比psycopg2更符合规范的驱动，但是上一篇最后提到了直接pip install gaussdb用起来可能会coredump，所以这篇来尝试基于源码来进行安装，并</description>
-      <pubDate>Mon, 02 Mar 2026 01:50:45 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7</title>
-      <link>https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-async_gaussdb-to-adapt-to-Airflow-3.1.7</link>
-      <description>【GaussDB】调整sqlalchemy方言支持async_gaussdb以适配aiflow3.1.7 上一篇通过修改openGauss的psycopg2驱动并编译，适配了airflow2.9.2版本，【GaussDB】手动编译不同python版本的psycopg2驱动以适配airflow ,但客</description>
-      <pubDate>Mon, 02 Mar 2026 01:49:53 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】用AI解析UGO中的SQL审核模块的实现</title>
-      <link>https://www.darkathena.top/archives/Analyzing-the-Implementation-of-UGO-SQL-Audit-Module-with-AI</link>
-      <description>【GaussDB】用AI解析UGO中的SQL审核模块的实现 背景 目前GaussDB没有公开自己的语法树规则，那么第三方工具如果想基于GaussDB的SQL去做一些解析来实现特定的一些功能，就可能比较麻烦，所以我就想到UGO里有SQL审核模块，那么一定有做了语法树生成。 所以这篇尝试用AI来解析一下</description>
-      <pubDate>Tue, 03 Feb 2026 06:57:03 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】排查创建索引后查询数据行数发生变化的问题</title>
-      <link>https://www.darkathena.top/archives/gaussdb-index-skip-scan-wrong-result</link>
-      <description>【GaussDB】排查创建索引后查询数据行数发生变化的问题 背景 客户开发反馈，有个复杂的SQL，本来查询行数有几千行，针对其中一个表创建索引后，这个SQL查询行数只有一百多行了,重复多次执行都可以复现。 确认版本 GaussDB 内核为 506.0.0SPC0100， 已打修复跳扫BUG的热补丁（</description>
-      <pubDate>Mon, 02 Feb 2026 13:17:59 +0000</pubDate>
     </item>
   </channel>
 </rss>

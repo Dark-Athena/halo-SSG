@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】内核事务异步提交（延迟清理）相关问题记录 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】内核事务异步提交（延迟清理）相关问题记录 背景 【GaussDB】会话里出现大量idle in transaction状态的问题排查 【GaussDB】排查一起ustore表在存储过程里膨胀的问题 谁能联想到,上面这两个问题竟然存在相关性。 近期发现有好几个问题似乎都与GaussD">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】内核事务异步提交（延迟清理）相关问题记录</h1>
+    <div class="meta">
+        
+        <span>2026-09-15</span>
+        
+        <span>14 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb内核事务异步提交延迟清理相关问题记录">【GaussDB】内核事务异步提交（延迟清理）相关问题记录</h1>
+<h2 id="背景">背景</h2>
+<p><a href="https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze">【GaussDB】会话里出现大量idle in transaction状态的问题排查</a></p>
+<p><a href="https://www.darkathena.top/archives/gaussdb-an-ustore-table-bloat-in-plsql">【GaussDB】排查一起ustore表在存储过程里膨胀的问题</a></p>
+<blockquote>
+<p>谁能联想到,上面这两个问题竟然存在相关性。</p>
+</blockquote>
+<p>近期发现有好几个问题似乎都与GaussDB的异步事务提交功能相关，（注意这里的异步提交并非指的传统意义上的<code>fsync=off</code>或<code>synchronous_commit=off</code>,而是对于"只读事务"，在事务结束时，将资源清理等动作做异步处理，不阻塞客户端，或者叫做延迟清理。）（该特性在GaussDB506版本引入）</p>
+<p>但目前(20260720)，华为研发并未完全确认这些问题是否都与异步事务提交功能相关。这里我仅以个人视角来进行一下分析。</p>
+<p>GaussDB内核版本号为506.0.0SPC0500</p>
+<h2 id="问题现象">问题现象</h2>
+<ol>
+<li>pg_stat_activity.state 在pbe自动提交情况下，如果不显式执行commit，任意SQL执行后，会显示为idle in transaction状态，但xact_start为空。（稳定复现）<a href="https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze">https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze</a></li>
+<li>pg_stat_all_tables里的增删改计数器在PBE自动提交时，存储过程里带dml+commit，执行存储过程，如果不在外面再执行一次commit，计数器不变。（稳定复现，我没单独写文章）</li>
+<li>ustore的表，在pbe自动提交情况下，存储过程里delete+insert+commit,循环执行这个存储过程，操作大量数据且磁盘性能较差时，大概率insert完全无法复用delete释放的空间，造成表随执行次数正比例膨胀。（概率性复现）<a href="https://www.darkathena.top/archives/gaussdb-an-ustore-table-bloat-in-plsql">https://www.darkathena.top/archives/gaussdb-an-ustore-table-bloat-in-plsql</a></li>
+</ol>
+<p>其实可能还有一些其他问题，但复现条件比较严苛，我暂时不好复现，因此仅作为怀疑点。</p>
+<h2 id="分析">分析</h2>
+<p>由于没有GaussDB的源码，这里参考一下openGauss（虽然openGauss上没有复现相关问题），对应的pr ：<br/>
+<a href="https://gitcode.com/opengauss/openGauss-server/pull/8094">https://gitcode.com/opengauss/openGauss-server/pull/8094</a></p>
+<p>修改前：</p>
+<pre><code class="language-c">    if (u_sess-&gt;xact_cxt.pbe_execute_complete == true) {
+        finish_xact_command();
+    } else {
+        u_sess-&gt;xact_cxt.pbe_execute_complete = true;
+    }
+</code></pre>
+<p>修改后：</p>
+<pre><code class="language-c">    if (u_sess-&gt;xact_cxt.pbe_execute_complete == true) {
+        if (u_sess-&gt;attr.attr_common.enable_beta_features &amp;&amp; GetTopTransactionIdIfAny() == InvalidTransactionId) {
+            u_sess-&gt;xact_cxt.commit_pending = true;
+        } else {
+            finish_xact_command();
+            u_sess-&gt;xact_cxt.commit_pending = false;
+        }
+    } else {
+        u_sess-&gt;xact_cxt.pbe_execute_complete = true;
+    }
+</code></pre>
+<p>这段代码是 S报文(<code>exec_sync_message</code>)里处理的 ，Sync（同步）报文是前端（客户端）在扩展查询协议中，用于结束一个消息序列并建立错误恢复点的核心控制消息。</p>
+<p>也就是原本pbe下都会执行到 <code>finish_xact_command()</code>，但优化后，<code>GetTopTransactionIdIfAny() == InvalidTransactionId</code>这个场景就不执行<code>finish_xact_command();</code>了。</p>
+<p><code>GetTopTransactionIdIfAny</code>是当前会话里顶层事务的xid ,而<code>InvalidTransactionId</code> 是0。</p>
+<p>什么时候GetTopTransactionIdIfAny会是0呢？一般是所谓的<strong>只读查询</strong>时会是0。但是，在GaussDB里，如果是存储过程里有提交，且提交后没有新的dml，这个事务结束后的顶层xid也会变成0。（做事务的和做PLSQL的研发没有统一原则？）</p>
+<p>在pg_stat_activity.top_xid (GaussDB有这个字段，openGauss没有) 中可以实时看到顶层xid的情况。通过加上适当的pg_sleep，在存储过程执行期间，可以看到执行dml时，top_xid&gt;0，但当存储过程执行到commit后，top_xid就变成0了，也就是最终这个存储过程执行完后top_xid变为0，但是实际上有数据修改，也就是说，这个事务并不是一个只读事务，所以<code>GetTopTransactionIdIfAny() == InvalidTransactionId</code>这个判断条件有问题！</p>
+<p>所以，既然已知了问题发生点，那么这个问题到底会影响哪些东西，关键就是看没被执行的<code>finish_xact_command()</code>里到底处理些什么东西了。</p>
+<p>由于同样还是没有GaussDB源码，依旧参考openGauss（再次说明，openGauss上我并未测出类似问题），</p>
+<blockquote>
+<p>User: 查一下这个函数#sym:finish_xact_command 会做些什么事情</p>
+<p>GitHub Copilot:</p>
+<p><code>finish_xact_command</code> 是 openGauss 中的一个便捷函数，用于完成当前事务命令的提交过程。它与 <code>start_xact_command</code> 配对使用，管理事务的生命周期。</p>
+<p>主要功能：</p>
+<ol>
+<li>
+<p><strong>检查事务状态</strong>：仅在 <code>xact_started</code> 为 true 时执行操作</p>
+</li>
+<li>
+<p><strong>取消语句超时</strong>：调用 <code>disable_sig_alarm(true)</code> 取消任何活动的语句超时计时器</p>
+</li>
+<li>
+<p><strong>提交事务</strong>：调用 <code>CommitTransactionCommand()</code> 提交当前事务</p>
+</li>
+<li>
+<p><strong>内存检查</strong>（调试模式）：</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>如果启用了 <code>MEMORY_CONTEXT_CHECKING</code>，检查所有未在提交过程中释放的内存上下文</p>
+</li>
+<li>
+<p>对于线程池工作线程，还会检查会话内存上下文</p>
+</li>
+</ul>
+<ol start="5">
+<li>
+<p><strong>内存统计</strong>（调试模式）：如果启用了 <code>SHOW_MEMORY_STATS</code>，打印内存统计信息用于泄漏追踪</p>
+</li>
+<li>
+<p><strong>重置状态</strong>：将 <code>t_thrd.postgres_cxt.xact_started</code> 设置为 false</p>
+</li>
+</ol>
+<p>典型调用场景：</p>
+<ul>
+<li>事务控制语句（COMMIT、ROLLBACK）执行后</li>
+<li>查询执行完成后</li>
+<li>在批处理操作之间</li>
+<li>在处理完客户端请求后</li>
+</ul>
+<p>这个函数是 PostgreSQL 事务管理的一部分，确保事务正确提交并释放相关资源。</p>
+<p>User: CommitTransactionCommand() 里具体做了些什么呢？</p>
+<p>GitHub Copilot:</p>
+<p>现在让我再查看 <code>CommitTransaction()</code> 的实现，它是最核心的提交逻辑：</p>
+<p><code>CommitTransactionCommand()</code> 是 openGauss 事务管理的核心函数之一，位于 xact.cpp 第 4234 行。它根据当前<strong>事务块状态 (TBlockState)</strong> 采取不同行为，本质上是一个状态机。</p>
+<h2 id="核心逻辑switch-状态机">核心逻辑（switch 状态机）</h2>
+<table><thead><tr><th>状态</th><th>处理</th></tr></thead><tbody><tr><td><strong>TBLOCK_STARTED</strong>（不在事务块中）</td><td>调用 <code>CommitTransaction()</code> 提交，回到 DEFAULT 空闲状态</td></tr><tr><td><strong>TBLOCK_BEGIN</strong>（刚执行完 BEGIN）</td><td>将状态转为 TBLOCK_INPROGRESS（不提交，仅推进状态）</td></tr><tr><td><strong>TBLOCK_INPROGRESS</strong>（事务块进行中）</td><td>仅 <code>CommandCounterIncrement()</code>（命令计数器 +1，使当前命令的修改对后续命令可见，<strong>不提交</strong>）</td></tr><tr><td><strong>TBLOCK_END</strong>（执行完 COMMIT）</td><td>调用 <code>CommitTransaction()</code>，回到 DEFAULT</td></tr><tr><td><strong>TBLOCK_ABORT / TBLOCK_SUBABORT</strong>（已中止）</td><td>什么都不做，等待 ROLLBACK</td></tr><tr><td><strong>TBLOCK_ABORT_END</strong>（执行完 ROLLBACK）</td><td><code>CleanupTransaction()</code> 清理后回到 DEFAULT</td></tr><tr><td><strong>TBLOCK_ABORT_PENDING</strong>（需要中止）</td><td><code>AbortTransaction()</code> → <code>CleanupTransaction()</code></td></tr><tr><td><strong>TBLOCK_PREPARE</strong>（两阶段提交）</td><td><code>PrepareTransaction()</code></td></tr><tr><td><strong>TBLOCK_SUBBEGIN / TBLOCK_SUBRELEASE / TBLOCK_SUBCOMMIT</strong></td><td>管理子事务（savepoint）的提交或回滚</td></tr><tr><td><strong>TBLOCK_SUBABORT_PENDING / TBLOCK_SUBABORT_END</strong></td><td>先中止再清理子事务，递归调用自身</td></tr></tbody></table>
+<h2 id="最关键的-tblock_started--committransaction">最关键的 TBLOCK_STARTED → CommitTransaction()</h2>
+<p>当不在显式事务块中（<code>TBLOCK_STARTED</code>），会调用真正的提交函数 <code>CommitTransaction()</code>，它做以下事情：</p>
+<ol>
+<li><strong>触发器处理</strong>：循环执行 <code>AfterTriggerFireDeferred()</code>，直到所有延迟触发器完成</li>
+<li><strong>资源清理</strong>：<code>ResourceOwnerRelease()</code> 释放资源</li>
+<li><strong>存储管理器提交</strong>：<code>smgrDoPendingSyncs()</code> 同步文件</li>
+<li><strong>缓冲区刷写</strong>：<code>FlushBufferPool()</code> / <code>BufmgrCommit()</code></li>
+<li><strong>记录提交</strong>：<code>RecordTransactionCommit()</code> 写 XLOG commit 记录</li>
+<li><strong>异步通知</strong>：<code>AtCommit_Notify()</code> 发送 LISTEN/NOTIFY</li>
+<li><strong>缓存失效</strong>：<code>AtEOXact_Inval()</code> 处理共享缓存失效消息</li>
+<li><strong>释放锁</strong>：<code>LockReleaseAll()</code> 释放事务持有的锁</li>
+<li><strong>统计更新</strong>：<code>pgstat_xact_commit()</code> 报告统计信息</li>
+<li><strong>清理内存上下文</strong>、重置全局状态</li>
+</ol>
+<h2 id="总结">总结</h2>
+<p><code>CommitTransactionCommand()</code> 的本质是一个<strong>调度器</strong>：</p>
+<ul>
+<li>在<strong>隐式事务</strong>（autocommit）中：直接完成真正的提交</li>
+<li>在<strong>显式事务块</strong>中：仅做命令计数器递增，不提交</li>
+<li>在<strong>事务结束（COMMIT）时</strong>：完成真正的提交</li>
+<li>在<strong>事务中止（ROLLBACK）时</strong>：执行清理</li>
+</ul>
+<p>在你选中的第 5925 行上下文中，它在 <code>exec_simple_query</code> 的最后阶段被调用，用于确保该查询的事务命令被正确完成。</p>
+</blockquote>
+<p>这个问题似乎比预想的要严重，在pbe的autocommit情况下，没有"真正提交"（主要是状态更新和资源清理，暂不讨论数据可见性的问题，因为目前暂未发现数据可见性方面有上报问题），这篇文章我都不敢继续写下去了......不过这毕竟是看的openGauss源码，GaussDB里这一块会需要处理哪些东西，有没有减少或者新增，甚至执行流程可能全变了，都是不确定的。</p>
+<p>写到这里，暂不发布本文，等一手华为的消息。</p>
+<hr/>
+<h2 id="20260825更新">20260825更新</h2>
+<p>华为有了回复，他们内部拉了很多板块的内核研发人员一起进行了讨论分析研究，最终得出结论：</p>
+<p>ustore表膨胀是因为统计信息上报的过程没有执行(此处统计信息不是指pg_statistic/pg_class,而是指pg_stat_all_tables)，这个问题也会导致pg_stat_all_tables没被更新，这就是撞上了之前异步事务提交(延迟清理功能)发现的这个BUG。</p>
+<p>具体就是因为这种场景下，统计信息没有上报，导致依赖于统计信息上报过程里执行的动作都没做，而新版本针对统计信息没有上报的问题做了修复，所以依赖它的问题都解决了。</p>
+<p>但是华为研发认为异步事务提交（已改口叫延迟清理功能）的这个BUG目前只会导致这三个已知问题。然后再我再三追问下，华为研发说autovacuum和autoanalyze也会受影响，可能会影响ubtree索引大小以及表统计信息不准，进而导致SQL性能或执行计划受影响。</p>
+<p>但是我仍然有疑问，新版本的修复逻辑还是会导致含dml+commit的存储过程走到异步事务提交（延迟清理）的逻辑，只是避免了异步任务的遗漏（是否会在极小的延迟处理期间内，其他线程获取到的不是最新的状态或统计信息？）。</p>
+<hr/>
+<p>异步事务提交（延迟清理）的这个BUG，从首次发现idle_in_transaction状态不对的问题开始，已经持续跟踪了3个多月，我没有GaussDB的源码，用openGauss的源码无法形成对GaussB的绝对质疑。不过和华为的沟通过程中，我发现GaussDB里上报统计信息这段逻辑和openGauss有所区别，所以华为给的最终答复应该是可信的。</p>
+<p>我当前这个驻场项目合同也快到期了，后续无法在此客户处继续监控该问题是否存在其他影响。深思熟虑后，我还是打算把这篇文章发出来，供大家参考。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../3-ways-to-query-oracle-data-in-duckdb/">&larr; 【DuckDB】在DuckDB中查询ORACLE的数据的三种方式</a>
+    
+    
+    <a href="../gaussdb-an-ustore-table-bloat-in-plsql/">【GaussDB】排查一起ustore表在存储过程里膨胀的问题 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拒绝Docker Desktop-在win11上运行docker容器的替代方案 - DA-技术分享-静态站</title>
+    <meta name="description" content="拒绝Docker Desktop-在win11上运行docker容器的替代方案 背景 在Windows上用docker的，应该都知道Docker Desktop这个软件，但是很多人没注意的是，Docker Desktop并不是完全免费的软件： Docker Desktop 根据 Docker 订阅服">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>拒绝Docker Desktop-在win11上运行docker容器的替代方案</h1>
+    <div class="meta">
+        
+        <span>2026-09-17</span>
+        
+        <span>0 阅读</span>
+        
+        <a href="../../categories/docker/">docker</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="拒绝docker-desktop-在win11上运行docker容器的替代方案">拒绝Docker Desktop-在win11上运行docker容器的替代方案</h1>
+<h2 id="背景">背景</h2>
+<p>在Windows上用docker的，应该都知道Docker Desktop这个软件，但是很多人没注意的是，Docker Desktop并不是完全免费的软件：</p>
+<blockquote>
+<p>Docker Desktop 根据 Docker 订阅服务协议授权。当你下载并安装 Docker Desktop 时，系统要求你同意这些条款。</p>
+<p>The Docker Subscription Service Agreement states:<br/>
+Docker 订阅服务协议中规定：</p>
+<p>Docker Desktop is free for:<br/>
+Docker Desktop 免费用于：</p>
+<ul>
+<li>Small businesses (fewer than 250 employees AND less than $10 million in annual revenue)<br/>
+小型企业（员工少于 250 人，年收入低于 1000 万美元）</li>
+<li>Personal use<br/>
+个人使用</li>
+<li>Education<br/>
+教育背景</li>
+<li>Non-commercial open source projects<br/>
+非商业的开源项目</li>
+</ul>
+<p>Docker Desktop requires a paid subscription for:<br/>
+Docker Desktop 需要付费订阅：</p>
+<ul>
+<li>Professional use in larger organizations<br/>
+大型组织中的专业应用</li>
+<li>Government entities<br/>
+政府机构</li>
+<li>Commercial use beyond the free tier limits<br/>
+超出免费套餐限制的商业使用</li>
+</ul>
+</blockquote>
+<p>所以，为了避免侵权，对于Windows用户，建议使用其他工具来使用docker。</p>
+<p>本文列举一些替代软件或者替代方案。</p>
+<h2 id="一wsl里使用ubuntu里面再嵌套linux版本的dockerpodman">一、wsl里使用ubuntu，里面再嵌套Linux版本的docker/podman</h2>
+<p>这个不用过多解释了，和Linux里安装使用docker/podman没有区别，但是-v只能挂载ubuntu内的路径，不能使用windows的路径（尽管wsl的ubuntu里能访问windows路径，但绕了几圈，性能会有下降），另外，还需要在wsl里做网络访问的相关配置（wslsettings.exe -&gt; 网络）。</p>
+<h2 id="二使用wslc">二、使用wslc</h2>
+<p><strong>wslc(windows subsystem for linux - container)</strong> 是微软最新的wsl里集成的功能，目前未发布正式版本。</p>
+<ol>
+<li>
+<p>安装预发布版本的wsl <a href="https://github.com/microsoft/WSL/releases/download/2.9.9/wsl.2.9.9.0.x64.msi">https://github.com/microsoft/WSL/releases/download/2.9.9/wsl.2.9.9.0.x64.msi</a></p>
+</li>
+<li>
+<p>创建docker.cmd脚本并添加到PATH环境变量，就可以沿用原本的docker命令了</p>
+</li>
+</ol>
+<pre><code class="language-bat">@echo off
+"C:\Program Files\WSL\wslc.exe" %*
+exit /b %ERRORLEVEL%
+</code></pre>
+<p>实测基本可以替代，我最常用的也就<code>start/stop/ps/rm/rmi/build/exec/load/pull/push/run/list/save/export/import/tag/cp</code>,只有 <code>cp</code> 不直接兼容。</p>
+<p>但其实 <code>docker cp</code> 对应 <code>wslc container cp</code> ，<br/>
+于是脚本改成这样</p>
+<pre><code class="language-bat">@echo off
+REM docker -&gt; wslc shim (v3)
+REM   "docker cp ..." is rewritten to "wslc container cp ..."
+REM   All other commands are passed through to wslc.exe as-is.
+REM   Arguments are rebuilt one-by-one so paths with spaces work.
+
+if /i "%~1"=="cp" goto :cp
+
+"C:\Program Files\WSL\wslc.exe" %*
+exit /b %ERRORLEVEL%
+
+:cp
+shift
+set "WSLC_ARGS="
+:cp_loop
+if "%~1"=="" goto :cp_run
+set "WSLC_ARGS=%WSLC_ARGS% "%~1""
+shift
+goto :cp_loop
+:cp_run
+"C:\Program Files\WSL\wslc.exe" container cp %WSLC_ARGS%
+exit /b %ERRORLEVEL%
+
+</code></pre>
+<p>然后compose还没有官方的解决方案，目前社区有个非官方的wslc-compose项目 ，是用python做的 ，原理上就是解析yaml文件再去执行wslc命令<br/>
+<a href="https://bacarndiaye.github.io/wslc-compose">https://bacarndiaye.github.io/wslc-compose</a></p>
+<p>另外，可以读一下这个网站 <a href="https://wslcontainers.com">https://wslcontainers.com</a> ，了解docker和wslc命令的差异和映射关系。</p>
+<p>一个比较严重的问题，wslc不支持 <code>--privileged=true</code>，不支持<code>--cap-add</code> ，这会对导致需要高级权限的容器出现异常或者无法启动，因此wslc只适用于单用户的简单容器，比如运行一个java应用、一个mysql数据库。</p>
+<p>至于k8s，就更没有了。</p>
+<p>wslc目前还很不成熟，需等待微软后续的演进。（考虑到微软以前胎死腹中的wsla，本人建议对wslc保持观望，浅尝即可）</p>
+<h2 id="三container-desktop">三、Container Desktop</h2>
+<p><a href="https://container-desktop.io/">https://container-desktop.io/</a></p>
+<p>一款完全开源免费的产品，轻量化。</p>
+<h2 id="四podman-desktop">四、Podman Desktop</h2>
+<p><a href="https://podman-desktop.io/">https://podman-desktop.io/</a></p>
+<p>一款完全开源免费的产品,功能齐全，k8s和compose也都支持。</p>
+<h2 id="五rancher-desktop">五、Rancher Desktop</h2>
+<p><a href="https://rancherdesktop.io/">https://rancherdesktop.io/</a></p>
+<p>一款完全开源免费的产品,功能齐全，k8s和compose也都支持。</p>
+<h2 id="总结">总结</h2>
+<p>方案一和二都是需要折腾的；方案三我没实测，官方文档里的内容太少了，而且在github上的动静远低于另两款desktop，commit数差了3个数量级（2026-09-17 Container Desktop 68 ；Podman Desktop  11407 ；Rancher Desktop 17550 ）；至于方案四和五，看我写的篇幅就知道，安装后直接用就是。</p>
+<p>所以我推荐用后两款产品来替代收费的Docker Desktop。</p>
+<p>当然如果你是纯个人用户，没有公司，不想过多折腾，Docker Desktop也是能用的，Docker Desktop里最新集成的AI功能也是相当不错的。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/docker/">docker</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../3-ways-to-query-oracle-data-in-duckdb/">【DuckDB】在DuckDB中查询ORACLE的数据的三种方式 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】排查一起ustore表在存储过程里膨胀的问题 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】排查一起ustore表在存储过程里膨胀的问题 背景 最近客户测试环境一台单机的GaussDB变成了只读，检查发现是磁盘使用率超过85%了，然后去数据库里查，发现有一张六十几万行的表占到了五百多GB。 环境信息: kylin v10 sp3 arm64 GaussDB 506.0SP">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】排查一起ustore表在存储过程里膨胀的问题</h1>
+    <div class="meta">
+        
+        <span>2026-09-15</span>
+        
+        <span>15 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb排查一起ustore表在存储过程里膨胀的问题">【GaussDB】排查一起ustore表在存储过程里膨胀的问题</h1>
+<h2 id="背景">背景</h2>
+<p>最近客户测试环境一台单机的GaussDB变成了只读，检查发现是磁盘使用率超过85%了，然后去数据库里查，发现有一张六十几万行的表占到了五百多GB。<br/>
+环境信息:</p>
+<blockquote>
+<p>kylin v10 sp3 arm64<br/>
+GaussDB 506.0SPC0500<br/>
+默认存储引擎ustore</p>
+</blockquote>
+<p>该表的操作是在一个plsql匿名块中，先delete整表，然后把另一个表的数据全量插进去，再提交，每个小时会执行若干次。</p>
+<h2 id="排查和分析">排查和分析</h2>
+<p>从pg_class.relpage看，只占了4万多个页面，也就是实际数据大小只有300MB左右，但是使用pg_relation_size查询，却有500GB，索引几十MB，toast大小为0。在服务器上查看该表对应的数据文件，的确有五百多个1GB的文件。</p>
+<p>也就是说，这个表的确膨胀了，而且膨胀得非常严重。</p>
+<p>当天联系上了华为研发，他们提出了一个场景，如果这个事务每次都是abort（报错），回滚，则空间不会被复用，但中间增加查询则有概率复用。</p>
+<p>听上去很合理，但是我构造了一个最简单的用例，每次都是执行成功的，但表膨胀时就是直接增加一个插入数据的大小,完全不复用delete空间。</p>
+<p>测试用例如下，注意需要通过jdbc执行,写java脚本或者使用jdbc连接的图形化客户端都可以(比如dbeaver)。在gsql里执行是不会膨胀那么厉害的。</p>
+<p>java里可以通过preferQueryMode参数来控制SQL执行是用PBE还是不用PBE。</p>
+<p>另外还有一个重点，必须通过匿名块来执行delete+insert+commit，单条执行时不会膨胀那么严重。</p>
+<pre><code class="language-sql">--初始化数据
+drop table if exists t_c_test;
+drop table if exists t_d_test;
+create table t_c_test(id int,c1 varchar2(20),c2 varchar2(20),c3 varchar2(20),c4 varchar2(2048));
+insert into t_c_test select id,'abcdefg','abcdefg','abcdefg','abcdefg' from generate_series(1,10000) id;
+create table t_d_test as select * from t_c_test;
+alter table t_d_test add primary key(id);
+select set_config('.l_last_size',pg_relation_size('t_d_test'),false) initsize;
+
+--手动多次执行以下匿名块
+begin
+delete  t_d_test where 1=1;
+insert into t_d_test select * from t_c_test where 1=1;
+commit;
+raise notice 'current size:% ;delta size:%',pg_relation_size('t_d_test'),pg_relation_size('t_d_test')-current_setting('.l_last_size')::int;
+set_config('.l_last_size',pg_relation_size('t_d_test'),false);
+end;
+/
+</code></pre>
+<pre><code>--在非PBE模式（preferQueryMode=simple）下输出为
+initsize:581632
+current size:1163264 ;delta size:581632
+current size:1335296 ;delta size:172032
+current size:1359872 ;delta size:24576
+current size:1359872 ;delta size:0
+current size:1384448 ;delta size:24576
+current size:1409024 ;delta size:24576
+current size:1441792 ;delta size:32768
+current size:1474560 ;delta size:32768
+current size:1482752 ;delta size:8192
+current size:1482752 ;delta size:0
+current size:1490944 ;delta size:8192
+current size:1540096 ;delta size:49152
+current size:1540096 ;delta size:0
+current size:1556480 ;delta size:16384
+current size:1564672 ;delta size:8192
+current size:1605632 ;delta size:40960
+current size:1613824 ;delta size:8192
+current size:1613824 ;delta size:0
+current size:1613824 ;delta size:0
+current size:1646592 ;delta size:32768
+current size:1646592 ;delta size:0
+current size:1646592 ;delta size:0
+current size:1654784 ;delta size:8192
+current size:1654784 ;delta size:0
+current size:1654784 ;delta size:0
+current size:1654784 ;delta size:0
+current size:1654784 ;delta size:0
+current size:1654784 ;delta size:0
+
+
+--在PBE模式（preferQueryMode=extended）下输出为
+initsize:581632
+current size:1163264 ;delta size:581632
+current size:1736704 ;delta size:573440
+current size:2310144 ;delta size:573440
+current size:2883584 ;delta size:573440
+current size:3448832 ;delta size:565248
+current size:4014080 ;delta size:565248
+current size:4571136 ;delta size:557056
+current size:5128192 ;delta size:557056
+current size:5677056 ;delta size:548864
+current size:5677056 ;delta size:0
+current size:6217728 ;delta size:540672
+current size:6766592 ;delta size:548864
+current size:6766592 ;delta size:0
+current size:6766592 ;delta size:0
+current size:6766592 ;delta size:0
+current size:6766592 ;delta size:0
+current size:6766592 ;delta size:0
+current size:6766592 ;delta size:0
+current size:7299072 ;delta size:532480
+current size:7299072 ;delta size:0
+current size:7299072 ;delta size:0
+current size:7839744 ;delta size:540672
+current size:8364032 ;delta size:524288
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+current size:8364032 ;delta size:0
+
+</code></pre>
+<p>从以上输出可以看到，在非PBE情况下，表大小的增加只有第一次是五十几万，后面都增加很小了。但是PBE情况下，只要不是0，每次增加都是五十几万。</p>
+<p>让xiaomi mimo写了个java用例</p>
+<pre><code class="language-java">import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.Properties;
+
+/**
+ * GaussDB UStore PBE vs Simple 模式表空间膨胀复现测试
+ *
+ * 复现 test.sql 中的测试场景：
+ * 在 PBE(extended) 模式下，反复 DELETE + INSERT 同一批数据，
+ * 表空间持续增长不收敛；而在 Simple 模式下表空间很快收敛。
+ *
+ * 使用方法:
+ *   javac -cp gaussdbjdbc.jar PbeUstoreTest.java
+ *   java -cp .:gaussdbjdbc.jar PbeUstoreTest simple    -- Simple 模式测试
+ *   java -cp .:gaussdbjdbc.jar PbeUstoreTest extended   -- PBE 模式测试
+ *   java -cp .:gaussdbjdbc.jar PbeUstoreTest both       -- 依次运行两种模式
+ *
+ * 依赖: 当前目录下放置 GaussDB JDBC 驱动 gaussdbjdbc.jar
+ */
+public class PbeUstoreTest {
+
+    // ===================== 数据库连接参数（按需修改）=====================
+    private static final String HOST     = "192.168.163.119";
+    private static final int    PORT     = 8000;
+    private static final String DB       = "postgres";
+    private static final String USER     = "root";
+    private static final String PASSWORD = "Gaussdb@123";
+
+    // ===================== 测试参数 =====================
+    private static final int LOOP_COUNT = 30;  // DELETE+INSERT 循环次数
+
+    public static void main(String[] args) throws Exception {
+        String mode = (args.length &gt; 0) ? args[0].toLowerCase() : "both";
+
+        if ("simple".equals(mode) || "both".equals(mode)) {
+            System.out.println("========== Simple 模式 (preferQueryMode=simple) ==========");
+            runTest("simple");
+            System.out.println();
+        }
+
+        if ("extended".equals(mode) || "both".equals(mode)) {
+            System.out.println("========== PBE 模式 (preferQueryMode=extended) ==========");
+            runTest("extended");
+            System.out.println();
+        }
+    }
+
+    /**
+     * 在当前目录查找 gaussdbjdbc*.jar 并加载驱动
+     */
+    private static Driver loadDriverFromCurrentDir() throws Exception {
+        File dir = new File(".");
+        File[] jars = dir.listFiles((d, name) -&gt;
+                name.startsWith("gaussdbjdbc") &amp;&amp; name.endsWith(".jar"));
+
+        if (jars == null || jars.length == 0) {
+            throw new RuntimeException(
+                "当前目录未找到 gaussdbjdbc*.jar，请将 GaussDB JDBC 驱动放入当前目录");
+        }
+
+        File jarFile = jars[0];
+        System.out.println("[驱动] 加载 GaussDB JDBC 驱动: " + jarFile.getName());
+
+        URLClassLoader cl = new URLClassLoader(new URL[]{jarFile.toURI().toURL()});
+        Class&lt;?&gt; clazz = cl.loadClass("com.huawei.gaussdb.jdbc.Driver");
+        return (Driver) clazz.getDeclaredConstructor().newInstance();
+    }
+
+    /**
+     * 执行完整测试流程
+     * @param preferQueryMode "simple" 或 "extended"
+     */
+    private static void runTest(String preferQueryMode) throws Exception {
+        String url = String.format(
+                "jdbc:gaussdb://%s:%d/%s?preferQueryMode=%s",
+                HOST, PORT, DB, preferQueryMode);
+
+        // 从当前目录加载 GaussDB JDBC 驱动
+        Driver driver = loadDriverFromCurrentDir();
+
+        Properties props = new Properties();
+        props.setProperty("user", USER);
+        props.setProperty("password", PASSWORD);
+
+        try (Connection conn = driver.connect(url, props);
+             Statement stmt = conn.createStatement()) {
+
+            // ---------- 1. 初始化数据 ----------
+            System.out.println("[初始化] 创建表并插入 10000 行数据...");
+            stmt.execute("DROP TABLE IF EXISTS t_c_test");
+            stmt.execute("DROP TABLE IF EXISTS t_d_test");
+            stmt.execute(
+                "CREATE TABLE t_c_test(id int, c1 varchar2(20), c2 varchar2(20), " +
+                "c3 varchar2(20), c4 varchar2(2048))");
+            stmt.execute(
+                "INSERT INTO t_c_test SELECT id,'abcdefg','abcdefg','abcdefg','abcdefg' " +
+                "FROM generate_series(1,10000) id");
+            stmt.execute("CREATE TABLE t_d_test AS SELECT * FROM t_c_test");
+            stmt.execute("ALTER TABLE t_d_test ADD PRIMARY KEY(id)");
+
+            // 记录初始大小
+            long initSize = queryTableSize(stmt, "t_d_test");
+            System.out.printf("initsize:%d%n", initSize);
+
+            // ---------- 2. 反复 DELETE + INSERT 循环 ----------
+            // 与 test.sql 一致，将 DELETE+INSERT+COMMIT 包在匿名块中作为一条语句执行。
+            // 在 PBE 模式下，整个匿名块作为一条 prepared statement 发送给服务端。
+            String anonBlock =
+                "BEGIN\n" +
+                "DELETE FROM t_d_test WHERE 1=1;\n" +
+                "INSERT INTO t_d_test SELECT * FROM t_c_test WHERE 1=1;\n" +
+                "COMMIT;\n" +
+                "END;";
+
+            long lastSize = initSize;
+
+            for (int i = 1; i &lt;= LOOP_COUNT; i++) {
+                // 执行匿名块（一条语句，与 test.sql 完全一致）
+                stmt.execute(anonBlock);
+
+                // Java 端查询当前表大小并计算 delta
+                long currentSize = queryTableSize(stmt, "t_d_test");
+                long delta = currentSize - lastSize;
+                lastSize = currentSize;
+
+                System.out.printf("current size:%d ;delta size:%d%n", currentSize, delta);
+            }
+
+            // ---------- 3. 清理（可选，注释掉以便观察最终状态）----------
+            // stmt.execute("DROP TABLE IF EXISTS t_c_test");
+            // stmt.execute("DROP TABLE IF EXISTS t_d_test");
+            // System.out.println("[清理] 表已删除");
+        }
+    }
+
+    /**
+     * 查询指定表的 relation size（字节）
+     */
+    private static long queryTableSize(Statement stmt, String tableName) throws Exception {
+        String sql = "SELECT pg_relation_size('" + tableName + "')";
+        try (ResultSet rs = stmt.executeQuery(sql)) {
+            rs.next();
+            return rs.getLong(1);
+        }
+    }
+
+}
+</code></pre>
+<p>执行输出</p>
+<pre><code class="language-bash">PS C:\work\github\gaussdb-pbe-ustore-test&gt; javac -cp gaussdbjdbc.jar PbeUstoreTest.java
+PS C:\work\github\gaussdb-pbe-ustore-test&gt; java -cp ".;gaussdbjdbc.jar" PbeUstoreTest both
+========== Simple 模式 (preferQueryMode=simple) ==========
+[驱动] 加载 GaussDB JDBC 驱动: gaussdbjdbc.jar
+[初始化] 创建表并插入 10000 行数据...
+initsize:581632
+current size:1163264 ;delta size:581632
+current size:1736704 ;delta size:573440
+current size:1736704 ;delta size:0
+current size:1736704 ;delta size:0
+current size:2310144 ;delta size:573440
+current size:2891776 ;delta size:581632
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+current size:2891776 ;delta size:0
+
+========== PBE 模式 (preferQueryMode=extended) ==========
+[驱动] 加载 GaussDB JDBC 驱动: gaussdbjdbc.jar
+[初始化] 创建表并插入 10000 行数据...
+initsize:581632
+current size:1163264 ;delta size:581632
+current size:1720320 ;delta size:557056
+current size:1720320 ;delta size:0
+current size:1720320 ;delta size:0
+current size:1736704 ;delta size:16384
+current size:2301952 ;delta size:565248
+current size:2310144 ;delta size:8192
+current size:2310144 ;delta size:0
+current size:2310144 ;delta size:0
+current size:2310144 ;delta size:0
+current size:2826240 ;delta size:516096
+current size:2826240 ;delta size:0
+current size:2842624 ;delta size:16384
+current size:2859008 ;delta size:16384
+current size:2908160 ;delta size:49152
+current size:2908160 ;delta size:0
+current size:2908160 ;delta size:0
+current size:2908160 ;delta size:0
+current size:3407872 ;delta size:499712
+current size:3964928 ;delta size:557056
+current size:4513792 ;delta size:548864
+current size:4513792 ;delta size:0
+current size:5054464 ;delta size:540672
+current size:5595136 ;delta size:540672
+current size:5595136 ;delta size:0
+current size:6135808 ;delta size:540672
+current size:6692864 ;delta size:557056
+current size:7217152 ;delta size:524288
+current size:7225344 ;delta size:8192
+current size:7225344 ;delta size:0
+
+</code></pre>
+<p>我反复执行了多次，每次都有些随机差异，但是唯一明确的就是，尽管是个概率性问题，但是在PBE情况下，多轮匿名块执行delete+insert的表膨胀度一定会比非PBE时要大。</p>
+<p>另外，我在不同的存储上测试，发现磁盘性能越好的机器越不容易膨胀，磁盘性能越差的机器就猛猛膨胀。而且单次处理数据量越大越容易膨胀，数据量小就不容易膨胀。</p>
+<p>这不由得让我联想到了之前分析的一个异步提交的问题，现在这个现象就像是一种异步处理由于硬件性能差异产生了时序上的问题。</p>
+<p>由于我海外订阅都到期且没续费了，暂且用claude接xiaomi mimo来分析一下，本来是打算让AI来gdb的，但发现小米这个模型gdb的能力还是不太够，老是出一些简单的gdb用法问题，所以它就只去靠执行sql去诊断。</p>
+<p>它在一次测试中，意外发现PBE场景下，表也没有膨胀得很厉害，发现是在执行匿名块后有执行其他的SQL ，于是它尝试在中间加入的不同SQL类型来确认问题方向：</p>
+<blockquote>
+<p>所有测试结果汇总：</p>
+<p>测试	20轮后大小	效果</p>
+<ol>
+<li>无额外查询	8.5 MB	持续膨胀</li>
+<li><code>SELECT 1</code>	9 MB	持续膨胀</li>
+<li><code>SELECT txid_current()</code>	1.17 MB	完全收敛！</li>
+<li><code>SELECT pg_sleep(0.01)</code>	5 MB	部分缓解<br/>
+根因定位<br/>
+txid_current() 是关键！它强制分配新的事务 ID，这会刷新当前会话的事务 snapshot，从而释放对旧 undo 记录的引用，让 UStore 的 undo 回收机制正常工作。</li>
+</ol>
+<p>PBE 模式下的问题链：</p>
+<p>PBE执行匿名块 BEGIN...DELETE...INSERT...COMMIT;END<br/>
+↓<br/>
+匿名块COMMIT后，事务snapshot未被正确释放<br/>
+↓<br/>
+旧事务的snapshot仍然引用着undo记录<br/>
+↓<br/>
+undo回收线程认为这些undo记录仍被需要（snapshot still active）<br/>
+↓<br/>
+undo空间无法回收 → UStore无法复用空间 → 表持续膨胀<br/>
+Simple 模式正常的原因： 每条语句有独立的 snapshot 生命周期，COMMIT 后 snapshot 立即释放，undo 正常回收。</p>
+<p>txid_current() 能修复的原因： 它强制开启新事务、分配新 XID，隐式释放了旧的 snapshot，解除了对 undo 的引用。</p>
+<p>这是 GaussDB 内核在 PBE（Extended Protocol）执行路径中，匿名块 commit 后 snapshot 清理不完整的 bug。需要在 exec_bind_message 或 PortalDrop 中确保事务 snapshot 被正确释放。</p>
+</blockquote>
+<p>上面这段比较有道理，但是没有分析源码，也没gdb调试，直接得出结论，就是瞎说。</p>
+<p>不过AI说执行txid_current()后膨胀就不严重了，我手动测试了下，的确是这样的。</p>
+<p>暂不下根因结论，问题现象就这样，后面有机会换其他模型再看看。</p>
+<p>手动调整了插入的数据量，发现数据量越小，越不容易膨胀，结合前面的测试现象，可以猜想，GaussDB执行DML修改USTORE现有的页面，存在一个异步的过程，删除数据是先直接标记删除，此状态下不能被insert复用，后面有个异步线程去修改页面，标记哪些行可以复用，或者摘页（体现在relpage上），当数据量大时，这个异步线程处理就慢，此时insert大量数据就容易造成膨胀。</p>
+<p>另外，我发现一个神奇的次数：<strong>4</strong> ，因为手动测试过程中，偶尔出现过4次连续膨胀，4次连续完全不膨胀，然后又是4次连续膨胀，一直交替（后来华为研发也提到了4次是可以优化的一个点，真巧）。</p>
+<p>至此，暂无其他线索，文章暂不发布，后续有进展再补充。</p>
+<hr/>
+<h2 id="20260806-更新">20260806 更新</h2>
+<p>这篇文章前面的部分写于2026年7月1号，至今（20260811）已经压了一个多月了，但华为方面仍然还在排查中。这期间我已经排查到了这个问题与GaussDB的异步事务提交特性相关，即与之前提到的idle in trasaction状态不对的问题有相同的因素 (<a href="https://www.darkathena.top/archives/gaussdb-idle-in-transaction-bug-analyze">【GaussDB】会话里出现大量idle in transaction状态的问题排查</a>)，当时华为说这个处理没什么影响，但现在看来绝不是个小问题了。</p>
+<blockquote>
+<p>以<code>-M primary</code> 模式启动的GaussDB进程，在自动提交模式下以pbe的方式执行匿名块或者存储过程，存储过程内有dml且有commit，执行dml的时候会产生事务，topxid不为0，在commit的时候会把topxid更新成0，如果之后没有其他事务操作，匿名块或者存储过程执行完后会被内核认为该语句没有事务操作，标记<code>commit_pending=true</code>，不执行<code>finish_xact_command</code>，因此之后的所有步骤都可能被遗漏。</p>
+</blockquote>
+<p>上面这个点我会在另一篇文章里展开。</p>
+<p>我在20260731给华为说了我上面的发现，华为方面按我所说进行了复现，确认了现象，但官方报告仍未给出。</p>
+<p>华为在20260806给了两条命令，判断了直接原因：</p>
+<pre><code class="language-sql">select gs_parse_page_bypath(pg_relation_filepath('root.t_d_test'), -1, 'uheap', true);
+</code></pre>
+<pre><code class="language-bash">grep xxx.page |sort|uniq -c
+</code></pre>
+<p>解析出来的文件，页头的pd_prune_xid为0，但页面上有非0的pd_prune_xid，根据页头判断是无需清理的，所以引发了膨胀。</p>
+<h2 id="20260825-更新">20260825 更新</h2>
+<p>直到20260825 ，华为有了正式的回应，详见下篇《【GaussDB】内核事务异步提交（延迟清理）相关问题记录》。关注我的博客或公众号，及时获取最新文章。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-transcation-async-commit-delay-clean-issues/">&larr; 【GaussDB】内核事务异步提交（延迟清理）相关问题记录</a>
+    
+    
+    <a href="../chinamobile-wutongdb-panweiolap-first-study/">中国移动梧桐数据库（磐维OLAP）初上手 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
