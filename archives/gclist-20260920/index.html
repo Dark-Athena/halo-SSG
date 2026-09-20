@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>号外！又有新的国产数据库通过国家安全可靠测评了 - DA-技术分享-静态站</title>
+    <meta name="description" content="号外！又有新的国产数据库通过国家安全可靠测评了 20260920-安全可靠测评结果公告（2026年第3号）: https://www.itsec.gov.cn/aqkkcp/cpgg/202609/t20260920_275291.html 从2026年第2号的一批测评通过结果就可以看出，国产数据库">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>号外！又有新的国产数据库通过国家安全可靠测评了</h1>
+    <div class="meta">
+        
+        <span>2026-09-20</span>
+        
+        <span>4 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="号外又有新的国产数据库通过国家安全可靠测评了">号外！又有新的国产数据库通过国家安全可靠测评了</h1>
+<p><a href="https://www.itsec.gov.cn/aqkkcp/cpgg/202609/t20260920_275291.html">20260920-安全可靠测评结果公告（2026年第3号）: https://www.itsec.gov.cn/aqkkcp/cpgg/202609/t20260920_275291.html</a></p>
+<p>从2026年第2号的一批测评通过结果就可以看出，国产数据库想要通过这个测评变得比开始的时候更加简单了，但是由于存在有I级II级这样的级别，所以就算在通过列表里，仍然还会有比较:</p>
+<blockquote>
+<p>有更好的II级为什么还要选I级?</p>
+</blockquote>
+<p>而这次的 2026年第3号 ，新增的国产数据库都是 I 级，本来也没什么可说的了，但仔细看了下通过的产品，有些东西也可以说道说道：</p>
+<p><img alt="image-asQG.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-asQG.png" srcset="../../upload/image-asQG.png?width=1600 1600w, ../../upload/image-asQG.png?width=800 800w, ../../upload/image-asQG.png?width=1200 1200w, ../../upload/image-asQG.png?width=400 400w"/></p>
+<h2 id="halo">HALO</h2>
+<p>先说这个易景的羲和吧，就是HALO数据库（和一堆产品同名，我用的博客系统也叫Halo,AMD有一款芯片也叫Halo，漫步者有款音响也叫halo），这家公司成立于2021年，也就是国产数据库这几年这波风口开始之后。公司成立开始就发布了基于Postgresql修改的HALO数据库,早期投入的宣发挺多，当时有很多KOL写HALO的文章，但实际在国产数据库厮杀的最前线(PoC)上，几乎看不到这家公司。</p>
+<p>这家公司还开源了一个openHalo的数据库，"亮点"是支持了mysql的客户端协议，但实际上PG上的MYSQL协议在社区早就有人做了，只是没有最终合入，但其他闭源的PG内核支持mysql客户端的多得是。另外openGauss的mysql协议也是早早就开源了,甚至把SQL引擎和存储引擎都做了相应的适配，openHalo做的mysql功能点是没有openGauss多的。</p>
+<p>这家公司撑到了安可大放水，也是不容易。或许也正是他们不正面和头部厂商厮杀，节约了大量成本，一直蛰伏，就为等一个时机，只要在2027年之前过了安可，就是"胜利"。</p>
+<p>但有了门票之后，在目前国产数据库这个发展形势下，后续仍然还要持续地烧钱。</p>
+<p>截止到今日(20260920)，该数据库版本号一直停留在1.0 ，2.0还未发布。</p>
+<h2 id="netrixdb">NetrixDB</h2>
+<p>华为最新出的这款数据库，网上根本搜不到任何资料，甚至版本号都已经到3.0了。截止到目前，全网搜索"NetrixDB"的信息源均指向今日发布的《安全可靠测评结果公告（2026年第3号）》</p>
+<p>但是安可测评的产品必须满足</p>
+<blockquote>
+<p><a href="http://www.nsstec.org.cn/tzgg/354470.shtml">http://www.nsstec.org.cn/tzgg/354470.shtml</a><br/>
+1.送测产品应面向市场公开销售或已投入实际使用；</p>
+</blockquote>
+<p>现在想想，这句话有歧义 ，</p>
+<ul>
+<li>面向市场 + (公开销售 or 投入实际使用)</li>
+<li>面向市场公开销售 or 投入实际使用</li>
+</ul>
+<p>目前来看是没有面向市场了，如果是合规通过，那么只能解释为 "内部投入使用"，这就好说了。等后面看看华为会不会有发布什么官方咨询吧。</p>
+<p>不过华为的数据库产品真多哇，过了安可的都有7款了<br/>
+<img alt="image-UevE.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-UevE.png" srcset="../../upload/image-UevE.png?width=1600 1600w, ../../upload/image-UevE.png?width=800 800w, ../../upload/image-UevE.png?width=1200 1200w, ../../upload/image-UevE.png?width=400 400w"/></p>
+<h2 id="tdsql">TDSQL</h2>
+<p>TDSQL就是正常的版本升级续期，可以看到V8.0只剩3个月，集中式的测评结果就要到期了，所以这次10.3集中式续得很及时。</p>
+<p><img alt="image-iRHu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-iRHu.png" srcset="../../upload/image-iRHu.png?width=1600 1600w, ../../upload/image-iRHu.png?width=800 800w, ../../upload/image-iRHu.png?width=1200 1200w, ../../upload/image-iRHu.png?width=400 400w"/><br/>
+但注意一下，同样是10.3版本的分布式，在2024年9月30号就通过了测评，而集中式到了2026年9月20号才通过，期间发生了什么，不得而知。也可能两个内核分支不一样，只是版本号设计成一样了呢。而且TDSQL集中式10.3在网上同样搜不到资料。</p>
+<h2 id="出现了第一批iii级的产品">出现了第一批III级的产品</h2>
+<p>这批的III级不是数据库的，是CPU的</p>
+<p><img alt="image-eAcW.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-eAcW.png" srcset="../../upload/image-eAcW.png?width=1600 1600w, ../../upload/image-eAcW.png?width=800 800w, ../../upload/image-eAcW.png?width=1200 1200w, ../../upload/image-eAcW.png?width=400 400w"/></p>
+<p>鲲鹏950出现了，所以自然会想着去看下鲲鹏920</p>
+<p><img alt="image-nfxx.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-nfxx.png" srcset="../../upload/image-nfxx.png?width=1600 1600w, ../../upload/image-nfxx.png?width=800 800w, ../../upload/image-nfxx.png?width=1200 1200w, ../../upload/image-nfxx.png?width=400 400w"/></p>
+<p>最早的一批920年底到期了，服务器换不换？这批服务器5年都还没用到......</p>
+<h2 id="回顾下往期所有的ii级数据库吧">回顾下往期所有的II级数据库吧</h2>
+<p><img alt="image-NjAH.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-NjAH.png" srcset="../../upload/image-NjAH.png?width=1600 1600w, ../../upload/image-NjAH.png?width=800 800w, ../../upload/image-NjAH.png?width=1200 1200w, ../../upload/image-NjAH.png?width=400 400w"/></p>
+<ul>
+<li>2个GaussDB ，集中式 + 分布式</li>
+<li>2个达梦 ，集中式 + 分布式</li>
+<li>1个GoldenDB 分布式</li>
+<li>1个崖山 分布式</li>
+</ul>
+<h2 id="安可测评结果汇总查询页面">安可测评结果汇总查询页面</h2>
+<p>或许有人注意到了我上面截图的几个表格，这是我用AI生成的一个网页，已经挂载到了<br/>
+<a href="https://www.darkathena.top/gclist.html">https://www.darkathena.top/gclist.html</a> ,单html的（可以保存到本地使用），支持各种过滤查询条件，支持导出CSV，不仅包含数据库的，其他像服务器、操作系统、芯片的都放进去了。</p>
+<p>附：本期安可产品一览</p>
+<p><img alt="安全可靠测评结果公告 · 产品查询.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/安全可靠测评结果公告 · 产品查询.png" srcset="../../upload/安全可靠测评结果公告 · 产品查询.png?width=1600 1600w, ../../upload/安全可靠测评结果公告 · 产品查询.png?width=800 800w, ../../upload/安全可靠测评结果公告 · 产品查询.png?width=1200 1200w, ../../upload/安全可靠测评结果公告 · 产品查询.png?width=400 400w"/></p>
+<blockquote>
+<p>注：部分公司的网络策略可能屏蔽了我的网站，可以改用手机流量访问。</p>
+</blockquote>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/%E6%9D%82%E8%B0%88/">杂谈</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../ai-amd-ai-max-395-qwen3.8-flash-next-test">&larr; 【AI】AMD AI MAX 395运行qwen3.8-flash-next测试</a>
+    
+    
+    <a href="../ditch-docker-desktop-run-containers-on-win11/">拒绝Docker Desktop-在win11上运行docker容器的替代方案 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

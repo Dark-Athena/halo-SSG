@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【AI】AMD AI MAX 395运行qwen3.8-flash-next测试 - DA-技术分享-静态站</title>
+    <meta name="description" content="【AI】AMD AI MAX 395运行qwen3.8-flash-next测试 20260826 当晚 23:00:00 万众瞩目的qwen3.8-flash-next开源权重了，迅速冲到了huggingface模型榜默认排序第一，然后unsloth也在几十分钟内把量化版本（Q4及Q4之前的版本）">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../">首页</a>
+                <a href="./">文章归档</a>
+                <a href="../tags/">标签</a>
+                <a href="../moments/">记事本</a>
+                <a href="../online-tools/">在线工具</a>
+                <a href="../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="./">&larr; 返回文章列表</a>
+<article>
+    <h1>【AI】AMD AI MAX 395运行qwen3.8-flash-next测试</h1>
+    <div class="meta">
+        
+        <span>2026-09-20</span>
+        
+        <span>1 阅读</span>
+        
+        <a href="../categories/ai/">AI</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="aiamd-ai-max-395运行qwen38-flash-next测试">【AI】AMD AI MAX 395运行qwen3.8-flash-next测试</h1>
+<h2 id="20260826">20260826</h2>
+<p>当晚 23:00:00 万众瞩目的qwen3.8-flash-next开源权重了，迅速冲到了huggingface模型榜默认排序第一，然后unsloth也在几十分钟内把量化版本（Q4及Q4之前的版本）上传了。</p>
+<p>这是第一个qwen4exp架构的模型，MOE,125B 总参 ，激活 6B，额外附加51b n-gram。</p>
+<p>之前较为接近的规格可以参考qwen3.5-122b-a10b ,在我的笔记本上是可以跑起来的，UD-Q4_K_XL开启MTP后能跑到30tok/s左右，所以这个新的125b-a6b理论上能力更强速度也更快，这是非常让人兴奋的事。</p>
+<p>半夜我看到这个模型发布后，赶紧看了权重文件大小，原版是360GB，unsloth的量化版本大小如下：</p>
+<table><thead><tr><th>量化级别</th><th>文件个数</th><th>文件大小</th></tr></thead><tbody><tr><td>UD-IQ1_M</td><td>x3</td><td>74.5 GB</td></tr><tr><td>UD-IQ1_S</td><td>x3</td><td>72.5 GB</td></tr><tr><td>UD-IQ3_XXS</td><td>x3</td><td>82.0 GB</td></tr><tr><td>UD-IQ4_XS</td><td>x3</td><td>93.7 GB</td></tr><tr><td>UD-Q2_K_XL</td><td>x3</td><td>78.9 GB</td></tr><tr><td>UD-Q3_K_XL</td><td>x3</td><td>90.0 GB</td></tr><tr><td>UD-Q4_K_XL</td><td>x4</td><td>111.3 GB</td></tr><tr><td>UD-Q5_K_XL</td><td>x6</td><td>158 GB</td></tr><tr><td>UD-Q6_K_XL</td><td>x6</td><td>169 GB</td></tr><tr><td>Q8</td><td>x6</td><td>192 GB</td></tr><tr><td>BF16</td><td>x8</td><td>354 GB</td></tr></tbody></table>
+<p>根据我以往的经验，在ai max 395的windows上，llama.cpp加载80GB大小的模型就已经差不多是极限了，再大就可能得卸载部分层到内存，或者减少上下文大小了。</p>
+<p>所以我先下载了UD-Q2_K_XL进行测试。</p>
+<p>lmstudio目前（20260826）还无法支持加载这个模型，因为qwen4exp架构的支持还没合入llama.cpp（见pr <a href="https://github.com/ggml-org/llama.cpp/pull/27742">https://github.com/ggml-org/llama.cpp/pull/27742</a>），而且这个pr还在不断修改，功能还没做完，比如mtp还没弄（模型本身是支持mtp的）。</p>
+<p>于是我拉了这个pr先自己编译了llama.cpp出来进行测试。</p>
+<p>默认参数不调，模型加载后，显存只占58GB，生成速度 20tok/s，上下文到8K的时候还有17tok/s，16K的时候14tok/s。不过GPU使用率只到48% ，明显优化还不到位。</p>
+<p>但是显存只占58GB，这出乎了我的意料。但后来想想这个模型的架构，是125B 在附加 51B ，后面的51B是不需要在启动时加载到显存或内存里去的，所以我不能按以前的模型大小经验去判断需要多大显存。没准111GB的UD-Q4_K_XL在ai max 395上也能一战。</p>
+<h2 id="20260828-更新">20260828 更新</h2>
+<p>今天发现lmstudio已经适配了qwen3.8-flash-next ,测试了下之前下载的UD-Q2_K_XL，能正常全部加载。于是我又下载了UD-Q4_K_XL，结果加载报错了，内存不足，但实际上显存还有很多。于是我又下载了UD-IQ4_XS，把上下文拉到90k，能成功加载了。</p>
+<p>但后面我去BIOS里把显存降到64GB后，发现竟然能把上下文拉满了。模型加载后，专用GPU内存占满，共享GPU内存12.1GB，llama-server.exe占用39GB内存。</p>
+<p>生成速度大概 17tok/s</p>
+<h2 id="20260911-更新">20260911 更新</h2>
+<p>lmstudio( 0.4.24 +vulkan llama.cpp 2.36.0) 加载 UD-Q4_K_XL，全拉满，也不报错了，并行度开到2，专用GPU内存占满，共享GPU内存29.8GB。但不确定我机器是不是有问题，GPU 100%了，风扇都没怎么转，生成速度只有6~7tok/s</p>
+<p>后面重启了下电脑，风扇终于开始转起来了，速度也跑到20~22tok/s了，16k的时候还有19.9tok/s。但GPU只有80~90%了，估计前面是操作系统或者驱动有啥BUG，降频了（可能是笔记本盒盖睡眠后唤醒的问题？但后面都复现不出来了）。</p>
+<pre><code>2026-09-11 16:45:44 [DEBUG]
+ 18.45.928.375 I slot print_timing: id  1 | task 209 | prompt eval time =    2312.31 ms /    25 tokens (   92.49 ms per token,    10.81 tokens per second)
+18.45.928.390 I slot print_timing: id  1 | task 209 |        eval time =  940354.40 ms / 18579 tokens (   50.62 ms per token,    19.76 tokens per second)
+18.45.928.393 I slot print_timing: id  1 | task 209 |       total time =  942666.71 ms / 18604 tokens
+18.45.928.459 I slot print_timing: id  1 | task 209 |    graphs reused =      18706
+18.45.928.584 I slot      release: id  1 | task 209 | stop processing: n_tokens = 18847, truncated = 0
+
+</code></pre>
+<p>全新qoder开始支持自定义模型api端点接入了，于是我把这个模型接进去跑了些简单的任务和复杂的任务。对应简单任务，明显比裸连api更好，因为agent里自带了一些提示词注入，会测试通过后再交付。比如开发一个网页，它会自己打开内置浏览器，确认所有元素的显示、动效和交互都符合预期，并且无控制台告警及错误，有问题它会自己修。</p>
+<p>对于复杂任务，它的确也可以完成，但是上下文长了后，模型响应非常慢，满上下文的时候只有7tos/s了，压缩上下文后能回到17tok/s。</p>
+<h2 id="halogen-flash-server">halogen-flash-server</h2>
+<p><a href="https://github.com/peonist-ai/halogen-flash-server">https://github.com/peonist-ai/halogen-flash-server</a></p>
+<p>社区上出现了一个非常牛逼的模型服务启动器 halogen-flash-server ，专门针对amd ai max 395进行优化，使用专有格式的量化模型，在跑118GB规格的qwen3.8-flash-next时，预填充能破千，生成速度能到55~57tok/s，已经有不少人公开了自己的测试情况，的确所言非虚。但是目前只能在Linux上通过拉取docker容器使用，而且并未开源。我这windows主力办公笔记本就不好去测了。</p>
+<p>另外，它需要设备几乎全部的内存，因此只能专用机器去使用，别想着上面还同时跑个agent去编译什么东西。</p>
+<p>在其他模型启动器还在一点一点扣性能的时候，这玩意的出现打破了大家的认知，它到底使用了什么黑科技？以前我们究竟浪费了多少的算力？</p>
+<h2 id="20260916">20260916</h2>
+<p>由于unsloth给llama.cpp提的qwen3.8-flash-next mtp功能 (<a href="https://github.com/ggml-org/llama.cpp/pull/28243">https://github.com/ggml-org/llama.cpp/pull/28243</a>)还没合入，我更新了一下我本地的unsloth studio，因为这个里面的llama.cpp是用unsloth自己的分支编译的。</p>
+<p>实测UD-IQ4_XS 打开mtp 2~3,生成速度并没有什么惊人的变化，也就加了2~4 tok/s,这一点点都可以算稳定性误差了。加载UD-Q4_K_XL会报错，似乎unsloth studio会额外预留一些vram。</p>
+<p>今天顺便也把unsloth desktop给装上了，其实后台服务就是unsolth studio，环境直接复用。</p>
+<h2 id="20260917">20260917</h2>
+<p>插个消息，阿里云栖大会将在20260922-20260924举办，有人猜测可能阿里可能会宣布下一代模型的发布。</p>
+<p>但话还没说完，qwen3.8-omni-flash突然在千问AI平台上线了，这是一个对多模态理解非常深刻的文本生成模型，需要安装Qwen-MM-Plugins才能充分挖掘该模型能力，比如可以根据音乐生成MV、修改视频（视频生成本身需要调用其他模型，qwen3.8-omni-flash的价值是理解多媒体输入并进行合理任务拆分及agent调度）。</p>
+<p>紧接着，qoder突然宣布，从即日起到20260930，所有用户qwen3.8-flash模型使用免费，并且这期间内，每天可以领取30天内有效的不限模型的100积分。</p>
+<p>qwen3.8-flash-next用着卡，可以先用qwen3.8-flash顶上，估计后面qwen3.8-flash-next还会变快。</p>
+<h2 id="20260919">20260919</h2>
+<p>B站一个网友 <strong>防爆键盘</strong> ，逆向了halogen-flash-server，发布了windows版本,而且开源了<br/>
+<a href="https://github.com/IIIIIllllIIIIIlllll/gfx1151-engine">https://github.com/IIIIIllllIIIIIlllll/gfx1151-engine</a><br/>
+模型权重文件同样需要使用halogen-flash-server的专用格式。</p>
+<p>演示视频:<br/>
+<a href="https://www.bilibili.com/video/BV18ye86WExG/">https://www.bilibili.com/video/BV18ye86WExG/</a></p>
+<p>虽然性能不及原版，但是优于llama.cpp ，作者说</p>
+<blockquote>
+<p>实测(gfx1151,122 GiB 内存):prefill 约 600–800 tok/s,decode 约 30–55 tok/s(视投机命中率)。</p>
+</blockquote>
+<p>另外，作者说他自己不是专业的，纯靠AI搓的，可能还有很多优化不到位，期望有人能一起完善。</p>
+<h2 id="这篇暂时先这么发布">这篇暂时先这么发布</h2>
+<p>后续这个模型的速度达到可以正常使用后，我再进行详细测试。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../tags/ai/">AI</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="gclist-20260920/">号外！又有新的国产数据库通过国家安全可靠测评了 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

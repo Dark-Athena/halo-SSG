@@ -6,6 +6,19 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【AI】AMD AI MAX 395运行qwen3.8-flash-next测试</title>
+      <link>https://www.darkathena.top/archives/ai-amd-ai-max-395-qwen3.8-flash-next-test</link>
+      <description>【AI】AMD AI MAX 395运行qwen3.8-flash-next测试 20260826 当晚 23:00:00 万众瞩目的qwen3.8-flash-next开源权重了，迅速冲到了huggingface模型榜默认排序第一，然后unsloth也在几十分钟内把量化版本（Q4及Q4之前的版本）</description>
+      <pubDate>Sun, 20 Sep 2026 14:54:06 +0000</pubDate>
+      <category>AI</category>
+    </item>
+    <item>
+      <title>号外！又有新的国产数据库通过国家安全可靠测评了</title>
+      <link>https://www.darkathena.top/archives/gclist-20260920</link>
+      <description>号外！又有新的国产数据库通过国家安全可靠测评了 20260920-安全可靠测评结果公告（2026年第3号）: https://www.itsec.gov.cn/aqkkcp/cpgg/202609/t20260920_275291.html 从2026年第2号的一批测评通过结果就可以看出，国产数据库</description>
+      <pubDate>Sun, 20 Sep 2026 14:20:40 +0000</pubDate>
+    </item>
+    <item>
       <title>拒绝Docker Desktop-在win11上运行docker容器的替代方案</title>
       <link>https://www.darkathena.top/archives/ditch-docker-desktop-run-containers-on-win11</link>
       <description>拒绝Docker Desktop-在win11上运行docker容器的替代方案 背景 在Windows上用docker的，应该都知道Docker Desktop这个软件，但是很多人没注意的是，Docker Desktop并不是完全免费的软件： Docker Desktop 根据 Docker 订阅服</description>
@@ -305,19 +318,6 @@
       <link>https://www.darkathena.top/archives/analyze-gaussdb-arm64-python-driver-psycopg3-coredump</link>
       <description>【GaussDB】排查ARM64环境上gaussdb的python驱动(psycopg3)coredump的问题 没想到这个系列还会有第五篇。 背景 通过前几篇的操作，我已经完全打通了airflow-&gt;sqlalchemy-&gt;GaussDB-sqlalchemy-&gt;gaussdb(psycopg3)</description>
       <pubDate>Sun, 08 Mar 2026 11:54:36 +0000</pubDate>
-    </item>
-    <item>
-      <title>万字长文-国产关系型数据库生态深度分析</title>
-      <link>https://www.darkathena.top/archives/China-s-Relational-Database-Eco-In-Depth-Analysis</link>
-      <description>国产关系型数据库生态深度分析 本文完成于2026年3月3号。 有很多人问过我："国产数据库该怎么选？" 前几年我刚入棋局，确实看不太清，但亲身经历了这几年国产数据库在各个战场上的厮杀后，我逐渐有了一些自己的思考。这篇文章，算是我对国产数据库生态的阶段性总结。 免责声明：本文仅代表个人观点，与任何公司</description>
-      <pubDate>Mon, 02 Mar 2026 17:24:00 +0000</pubDate>
-      <category>杂谈</category>
-    </item>
-    <item>
-      <title>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow</title>
-      <link>https://www.darkathena.top/archives/Edit-SQLAlchemy-dialect-to-support-gaussdb-based-on-psycopg3-to-adapt-to-Airflow-3.1.7</link>
-      <description>【GaussDB】开发gaussdb(psycopg3)的sqlalchemy方言以支持airflow 上一篇(【GaussDB】安装测试GaussDB基于psycopg3修改的python驱动)弄清楚了gaussdb(psycopg3)的安装方式，这一篇就开始整sqlalchemy的方言了 直接v</description>
-      <pubDate>Mon, 02 Mar 2026 01:51:51 +0000</pubDate>
     </item>
   </channel>
 </rss>
