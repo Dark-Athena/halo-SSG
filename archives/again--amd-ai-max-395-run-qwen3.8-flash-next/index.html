@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【AI】再测--amd ai max 395 运行Qwen3.8-flash-next - DA-技术分享-静态站</title>
+    <meta name="description" content="【AI】再测--AMD AI MAX 395运行Qwen3.8-flash-next 之前写过一篇了【AI】AMD AI MAX 395运行qwen3.8-flash-next测试， 距离这个模型初发布，一个多月过去了，现在再来看看社区围绕这个模型在AMD AI MAX 395这个设备上做到了什么程">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../">首页</a>
+                <a href="./">文章归档</a>
+                <a href="../tags/">标签</a>
+                <a href="../moments/">记事本</a>
+                <a href="../online-tools/">在线工具</a>
+                <a href="../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="./">&larr; 返回文章列表</a>
+<article>
+    <h1>【AI】再测--amd ai max 395 运行Qwen3.8-flash-next</h1>
+    <div class="meta">
+        
+        <span>2026-10-09</span>
+        
+        <span>0 阅读</span>
+        
+        <a href="../categories/ai/">AI</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="ai再测--amd-ai-max-395运行qwen38-flash-next">【AI】再测--AMD AI MAX 395运行Qwen3.8-flash-next</h1>
+<p>之前写过一篇了<a href="https://www.darkathena.top/archives/ai-amd-ai-max-395-qwen3.8-flash-next-test">【AI】AMD AI MAX 395运行qwen3.8-flash-next测试</a>，</p>
+<p>距离这个模型初发布，一个多月过去了，现在再来看看社区围绕这个模型在AMD AI MAX 395这个设备上做到了什么程度。</p>
+<p>由于各种工具的更新几乎是按小时级进化，所以下面的测试只代表我当时测试的情况，不代表现在测也是这个表现。</p>
+<h2 id="20261006">20261006</h2>
+<h3 id="一unsloth-desktop">一、unsloth desktop</h3>
+<p><a href="https://unsloth.ai/">https://unsloth.ai/</a><br/>
+UD-Q4_K_XL 模型加载大概需要160S</p>
+<pre><code>PS C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF&gt; dir
+
+    目录:C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---            2026/9/4    16:31      580038720 imatrix_unsloth.gguf_file
+-a---            2026/9/4    16:30      904004000 mmproj-F16.gguf
+-a---            2026/9/4    16:34     2786568256 mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf
+-a---           2026/8/28    16:46       10946624 Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
+-a---           2026/8/28    19:04    49859583136 Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf
+-a---           2026/8/28    18:58    49376141504 Qwen3.8-Flash-Next-UD-Q4_K_XL-00003-of-00004.gguf
+-a---           2026/8/28    18:13    12087983520 Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf
+
+</code></pre>
+<p>开了MTP 4 ,最大速度约40tok/s，但是速度很快会降到27tok/s，最严重的问题是预填充速度只有两百多tok/s</p>
+<p><img alt="image-xLor.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-xLor.png" srcset="../../upload/image-xLor.png?width=1600 1600w, ../../upload/image-xLor.png?width=800 800w, ../../upload/image-xLor.png?width=1200 1200w, ../../upload/image-xLor.png?width=400 400w"/><br/>
+<img alt="image-WjwB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-WjwB.png" srcset="../../upload/image-WjwB.png?width=1600 1600w, ../../upload/image-WjwB.png?width=800 800w, ../../upload/image-WjwB.png?width=1200 1200w, ../../upload/image-WjwB.png?width=400 400w"/></p>
+<p><img alt="image-uwfb.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-uwfb.png" srcset="../../upload/image-uwfb.png?width=1600 1600w, ../../upload/image-uwfb.png?width=800 800w, ../../upload/image-uwfb.png?width=1200 1200w, ../../upload/image-uwfb.png?width=400 400w"/></p>
+<p><img alt="image-BqqB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-BqqB.png" srcset="../../upload/image-BqqB.png?width=1600 1600w, ../../upload/image-BqqB.png?width=800 800w, ../../upload/image-BqqB.png?width=1200 1200w, ../../upload/image-BqqB.png?width=400 400w"/><br/>
+有个图没截上，工作状态时，CPU跑到50%了。</p>
+<h3 id="gfx1151-engine">gfx1151-engine</h3>
+<p><a href="https://github.com/IIIIIllllIIIIIlllll/gfx1151-engine">https://github.com/IIIIIllllIIIIIlllll/gfx1151-engine</a><br/>
+加载 qwen38-flash-next-w4b.hgn 大概30秒</p>
+<pre><code>S C:\work\github\gfx1151-engine\models&gt; dir
+
+    目录:C:\work\github\gfx1151-engine\models
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d----           2026/10/1    22:06                tokenizer
+-a---           2026/10/1    22:06     1523566720 qwen38-flash-next-mtp.hgn
+-a---           2026/10/1    22:06      897916416 qwen38-flash-next-vision.hgn
+-a---           2026/10/2     0:08   124068083904 qwen38-flash-next-w4b.hgn
+-a---           2026/10/1    22:34     2572466560 qwen38-flash-next-w4b.overlay.hgn
+</code></pre>
+<p>其实很明显，这个hgn专用模型参数文件的大小和unsloth 的UD-Q4_K_XL gguf大小差不多，但加载时间差这么多，这就是专属优化的优势。</p>
+<p>最大decode 速度能跑到50tok/s ,但由于agent在同一台机器上，而且我还开了企业微信、微信、飞书、两个浏览器，再外加几个带前端的程序，所以不能随时保持最高性能,最低能到20+。不过最舒服的是平均预填充速度能过千，历史上最大到了1500tok/s 。实测在长下文的时候也基本不会掉速，不像llama.cpp速度衰减很快。</p>
+<p>工具自带一个监控面板，挺好的：<br/>
+<img alt="image-dRvh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-dRvh.png" srcset="../../upload/image-dRvh.png?width=1600 1600w, ../../upload/image-dRvh.png?width=800 800w, ../../upload/image-dRvh.png?width=1200 1200w, ../../upload/image-dRvh.png?width=400 400w"/><br/>
+<img alt="image-sCbt.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-sCbt.png" srcset="../../upload/image-sCbt.png?width=1600 1600w, ../../upload/image-sCbt.png?width=800 800w, ../../upload/image-sCbt.png?width=1200 1200w, ../../upload/image-sCbt.png?width=400 400w"/><br/>
+另外一点值得注意的是，这个引擎在工作时，是不占用CPU的，和目前的llama.cpp也不一样（图我没截）。</p>
+<h2 id="20261009">20261009</h2>
+<h3 id="lmstudio">lmstudio</h3>
+<p><a href="https://lmstudio.ai/">https://lmstudio.ai/</a><br/>
+加载 UD-Q4_K_XL  143秒<br/>
+虽然llama.cpp已经合入了qwen4exp的mtp代码，但是lmstudio还是没有兼容unsloth的这次新的mtp方案，所以lmstudio暂时还无法开启这个模型的mtp功能</p>
+<pre><code>026-10-09 16:21:01 [DEBUG]
+ 17.38.759.581 I slot print_timing: id  1 | task 217 | prompt eval time =     684.91 ms /    25 tokens (   27.40 ms per token,    36.50 tokens per second)
+17.38.759.591 I slot print_timing: id  1 | task 217 |        eval time =  747346.60 ms / 15542 tokens (   48.09 ms per token,    20.79 tokens per second)
+17.38.759.628 I slot print_timing: id  1 | task 217 |       total time =  748031.52 ms / 15567 tokens
+17.38.759.633 I slot print_timing: id  1 | task 217 |    graphs reused =      15631
+17.38.759.706 I slot      release: id  1 | task 217 | stop processing: n_tokens = 15835, truncated = 0
+</code></pre>
+<pre><code>2026-10-09 16:27:26 [DEBUG]
+ 24.03.637.659 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+24.03.637.822 I slot launch_slot_: id  0 | task 15762 | processing task, is_child = 0
+2026-10-09 16:27:32 [DEBUG]
+ 24.09.182.790 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =   2090, progress = 0.16, t =   4.65 s / 448.99 tokens per second
+2026-10-09 16:27:37 [DEBUG]
+ 24.14.213.848 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =   4138, progress = 0.32, t =   9.69 s / 427.22 tokens per second
+2026-10-09 16:27:42 [DEBUG]
+ 24.19.760.758 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =   6186, progress = 0.48, t =  15.23 s / 406.10 tokens per second
+2026-10-09 16:27:48 [DEBUG]
+ 24.25.498.800 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =   8234, progress = 0.64, t =  20.97 s / 392.64 tokens per second
+2026-10-09 16:27:54 [DEBUG]
+ 24.31.383.571 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =  10282, progress = 0.80, t =  26.86 s / 382.86 tokens per second
+2026-10-09 16:28:00 [DEBUG]
+ 24.37.504.721 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =  12295, progress = 0.96, t =  32.98 s / 372.84 tokens per second
+2026-10-09 16:28:02 [DEBUG]
+ 24.39.276.223 I slot print_timing: id  0 | task 15762 | prompt processing, n_tokens =  12807, progress = 1.00, t =  34.75 s / 368.56 tokens per second
+2026-10-09 16:28:08 [DEBUG]
+ 24.45.848.470 I slot print_timing: id  0 | task 15762 | n_gen =    100, tg =  20.25 t/s, tg_3s =  20.45 t/s
+ ...
+ ...
+ ...
+ 
+2026-10-09 16:52:58 [DEBUG]
+ 49.35.017.738 I slot print_timing: id  0 | task 15762 | n_gen =  29222, tg =  19.56 t/s, tg_3s =  19.50 t/s
+2026-10-09 16:53:01 [DEBUG]
+ 49.38.029.062 I slot print_timing: id  0 | task 15762 | n_gen =  29278, tg =  19.56 t/s, tg_3s =  18.60 t/s
+2026-10-09 16:53:04 [DEBUG]
+ 49.41.044.132 I slot print_timing: id  0 | task 15762 | n_gen =  29337, tg =  19.56 t/s, tg_3s =  19.57 t/s
+2026-10-09 16:53:07 [DEBUG]
+ 49.44.048.438 I slot print_timing: id  0 | task 15762 | n_gen =  29394, tg =  19.56 t/s, tg_3s =  18.97 t/s
+2026-10-09 16:53:09 [DEBUG]
+ 49.46.461.309 I slot print_timing: id  0 | task 15762 | prompt eval time =   36431.52 ms / 12811 tokens (    2.84 ms per token,   351.65 tokens per second)
+49.46.461.320 I slot print_timing: id  0 | task 15762 |        eval time = 1505501.92 ms / 29440 tokens (   51.14 ms per token,    19.55 tokens per second)
+49.46.461.322 I slot print_timing: id  0 | task 15762 |       total time = 1541933.44 ms / 42251 tokens
+49.46.461.323 I slot print_timing: id  0 | task 15762 |    graphs reused =      44839
+2026-10-09 16:53:09 [DEBUG]
+ 49.46.462.613 I slot      release: id  0 | task 15762 | stop processing: n_tokens = 42250, truncated = 0
+</code></pre>
+<p>prefill速度大概 350tok/s,decode 速度大概 20toks/s</p>
+<p><img alt="image-XJUB.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-XJUB.png" srcset="../../upload/image-XJUB.png?width=1600 1600w, ../../upload/image-XJUB.png?width=800 800w, ../../upload/image-XJUB.png?width=1200 1200w, ../../upload/image-XJUB.png?width=400 400w"/></p>
+<p>CPU同时也在跑，50%是因为32个逻辑CPU分了16个，全满载了，这个现象和unsloth desktop一样，因为都是用的llama.cpp<br/>
+<img alt="image-kdxh.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-kdxh.png" srcset="../../upload/image-kdxh.png?width=1600 1600w, ../../upload/image-kdxh.png?width=800 800w, ../../upload/image-kdxh.png?width=1200 1200w, ../../upload/image-kdxh.png?width=400 400w"/></p>
+<h2 id="strata">strata</h2>
+<p><a href="https://github.com/Niko1221/Strata">https://github.com/Niko1221/Strata</a><br/>
+最近strata也比较火，所以也拉过来测测。</p>
+<p>它的文档推荐用ud-iq4_xs，不建议用UD-Q4_K_XL。</p>
+<p>有点麻烦的是，strata除了基本的模型参数文件，还要下载一堆别的文件，好几GB，而且还依赖python环境，<br/>
+启动日志里会有这么一段</p>
+<pre><code>=== Step 3: Python packages ===
+ C:\work\github\strata\Strata-main\.venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check numpy==2.5.3; python_version &gt;= "3.12" numpy==2.4.6; python_version == "3.11" numpy==2.2.6; python_version &lt; "3.11" jinja2==3.1.6 regex==2026.9.10 pyyaml==6.0.3 tqdm==4.70.1 requests==2.34.2 cmake==4.4.3 ninja==1.13.2 pillow==12.3.0 psutil==7.2.2 markupsafe==3.0.3 certifi==2026.7.22 charset-normalizer==3.5.1 idna==3.20 urllib3==2.8.0 colorama==0.4.6; sys_platform == "win32"
+  [ok] numpy, jinja2, regex, pyyaml, tqdm, requests, cmake, ninja, pillow, psutil installed
+</code></pre>
+<p>然后这一段暴露了其本质,本质上还是llama.cpp</p>
+<pre><code>=== Step 4: the Strata engine ===
+  llama.cpp source:     8.4 MB
+  [ok] llama.cpp source downloaded
+  [ok] llama.cpp 3cf0325 (gguf-py, ggml, mtmd)
+</code></pre>
+<p>由于我本地有模型文件，就单独写了个配置文件，以及手动启动脚本</p>
+<pre><code>{
+ "exe": "C:\\work\\github\\strata\\Strata-main\\engine\\strata.exe",
+ "args": [
+  "--pack",
+  "C:\\work\\github\\strata\\Strata-data\\packs\\unsloth-ud-iq4_xs",
+  "--native",
+  "C:\\Users\\xxxx\\.lmstudio\\models\\unsloth\\Qwen3.8-Flash-Next-GGUF\\Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf",
+  "--expert-profile",
+  "C:\\work\\github\\strata\\Strata-main\\data\\expert-profile.bin",
+  "--expert-cache",
+  "auto",
+  "--prefill",
+  "auto",
+  "--spec",
+  "4",
+  "--spec-min-p",
+  "0.5",
+  "--mtp",
+  "C:\\work\\github\\strata\\Strata-data\\mtp\\rt",
+  "--max-context",
+  "131072",
+  "--kv",
+  "int8",
+  "--kv-resident",
+  "32768",
+  "--resident-budget-gib",
+  "38"
+ ],
+ "cwd": "C:\\work\\github\\strata\\Strata-main",
+ "tokenizer": "C:\\work\\github\\strata\\Strata-data\\packs\\unsloth-ud-iq4_xs\\tokenizer",
+ "model_name": "qwen3.8-flash-next-unsloth-ud-iq4_xs",
+ "log": "C:\\work\\github\\strata\\Strata-main\\strata-unsloth-ud-iq4_xs.log",
+ "lib_dirs": [
+  "C:\\work\\github\\strata\\Strata-main\\engine\\rocm\\bin"
+ ],
+ "port": 8080,
+ "backend": "hip",
+ "env": {
+  "STRATA_HIPBLASLT_TUNING": "C:\\work\\github\\strata\\Strata-main\\tools\\hip\\gfx1151-hipblaslt-100500.txt"
+ }
+}
+</code></pre>
+<pre><code>PYTHONUNBUFFERED=1 ./.venv/Scripts/python.exe serve/server.py --engine strata --config C:/work/github/strata/Strata-main/strata-unsloth-ud-iq4_xs.json --port 8080 
+</code></pre>
+<p><img alt="image-XURW.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-XURW.png" srcset="../../upload/image-XURW.png?width=1600 1600w, ../../upload/image-XURW.png?width=800 800w, ../../upload/image-XURW.png?width=1200 1200w, ../../upload/image-XURW.png?width=400 400w"/></p>
+<p>prefill阶段CPU和GPU一起跑 ，全部拉爆到100%，270tok/s，<br/>
+decode阶段只有GPU跑,25~45 tok/s波动</p>
+<p><img alt="image-UUzk.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-UUzk.png" srcset="../../upload/image-UUzk.png?width=1600 1600w, ../../upload/image-UUzk.png?width=800 800w, ../../upload/image-UUzk.png?width=1200 1200w, ../../upload/image-UUzk.png?width=400 400w"/></p>
+<p><img alt="image-thJu.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-thJu.png" srcset="../../upload/image-thJu.png?width=1600 1600w, ../../upload/image-thJu.png?width=800 800w, ../../upload/image-thJu.png?width=1200 1200w, ../../upload/image-thJu.png?width=400 400w"/></p>
+<p>然后我又试了下加载 UD-Q4_K_XL ，加载72秒</p>
+<p><img alt="image-UYPl.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-UYPl.png" srcset="../../upload/image-UYPl.png?width=1600 1600w, ../../upload/image-UYPl.png?width=800 800w, ../../upload/image-UYPl.png?width=1200 1200w, ../../upload/image-UYPl.png?width=400 400w"/></p>
+<p><img alt="image-Lcok.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-Lcok.png" srcset="../../upload/image-Lcok.png?width=1600 1600w, ../../upload/image-Lcok.png?width=800 800w, ../../upload/image-Lcok.png?width=1200 1200w, ../../upload/image-Lcok.png?width=400 400w"/></p>
+<p>速度拉了，decode仅比lmstudio（即llama.cpp不开mtp）快点，而prefill是这几个工具里最慢的。<br/>
+<img alt="image-GTEi.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-GTEi.png" srcset="../../upload/image-GTEi.png?width=1600 1600w, ../../upload/image-GTEi.png?width=800 800w, ../../upload/image-GTEi.png?width=1200 1200w, ../../upload/image-GTEi.png?width=400 400w"/></p>
+<p><img alt="image-uAve.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-uAve.png" srcset="../../upload/image-uAve.png?width=1600 1600w, ../../upload/image-uAve.png?width=800 800w, ../../upload/image-uAve.png?width=1200 1200w, ../../upload/image-uAve.png?width=400 400w"/></p>
+<p><img alt="image-KXmK.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-KXmK.png" srcset="../../upload/image-KXmK.png?width=1600 1600w, ../../upload/image-KXmK.png?width=800 800w, ../../upload/image-KXmK.png?width=1200 1200w, ../../upload/image-KXmK.png?width=400 400w"/></p>
+<p>不过，根据社区实测情况来看，如果你有一块独立显卡，只要显存有个十几GB以上，在Linux上，strata也能跑出不错的速度。</p>
+<h2 id="gufo">gufo</h2>
+<p><a href="https://github.com/gufo-org/gufo">https://github.com/gufo-org/gufo</a><br/>
+这也是最近比较热门的一个引擎,不过原始仓库暂不支持windows，支持windows的版本放在别的仓库下了，而且最近也有了预编译版本。</p>
+<p><a href="https://github.com/pixmaate/gufo/releases/tag/windows-2026-10-03">https://github.com/pixmaate/gufo/releases/tag/windows-2026-10-03</a></p>
+<p>双击<strong>start.cmd</strong>就可以启动，会自动扫描本机的lmstudio模型目录，实测加载UD-Q4_K_XL只要30秒</p>
+<pre><code>  Qwen3.8 Flash Next UD-Q4_K_XL
+  C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF\Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
+
+  1 [x] Speculative decoding     MTP: mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf
+  2 [x] Prompt lookup            drafts copied from the context; big win on code edits
+  3 [x] Survival stopping        stop a draft chain once it is unlikely to be accepted
+  4 [ ] Latin draft vocabulary   RECOMMENDED for English: ~5% faster, output identical
+  5 [x] Images (vision)          mmproj-BF16.gguf
+  6 [x] Thinking                 reasoning before the answer (clients can still turn it off per request)
+  7     Context                  32K tokens per request  (press 7 to change)
+  8 [ ] Open to the network      this PC only (127.0.0.1)
+
+  ~83.8 GiB of GPU memory: spills
+  Enter = start   B = back   D = show the command   Q = quit
+port 8080 is taken by python (PID 47888), using 8081
+
+Qwen3.8 Flash Next UD-Q4_K_XL: MTP, survival, lookup, vision, 32K context, thinking on
+"C:\work\github\gufo-windows-2026-10-03\bin\gufo.exe" serve --host 127.0.0.1 --port 8081 --sessions 1 --max-request-bytes 33554432 llm --model C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF\Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf --served-model-name flash-next --context 32768 --max-output-bytes 8388608 --think on --temperature 1 --top-p 0.95 --top-k 20 --min-p 0 --speculative mtp --mtp-model C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF\mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf --mtp-policy survival --prompt-lookup --mmproj C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF\mmproj-BF16.gguf
+OpenAI API: http://127.0.0.1:8081/v1  model "flash-next"   (ready at event=listening; Ctrl+C stops)
+
+2026-10-10 00:03:14 [INFO] [loader] event=load_started kind=text artifact=C:\Users\xxxx\.lmstudio\models\unsloth\Qwen3.8-Flash-Next-GGUF\Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf rss_mib=32 host_available_mib=45118
+2026-10-10 00:03:44 [INFO] [loader] event=load_completed kind=text elapsed_ms=29572 model=flash-next sessions=1 context_tokens=32768 speculative=mtp draft_limit=7 disk_cache=off rss_mib=20849 host_available_mib=21303 gpu_device_used_mib=85111 gpu_device_total_mib=109277
+2026-10-10 00:03:44 [INFO] [server] event=listening address=http://127.0.0.1:8081 auth=off max_connections=16 max_body_bytes=33554432
+</code></pre>
+<p>GPU利用率峰值能到100%，同时CPU动静也不大<br/>
+<img alt="image-Aenf.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-Aenf.png" srcset="../../upload/image-Aenf.png?width=1600 1600w, ../../upload/image-Aenf.png?width=800 800w, ../../upload/image-Aenf.png?width=1200 1200w, ../../upload/image-Aenf.png?width=400 400w"/></p>
+<p>短提示词，decode_tps=48.6</p>
+<pre><code>2026-10-10 00:33:22 [INFO] [http] request=r23 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=174214.6 outcome=completed prompt_tokens=206 prefill_tokens=25 generated_tokens=8440 finish=stop cache=memory cached_tokens=181 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=4.8 ttft_ms=401.6 prefill_tps=63.1 decode_tps=48.6 batch_width=1 plan=serial-c1 draft_accepted=6729 draft_proposed=8239 acceptance_pct=81.7 lookup_accepted=293 lookup_proposed=503 cache_snapshot_bytes=251467180 rss_mib=21594 host_available_mib=20319
+</code></pre>
+<p>长提示词， prefill_tps=860.0 decode_tps=34.4</p>
+<pre><code>2026-10-10 00:37:42 [INFO] [http] request=r24 event=received method=POST path=/v1/chat/completions body_bytes=8697
+2026-10-10 00:46:11 [INFO] [http] request=r24 event=completed method=POST path=/v1/chat/completions status=200 duration_ms=509268.4 outcome=completed prompt_tokens=3229 prefill_tokens=3229 generated_tokens=17355 finish=stop cache=miss cached_tokens=0 cache_restore_ms=0.0 queue_depth=1 resident_at_admission=1 queue_ms=24.8 ttft_ms=3856.6 prefill_tps=860.0 decode_tps=34.4 batch_width=1 plan=serial-c1 draft_accepted=10558 draft_proposed=14525 acceptance_pct=72.7 lookup_accepted=415 lookup_proposed=624 cache_snapshot_bytes=415880308 cache_miss_reason=prefix_changed common_prefix_tokens=45 nearest_checkpoint_tokens=181 rss_mib=15689 host_available_mib=20512
+</code></pre>
+<p>再测了几组，prefill 能到1000 ，decode 34~38<br/>
+<img alt="image-iTQj.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-iTQj.png" srcset="../../upload/image-iTQj.png?width=1600 1600w, ../../upload/image-iTQj.png?width=800 800w, ../../upload/image-iTQj.png?width=1200 1200w, ../../upload/image-iTQj.png?width=400 400w"/></p>
+<p>虽然依旧没达到它官方宣称的速度，但这个gufo也非常能打了！</p>
+<blockquote>
+<p>gufo官方指标： 1,700.52 tok/s pp; up to 60.39 tok/s tg single user and 162.98 aggregated tok/s on 8 concurrent requests with MTP</p>
+</blockquote>
+<h2 id="其他调研">其他调研</h2>
+<p>下表是我用AI在网上调研出来的ai max 395 使用各种引擎跑qwen3.8-flash-next的情况，供参考</p>
+<table><thead><tr><th>引擎</th><th>量化</th><th>PP @8k</th><th>TG @8k</th><th>TG @256k</th></tr></thead><tbody><tr><td>llama.cpp HIP stock</td><td>UD-IQ4_XS</td><td>145.7</td><td>11.15</td><td>—</td></tr><tr><td>llama.cpp HIP + 官方 STRIX_LEAN</td><td>98.49GB</td><td>385</td><td>22.87</td><td>10.46</td></tr><tr><td>llama.cpp HIP + hipCUB/native TOP_K</td><td>ROCmFP4</td><td>—</td><td>47.1</td><td>—</td></tr><tr><td>halogen</td><td>.hgn 5.53bpw</td><td>~1,517</td><td>37.6（greedy）</td><td>—</td></tr><tr><td>gfx1151-engine</td><td>.hgn/GGUF</td><td>1,730–1,750</td><td>~34（投机 50–51）</td><td>投机仍 50–51</td></tr><tr><td>gufo</td><td>GGUF+DFlash2</td><td>1,628</td><td>—</td><td>最高 59（重复文本）</td></tr><tr><td>lucebox（395+R9700）</td><td>—</td><td>1,820 @16k</td><td>75</td><td>—</td></tr></tbody></table>
+<p>还有三款 128GB 融合内存设备的对比</p>
+<table><thead><tr><th>平台</th><th>引擎</th><th>量化 / 精度</th><th>上下文口径</th><th>Prefill t/s</th><th>Decode t/s</th><th>来源与口径备注</th></tr></thead><tbody><tr><td>AI Max+ 395</td><td>gfx1151-engine（手写 HIP，专用）</td><td>5.53 bpw 级高保真</td><td>8,192</td><td>1,730–1,750</td><td>标准 ~34；投机（greedy drafting）50–51</td><td>高保真档牺牲 ~16% 生成速度；router/expert 放 DRAM 压缩精度 + kernel 直接取</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>128K</td><td>~1,650</td><td>—</td><td>同一 README 曲线</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>256K</td><td>1,580–1,590</td><td>—</td><td>同上</td></tr><tr><td>AI Max+ 395</td><td>halogen（gfx1151 专用构建）</td><td>5.53 bpw 有效</td><td>8,192 → 131,072 全段</td><td>1,517–1,584</td><td>34.1–56.3（greedy 基线 ~37.6）</td><td>100k 上下文的续问 ~2 s（自带缓存）；完整基准让人去 Discord 报数，未公开</td></tr><tr><td>AI Max+ 395</td><td>gufo（官方 Linux，gfx1151+128GB）</td><td>UD-Q4_K_XL + shared-Q8_0 MTP</td><td>pp2048 / depth 0</td><td>1,628.5（无 MTP）<br/>~1,600（MTP）</td><td>26.0（无 MTP）</td><td>2026-09-23 BENCHMARKS.md</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>32K</td><td>1,421.9</td><td>24.3 / MTP mixed 30.7</td><td>同上</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>131K</td><td>1,292</td><td>21.9 / MTP mixed 28.1</td><td>同上</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>重复性负载 MTP</td><td>—</td><td>59.4 / 46.8 / 42.3（0 / 32K / 131K）</td><td>与 rep 相关，不能当通用值</td></tr><tr><td>AI Max+ 395（你的 Windows 机器，昨天我实测）</td><td>gufo windows-2026-10-03 + MTP survival</td><td>UD-Q4_K_XL + MTP-Q8_0</td><td>9,087 tok 冷提示</td><td>1,002–1,003（4 次复现，抖动 &lt;0.15%）</td><td>34.9–42.0</td><td>thinking on、max_tokens 60；命中 checkpoint cache 时 TTFT 9.26s → 0.09s（此时 pp/s 报 0，不能计入）</td></tr><tr><td>AI Max+ 395</td><td>llama.cpp HIP/ROCm（fork）</td><td>UD-Q4_K_XL</td><td>8,192</td><td>~385</td><td>修 top_k 前 16.8 → 修后 ~47</td><td>未修前 ggml_top_k 在 ne&gt;1024 回落 CPU，QSA indexer 每 token 跑 12 次</td></tr><tr><td>AI Max+ 395</td><td>llama.cpp ROCm</td><td>同上</td><td>pp512</td><td>351.6</td><td>MTP 开 ~33</td><td>MoE4All 报告里的同机对照</td></tr><tr><td>AI Max+ 395</td><td>MoE4All（Vulkan，无 ROCm）v0.5.2</td><td>Qwen3.8 全驻留 74 GB</td><td>pp512 / tg128</td><td>411.7</td><td>19.1</td><td>Linux/RADV 25.2.8；bf16 coopmat 不可用；0.6~0.9 未在 395 复测</td></tr><tr><td>AI Max+ 395</td><td>llama.cpp ROCm</td><td>UD-IQ1_S</td><td>未给</td><td>~200–300</td><td>~20</td><td>HF 讨论区社区自报，参数缺失</td></tr><tr><td>DGX Spark</td><td>vLLM NVFP4 + QWEN4EXP_PLE_MMAP=1/PLE_STAGED=1（blazux recipe，v0.31.0，dense 层 hybrid fp8-e4m3）</td><td>NVFP4</td><td>8,192–32,768</td><td>2,700–4,000</td><td>—</td><td>单台 GB10；需 9 个 overlay 补丁</td></tr><tr><td>DGX Spark</td><td>vLLM NVFP4（ai-muninn）</td><td>NVFP4</td><td>32K</td><td>1,666（另一档 1,269）</td><td>—</td><td>表从 NVMe 经 mmap 供</td></tr><tr><td>DGX Spark</td><td>vLLM（MiaAI 单台）</td><td>NVFP4</td><td>—</td><td>2,366</td><td>c=1 37；聚合 162.9</td><td>权重 ~130 GiB 落盘，KV_TARGET_GIB=20；多模态下 MTP 退化</td></tr><tr><td>DGX Spark</td><td>vLLM / NVIDIA forum recipe</td><td>NVFP4</td><td>编码/JSON 负载</td><td>—</td><td>43–47.5（代码）/ 60（JSON）；1/2/4 台峰值单流 64</td><td>单机 ~43 t/s 编码是社区共识值</td></tr><tr><td>DGX Spark</td><td>llama.cpp</td><td>UD-IQ1_S</td><td>pp2k / tg128</td><td>797.76</td><td>34.54</td><td>kubesimplify 实测</td></tr><tr><td>DGX Spark</td><td>llama.cpp</td><td>UD-Q4_K_XL</td><td>262,144，--parallel 1 强制</td><td>未测</td><td>19–22（密集负载 ~45）</td><td>-ot per_layer_token_embd=CPU + -lm mmap + -ngl 999 + KV f16，无 MTP</td></tr><tr><td>DGX Spark</td><td>SGLang TP2 + MTP</td><td>NVFP4</td><td>100K 深度</td><td>—</td><td>31（c=1）</td><td>TP2 = 两台 Spark</td></tr><tr><td>Mac M5 Max 128 GB</td><td>MTPLX 2.12.0</td><td>动态 4bit + QSA 投影保 8bit</td><td>4,061 tok 提示</td><td>1,453（加 5 个 prompt kernel 后更高）</td><td>74.1</td><td>thinking off / 512 tok / 风扇拉满 / 单流 / GPU 预算手动提到 120 GiB（默认 ~96 GiB）</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>65,502 tok</td><td>1,094（2.11.3 只有 768）</td><td>63.5</td><td>2.12.0 把每轮 verify 的整份 KV 拷贝改成原地写 → +13%</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>16,376 / 65,529（新 kernel 配对跑）</td><td>1,695 / 1,548</td><td>—</td><td>TTFT 11.3→9.7 s / 46.6→42.6 s；峰值内存两边同为 92.0 GB</td></tr><tr><td>同上</td><td>MTPLX 2.11.3</td><td>同上</td><td>9k 代码提示</td><td>—</td><td>79.3</td><td>2.11.2 同机 62.5（+27%）</td></tr><tr><td>同上</td><td>MTPLX 2.11.3</td><td>同上</td><td>109k / 200k</td><td>—</td><td>61.8 / 50.3</td><td>两条都是两次均值</td></tr><tr><td>同上</td><td>MTPLX 2.11.3</td><td>同上</td><td>18,539 tok 提示中 18,364 命中 cache</td><td>—</td><td>125.8</td><td>一次 OpenCode 请求，最快样本；含 cache 命中，不代表裸速</td></tr><tr><td>同上</td><td>MTPLX 2.10.1</td><td>同上</td><td>131K</td><td>810（block-sparse prefill）</td><td>—</td><td>262,144 tok 冷提示 355 s 跑完，峰值 87.4 GB</td></tr><tr><td>Mac M5 Max 128 GB</td><td>mlx-serve 26.9.3（其自测同机对打）</td><td>MLX</td><td>短提示 / ~16K</td><td>未给</td><td>精确默认 92.5 / 82.4；同机 MTPLX 精确 102.0 / 90.9</td><td>llmprobe 0.6.7，temp 1.0/top-p 0.95，depth 3，三次样本；mlx-serve 的 Typical 0.2/TokenV3 到 106.3/106.5 但自称不保证分布精确</td></tr><tr><td>Mac M4 Max 128 GB</td><td>mlx-serve 26.9.3 官方 release 表</td><td>mixed 4-8bit（26.8.11 起）</td><td>自家代码补全提示</td><td>未发布</td><td>80</td><td>只测这一台机器，temperature 0 + MTP 强制开，三次中位数</td></tr><tr><td>同上</td><td>mlx-serve 26.8.11（HF 包卡）</td><td>同上</td><td>同机</td><td>—</td><td>~60 串行 / 78 开 MTP</td><td>—</td></tr><tr><td>Mac M4 Max 128 GB Studio</td><td>oMLX（Lightning MTP，draft=6）</td><td>oQ 4bit gs64</td><td>5,999 tok 序列任务</td><td>215–220（15,416 tok 提示，TTFT 70–72 s）</td><td>83.06</td><td>temp 0 / seed 12345 / thinking off / chunked_prefill=false / balanced prefill / memory guard 自定义 120 GB。作者标注：这是"新鲜态受控测量"，跑完整 suite 后退化到 69.14 / 53.74 / 62.72</td></tr><tr><td>Mac M5 Ultra 256 GB Studio</td><td>oMLX</td><td>oQ4e-mtp</td><td>6,000 tok 提示读入 / 64K–256K 上下文</td><td>~1,700</td><td>&gt;100（短）；60–85（64K–256K）</td><td>实测横评；比 M3 Ultra 生成平均快 ~70%、prefill 平均 +150%；作者结论 5-bit 是甜点</td></tr><tr><td>Mac M1 Ultra 128 GB Studio</td><td>llama.cpp（Metal/BLAS graph-kernel 分支，-lm mmap）</td><td>UD-Q8_0</td><td>100,000</td><td>465.45</td><td>35.28</td><td>tarruda 自报，llama-bench 口径（-p 512 -n 128，深度 10k–30k 扫描，-t 16）</td></tr><tr><td>同上</td><td>同上</td><td>同上</td><td>200,000</td><td>309.67</td><td>28.16</td><td>作者称 decode 基本不掉</td></tr><tr><td>同上</td><td>llama.cpp stock</td><td>UD-IQ1_S</td><td>~未给</td><td>~400</td><td>~20</td><td>8/26 首发报告</td></tr><tr><td>Mac M5 Max 64 GB</td><td>llama.cpp AD-4.27bpw-Q4_K_M-M64</td><td>4.27 bpw</td><td>pp512 / tg128</td><td>517.9</td><td>36.0</td><td>必须 sudo sysctl iogpu.wired_limit_mb=57344，-fit off，mmap 保持开</td></tr><tr><td>Mac M1 Max 64 GB</td><td>llama.cpp AD-3.84bpw-IQ4_XS-M64（45.8 GB 驻留 + 39.1 GB 留 SSD）</td><td>3.84 bpw</td><td>pp512 / tg128，-c 32768</td><td>181.7</td><td>17.6</td><td>wired 峰值 46.6 GiB + swap 23 GB</td></tr></tbody></table>
+<p>只看最高指标的排名：</p>
+<blockquote>
+<p>prefill : DGX SPARK (2700) &gt; AI MAX 395 (1750) ≈ MAC M5 MAX (1700)<br/>
+decode : MAC M5 MAX (125) &gt; DGX SPARK (64) &gt; AI MAX 395 (59)</p>
+</blockquote>
+<p>基本上可以这么判断，decode性能是完全靠内存带宽撑起来的，prefill性能则要看芯片设计和引擎的适配。虽然AI MAX 395在这三个设备中，仍然近乎垫底，但差距和第2并不大，而且还是唯一的x86_64设备，对windows生态天然友好，价格还最便宜。不过我目前仍然不建议仅仅基于想跑本地大模型而入手这个设备，因为二手独显服务器会更便宜且性能更好。</p>
+<h2 id="总结">总结</h2>
+<p>综合这一阵子的测试结果，意外的发现，windows+ai max 395跑qwen3.8-flash-next，获得最佳表现反而是非专业人员用claude开发的 <strong>gfx1151-engine</strong> （可以说连个正经的项目名字还没起）。另外由于我目前没有AI MAX 395的LINUX环境，以上测试不代表LINUX上的效果，据我目前所见，社区上基本上是把halogen-flash-server视为了最佳（不过最近gufo的热度也在起来）。而<strong>gfx1151-engine</strong>就是参考了halogen-flash-server的一个windows实现。</p>
+<p>如果已经下载了qwen3.8-flash-next的gguf参数文件，不想再额外下载一百多GB的hgn文件，建议就用gufo，因为gfx1151-engine在windows上还不支持读gguf,只能读halogen的hgn文件。</p>
+<p>在qwen4的下一个模型正式发布之前，qwen3.8-flash-next目前应该是最有性价比的真正可用的本地部署LLM了，个人认为没有之一。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../tags/ai/">AI</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="ai-amd-ai-max-395-qwen3.8-flash-next-test">【AI】AMD AI MAX 395运行qwen3.8-flash-next测试 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
