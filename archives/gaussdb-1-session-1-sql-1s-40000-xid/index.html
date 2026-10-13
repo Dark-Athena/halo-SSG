@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号 背景 众所周知，原生PG的32位xid设计是个令用户非常诟病的一个问题，跑到42亿个事务必须得处理事务号回卷。曾经有客户反馈过，他们在原生PG上跑一个业务系统，2天就要冻结回卷，维护起来很是麻烦。而GaussDB/openGauss的6">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号</h1>
+    <div class="meta">
+        
+        <span>2026-10-13</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb1个会话1次sql请求1秒钟狂涨四万个事务号">【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号</h1>
+<h2 id="背景">背景</h2>
+<p>众所周知，原生PG的<strong>32位xid</strong>设计是个令用户非常诟病的一个问题，跑到42亿个事务必须得处理事务号回卷。曾经有客户反馈过，他们在原生PG上跑一个业务系统，2天就要冻结回卷，维护起来很是麻烦。而GaussDB/openGauss的<strong>64位xid</strong>则让事务号的上限增加到了<strong>1800亿亿‌</strong>，是42亿个事务的<strong>42亿倍</strong>，可以说不用再担心xid回卷的问题。</p>
+<p>虽然GaussDB已经是64位xid了，但是这并不是简单地把32位xid类型全部改成64位xid类型，它的实现中仍然存在32位xid，具体原理本文不展开，想了解的请自行查阅文档或用AI分析openGauss源码。</p>
+<p>上上个月，某客户生产环境的GaussDB监控开始告警，一套<strong>刚上线半个月</strong>的GaussDB环境，事务号已经来到了<strong>二十亿</strong>。令人费解的是，这套数据库上的应用系统，是内部使用的，负载并不大，活动会话也不多，不是那种高频交易的系统，事务号不应该涨得那么快。</p>
+<p>由于华为之前有过预警，部分GaussDB内核版本，在事务号超过42亿的时候，特定的一些场景下会触发内核BUG，现象是执行SQL时索引扫描报错(预警编号：<strong>CLD-P-A-202582</strong>，GaussDB的预警不公开，细节请联系华为客服)。而客户使用的版本正好落在了存在此BUG的版本范围内。所以客户特意加了事务号的监控告警。本来想着一套业务量极少的系统应该不会触发这个告警，可没想到这个告警来得这么快。</p>
+<h2 id="分析">分析</h2>
+<p>该应用系统不会通过java去执行dml语句，都是调用的存储过程，而它所有的存储过程中，都没有在循环语句中使用<code>commit/rollback</code>，提交和回滚都是在循环外面的。</p>
+<p>检查了<code>dbe_perf.statement</code>,也并未发现可疑的SQL。</p>
+<p>所以，那种循环内执行dml+commit导致事务号激增的可能性不大。</p>
+<p>其实分析过原生PG xid暴涨场景的，可能还会怀疑一个东西，即<code>savepoint</code>。原生PG中，<code>savepoint</code>是通过<strong>子事务</strong>来实现的，不过这套应用系统里既没有显式的<code>savepoint</code>语句，也没有在jdbc上配置<code>autosave=always</code>。</p>
+<p>提到子事务，又不得不提plpgsql里的 <code>exception</code> ,在原生PG中，<code>exception</code>的块级回滚也是靠子事务来实现的，不过这套应用系统也不存在大量循环里再套含exception的plsql块的情况。</p>
+<p>对于ORACLE兼容场景，要求事务中出错可以语句级回滚，原生PG的方案大概率就会选择在jdbc里开autosave,但这对存储过程没用，因为JDBC里的autosave本质上是客户端自动发送了<code>savepoint</code>语句，但调用存储过程的时候，存储过程内的每个语句间无法自动插进去<code>savepoint</code>。</p>
+<p>于是乎，以PG为底子的二开数据库，往往会新增一个兼容性参数，让数据库服务端自动去加<code>savepoint</code>。GaussDB/openGauss便是用的这种方式:</p>
+<blockquote>
+<p>behavior_compat_options = '<strong>plstmt_implicit_savepoint</strong>'<br/>
+控制存储过程中更新语句的执行是否拥有独立的子事务。</p>
+<p>若设置此配置项，存储过程中每条更新语句前开启隐式保存点，EXCEPTION块中默认回退到最近的保存点，从而保证只回退失败语句的修改。该选项是为了兼容Oracle数据库的EXCEPTION行为。</p>
+</blockquote>
+<p>这个开关，在506~507版本，由于a_format_dev_version默认值是s7,而s7里就带了 <code>behavior_compat_options='display_leading_zero, end_month_calculate, plstmt_implicit_savepoint, truncate_numeric_tail_zero, char_coerce_compat, rownum_type_compat, aformat_null_test, aformat_regexp_match, disable_rewrite_nesttable, compat_cursor, allow_procedure_compile_check, plsql_security_definer, proc_outparam_override, proc_implicit_for_loop_variable, dynamic_sql_compat, proc_outparam_transfer_length, varray_compat, tableof_elem_constraints, current_sysdate, plsql_rollback_keep_user, enable_bpcharlikebpchar_compare, show_full_error_lineno, enable_crosstype_integer_operator, forbid_package_function_with_prefix, enable_case_when_alias, time_constexpr_compact, enable_use_ora_timestamptz, forbid_skip_tableof_empty_str_elem, sys_function_without_brackets'</code>, 因此本质上默认是开了<code>plstmt_implicit_savepoint</code>的。</p>
+<p>写程序时，逻辑里带上异常处理，是良好的开发习惯，往往开发规范里也会要求一定要带<code>exception</code>。该客户的存储过程是全部都带有<code>exception</code>的，因此极有可能是因为此因素导致。</p>
+<h2 id="模拟测试">模拟测试</h2>
+<p>创建了一张表，使用带<code>exception</code>的匿名块循环插入40000行，匿名块里面不提交，匿名块结束后自动提交，在循环开始前后结束后，从<code>pg_get_xidlimit</code>函数(这里用<code>txid_current</code>不对)里拿到下一个事务号，以此计算出事务号的增长，整个匿名块是作为一个sql语句发送给服务端的：</p>
+<pre><code class="language-sql">gaussdb=# set a_format_dev_version to s6;
+SET
+gaussdb=# set behavior_compat_options ='plstmt_implicit_savepoint';
+SET
+gaussdb=# create table t_1(a int);
+CREATE TABLE
+gaussdb=# declare
+gaussdb-# x1 int;
+gaussdb-# x2 int;
+gaussdb-# y1 timestamp;
+gaussdb-# begin
+gaussdb$#     select next_xid::text::int into x1 from pg_get_xidlimit();
+gaussdb$#     y1:=clock_timestamp();
+gaussdb$#     for i in 1..40000 loop
+gaussdb$#         insert into t_1 values (1);
+gaussdb$#     end loop;
+gaussdb$#     select next_xid::text::int into x2 from pg_get_xidlimit();
+gaussdb$#     raise notice 'start xid:%,end xid:%,diff:%',x1,x2,x2-x1;
+gaussdb$#     raise notice 'time :% ',clock_timestamp()-y1;
+gaussdb$#     exception when others then
+gaussdb$#     raise notice '%',sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  start xid:5023487,end xid:5063489,diff:40002
+NOTICE:  time :00:00:01.061652 
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# 
+</code></pre>
+<p>注意，我这个测试环境是没有任何其他业务负载的，如果有其他负载，理论上这个diff会比我测出来的结果要更大。</p>
+<p>可以看到循环结束后的下一个事务号和循环开始的下一个事务号之间相差<strong>40002</strong>，这和循环内部执行的insert语句次数是接近的。而这也仅仅只花了<strong>1.06</strong>秒钟，我这还是普通PC，如果机器性能更好，再多一些并发，可以预见这个事务号消耗会有多快。</p>
+<p>可能有些对数字不敏感的人感受不到，这里我大概估算一下，假设某个系统只有2个连接，使用上面这种方式24小时不停地写入，那么消耗的事务个数为<br/>
+<code>24*60*60*40000*2=6,912,000,000</code> ,<strong>69亿</strong>！尽管24小时不停是极端情况，而且写入的字段多时，每秒执行次数肯定会下降。但要注意，我这里只按2个连接数来算，真正的业务系统，从几十到几千个连接都是非常常见的。不要忘了原生PG的事务号只有<strong>42亿</strong>！</p>
+<p>当然，重点并不在于1秒钟会跑出多少个事务号，而是，客户的存储过程代码中，明明没有显式的<code>commit/rollback</code>,仅仅是个循环的DML，就让事务号飞速消耗了，几乎是执行一个dml语句就是一个事务！</p>
+<p>为了确认的确是否是<code>plstmt_implicit_savepoint</code>这个功能导致，我们可以再做两个测试：</p>
+<p><strong>一、去掉exception</strong></p>
+<pre><code class="language-sql">gaussdb=# declare
+gaussdb-# x1 int;
+gaussdb-# x2 int;
+gaussdb-# y1 timestamp;
+gaussdb-# begin
+gaussdb$#     select next_xid::text::int into x1 from pg_get_xidlimit();
+gaussdb$#     y1:=clock_timestamp();
+gaussdb$#     for i in 1..40000 loop
+gaussdb$#         insert into t_1 values (1);
+gaussdb$#     end loop;
+gaussdb$#     select next_xid::text::int into x2 from pg_get_xidlimit();
+gaussdb$#     raise notice 'start xid:%,end xid:%,diff:%',x1,x2,x2-x1;
+gaussdb$#     raise notice 'time :% ',clock_timestamp()-y1;
+gaussdb$#     --exception when others then
+gaussdb$#     raise notice '%',sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  start xid:5144733,end xid:5144734,diff:1
+NOTICE:  time :00:00:00.575441 
+NOTICE:  &lt;NULL&gt;
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# 
+</code></pre>
+<p>可以看到同样还是40000次插入，但事务号增长只有1了，同时这个时间开销也降到了0.575秒，几乎只有<code>exception</code>时的一半，也就是说使用子事务必然会导致性能的严重损耗。</p>
+<p><strong>二、保留<code>exception</code>,关闭<code>plstmt_implicit_savepoint</code>功能</strong></p>
+<pre><code class="language-sql">gaussdb=# set a_format_dev_version to s6;
+SET
+gaussdb=# set behavior_compat_options ='';
+SET
+gaussdb=# declare
+gaussdb-# x1 int;
+gaussdb-# x2 int;
+gaussdb-# y1 timestamp;
+gaussdb-# begin
+gaussdb$#     select next_xid::text::int into x1 from pg_get_xidlimit();
+gaussdb$#     y1:=clock_timestamp();
+gaussdb$#     for i in 1..40000 loop
+gaussdb$#         insert into t_1 values (1);
+gaussdb$#     end loop;
+gaussdb$#     select next_xid::text::int into x2 from pg_get_xidlimit();
+gaussdb$#     raise notice 'start xid:%,end xid:%,diff:%',x1,x2,x2-x1;
+gaussdb$#     raise notice 'time :% ',clock_timestamp()-y1;
+gaussdb$#     exception when others then
+gaussdb$#     raise notice '%',sqlerrm;
+gaussdb$# end;
+gaussdb$# /
+NOTICE:  start xid:5185087,end xid:5185089,diff:2
+NOTICE:  time :00:00:00.585661 
+ANONYMOUS BLOCK EXECUTE
+gaussdb=# 
+</code></pre>
+<p>可以看到这里事务号增长加了2，和前面一个测试相比，也就是exception增加了1个子事务。</p>
+<h2 id="结论">结论</h2>
+<p>根据以上测试，可以论证<code>plstmt_implicit_savepoint</code>这个功能在有循环dml且带exception的存储过程里，是会极大加速事务号的消耗的，并且还会带来比较大的性能下降。但好在GaussDB已经是64位xid，影响也就只有性能了（不考虑bug的情况下）。</p>
+<h2 id="生产环境验证">生产环境验证</h2>
+<p>找到一个有循环dml次数多的存储过程业务，先查一下当前事务号<code>txid_current()</code>，然后跑一下业务，再查一下当前事务号<code>txid_current()</code>，发现数字暴涨了。根据该业务执行频率，大概可得该业务半个月能涨多少事务号，类似方法估算其他业务，合计起来符合该环境整体的事务号增长速度。</p>
+<h2 id="建议">建议</h2>
+<p>如果应用系统不依赖语句级回滚这个特性，所有的逻辑写的都是只要报错就把未提交的回滚，那么完全可以关闭掉<code>plstmt_implicit_savepoint</code>这个功能，这样不仅事务号增长会放缓，而且性能也能得到提高。</p>
+<p>如果依赖<code>plstmt_implicit_savepoint</code>这个功能，那么建议升级数据库或者打相关修复补丁。</p>
+<h2 id="延伸讨论">延伸讨论</h2>
+<p>我从部分渠道了解到，其他有些基于PG的国产数据库为了模拟ORACLE这种语句级回滚的能力，都是选择了autosave的方案，但有些并没有支持到64位xid，可想在其上的高频交易系统会面临怎样的窘境。</p>
+<p>以下是我用deepseek搜集到的源自PG且使用了64位xid的数据库，可能不全：</p>
+<table><thead><tr><th align="left">数据库</th><th align="left">与 PG 的关系</th><th align="left">64位事务号机制</th><th align="left">引入版本</th><th align="left">时间</th><th align="left">关键信息</th></tr></thead><tbody><tr><td align="left"><strong>Postgres Pro Enterprise</strong></td><td align="left">商业分支</td><td align="left"><strong>64 位 XID</strong></td><td align="left">9.6 / 13</td><td align="left">2018年1月 / 2021年6月</td><td align="left">9.6 版本文档已列出“64 位事务 ID 不受回卷影响”；13 版本将其作为核心企业特性正式对外发布。</td></tr><tr><td align="left"><strong>openGauss</strong></td><td align="left">华为开源分支</td><td align="left"><strong>64 位 XID</strong></td><td align="left">2.0.1</td><td align="left">2019年</td><td align="left">openGauss 将 XID 从 32bit 改为 64bit，官方对比文章明确提及此变化；openGauss 于 2019 年 9 月首次开源，2.0.1 是当时已发布的最新版本。</td></tr><tr><td align="left"><strong>GaussDB</strong></td><td align="left">华为商业版（openGauss 同源）</td><td align="left"><strong>64 位 XID</strong></td><td align="left">未明确</td><td align="left">未明确，但肯定早于openGauss</td><td align="left">华为官方文档确认 GaussDB 内部 XID 为 64 位，彻底解决回卷问题，但未公开具体引入版本。</td></tr><tr><td align="left"><strong>PolarDB for PostgreSQL</strong></td><td align="left">阿里云 PG 分支</td><td align="left"><strong>64 位 CSN</strong></td><td align="left">2.0（兼容 Oracle 版）</td><td align="left">2022 年 11 月</td><td align="left">2.0 版本引入 CSN 事务快照机制，使用单调递增的 64 位整数替代原生 xid 进行 MVCC 可见性判断。</td></tr><tr><td align="left"><strong>KingbaseES</strong></td><td align="left">电科金仓 PG 分支</td><td align="left"><strong>64 位 MXID → 64 位 XID</strong></td><td align="left">V9 → V009R002C016</td><td align="left">2026年8月28日</td><td align="left">V9 引入 64 位 MXID 解决 MXID 回卷；V009R002C016 版本将 XID 全面扩展至 64 位，避免 32 位 XID 回收不及时导致的业务中断。</td></tr></tbody></table>
+<p>当然，解决事务id只有42亿的问题，并不只有64位xid这一种方案；而且事务号强制冻结回卷这种机制也不一定非要沿用；语句级回滚的支持也并非必须走<code>savepoint</code>。只是各家都倾向于使用市面上已经较为成熟的公开方案。这里我不评价优劣，但原生PG至今(2026)仍然遗留了42亿xid回卷的"<strong>特性</strong>"，可以说是相当遗憾了。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../again--amd-ai-max-395-run-qwen3.8-flash-next">【AI】再测--amd ai max 395 运行Qwen3.8-flash-next &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
