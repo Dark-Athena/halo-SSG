@@ -6,6 +6,21 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【openGauss】排查一起panweidb2.0子链接提升的coredump案例</title>
+      <link>https://www.darkathena.top/archives/panweidb-sublink-pullup-coredump-case</link>
+      <description>【openGauss】排查一起panweidb2.0子链接提升的coredump案例 背景 最近同事收到panweidb2.0一起故障请求，说是有在B库里，一个7张表关联的查询SQL，大概六十几行，只要只执行，数据库就coredump了，同事就把建表语句和SQL发我，让我来分析一下。 另外，同事提醒</description>
+      <pubDate>Sat, 31 Oct 2026 14:11:06 +0000</pubDate>
+    </item>
+    <item>
+      <title>wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障</title>
+      <link>https://www.darkathena.top/archives/wslc-hang-zombie-session</link>
+      <description>wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障 背景 前两天在 WSL 里跑着几个容器，用完正常把它们全停了。结果再执行 wslc ps -a 就彻底卡住了： $ wslc ps -a
+（光标闪烁，无输出、无报错、无超时）
+ 不报错也不返回，就那么挂着。这种故障最烦人，因为你连错</description>
+      <pubDate>Sat, 31 Oct 2026 14:11:00 +0000</pubDate>
+      <category>docker</category>
+    </item>
+    <item>
       <title>【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号</title>
       <link>https://www.darkathena.top/archives/gaussdb-1-session-1-sql-1s-40000-xid</link>
       <description>【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号 背景 众所周知，原生PG的32位xid设计是个令用户非常诟病的一个问题，跑到42亿个事务必须得处理事务号回卷。曾经有客户反馈过，他们在原生PG上跑一个业务系统，2天就要冻结回卷，维护起来很是麻烦。而GaussDB/openGauss的6</description>
@@ -307,18 +322,6 @@
       <link>https://www.darkathena.top/archives/halo-for-yashandb</link>
       <description>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 【YaShanDB】给YaShanDB开发R2DBC驱动 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了 AI Coding 这次我连编辑器都懒得打开了，直接github上找agent开干，中</description>
       <pubDate>Sat, 28 Mar 2026 09:53:49 +0000</pubDate>
-    </item>
-    <item>
-      <title>【YaShanDB】给YaShanDB开发R2DBC驱动</title>
-      <link>https://www.darkathena.top/archives/yashandb-r2dbc-driver-dev</link>
-      <description>【YaShanDB】使用AI给YaShanDB开发R2DBC驱动 背景 崖山数据库作为一款发布没多少年的纯自研数据库，在内核设计上非常亮眼，而且也通过了国测，但是周边的应用生态还有不少欠缺。最近打算让HALO博客的后台支持崖山数据库，但是却发现崖山数据库官方竟然没有R2DBC驱动，就想着看能不能给崖</description>
-      <pubDate>Sat, 28 Mar 2026 09:53:45 +0000</pubDate>
-    </item>
-    <item>
-      <title>【ESXI】断电重启后NFS存储无法识别的修复方案</title>
-      <link>https://www.darkathena.top/archives/ESXi-Resolution-Guide-NFS-Datastore-Not-Recognized-After-Power-Outage-Recovery</link>
-      <description>【ESXI】处理一次断电恢复后，ESXI无法识别NFS存储的问题 问题描述 环境版本：ESXI 7.0.3 当ESXI主机配置了外置NFS存储时，如果发生断电后恢复，可能会出现以下问题： ESXI先于NFS存储启动，导致ESXI无法识别NFS存储 NFS存储启动后，ESXI不会自动恢复连接 安装在N</description>
-      <pubDate>Sat, 14 Mar 2026 17:31:57 +0000</pubDate>
     </item>
   </channel>
 </rss>

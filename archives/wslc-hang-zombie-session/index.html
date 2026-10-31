@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障 - DA-技术分享-静态站</title>
+    <meta name="description" content="wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障 背景 前两天在 WSL 里跑着几个容器，用完正常把它们全停了。结果再执行 wslc ps -a 就彻底卡住了： $ wslc ps -a
+（光标闪烁，无输出、无报错、无超时）
+ 不报错也不返回，就那么挂着。这种故障最烦人，因为你连错">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障</h1>
+    <div class="meta">
+        
+        <span>2026-10-31</span>
+        
+        <span>0 阅读</span>
+        
+        <a href="../../categories/docker/">docker</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="wslc-ps-卡死的排查一次停容器不停-vm引发的连环故障">wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障</h1>
+<h2 id="背景">背景</h2>
+<p>前两天在 WSL 里跑着几个容器，用完正常把它们全停了。结果再执行 <code>wslc ps -a</code> 就彻底卡住了：</p>
+<pre><code>$ wslc ps -a
+（光标闪烁，无输出、无报错、无超时）
+</code></pre>
+<p>不报错也不返回，就那么挂着。这种故障最烦人，因为你连错误信息都没有。</p>
+<h2 id="环境">环境</h2>
+<table><thead><tr><th>项目</th><th>值</th></tr></thead><tbody><tr><td>Windows</td><td>11 26H2，build 26300.9711</td></tr><tr><td>WSL / wslc</td><td>3.0.3.0</td></tr><tr><td>WSL 内核</td><td>6.18.54.1-1</td></tr></tbody></table>
+<h2 id="先搞清楚-wslc-到底是个啥">先搞清楚 wslc 到底是个啥</h2>
+<p>排查的第一步不是动手，是搞明白你面对的是什么。</p>
+<p><code>wslc</code> 并不是 <code>wsl.exe</code> 的一个子命令。它是 <strong>WSL 3.x 的容器 CLI</strong>，一个独立的可执行文件：</p>
+<pre><code>C:\Program Files\WSL\wslc.exe
+  InternalName:     wslc.exe
+  FileDescription:  Windows Subsystem for Linux Container CLI
+  FileVersion:      3.0.3.0
+</code></pre>
+<p>同目录还有个 <code>wslcsession.exe</code>（Description：Windows Subsystem for Linux Containers User Session），它是会话管理器，以 <code>-Embedding</code> 方式挂在 svchost 下的 COM 服务。</p>
+<p>每个 Session 有独立的虚拟磁盘，放在 <code>%LOCALAPPDATA%\wslc\sessions\&lt;会话名&gt;\</code> 下面，我这里是 54.4GB 的 <code>storage.vhdx</code>。</p>
+<h2 id="排查过程">排查过程</h2>
+<h3 id="第一步找到能返回和不能返回的分界线">第一步：找到「能返回」和「不能返回」的分界线</h3>
+<p>这是整个排查里最有价值的一步。把能跑的命令都跑一遍，结果非常整齐：</p>
+<table><thead><tr><th>命令</th><th>结果</th><th>是否需要进会话</th></tr></thead><tbody><tr><td><code>wslc version</code></td><td>秒回</td><td>否</td></tr><tr><td><code>wslc --help</code></td><td>秒回</td><td>否</td></tr><tr><td><code>wslc info</code></td><td>秒回</td><td>否</td></tr><tr><td><code>wslc system session list</code></td><td>秒回</td><td>否</td></tr><tr><td><code>wslc ps -a</code></td><td><strong>无限卡住</strong></td><td>是</td></tr><tr><td><code>wslc images</code></td><td><strong>无限卡住</strong></td><td>是</td></tr></tbody></table>
+<p>分界线清清楚楚：<strong>不依赖 Session 的命令全部正常，凡是要进 Session 干活的，全部挂死。</strong></p>
+<p>于是怀疑范围一下就缩小到了「会话层」，而不是网络、不是安装损坏、不是内核。</p>
+<p>为了再确认一下不是网络问题，我把卡住的进程抓下来看了它的连接：</p>
+<pre><code>=== 该进程的网络连接 ===
+(无 TCP/UDP 连接)
+</code></pre>
+<p>零连接。它是卡在本地 IPC 上等一个永远不会来的响应，跟网络、跟 HTTP 代理一点关系没有。</p>
+<h3 id="第二步僵尸会话">第二步：僵尸会话</h3>
+<p>既然怀疑会话层，就看会话：</p>
+<pre><code>$ wslc system session list
+ID        创建者 PID   显示名称
+1         82928     wslc-cli-DarkAthena
+</code></pre>
+<p>有个 Session 1，创建者 PID 是 <strong>82928</strong>。拿这个 PID 去查：</p>
+<pre><code>PS&gt; Get-Process -Id 82928
+&gt;&gt;&gt; 不存在！会话创建者进程已消失 —— 僵尸会话确认
+</code></pre>
+<p>破案了。<strong>Session 的宿主进程早就没了，但会话管理器 <code>wslcsession.exe</code> 的账本里还把它列为活动会话。</strong> 所有命令进去执行，就在那儿干等着一个死人回话，自然永远不会返回。</p>
+<p>这也解释了第一步的分界线：<code>wslc info</code> 只是问会话管理器要个清单，管理器自己能答；<code>wslc ps</code> 是要 Session 干活的，Session 是死的，自然挂死。</p>
+<h3 id="第三步还有一把锁">第三步：还有一把锁</h3>
+<p>按说把僵尸会话清掉就该好了。执行官方命令试试：</p>
+<pre><code>$ wslc system session terminate
+（卡住，30s 无响应）
+</code></pre>
+<p>有意思，<code>terminate</code> 自己也卡住了——它同样得先进会话，典型的死锁。干掉它，直接送 <code>wslcsession.exe</code> 上路（COM 服务，杀掉会自动重新激活一个干净的）：</p>
+<pre><code>PS&gt; Stop-Process -Id 85468 -Force
+</code></pre>
+<p>再看会话表，干净了：</p>
+<pre><code>$ wslc system session list
+ID        创建者 PID   显示名称
+（空）
+</code></pre>
+<p>兴冲冲跑 <code>wslc ps -a</code>，这次不卡了，4 秒返回，但是甩出来一个新错误：</p>
+<pre><code>$ wslc ps -a
+另一个程序正在使用此文件，进程无法访问。
+错误代码： ERROR_SHARING_VIOLATION
+</code></pre>
+<p>第二层故障浮出水面：<strong>54.4GB 的 <code>storage.vhdx</code> 被别的进程独占锁着，新 Session 根本挂不上盘。</strong></p>
+<p>谁干的？看进程：</p>
+<pre><code>wslcsession.exe   22388
+vmcompute.exe     16184
+vmwp.exe          69116    创建于 2026/10/28 15:02:44，父进程 vmcompute
+</code></pre>
+<p>关键在这儿——我本机 4 个发行版全都是 <code>Stopped</code>：</p>
+<pre><code>  NAME                    STATE           VERSION
+* Ubuntu-24.04            Stopped         2
+  rancher-desktop         Stopped         2
+  rancher-desktop-data    Stopped         2
+  Ubuntu-26.04            Stopped         2
+</code></pre>
+<p>发行版全停了，却有个 <code>vmwp</code>（虚拟机工作进程）还活着。再看时间戳，严丝合缝：</p>
+<table><thead><tr><th>证据</th><th>时间</th></tr></thead><tbody><tr><td><code>vmwp</code> PID 69116 创建（父进程 <code>vmcompute</code>）</td><td><strong>10/28 15:02:44</strong></td></tr><tr><td>会话 <code>swap.vhdx</code> 写入</td><td><strong>10/28 15:02:46</strong></td></tr></tbody></table>
+<p><code>vmwp</code> 69116 就是那个僵尸 Session 的虚拟机，它从 10/28 起一直攥着磁盘不松手。</p>
+<h2 id="权限的天花板">权限的天花板</h2>
+<p>剩下的事就是把这个 <code>vmwp</code> 弄走。于是有了这张很说明问题的表：</p>
+<table><thead><tr><th>手段</th><th>结果</th><th>原因</th></tr></thead><tbody><tr><td><code>taskkill /F /PID 69116</code></td><td><strong>拒绝访问</strong></td><td><code>vmwp</code> 是 PPL 受保护进程，管理员也杀不掉</td></tr><tr><td><code>Get-VM</code> / <code>Stop-VM</code></td><td>不可用</td><td>本机没装 Hyper-V 管理工具，<code>vmms</code> 服务也不存在</td></tr><tr><td><code>Stop-Service vmcompute -Force</code></td><td><strong>卡在「正在停止」，停不下来</strong></td><td>服务要停时得等 VM worker 清理，而那个 worker 卡着，两边互等</td></tr><tr><td><code>wsl --shutdown</code></td><td>1 秒返回，<strong>无效</strong></td><td>wslc 的 Session VM 不在 wslservice 账本里，<code>wsl -l -v</code> 压根看不见它</td></tr><tr><td>杀 <code>wslcsession.exe</code></td><td><strong>成功</strong></td><td>用户态 COM 服务，可重建</td></tr></tbody></table>
+<p>这张表里最有意思的是 <code>wsl --shutdown</code> 那一行。<strong>wslc 的会话虚拟机压根不在 <code>wslservice</code> 的管理范围内</strong>，所以 <code>wsl -l -v</code> 永远列不出来它，常规的 WSL 排障手段一个都够不着它。这也是这类故障难查的根源——所有熟悉的命令都告诉你「一切正常」。</p>
+<p>最后 <code>Stop-Service vmcompute</code> 卡在「正在停止」出不来，没辙，重启机器，一了百了。重启后 <code>wslc ps -a</code> 恢复正常，50GB 盘里的镜像和容器都还在，数据无损。</p>
+<h2 id="复盘那-15gb-内存到底该不该管">复盘：那 1.5GB 内存到底该不该管</h2>
+<p>回到开头。故障当天下午我是这么操作的：正常停掉所有 wslc 容器之后，发现任务管理器里 <code>vmmemwslc-cli-DarkAthena</code> 进程还占着不少内存，过了几个小时还有 1.5GB。于是尝试在任务管理器里结束它，报错，没结束成功，就先没管了。</p>
+<p>先回答一个问题：<strong>这个 kill 操作是不是故障的直接原因？</strong></p>
+<p>按最简单的逻辑分析，它是一个「失败的操作」，理论上没改变任何状态。而且 <code>vmmem*</code> 这类进程本身也是受保护的，任务管理器结束不掉很正常。所以我倾向于认为它<strong>不是直接凶手</strong>。</p>
+<p>但它绝不是无关操作，因为它暴露的东西才是真正的根因。</p>
+<p>要点有三个：</p>
+<p><strong>1. 停容器不等于停 VM。</strong></p>
+<p><code>vmmemwslc-cli-DarkAthena</code> 这个进程，本质上是 Windows 给这个虚拟化工作负载做的「内存记账」载体，它在任务管理器里代表 Session VM 占了多少内存。停掉容器只是让 VM 里没进程跑了，<strong>VM 本身还活着</strong>，内存自然不释放。</p>
+<p>也就是说，「停了容器还占 1.5GB」不是内存泄漏，是** VM 压根没关**。而我盯着的那个 <code>storage.vhdx</code> 锁，正是这同一台没关的 VM 持有的。</p>
+<p><strong>2. 宿主进程退出了，VM 却留下了。</strong></p>
+<p>会话创建者 PID 82928 在故障发生前就已经不存在了。这是个拉胯的地方：宿主进程退出时没有把 VM 一并收走，VM 成了孤儿，而会话管理器账本里那条记录也没有被清理。两边一脱节，僵尸会话就这么诞生了。</p>
+<p>至于 82928 究竟是什么时候死的、死在什么环节，进程已消失无从追溯，<strong>这部分我只能猜想</strong>。</p>
+<p><strong>3. 别去 kill vmmem。</strong></p>
+<p>既杀不掉（受保护），即使能杀掉也没用——它只是个记账的表象，真正的实体是 <code>vmwp</code> 托管的虚拟机。想释放，得从虚拟机这一层动手。</p>
+<p>那正确的释放姿势是什么？</p>
+<pre><code class="language-bash"># 停容器之后，要释放资源得显式终止会话
+wslc system session terminate
+</code></pre>
+<p>注意，实测本机 <code>wsl --shutdown</code> 对这个 Session VM <strong>是无效的</strong>（前面那张表），别指望它。</p>
+<h2 id="总结">总结</h2>
+<p>一句话：这次故障的根子是 <strong>wslc 停容器不停 VM，宿主进程退出后 VM 与会话记录两边脱节</strong>，产出「僵尸会话 + 磁盘锁」的连环套，最终让所有进会话的命令永久挂起。</p>
+<p>几条实用建议：</p>
+<ul>
+<li><strong>排查判定</strong>：<code>wslc info</code> 秒回而 <code>wslc ps</code> 卡死，基本可以锁定是会话层故障，别往网络、代理、重装上浪费时间。</li>
+<li><strong>判定僵尸</strong>：<code>wslc system session list</code> 拿到创建者 PID，看它是否还活着，非常好使。</li>
+<li><strong>释放资源</strong>：用完容器想回收内存，走 <code>wslc system session terminate</code>，别手动去 kill <code>vmmem*</code>，杀不掉也没用。</li>
+<li><strong>兜底手段</strong>：万一走到 <code>vmwp</code> 持锁这一步，<code>vmcompute</code> 停不下来就直接重启。记得先把 <code>wslcsession.exe</code> 清掉，让它重建干净的会话表。</li>
+</ul>
+<p>最后说句实在的，wslc 这个东西在 <code>wsl -l -v</code> 里完全隐身，<code>wsl --shutdown</code> 又管不着它，出了问题所有熟悉的命令都说「一切正常」。这算不上 bug，但对排查的人来说确实不太友好。恐怕后面 WSL 得把这层账本也纳进统一管理，不然同类的问题还会再来一遍。</p>
+<p>本文仅代表个人排查过程，环境为 Windows 11 26H2 + WSL/wslc 3.0.3.0，不同版本表现可能有差异。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/docker/">docker</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../panweidb-sublink-pullup-coredump-case/">&larr; 【openGauss】排查一起panweidb2.0子链接提升的coredump案例</a>
+    
+    
+    <a href="../gaussdb-1-session-1-sql-1s-40000-xid/">【GaussDB】1个会话1次SQL请求1秒钟狂涨四万个事务号 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

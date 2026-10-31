@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【openGauss】排查一起panweidb2.0子链接提升的coredump案例 - DA-技术分享-静态站</title>
+    <meta name="description" content="【openGauss】排查一起panweidb2.0子链接提升的coredump案例 背景 最近同事收到panweidb2.0一起故障请求，说是有在B库里，一个7张表关联的查询SQL，大概六十几行，只要只执行，数据库就coredump了，同事就把建表语句和SQL发我，让我来分析一下。 另外，同事提醒">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【openGauss】排查一起panweidb2.0子链接提升的coredump案例</h1>
+    <div class="meta">
+        
+        <span>2026-10-31</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【openGauss】排查一起panweidb2.0子链接提升的coredump案例</p>
+<h1 id="背景">背景</h1>
+<p>最近同事收到panweidb2.0一起故障请求，说是有在B库里，一个7张表关联的查询SQL，大概六十几行，只要只执行，数据库就coredump了，同事就把建表语句和SQL发我，让我来分析一下。<br/>
+另外，同事提醒，这个用例在panweidb 3.0没有coredump。</p>
+<h1 id="初步判断">初步判断</h1>
+<p>panweidb2.0 会coredump ,但是3.0没有，自然会想到，可能是openGauss 5.0有BUG，在openGauss 6.0修掉了。所以我在我本地的openGauss 5.0.1里测了下，的确可以复现,在7.0里则正常执行。 （后面我在GaussDB 503.1.0SPC1700 版本测了，也会coredump,505以上就没问题了）</p>
+<p>接下来的目标则是：</p>
+<ol>
+<li>找到coerdump的源码级原因</li>
+<li>构造出最小化测试用例</li>
+<li>找到是哪个commit进行的修复</li>
+</ol>
+<p>以往，就是复现问题后，用gdb去看coredump文件，在去对源码，分析源码上下文逻辑，识别到问题，再看git历史记录。说着简单，但真正纯手动去做，耗时估计也得有个半天到一天吧。</p>
+<p>不过，现在有AI了，只要能复现，上面这些事就可以完全交给AI去干。</p>
+<p>本次我用colpilot-cli连我本地的deepseek-flash来分析。</p>
+<h1 id="根因诊断ai">根因诊断（AI）</h1>
+<h2 id="结论">结论</h2>
+<p><strong>这不是数据/磁盘问题，是 openGauss 5.0.1 规划器（子链接提升）缺陷导致的空指针解引用。</strong></p>
+<table><thead><tr><th>项</th><th>值</th></tr></thead><tbody><tr><td>信号</td><td><code>SIGSEGV, si_code=1 (SEGV_MAPERR), si_addr=0x4</code></td></tr><tr><td>崩溃点</td><td><code>list_nth_cell</code> ← <code>list_nth(NULL, 0)</code>，<code>var.cpp:1295</code></td></tr><tr><td>上层函数</td><td><code>flatten_join_alias_vars_mutator</code>（展开 JOIN RTE 别名）</td></tr><tr><td>进程</td><td>pid 789944（主进程）/ 崩溃线程 tid 790080</td></tr><tr><td>时间</td><td>2026-10-20 16:29:50（实例 16:28:48 启动，62 秒后崩溃）</td></tr></tbody></table>
+<h2 id="环境">环境</h2>
+<ul>
+<li>openGauss <strong>5.0.1 build 33b035fd</strong>，Kylin V10 x86_64，单机单 DN（<code>/opt/og501/data</code>，dn_6001）</li>
+<li>库为 B 兼容：<code>sql_compatibility=B</code>，走 <strong>dolphin 插件的 planner</strong>（已安装 dolphin.so，栈中可见）</li>
+<li>关键 GUC：<code>rewrite_rule=magicset</code>、<code>enable_bbox_dump=on</code>、<code>dolphin.optimizer_switch=default</code></li>
+<li>符号表 <strong>已于崩溃后 16:32 手工装入</strong> <code>$GAUSSHOME/bin</code>（<code>gaussdb0.symbol</code>，debuglink 一致，版本串与二进制逐字相同）；该 build 无 Build-ID</li>
+</ul>
+<h2 id="证据链">证据链</h2>
+<pre><code>#3 list_nth_cell (n=0, list=0x0)            list.cpp:637
+#4 list_nth (list=0x0, n=0)                 list.cpp:639
+#5 flatten_join_alias_vars_mutator (node=0x153b7ca6e3b0, context=...)  var.cpp:1295
+#6..19 expression_tree_mutator ×7（T_BoolExpr/T_OpExpr/T_CoalesceExpr）
+#20 flatten_join_alias_vars                 var.cpp:1229
+#22 preprocess_expression                   dolphin.so planner.cpp:2006
+#25 subquery_planner → #28 planner → #29 pg_plan_query → #31 exec_simple_query
+</code></pre>
+<p>崩溃指令（<code>flatten_join_alias_vars_mutator+1436</code>）：</p>
+<pre><code>mov 0x68(%r13),%rdi      ; r13 = RangeTblEntry 0x153b7ca6eb60, 0x68 = joinaliasvars
+lea -0x1(%rax),%esi      ; varattno-1 = 0
+call list_nth            ; list_nth(NULL,0) → 读 list-\&gt;length @ 0x4 → si_addr=0x4
+</code></pre>
+<p>触发 SQL（core 中 <code>exec_simple_query</code> 的 query_string 原文，节选）：</p>
+<pre><code class="language-sql">select count(1) from (SELECT pi.id ... FROM  piii
+  INNER JOIN  pi ... LEFT JOIN  bi ... LEFT JOIN  ci ...
+ WHERE ... AND NOT EXISTS (SELECT 1 FROM  cyi ...)
+   AND ( (current_date - piii.padt) \&lt;= 30
+      OR ( ... AND EXISTS (SELECT 1 FROM  mi ...)
+           AND ( COALESCE( (SELECT MAX(to_date(substring(mi2.pet,1,10),'yyyy-MM-dd'))
+                             FROM  mi2 WHERE mi2.pii = pi.id ...),
+                           (SELECT MAX(...) FROM  mi3 WHERE ...) ) \&gt;= current_date ))) t;
+</code></pre>
+<p>崩溃时 parse tree 的实际状态（core 中遍历 rtable，共 14 项）：</p>
+<pre><code> 9 cyi       kind=RTE_RELATION
+10 subquery  kind=RTE_SUBQUERY  (mi)
+11 subquery  kind=RTE_SUBQUERY  (mi2, tlist: max, ?column?)
+12 unnamed_join kind=RTE_JOIN jointype=JOIN_LEFT  colnames=0  joinaliasvars=NIL  ← 0 列 JOIN RTE
+13 subquery  kind=RTE_SUBQUERY  (mi3)
+14 unnamed_join kind=RTE_JOIN jointype=JOIN_LEFT  colnames=0  joinaliasvars=NIL  ← 0 列 JOIN RTE
+COALESCE 的两个参数: Var(varno=12,varattno=1,type=date), Var(varno=14,varattno=1,type=date)
+</code></pre>
+<h2 id="根因">根因</h2>
+<ol>
+<li><code>rewrite_rule=magicset</code> 打开后，计划阶段执行<strong>子链接提升</strong>：<code>subselect.cpp</code> <code>convert_expr_subink_with_agg_targetlist()</code> 把 COALESCE 里的两个 <code>MAX(...)</code> 标量子查询提升成 <code>LEFT JOIN</code>，并在 <code>subselect.cpp:5942</code> 用<br/>
+<code>addRangeTableEntryForJoin(NULL, NIL, JOIN_LEFT, NIL, NULL, true)</code> 追加一个<strong>占位用的 0 列 JOIN RTE</strong>（<code>parse_relation.cpp:1679</code> 直接令 <code>joinaliasvars = aliasvars = NIL</code>）。5776/6341 行是同样写法。</li>
+<li>重写后的 qual 中出现 <code>Var(varno=12/14, varattno=1)</code>，指向的正是这两个<strong>没有任何列</strong>的 JOIN RTE。</li>
+<li>随后 <code>subquery_planner → preprocess_qual_conditions → preprocess_expression</code> 对顶层 qual 无条件调用 <code>flatten_join_alias_vars()</code>；<code>var.cpp:1295</code> 假定 <code>joinaliasvars</code> 至少有 <code>varattno</code> 个元素，直接 <code>list_nth(NIL, 0)</code> → 段错误。</li>
+</ol>
+<p>已证实：崩溃点、非法 Var、0 列 JOIN RTE 及其产生代码。未证实：为何 varno 落在 12/14（空 JOIN RTE）而非 11/13（子查询 RTE）——这是该重写内部 varno 计算/后续偏移的具体缺陷，需带调试信息单步才能定性。</p>
+<h2 id="影响面与旁证">影响面与旁证</h2>
+<ul>
+<li>只有 <strong>1 个 core</strong>，即本次事件；<code>pg_log</code> 在 16:29:35 后完全静默，之后无重启记录，实例<strong>目前处于停止状态</strong>。</li>
+<li>启动日志有 <code>database system was not properly shut down; automatic recovery in progress</code>（16:28:49），说明更早一次是非正常关闭（最后一次日志为 2026-01-10），但无对应 core，无法确认是否同类崩溃。</li>
+</ul>
+<h2 id="处置建议">处置建议</h2>
+<ul>
+<li><strong>规避（会话级，先在测试环境验证）</strong>：该版本 <code>rewrite_rule</code> 支持 <code>disable_pullup_expr_sublink</code>（二进制校验串已确认），可试<br/>
+<code>SET rewrite_rule = 'disable_pullup_expr_sublink';</code> 后再跑该 SQL。</li>
+<li><strong>SQL 改写（更稳妥的临时方案）</strong>：把 COALESCE 内两个 <code>MAX(...)</code> 标量子查询改成一次预聚合的 LEFT JOIN / 临时表两步取数，避开提升路径。</li>
+<li><strong>上报内核</strong>：附 core、<code>ffic_gaussdb-2026-10-20_162950.log</code>、完整 SQL、<code>gaussdb --version</code>（5.0.1 build 33b035fd）与上述栈；这是 planner 产生非法 parse tree，非用户数据问题，加索引/调参无效。</li>
+</ul>
+<p>操作说明：全程只读，未改动实例、配置或 core；仅在 <code>/tmp</code> 生成过分析文件，已清理，保留一份完整栈 <code>/tmp/og501-core-bt.txt</code>。如需我启动 og501 实例做复现与 <code>rewrite_rule</code> 规避验证（会再次触发崩溃并生成新 core），请确认。</p>
+<hr/>
+<h2 id="最小化用例ai">最小化用例（AI）</h2>
+<pre><code class="language-sql">-- DDL：0 行数据即可，崩溃发生在计划阶段
+create table t1 (id int, d date);
+
+-- 崩溃语句
+select * from (
+  select 1 from t1 a
+   where (false
+          or coalesce((select max(b.d) from t1 b where b.id = a.id),
+                      (select max(b.d) from t1 b where b.id = a.id)) &gt;= current_date)
+) t;
+</code></pre>
+<p>实测结果：<code>connection to server was lost</code>，DN 进程整体退出，生成 <code>core-gaussdb-\&lt;pid\&gt;-*-bbox.lz4</code>。<strong>共复现 12 次，13 份 ffic 日志（含原始那次）栈完全一致</strong>：<code>si_addr=0x4</code>、<code>list_nth</code> ← <code>flatten_join_alias_vars_mutator</code>。</p>
+<h2 id="收敛过程每一条都是实测">收敛过程（每一条都是实测）</h2>
+<table><thead><tr><th>变体</th><th>结果</th></tr></thead><tbody><tr><td>单个聚合标量子查询 + OR + 派生表</td><td>不崩</td></tr><tr><td><code>COALESCE(子查询, 常量)</code></td><td>不崩</td></tr><tr><td><code>COALESCE(两个聚合子查询)</code>，AND 连接</td><td>不崩</td></tr><tr><td><code>COALESCE(两个聚合子查询)</code> + OR，<strong>无派生表</strong></td><td>不崩</td></tr><tr><td>两个<strong>非聚合</strong>标量子查询</td><td>不崩</td></tr><tr><td>两个<strong>无关联</strong>聚合子查询</td><td>不崩</td></tr><tr><td>三表版本（原始形状 3 表）</td><td>崩</td></tr><tr><td><strong>单表自关联（上例）</strong></td><td><strong>崩</strong></td></tr><tr><td><code>count(*)</code> 代替 <code>max()</code>（比较改 <code>\&gt;= 0</code>）</td><td>崩</td></tr><tr><td>A 兼容库（<code>postgres</code>）里同样语句</td><td><strong>也崩</strong>，栈相同</td></tr><tr><td><code>set rewrite_rule='disable_pullup_expr_sublink'</code></td><td><strong>不崩</strong>，正常返回</td></tr></tbody></table>
+<p><strong>崩溃三要素</strong>：① 外层派生表（子查询上拉，varno 偏移）；② WHERE 顶层是 OR（走 <code>convert_OREXPR/OREXISTS_to_join</code>）；③ <code>COALESCE</code> 内两个带聚合函数的相关标量子查询（各被提升为一个 LEFT JOIN，并追加 0 列的占位 JOIN RTE，<code>joinaliasvars=NIL</code>）。任一去掉都不崩，与数据量、列类型、是否 B 兼容无关。</p>
+<p>补充：<code>set rewrite_rule=''</code>（显示 <code>none</code>）<strong>仍然崩</strong>，说明与 <code>MAGIC_SET</code> 无关，只是 <code>disable_pullup_expr_sublink</code> 这个开关能剪掉该路径。</p>
+<hr/>
+<h1 id="修复commitai">修复commit（AI）</h1>
+<h2 id="已修复修复提交是-dfb53df30">已修复，修复提交是 <code>dfb53df30</code></h2>
+<p><strong>上游提交</strong>（opengauss/openGauss-server，Gitee）：<br/>
+<code>dfb53df3074ccab75d78fc6e9b5c32b962845052</code> — 作者 wangfeihuo，2024-09-26，标题“修复pullup导致的core问题”，并入 master 的 PR <strong>!6476</strong>（merge 提交 <code>3c8307560</code>）。<br/>
+<strong>6.0.0 回合</strong>（cherry-pick）：<code>da08958ae1a64b52ea88b7a40a59652fe912aeb8</code>，PR <strong>!6477</strong>（merge <code>e0c591eea</code>）。</p>
+<p>改动只有 7 行删除，落在 <code>src/gausskernel/optimizer/plan/subselect.cpp</code> 的 <code>convert_ORCLAUSE_to_join()</code>：</p>
+<pre><code class="language-c">// 删除前（有 bug）
+if (notNullExpr != NULL) {
+    notNullAnd = make_and_qual(notNullAnd, notNullExpr);   // ← 删
+    replace = true;
+}
+if (notNullAnd != NULL) {
+    or_clause = (BoolExpr*)replace_node_clause(or_clause, clause, notNullAnd, RNC_RECURSE_AGGREF); // ← 删
+}
+</code></pre>
+<p>即：不再把被提升子链接所在的 OR 分支整体替换成 “not null” 表达式。上一版 5.0.1 的那次替换会留下指向“0 列 JOIN RTE”的 Var，随后 <code>flatten_join_alias_vars_mutator</code> → <code>list_nth(NIL, 0)</code> 崩溃。这与我们 core 里观察到的 <code>varno=12/14</code>（两个 0 列 JOIN RTE）、<code>si_addr=0x4</code> 完全对应。</p>
+<p>同一函数族里还有一个更早的<strong>半修复</strong> <code>3f02e6568</code>（2024-05-07，“子查询中使用orderby数据丢失问题”），它只改了 <code>convert_OREXPR_to_join</code>，去掉了 <code>notNullTest</code> 的返回，不构成完整修复。</p>
+<h2 id="该提交自带回归用例与你的场景同族">该提交自带回归用例，与你的场景同族</h2>
+<p><code>src/test/regress/sql/sublink_pullup_enhance.sql</code> 新增：</p>
+<pre><code class="language-sql">select count(0) from (
+  select t1.* from t1
+  where (((select count(1) from t2 where t2.c1=t1.c1) +
+          (select count(1) from t3 where t3.c1=t1.c1)) \&gt; 0
+         or t1.c1 = 5)
+) tmp_count;
+</code></pre>
+<p>派生表 + OR + <strong>同一表达式里两个相关标量子查询</strong>，就是这次的形状。</p>
+<h2 id="我在本机做的版本对照实测">我在本机做的版本对照（实测）</h2>
+<table><thead><tr><th>版本</th><th>构建日期</th><th>该 SQL 结果</th></tr></thead><tbody><tr><td>openGauss 5.0.1 (33b035fd)</td><td>2023-12-15</td><td><strong>崩溃</strong>（日志：connection to server was lost）</td></tr><tr><td>openGauss 5.1.0 (b5a8d5b0)</td><td>2023-09-28</td><td><strong>崩溃</strong></td></tr><tr><td>openGauss-lite 6.0.0 (aee4abd5)</td><td>2024-09-29</td><td>正常，返回 <code>count=3</code>；我们的最小用例也正常</td></tr><tr><td>openGauss 7.0.0-RC3 (3700f950)</td><td>2026-07-27</td><td>正常</td></tr></tbody></table>
+<p>即：上游这条回归用例的 SQL，在 5.0.1 上照样把 DN 打挂 —— 直接证明该提交修的就是我们这个 bug。</p>
+<h2 id="5x-系列没有回合这一点很重要">5.x 系列没有回合，这一点很重要</h2>
+<p>按 tag 逐个核对 <code>subselect.cpp</code> 里 <code>notNullAnd</code> / <code>notNullTest</code> 是否残留：</p>
+<pre><code>v5.0.0 v5.0.2 v5.0.3 v5.0.5 v5.1.0  → 仍有（4 / 3 处），即未修复
+v6.0.0 v6.0.5 v6.0.6 v7.0.0          → 已无，即已修复
+</code></pre>
+<p>分支 HEAD <code>origin/5.0.0</code>、<code>origin/5.1.0</code> 也仍是老代码。<strong>结论：所有 5.0.x / 5.1.0 发布版都没有这个修复，你手上的 5.0.1 无法通过打小补丁消除，只能升级到 6.0.0 及以上（建议 6.0.5/6.0.6 或 7.0.0），或升级前用会话级规避。</strong></p>
+<p>另：2025-08-28 还有一条同族后续修复 <code>009c009b9</code> “fix count subquery with or sublink pullup”（仅 v7.0.0），去掉 <code>isnull</code> 参数传递，属于该路径的第二处缺陷。6.0.x 若遇到同族变体，需评估这条是否也要回合。</p>
+<h2 id="给你的可执行结论">给你的可执行结论</h2>
+<ol>
+<li>根治：升级 ≥ 6.0.0；升级前用 <code>set rewrite_rule='disable_pullup_expr_sublink';</code>（已实测可绕过，见 <code>/home/og501/repro_coredump_og501/</code>），或改写 SQL 避开 OR 中的双标量子查询。</li>
+<li>报障时可直接引用 <code>dfb53df30</code> / PR !6476 / !6477，并说明 5.x 未回合，要求给出 5.0.1 的修复版本或回合补丁。</li>
+<li>需要的证据材料（core、ffic 日志、最小用例、版本对照表）都已在机上的 <code>repro_coredump_og501</code> 目录。</li>
+</ol>
+<h1 id="总结">总结</h1>
+<p>AI回复的这些内容，我核实了，的确都是对的。对于这种可复现的开源数据库内核BUG，本地部署的flash级别模型都可以轻松诊断定位。（本文有点水，一次普普通通的常规AI使用罢了）</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/opengauss/">opengauss</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../wslc-hang-zombie-session/">wslc ps 卡死的排查：一次「停容器不停 VM」引发的连环故障 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
