@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】把GaussDB开发者版本做成88MB的docker镜像 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】把华为云公开下载的GaussDB开发者版本做成88MB的docker镜像 背景 2026年9月中旬，华为云总算是把GaussDB的安装介质提供了公开下载，不过需要注意的是，这次提供的安装包并非企业版，而是开发者版本： 版本号为：GaussDB_V2.0-10.0.0_trial 内">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】把GaussDB开发者版本做成88MB的docker镜像</h1>
+    <div class="meta">
+        
+        <span>2026-11-02</span>
+        
+        <span>56 阅读</span>
+        
+        <a href="../../categories/docker/">docker</a>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb把华为云公开下载的gaussdb开发者版本做成88mb的docker镜像">【GaussDB】把华为云公开下载的GaussDB开发者版本做成88MB的docker镜像</h1>
+<h2 id="背景">背景</h2>
+<p>2026年9月中旬，华为云总算是把GaussDB的安装介质提供了公开下载，不过需要注意的是，这次提供的安装包并非企业版，而是开发者版本：</p>
+<p>版本号为：GaussDB_V2.0-10.0.0_trial</p>
+<p>内核版本为：Kernel 507.0.T1 build 7b258e66</p>
+<p>官方下载页面：<a href="https://www.huaweicloud.com/intl/zh-cn/product/gaussdb/download.html">https://www.huaweicloud.com/intl/zh-cn/product/gaussdb/download.html</a></p>
+<p><img alt="image-kMPY.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-kMPY.png" srcset="../../upload/image-kMPY.png?width=1600 1600w, ../../upload/image-kMPY.png?width=800 800w, ../../upload/image-kMPY.png?width=1200 1200w, ../../upload/image-kMPY.png?width=400 400w"/></p>
+<p>这算是大放送了，不同操作系统加CPU架构，一共提供了12个安装包。</p>
+<p>我大概比较了下guc参数和一些内置视图的情况，个人判断这个版本应该和企业版的507.0.1比较接近，但是gaussdb这个二进制文件的大小还是略有偏差，暂不好判断内核功能是否真的完全一致。不过对于开发者来说，有了这个版本，总算能去正经地去给GaussDB做应用软件适配了，不需要自己花钱买云上的GaussDB服务，也不需要先自己装个openGauss搞一遍，然后再到客户环境重新适配一次GaussDB（虽然不过但是大概率由于版本差异，还是得测一遍）。</p>
+<p>我之前有做过GaussDB的容器版本，但是只提供了构建脚本，而且由于GaussDB的安装包当时华为并没有公开，所以我也没有把docker镜像放出来。</p>
+<p>现在有公开下载的安装包了，所以完全可以写个一键构建脚本。</p>
+<p>这种活我就不自己来了，直接给deepseek-flash一台kylinv10服务器，让它自己去干了。</p>
+<blockquote>
+<p>注：本文提供的方式不是官方的安装方式，只是平掉个人之前的一个意难平。如果想正经安装一次，建议还是遵循官方文档的操作 <a href="https://doc.hcs.huawei.com/db/zh-cn/gaussdbdev/26.861.0/install-dev/gaussdb-04-0001.html">https://doc.hcs.huawei.com/db/zh-cn/gaussdbdev/26.861.0/install-dev/gaussdb-04-0001.html</a></p>
+</blockquote>
+<hr/>
+<p><strong>ME:</strong></p>
+<blockquote>
+<p><a href="https://www.darkathena.top/archives/docker-build-kylinv10sp3-image-includ-gaussdb-runtime">https://www.darkathena.top/archives/docker-build-kylinv10sp3-image-includ-gaussdb-runtime</a><br/>
+<a href="https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb">https://www.darkathena.top/archives/build-a-docker-image-for-gaussdb</a><br/>
+参考这几篇文章，用GaussDB开发者版本，基于kylinv10sp3做一个最小化的GaussDB开发者版本的docker镜像，不需要om那些组件<br/>
+你可以使用192.168.1.80 这台机器进行开发构建，最后给我完整的构建脚本，数据库安装包在 <a href="https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441455696/GaussDB_V2.0-10.0.0_trial_Euler_X86_20260915102549.zip">https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441455696/GaussDB_V2.0-10.0.0_trial_Euler_X86_20260915102549.zip</a> <a href="https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441436677/GaussDB_V2.0-10.0.0_trial_Euler_ARM_20260915102549.zip">https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441436677/GaussDB_V2.0-10.0.0_trial_Euler_ARM_20260915102549.zip</a> ,另外，确认一下用gs_om安装时，默认参数是怎么配置的，和我之前entrypoint.sh脚本里507版本的有什么差异</p>
+</blockquote>
+<hr/>
+<h1 id="readme">README</h1>
+<p>GaussDB 开发者版最小化 Docker 镜像（Kylin V10 SP3，x86_64 / aarch64 自适应）</p>
+<p>基于你之前两篇文章的思路重做，产物是<strong>单机集中式内核</strong>，不含 om / cm / etcd / gns / gs_roach。构建脚本会按构建机架构自动选择安装包与镜像 tag。</p>
+<table><thead><tr><th>项</th><th>值</th></tr></thead><tbody><tr><td>数据库版本</td><td>GaussDB V2.0-10.0.0 trial，<strong>Kernel 507.0.T1</strong> build 7b258e66（2026-09-14 编译）</td></tr><tr><td>内核包</td><td><code>GaussDB-Kernel_507.0.T1_Euler_64bit.bin</code>（发布包里的 Server 组件，x86/ARM 同名，内容架构不同）</td></tr><tr><td>基础系统</td><td>Kylin V10 SP3，glibc 2.28，<code>dnf --installroot</code> 自建（架构跟随构建机）</td></tr><tr><td>镜像</td><td><code>gaussdb-dev:10.0.0-507.0T1-x86_64</code>，未压缩 <strong>399MB</strong>，xz 压缩 <strong>88MB</strong></td></tr><tr><td>系统层</td><td><strong>105MB</strong>（你之前文章里自建的是 191MB，DockerHub 那个是 609MB）</td></tr><tr><td>数据目录</td><td><code>/opt/gaussdb/data</code>，属主 <code>1000:1000</code></td></tr><tr><td>构建机</td><td>192.168.1.80（kylinv10sp3-node1，x86_64，docker 27.0.3）；ARM 版需在同架构 Kylin 机器上构建</td></tr></tbody></table>
+<h2 id="架构自适应x86_64--aarch64">架构自适应（x86_64 / aarch64）</h2>
+<p>脚本通过 <code>uname -m</code> 自动判断，无需改任何配置：</p>
+<table><thead><tr><th></th><th>x86_64</th><th>aarch64</th></tr></thead><tbody><tr><td>安装包目录</td><td><code>Euler2.10_X86_64</code></td><td><code>Euler2.10_arm_64</code></td></tr><tr><td>Server 组件</td><td><code>..._Server_X86_Developer.tar.gz</code></td><td><code>..._Server_ARM_Developer.tar.gz</code></td></tr><tr><td>内核 <code>.bin</code></td><td>96MB / x86-64</td><td>86MB / ARM aarch64</td></tr><tr><td>镜像 tag</td><td><code>...-x86_64</code></td><td><code>...-aarch64</code></td></tr><tr><td><code>numa_distribute_mode</code></td><td>不设</td><td><code>all</code>（entrypoint 内按 <code>uname -m</code> 追加）</td></tr><tr><td>工作目录</td><td><code>$WORK/x86_64</code></td><td><code>$WORK/aarch64</code></td></tr></tbody></table>
+<p>几个保障点：</p>
+<ul>
+<li>内层 tar 与 <code>.bin</code> 文件名两架构<strong>完全同名</strong>（<code>GaussDB_V2.0-10.0.0_trial_Euler_64bit_Server.tar.gz</code>），所以脚本全程用 <code>find</code> 动态定位，不硬编码路径。</li>
+<li>解压后校验 <code>file bin/gaussdb</code> 的架构，拿错包会直接报 <code>内核包架构与目标架构不符</code>。</li>
+<li><code>dnf --installroot</code> <strong>不能跨架构</strong>构建，脚本检测到 <code>ARCH</code> 与 <code>uname -m</code> 不符会立即退出并提示。</li>
+<li>构建末尾自动冒烟自检（镜像内执行 <code>gaussdb --version</code>），架构错配或缺系统库会当场暴露。</li>
+<li>可选包 <code>libstdc++ / libatomic / libgcc</code> 按当前架构仓库可用性动态决定装不装（ARM 包的 <code>dependency/lib</code> 比 x86 少一个 libstdc++，补上更稳）。</li>
+</ul>
+<p>ARM 机器上的用法完全一样：</p>
+<pre><code class="language-bash">./build_gaussdb_dev_image.sh            # 自动识别 aarch64
+# 或强制指定（调试用）
+ARCH=aarch64 ./build_gaussdb_dev_image.sh
+</code></pre>
+<h2 id="交付物">交付物</h2>
+<table><thead><tr><th>文件</th><th>说明</th></tr></thead><tbody><tr><td><code>build_gaussdb_dev_image.sh</code></td><td>一键构建脚本（entrypoint 内嵌，单文件即可交付，x86/ARM 通用）</td></tr><tr><td>机器上 <code>gaussdb-dev-10.0.0-507.0T1-*.tar.xz</code></td><td>已导出的镜像包，88MB</td></tr></tbody></table>
+<h2 id="关键发现比文章方案多踩的坑">关键发现（比文章方案多踩的坑）</h2>
+<ol>
+<li><strong>Euler 内核能在 Kylin 上跑</strong>。trial 包只有 <code>Euler_X86</code>，一开始担心 glibc 版本不匹配。实测 <code>strings bin/gaussdb | grep GLIBC_</code> 最高只到 <strong>GLIBC_2.28</strong>，正好等于 Kylin V10 SP3 的 glibc，直接在宿主机 <code>gaussdb --version</code> 就跑通了。所以不需要为它准备 Euler 基础镜像。</li>
+<li><strong>Kernel 507 的认证文件改名了</strong>：<code>pg_hba.conf</code> → <strong><code>gs_hba.conf</code></strong>。文章里 <code>gs_guc set -Z hba ...</code> 的写法在 507 上直接报 <code>unrecognized node type "hba"</code>，正确写法是去掉 <code>-Z</code>：<br/>
+<code>gs_guc set -D $PGDATA -h "host all all 0.0.0.0/0 md5"</code></li>
+<li><strong>不需要 <code>util-linux</code></strong>。文章里为了 <code>su</code>/<code>useradd</code> 装了 util-linux，多出约 50MB。本方案用 Docker 原生 <code>USER 1000:1000</code> 降权 + 手写 <code>/etc/passwd</code>，整个 util-linux/pam/shadow-utils 都不用装。</li>
+<li><strong><code>locale-archive</code> 可以直接删</strong>，不用 <code>localedef</code> 裁剪。rootfs 里已有独立的 <code>en_US.utf8/zh_CN.utf8/C.utf8</code> 目录形式，glibc 会回退使用，<code>locale -a</code> 正常。省掉 206MB，也省掉构建阶段那次 <code>build-locale-archive</code>。</li>
+<li><strong><code>dnf remove</code> 不要用</strong>。Kylin 源里 <code>coreutils</code> 依赖 <code>gmp</code>，删 <code>mpfr</code> 会连带删掉 <code>gmp</code>→<code>coreutils</code>→<code>head/ls</code> 全没。而 <code>dnf install</code> 又会被弱依赖强行带回 python3/tcl/sqlite（<code>rpm -q --whatrequires</code> 显示<strong>没有任何包依赖它们</strong>）。所以脚本改成「一次装齐 + 手工删文件」，删完直接 <code>rm -rf /var/lib/rpm</code>。</li>
+<li><strong>单层 <code>docker import</code> 比 <code>docker build</code> 更省</strong>。多阶段/多层构建里被 <code>rm</code> 掉的文件仍留在底层，<code>docker save</code> 时照样占体积。单层导入后，399MB 压到 88MB（≈内核包本身的 92MB），这就是压缩包比文章 146MB 小 40% 的原因。</li>
+<li><strong><code>date '2026-11-02'</code> 会报错</strong>（<code>invalid value "26-11-02" for "MON"</code>）。这是 507 内核对方言下日期字面量的解析行为，<code>datestyle</code> 确实是 <code>ISO, MDY</code>，与镜像无关；用 <code>to_date('2026-11-02','YYYY-MM-DD')</code> 或 <code>'2026-11-02'::date</code> 正常。</li>
+<li><strong><code>sh: more: command not found</code>（长输出翻页报错）</strong>。第 3 条不装 <code>util-linux</code> 的副作用：gsql 在<strong>交互式终端下输出超过一屏</strong>时会调 <code>$PAGER</code>，而 <code>PAGER</code> 未设置时的内置默认值是 <strong><code>more</code></strong>，<code>more</code> 属于 util-linux，被裁掉了，于是出现：
+<pre><code>gaussdb=# show behavior_compat_options;
+sh: more: command not found        &lt;-- gsql 用 sh -c 起的 pager
+</code></pre>
+注意这是被 <strong>gsql 自己</strong>起的 <code>sh</code> 打出来的，不是你在 shell 里敲的命令有问题；非交互（管道/重定向/<code>-c</code> 且非 tty）时 gsql 不会调 pager，所以脚本里从不复现。<br/>
+实测 507 的 gsql 二进制里只认 <code>PAGER</code>（<code>grep -a</code> 只捞到 1 处 <code>PAGER</code>、9 处 <code>LESS</code>，没有 <code>PSQL_PAGER</code>/<code>GSQL_PAGER</code>，与它基于老版 psql 代码一致），且它会自行 <code>setenv("LESS","FRX")</code>。<br/>
+修法二选一：装 <code>more</code>（+util-linux ~50MB，不划算）或<strong>装 <code>less</code> 并 <code>ENV PAGER=less</code></strong>（+190KB）。本镜像用后者，<code>docker import</code> 时带 <code>ENV PAGER=less</code> + <code>ENV LESS=FRX</code>；<code>docker exec</code> 会继承镜像 ENV，<code>docker run -e PAGER=cat</code> 可临时关掉分页。<br/>
+顺带补了 terminfo：原裁剪规则只留 <code>a/d/l/s/v/x</code> 六个目录，把 <code>t/</code> 删了，tmux 用户（<code>TERM=tmux-256color</code>）进来会报 unknown terminal，现已保留 <code>t/</code>（+572KB）。</li>
+</ol>
+<h2 id="系统包清单是怎么定出来的">系统包清单是怎么定出来的</h2>
+<p>不是猜的。把解压后 <code>bin/*</code> 和 <code>lib/*.so*</code> 全部用 <code>LD_LIBRARY_PATH=lib</code> 跑一遍 <code>ldd</code>，聚合所有落到 <code>/usr</code>、<code>/lib</code> 的系统 so，再用 <code>rpm -qf</code>（<code>readlink -f</code> 解开符号链接，避免误判成 <code>-devel</code> 包）反查归属，最终只有 6 个包：</p>
+<pre><code>glibc  keyutils-libs  libaio  libuuid  libxcrypt  ncurses-libs
+</code></pre>
+<p><code>libssl/libcrypto/libcurl/libxml2/libkrb5/libz/libzstd</code> 等全部由内核自带 <code>$GAUSSHOME/lib</code> 提供，不用装。<code>ldd</code> 里出现的 <code>libcom_err/libgssapi_krb5</code> 之类都是被自带库满足的，别被误导。</p>
+<h2 id="用法">用法</h2>
+<pre><code class="language-bash"># 构建（在对应架构的 Kylin 机器上，root）
+cd /data/gaussdb-mini/build
+./build_gaussdb_dev_image.sh            # 全流程，约 40 秒（不含首次 initdb）
+./build_gaussdb_dev_image.sh base       # 只重建最小系统 rootfs
+./build_gaussdb_dev_image.sh clean      # 清理中间产物
+
+# 下面示例用 x86_64 的 tag，ARM 机器上把后缀换成 -aarch64
+IMG=gaussdb-dev:10.0.0-507.0T1-x86_64
+
+# 启动（首启约 60 秒做 initdb，之后 6 秒内可连）
+docker run -d --name gaussdb --memory=4g -p 8000:5432 $IMG
+
+# 连接
+docker exec -it gaussdb gsql -d postgres
+docker exec -it gaussdb gsql -d postgres -U admin -WGaussdb@123 -h 127.0.0.1 -p 5432
+
+# 持久化（用命名卷，属主会继承，不用手动 chown）
+docker run -d --name gaussdb --memory=4g -p 8000:5432 \
+  -v gsdata:/opt/gaussdb/data $IMG
+
+# 导出/导入
+docker save $IMG | xz -T0 -6 &gt; gaussdb-dev.tar.xz
+docker load &lt; gaussdb-dev.tar.xz
+</code></pre>
+<h3 id="可用环境变量">可用环境变量</h3>
+<table><thead><tr><th>变量</th><th>默认</th><th>说明</th></tr></thead><tbody><tr><td><code>GS_PASSWORD</code></td><td><code>Gaussdb@123</code></td><td>initdb 口令 + admin 口令</td></tr><tr><td><code>GS_ADMIN_USER</code></td><td><code>admin</code></td><td>首启创建的系统管理员</td></tr><tr><td><code>GS_PORT</code></td><td><code>5432</code></td><td>库监听端口</td></tr><tr><td><code>GS_MAX_PROCESS_MEMORY_MB</code></td><td>自动</td><td>容器内存 ×0.665（对齐 gs_om 公式），限 2048~32768</td></tr><tr><td><code>GS_SHARED_BUFFERS_MB</code></td><td>自动</td><td>容器内存 ÷4，上限 1024（对齐 gs_om 单机模板 1GB），下限 128</td></tr></tbody></table>
+<p>内存参数<strong>按容器 cgroup 上限自动算</strong>：<code>--memory=4g</code> → <code>max_process_memory=2723MB / shared_buffers=1024MB</code>，不必手改。建议至少给 4G。</p>
+<h2 id="初始化参数来源gs_om-单机模板--tpops-507-分支">初始化参数（来源：gs_om 单机模板 + TPOPS 507 分支）</h2>
+<p>参数不是拍脑袋定的，冲突项按来源取舍：标 <strong>gs_om</strong> 的取 <code>guc_ci_centralized_list_8c_32g.xml</code>（gs_om 装单机时的默认模板），标 <strong>507</strong> 的取 TPOPS <code>entrypoint</code> 里 507 分支的值。</p>
+<table><thead><tr><th>参数</th><th>值</th><th>来源</th></tr></thead><tbody><tr><td><code>max_process_memory</code></td><td>容器内存×0.665</td><td>gs_om（原为公式 <code>PHYSIC_MEMORY*0.665/(N+MAX_MASTER_DATANUM_IN_ONENODE)</code>）</td></tr><tr><td><code>shared_buffers</code></td><td>1GB（小容器按 25% 缩）</td><td>gs_om</td></tr><tr><td><code>max_connections</code></td><td>1024</td><td>gs_om</td></tr><tr><td><code>maintenance_work_mem</code></td><td>64MB</td><td>gs_om</td></tr><tr><td><code>max_prepared_transactions</code></td><td>800</td><td>gs_om</td></tr><tr><td><code>effective_cache_size</code></td><td>512MB</td><td>gs_om</td></tr><tr><td><code>timezone</code> / <code>log_timezone</code></td><td>PRC / PRC</td><td>gs_om</td></tr><tr><td><code>wal_buffers</code></td><td>256MB</td><td>507</td></tr><tr><td><code>work_mem</code></td><td>64MB</td><td>507</td></tr><tr><td><code>ssl</code></td><td>off</td><td>507</td></tr><tr><td><code>session_timeout</code></td><td>0</td><td>507</td></tr><tr><td><code>log_min_duration_statement</code></td><td>100ms</td><td>507</td></tr><tr><td><code>thread_pool_attr</code></td><td><code>16,2,(nobind)</code></td><td>507</td></tr><tr><td><code>password_encryption_type</code></td><td>1（md5）</td><td>507</td></tr><tr><td><code>a_format_version</code> / <code>a_format_dev_version</code></td><td>10c / s6</td><td>507</td></tr><tr><td><code>behavior_compat_options</code></td><td>33 项（实测生效 33/33）</td><td>507</td></tr><tr><td><code>enable_alarm</code></td><td>off</td><td>容器内无 snas 告警组件</td></tr><tr><td><code>password_policy</code></td><td>0</td><td>开发者便利（内核默认 1）</td></tr></tbody></table>
+<p>几个和原 TPOPS 脚本不同的处理：</p>
+<ul>
+<li><code>sql_beta_feature</code> 去掉了 <code>a_style_coerce</code>（507 内核已不识别，设置后被静默丢弃），并去掉了值里的空格。</li>
+<li>原脚本的版本判断 <code>[ "$v" == "507.0.0" ]</code> 对 trial 版（<code>507.0.T1</code>）<strong>不成立</strong>，会导致 507 专属参数整块跳过；本镜像直接固定为 507 参数集，不存在这个问题。</li>
+<li>单机无意义的 <code>dcf_run_mode</code>、<code>dcf_rep_append_thread_num</code>、<code>most_available_sync</code>、<code>standby_shared_buffers_fraction</code> 未设置。</li>
+</ul>
+<h2 id="裁剪清单">裁剪清单</h2>
+<p>从内核包里删掉的（都是集群/备份/服务发现类，单机跑SQL用不到）：</p>
+<table><thead><tr><th>类别</th><th>文件</th><th>省</th></tr></thead><tbody><tr><td>DCF 元数据存储</td><td><code>bin/etcd</code>、<code>bin/etcdctl</code>、<code>lib/libetcdapi.so.1</code></td><td>64M</td></tr><tr><td>服务发现 GNS</td><td><code>bin/gns_ctl</code>、<code>bin/gns_server</code>、<code>gns_control.sh</code></td><td>34M</td></tr><tr><td>备份 Roach</td><td><code>bin/gs_roach</code></td><td>7.6M</td></tr><tr><td>DCF 工具</td><td><code>bin/dcf_tool</code></td><td>2.6M</td></tr><tr><td>应急/黑匣子/性能服务</td><td><code>gs_rescue</code>、<code>gs_rescue_tui</code>、<code>gs_blackbox</code>、<code>gs_perf_service</code></td><td>~4M</td></tr><tr><td>前端资源/杂项</td><td><code>echarts*.js</code>、<code>dbe_stats_tools.py</code>、krb5 服务端</td><td>~3M</td></tr><tr><td>AI/Python 扩展</td><td><code>libxgboost.so</code>、<code>libpyzenith.so</code>、<code>pyzenith.so</code></td><td>10M</td></tr><tr><td>告警配置</td><td><code>bin/alarmItem.conf</code>（trial 包自带解析缺陷，启动必报 <code>Invalid data in AlarmItem file</code>）</td><td>0</td></tr></tbody></table>
+<p>保留了 <code>libdcf.so</code>、<code>libremote.so</code>（gaussdb 会 <code>dlopen</code>，删了有风险）、<code>ecpg</code>、<code>gstrace</code>、<code>gs_dump/gs_restore</code>、全部编码转换插件和 <code>share/gaussdb</code>（系统表定义，不能删）。</p>
+<p>GAUSSHOME 从 405M 降到 287M，其中 <code>bin/gaussdb</code> 单文件就 157M，是压不下去的主体。</p>
+<h2 id="目录结构">目录结构</h2>
+<pre><code>镜像内
+/opt/gaussdb            GAUSSHOME（属主 gaussdb）
+├── bin/                gaussdb、gs_initdb、gs_ctl、gs_guc、gsql、gs_dump...
+├── lib/                自带 so + lib/gaussdb/ 编码/插件
+├── share/gaussdb/      系统表定义、SQL 脚本
+├── data/               PGDATA（命名卷挂这里）
+├── log/{pg_log,pg_audit,asp_data,pg_perf,sql_monitor}/dn_6001
+└── entrypoint.sh
+</code></pre>
+<h2 id="注意">注意</h2>
+<ul>
+<li><strong>首启慢是正常的</strong>：initdb + 建 admin + 重启，约 60 秒。日志出现 <code>[entrypoint] 启动 GaussDB</code> 后再等几秒即可连。</li>
+<li><strong>bind mount 宿主机目录要 chown</strong>：镜像以 <code>1000:1000</code> 运行，挂宿主机目录时目录属主是 root 会写不进去，entrypoint 会直接报错并提示 <code>chown -R 1000:1000</code>。用 <code>docker volume</code> 命名卷没这个问题。</li>
+<li>启动日志里可能有 1 条 <code>framework_wlmgr_cpuctrl_gscgroup.cpp</code> 相关的 ERROR：容器内没有 cgroup 写权限，WLM 的 cgroup 初始化失败，不影响使用。如需彻底安静，可在脚本 entrypoint 的参数数组里补一条 <code>-c "use_workload_manager = off"</code> 后重建。</li>
+<li>trial 版有 license 限制（单机、容量/时长），生产别用。</li>
+<li>想在容器里装东西（python 等）需 <code>docker exec -u 0</code>，镜像内没有包管理器和 yum 源。</li>
+<li><strong>ARM 上若端口映射不通</strong>（你之前文章里提过 docker 18 在 arm64 上映射不出端口），先用 <code>--net=host</code> 绕过，库直接监听宿主 5432。</li>
+</ul>
+<hr/>
+<h1 id="一键构建脚本">一键构建脚本</h1>
+<p>build_gaussdb_dev_image.sh</p>
+<pre><code class="language-bash">#!/bin/bash
+###############################################################
+# GaussDB 开发者版 最小化 Docker 镜像 一键构建脚本（x86_64 / aarch64 自适应）
+#
+#   基础系统 : Kylin V10 SP3（架构跟随构建机）—— dnf --installroot 生成
+#   数据库   : GaussDB V2.0-10.0.0 trial (Kernel 507.0.T1)
+#   组件范围 : 仅单机集中式内核，不含 om / cm / etcd / gns / gs_roach
+#
+# 构建机要求: Kylin V10 SP3（x86_64 或 aarch64）/ root / docker / 可访问 Kylin yum 源
+# 用法:  ./build_gaussdb_dev_image.sh           # 全流程
+#        ./build_gaussdb_dev_image.sh base      # 只做最小系统 rootfs
+#        ./build_gaussdb_dev_image.sh kernel    # 只下载解出内核 .bin
+#        ./build_gaussdb_dev_image.sh image     # 只装内核并打包镜像
+#        ./build_gaussdb_dev_image.sh clean     # 清理中间产物
+#        ARCH=aarch64 ./build_gaussdb_dev_image.sh   # 强制指定架构（默认取 uname -m）
+###############################################################
+set -euo pipefail
+
+#========================= 架构检测 =========================
+# 用 ARCH 环境变量可强制指定；默认取 uname -m
+ARCH_RAW="${ARCH:-$(uname -m)}"
+case "$ARCH_RAW" in
+  x86_64|amd64)          ARCH="x86_64"  ;;
+  aarch64|arm64|armv8*)  ARCH="aarch64" ;;
+  *) echo "[ERROR] 不支持的架构: $ARCH_RAW（仅支持 x86_64 / aarch64）" &gt;&amp;2; exit 1 ;;
+esac
+
+# 官方 trial 包下载地址（可用 PKG_URL 环境变量覆盖）
+PKG_URL_X86="https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441455696/GaussDB_V2.0-10.0.0_trial_Euler_X86_20260915102549.zip"
+PKG_URL_ARM="https://dbs-download.obs.cn-north-1.myhuaweicloud.com/GaussDB/1789441436677/GaussDB_V2.0-10.0.0_trial_Euler_ARM_20260915102549.zip"
+
+case "$ARCH" in
+  aarch64) DEFAULT_PKG_URL="$PKG_URL_ARM" ;;
+  *)       DEFAULT_PKG_URL="$PKG_URL_X86" ;;
+esac
+PKG_URL="${PKG_URL:-$DEFAULT_PKG_URL}"
+
+# 按架构分目录，避免同机先后构建两种架构时互相污染
+WORK="${WORK:-/data/gaussdb-mini/build}/$ARCH"
+IMAGE_NAME="${IMAGE_NAME:-gaussdb-dev}"
+IMAGE_TAG="${IMAGE_TAG:-10.0.0-507.0T1-$ARCH}"
+GAUSSHOME="/opt/gaussdb"          # 镜像内数据库安装目录
+GS_UID=1000                        # 容器内 gaussdb 用户 uid
+GS_GID=1000
+RELEASEVER="${RELEASEVER:-10}"     # Kylin V10 -&gt; 10
+
+# 必需系统包（x86_64 依据 gaussdb 全部二进制 ldd 结果反查 rpm 得出，aarch64 同构）
+# 注意保留 less：gsql 输出超过一屏时会调用 $PAGER 分页，未装 pager 会报
+# "sh: more: command not found"。默认 pager 是 more（属 util-linux，约 50MB，已裁掉），
+# 所以这里显式装 less（约 190KB）并在打包时把 PAGER 指到 less。
+BASE_PKGS=(
+  glibc glibc-common bash coreutils
+  libaio libuuid libxcrypt keyutils-libs ncurses-libs
+  procps-ng iproute findutils sed grep gawk
+  zlib openssl-libs tar gzip less
+)
+
+# 可选系统包：不同架构的仓库覆盖情况不同，存在才装，缺失不报错
+OPT_PKGS=(
+  libstdc++ libatomic libgcc
+)
+
+ROOTFS="$WORK/rootfs"
+KERNEL_BIN=""                      # 由 prepare_kernel 赋值
+
+#========================= 工具函数 =========================
+c_red()  { echo -e "\033[31m$*\033[0m"; }
+c_grn()  { echo -e "\033[32m$*\033[0m"; }
+c_ylw()  { echo -e "\033[33m$*\033[0m"; }
+step()   { c_grn "\n===== $* ====="; }
+die()    { c_red "[ERROR] $*"; exit 1; }
+
+need_root() { [ "$(id -u)" = "0" ] || die "请用 root 执行"; }
+
+# 下载 / 解出 GaussDB 内核自解压包(.bin)
+prepare_kernel() {
+  step "1/5 准备 GaussDB 内核二进制"
+  mkdir -p "$WORK"
+  cd "$WORK"
+
+  if [ ! -f pkg.zip ]; then
+    c_ylw "下载发布包: $PKG_URL"
+    curl -fL --retry 3 -o pkg.zip "$PKG_URL" || die "下载失败"
+  fi
+
+  if [ ! -d pkg_unzip ]; then
+    mkdir -p pkg_unzip
+    unzip -q -o pkg.zip -d pkg_unzip || die "解压 zip 失败"
+  fi
+
+  # 发布包结构:
+  #   &lt;OS 目录&gt;/server/&lt;...&gt;_Server_X86_Developer.tar.gz
+  #     -&gt; 内层 &lt;...&gt;_Server.tar.gz -&gt; GaussDB-Kernel_*.bin (7z 自解压)
+  if [ ! -d "$WORK/kernel" ]; then
+    local srv_tar inner
+    srv_tar=$(find pkg_unzip -type f -name "*Server*.tar.gz" | head -1)
+    [ -n "$srv_tar" ] || die "发布包内未找到 Server 组件"
+    mkdir -p ktmp kernel
+    tar -xzf "$srv_tar" -C ktmp
+    inner=$(find ktmp -type f -name "*_Server.tar.gz" | head -1)
+    if [ -n "$inner" ]; then
+      tar -xzf "$inner" -C kernel
+    else
+      inner=$(find ktmp -type f -name "GaussDB-Kernel*.bin" | head -1)
+      [ -n "$inner" ] || die "未找到 GaussDB-Kernel-*.bin"
+      cp "$inner" kernel/
+    fi
+    rm -rf ktmp
+  fi
+
+  KERNEL_BIN=$(find "$WORK/kernel" -maxdepth 1 -type f -name "GaussDB-Kernel*.bin" | head -1)
+  [ -n "$KERNEL_BIN" ] || die "未找到 GaussDB-Kernel-*.bin"
+  c_grn "内核包: $KERNEL_BIN"
+  c_grn "版本  : $(head -1 "$WORK/kernel/version.cfg" 2&gt;/dev/null || echo unknown)"
+}
+
+# 用 dnf --installroot 生成最小 Kylin V10 SP3 根文件系统
+build_rootfs() {
+  step "2/5 生成最小 Kylin V10 SP3 rootfs ($ARCH)"
+
+  # dnf --installroot 不能跨架构构建，构建机架构必须与目标一致
+  local host_arch
+  host_arch=$(uname -m)
+  case "$ARCH:$host_arch" in
+    x86_64:x86_64|aarch64:aarch64) ;;
+    *) die "目标架构 $ARCH 与构建机 $host_arch 不一致；dnf --installroot 无法跨架构构建，请在对应架构的 Kylin 机器上执行" ;;
+  esac
+
+  rm -rf "$ROOTFS"
+  mkdir -p "$ROOTFS"
+  cd "$WORK"
+
+  dnf --installroot="$ROOTFS" install -y \
+      --nodocs --nogpgcheck \
+      --setopt=install_weak_deps=0 \
+      --setopt=tsflags=nodocs \
+      --releasever="$RELEASEVER" \
+      --disablerepo=trzsz \
+      "${BASE_PKGS[@]}" || die "dnf installroot 失败（请确认本机 Kylin yum 源可用）"
+
+  # 可选包：只在当前架构仓库里存在时才装（如 aarch64 缺某些包不影响主流程）
+  local avail=() p
+  for p in "${OPT_PKGS[@]}"; do
+    dnf -q info "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; avail+=("$p")
+  done
+  if [ ${#avail[@]} -gt 0 ]; then
+    c_ylw "补充可选包: ${avail[*]}"
+    dnf --installroot="$ROOTFS" install -y \
+        --nodocs --nogpgcheck \
+        --setopt=install_weak_deps=0 \
+        --setopt=tsflags=nodocs \
+        --releasever="$RELEASEVER" \
+        --disablerepo=trzsz \
+        "${avail[@]}" || c_ylw "可选包安装失败，已忽略"
+  fi
+
+  du -sh "$ROOTFS"
+}
+
+# 手工瘦身（不走 dnf remove，避免连带删除 coreutils/glibc 等基础包）
+prune_rootfs() {
+  step "3/5 裁剪 rootfs"
+  local R="$ROOTFS"
+
+  # 文档、帮助、翻译、许可证
+  rm -rf "$R"/usr/share/{doc,man,info,locale,i18n,licenses,pki,python-wheels} 2&gt;/dev/null || true
+
+  # locale 归档 206MB —— 已有 en_US.utf8/zh_CN.utf8/C.utf8 独立目录形式，直接删
+  rm -f "$R"/usr/lib/locale/locale-archive "$R"/usr/lib/locale/locale-archive.tmpl
+
+  # 被 dnf 弱依赖顺带装入的 python3 / tcl（无其他包依赖它们）
+  rm -rf "$R"/usr/lib/python3* "$R"/usr/lib64/python3* "$R"/usr/lib64/libpython3* \
+         "$R"/usr/bin/python3* "$R"/usr/bin/pydoc* "$R"/usr/bin/pip3* 2&gt;/dev/null || true
+  rm -rf "$R"/usr/share/tcl8* "$R"/usr/lib64/libtcl8* "$R"/usr/lib64/libtk8* \
+         "$R"/usr/bin/tclsh* "$R"/usr/bin/wish* 2&gt;/dev/null || true
+
+  # 缓存 / 日志 / rpm 数据库（运行镜像不需要）
+  rm -rf "$R"/var/cache/* "$R"/var/log/* "$R"/var/lib/rpm "$R"/var/lib/dnf \
+         "$R"/var/lib/yum "$R"/var/lib/systemd 2&gt;/dev/null || true
+  rm -f  "$R"/anaconda-post.log
+
+  # 时区只保留 UTC + Asia/Shanghai
+  local tz="$R/usr/share/zoneinfo"
+  if [ -d "$tz" ]; then
+    find "$tz" -mindepth 1 -maxdepth 1 \
+      ! -name Asia ! -name UTC ! -name 'posix*' \
+      ! -name zone.tab ! -name zone1970.tab ! -name iso3166.tab \
+      -exec rm -rf {} + 2&gt;/dev/null || true
+    find "$tz/Asia" -mindepth 1 -maxdepth 1 ! -name Shanghai -exec rm -rf {} + 2&gt;/dev/null || true
+  fi
+
+  # terminfo 只保留常用终端；t 保留 tmux-* 等条目(libevent 系终端复用器用户的 TERM
+  # 多为 tmux-256color，缺失会让 gsql/less 报 unknown terminal)
+  local ti="$R/usr/share/terminfo"
+  if [ -d "$ti" ]; then
+    find "$ti" -mindepth 1 -maxdepth 1 -type d \
+      ! -name a ! -name d ! -name l ! -name s ! -name t ! -name v ! -name x -exec rm -rf {} + 2&gt;/dev/null || true
+  fi
+
+  du -sh "$ROOTFS"
+}
+
+# 释放内核包 -&gt; 装进 rootfs -&gt; 裁掉集群/备份类组件
+install_gaussdb() {
+  step "4/5 安装 GaussDB 内核到 rootfs"
+  # 单独执行 image 阶段时 KERNEL_BIN 尚未赋值，这里兜底查找
+  if [ -z "$KERNEL_BIN" ]; then
+    KERNEL_BIN=$(find "$WORK/kernel" -maxdepth 1 -type f -name "GaussDB-Kernel*.bin" 2&gt;/dev/null | head -1)
+  fi
+  [ -n "$KERNEL_BIN" ] || die "未找到内核 bin，请先执行: $0 kernel"
+  local X="$WORK/extract"
+  rm -rf "$X"; mkdir -p "$X"
+  cd "$X"
+  cp "$KERNEL_BIN" .
+  cp "$(dirname "$KERNEL_BIN")/$(basename "${KERNEL_BIN%.bin}").sha256" . 2&gt;/dev/null || true
+  chmod +x ./*.bin
+  # 7z 自解压，释放出 GAUSSHOME 结构 (bin/lib/share/include/etc)
+  ./*.bin &gt;/dev/null 2&gt;&amp;1 || die "内核包自解压失败"
+  [ -f bin/gaussdb ] || die "自解压后未见 bin/gaussdb"
+
+  # 架构自检：防止拿错架构的内核包（x86 包 release 与 ARM 包目录名不同，容易下混）
+  if [ "$ARCH" = "aarch64" ]; then
+    file bin/gaussdb | grep -q "aarch64" || die "内核包架构与目标架构不符：期望 aarch64"
+  else
+    file bin/gaussdb | grep -q "x86-64" || die "内核包架构与目标架构不符：期望 x86_64"
+  fi
+  c_grn "内核架构校验通过: $(file -b bin/gaussdb | cut -d, -f2 | sed 's/^ //')"
+
+  rm -rf "$ROOTFS$GAUSSHOME"
+  mkdir -p "$ROOTFS$GAUSSHOME"
+  ( cd "$X" &amp;&amp; tar cf - bin lib share include etc ) | ( cd "$ROOTFS$GAUSSHOME" &amp;&amp; tar xf - )
+
+  # ---- 组件裁剪：去掉集群/备份/服务发现等，仅保留单机内核 ----
+  cd "$ROOTFS$GAUSSHOME"
+  local drop_bin=(
+    etcd etcdctl                        # DCF 元数据存储
+    gns_ctl gns_server gns_control.sh   # 服务发现(GNS)
+    gs_roach                            # 备份恢复(Roach)
+    dcf_tool                            # DCF 运维工具
+    gs_rescue gs_rescue_tui             # 应急修复
+    gs_blackbox gs_perf_service         # 黑匣子/性能服务
+    echarts.min.js echarts.common.min.js
+    dbe_stats_tools.py
+    kadmin.local kdb5_util krb5kdc      # krb5 服务端
+  )
+  local f
+  for f in "${drop_bin[@]}"; do rm -rf "bin/$f"; done
+
+  # 库裁剪：etcd api / AI 推理 / python 存储过程 shim（gaussdb 主程序不依赖）
+  rm -f lib/libetcdapi.so* lib/libxgboost.so lib/libpyzenith.so lib/pyzenith.so
+
+  # trial 包自带 alarmItem.conf 有解析缺陷（启动必报 "Invalid data in AlarmItem file!
+  # Read alarm English name failed"），且容器内没有 snas 告警组件、已设 enable_alarm=off，
+  # 移除该文件可彻底消除启动日志噪音（实测不影响启动）
+  rm -f bin/alarmItem.conf
+
+  du -sh . bin lib
+}
+
+# 生成用户、目录、entrypoint，打包成单层镜像
+pack_image() {
+  step "5/5 配置并生成镜像"
+  local R="$ROOTFS"
+
+  # ---- 用户 ----
+  grep -q "^gaussdb:" "$R/etc/passwd" || \
+    echo "gaussdb:x:${GS_UID}:${GS_GID}:GaussDB:/home/gaussdb:/bin/bash" &gt;&gt; "$R/etc/passwd"
+  grep -q "^gaussdb:" "$R/etc/group"  || echo "gaussdb:x:${GS_GID}:" &gt;&gt; "$R/etc/group"
+
+  # ---- 目录 ----
+  mkdir -p "$R/home/gaussdb" "$R/tmp" "$R/run" "$R$GAUSSHOME/data"
+  mkdir -p "$R$GAUSSHOME"/log/{pg_log,pg_audit,asp_data,pg_perf,sql_monitor}/dn_6001
+
+  # ---- 时区 ----
+  ln -sf /usr/share/zoneinfo/Asia/Shanghai "$R/etc/localtime"
+
+  # ---- entrypoint ----
+  cat &gt; "$R$GAUSSHOME/entrypoint.sh" &lt;&lt;'ENTRYPOINT_EOF'
+#!/bin/bash
+# GaussDB 容器入口：首启自动 initdb，之后直接拉起单机内核
+set -euo pipefail
+
+export GAUSSHOME="${GAUSSHOME:-/opt/gaussdb}"
+export PGDATA="${PGDATA:-$GAUSSHOME/data}"
+export GAUSSLOG="${GAUSSLOG:-$GAUSSHOME/log}"
+export PGDATABASE="${PGDATABASE:-postgres}"
+export PATH="$GAUSSHOME/bin:$PATH"
+export LD_LIBRARY_PATH="$GAUSSHOME/lib:${LD_LIBRARY_PATH:-}"
+
+GS_PORT="${GS_PORT:-5432}"
+GS_PASSWORD="${GS_PASSWORD:-Gaussdb@123}"
+GS_ADMIN_USER="${GS_ADMIN_USER:-admin}"
+GS_NODE_NAME="${GS_NODE_NAME:-primary}"
+# 可选：手工指定内存参数(MB)，不设则按容器内存上限自动换算
+GS_MAX_PROCESS_MEMORY_MB="${GS_MAX_PROCESS_MEMORY_MB:-}"
+GS_SHARED_BUFFERS_MB="${GS_SHARED_BUFFERS_MB:-}"
+
+log() { echo "[entrypoint] $*"; }
+
+# 容器内存上限(MB)：优先 cgroup limit，取不到则用 MemTotal
+mem_limit_mb() {
+  local lim="" val
+  for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+    [ -r "$f" ] || continue
+    val=$(cat "$f" 2&gt;/dev/null || true)
+    case "$val" in ''|max|*[!0-9]*) continue;; esac
+    # cgroup v1 未设限时是 9223372036854771712 这类天文数字
+    if [ "$val" -lt 9223372036854771712 ] 2&gt;/dev/null; then lim="$val"; break; fi
+  done
+  [ -n "$lim" ] || lim=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) * 1024 ))
+  echo $(( lim / 1024 / 1024 ))
+}
+
+init_database() {
+  local mem_mb max_proc_mb shared_mb
+  mem_mb=$(mem_limit_mb)
+
+  # max_process_memory: 对齐 gs_om 单机模板公式 PHYSIC_MEMORY*0.665/(N+MAX_MASTER_DATANUM_IN_ONENODE)
+  # 单机分母按 1 计 -&gt; *0.665；下限 2GB(内核要求)，上限 32GB
+  if [ -n "$GS_MAX_PROCESS_MEMORY_MB" ]; then
+    max_proc_mb="$GS_MAX_PROCESS_MEMORY_MB"
+  else
+    max_proc_mb=$(( mem_mb * 665 / 1000 ))
+    [ "$max_proc_mb" -gt 32768 ] &amp;&amp; max_proc_mb=32768
+    [ "$max_proc_mb" -lt 2048 ]  &amp;&amp; max_proc_mb=2048
+  fi
+
+  # shared_buffers: 对齐 gs_om 单机模板 1GB，小容器按内存 25% 缩放
+  if [ -n "$GS_SHARED_BUFFERS_MB" ]; then
+    shared_mb="$GS_SHARED_BUFFERS_MB"
+  else
+    shared_mb=$(( mem_mb / 4 ))
+    [ "$shared_mb" -gt 1024 ] &amp;&amp; shared_mb=1024
+    [ "$shared_mb" -lt 128 ]  &amp;&amp; shared_mb=128
+  fi
+
+  log "初始化数据目录 (容器内存 ${mem_mb}MB -&gt; max_process_memory=${max_proc_mb}MB, shared_buffers=${shared_mb}MB)"
+  mkdir -p "$PGDATA"
+  gs_initdb --pgdata="$PGDATA" \
+            --nodename="$GS_NODE_NAME" \
+            --pwpasswd="$GS_PASSWORD" \
+            --encoding=UTF-8 \
+            --locale=C || { log "initdb 失败"; exit 1; }
+
+  log "写入初始化参数"
+  local cargs=(
+    # ---- 连接 ----
+    -c "port = $GS_PORT"
+    -c "listen_addresses = '*'"
+    -c "local_bind_address = '0.0.0.0'"
+    -c "max_connections = 1024"                    # gs_om 单机模板
+    -c "max_prepared_transactions = 800"           # gs_om 单机模板
+    # ---- 内存 ----
+    -c "max_process_memory = ${max_proc_mb}MB"
+    -c "shared_buffers = ${shared_mb}MB"
+    -c "work_mem = 64MB"                           # 507 分支
+    -c "maintenance_work_mem = 64MB"               # gs_om 单机模板
+    -c "wal_buffers = 256MB"                       # 507 分支
+    -c "effective_cache_size = 512MB"              # gs_om 单机模板
+    # ---- WAL / 复制 ----
+    -c "wal_level = logical"
+    -c "max_wal_senders = 20"
+    -c "max_replication_slots = 20"
+    -c "enable_slot_log = on"
+    -c "wal_keep_segments = 128"
+    -c "checkpoint_segments = 1024"
+    -c "xloginsert_locks = 16"
+    -c "recovery_max_workers = 4"
+    -c "recovery_time_target = 0"
+    # ---- 线程池 ----
+    -c "enable_thread_pool = on"
+    -c "thread_pool_attr = '16,2,(nobind)'"        # 507 分支
+    # ---- 兼容性(507 分支 TPOPS 参数加兼容性优化) ----
+    -c "a_format_version = '10c'"
+    -c "a_format_dev_version = 's6'"
+    -c "behavior_compat_options = 'aformat_null_test,aformat_regexp_match,allow_procedure_compile_check,bind_procedure_searchpath,compat_cursor,convert_string_digit_to_numeric,correct_to_number,current_sysdate,display_leading_zero,dynamic_sql_compat,enable_bpcharlikebpchar_compare,enable_case_when_alias,enable_crosstype_integer_operator,enable_ora_joinop_in_updatestmt,enable_use_ora_timestamptz,end_month_calculate,forbid_package_function_with_prefix,forbid_skip_tableof_empty_str_elem,forbid_update_multi_same_tables,plsql_rollback_keep_user,plsql_security_definer,plstmt_implicit_savepoint,proc_implicit_for_loop_variable,proc_outparam_override,proc_outparam_transfer_length,rownum_type_compat,show_full_error_lineno,sys_function_without_brackets,tableof_elem_constraints,time_constexpr_compact,truncate_numeric_tail_zero,unbind_divide_bound,varray_compat'"
+    -c "disable_keyword_options = 'datetime,regexp,rlike,zerofill,unit'"
+    -c "cursor_sharing = off"
+    -c "instr_unique_sql_combination_options = 'in_clause,forbid_select_for_update,temp_table'"
+    -c "gs_format_behavior_compat_options = 'sqrt_karatsuba'"
+    -c "ddl_invalid_mode = 'invalid'"
+    -c "enable_force_create_obj = on"
+    -c "character_set_client = 'UTF8'"
+    -c "sql_beta_feature = 'sel_semi_poisson,sel_expr_instr,rand_cost_opt,param_path_opt,page_est_opt'"
+    -c "explain_perf_mode = 'pretty'"
+    -c "extra_float_digits = 3"
+    # ---- 口令策略 ----
+    -c "password_encryption_type = 1"             # 507 分支(md5)
+    -c "password_policy = 0"
+    -c "failed_login_attempts = 100"
+    -c "password_lock_time = 1"
+    -c "password_effect_time = 0"
+    -c "password_reuse_time = 0"
+    # ---- 超时 / 锁 ----
+    -c "session_timeout = 0"                       # 507 分支
+    -c "lockwait_timeout = 0"
+    -c "update_lockwait_timeout = 0"
+    -c "idle_in_transaction_timeout = 0"
+    # ---- 日志 / 审计 ----
+    -c "log_min_duration_statement = 100ms"        # 507 分支
+    -c "log_statement = 'ddl'"
+    -c "log_error_verbosity = 'verbose'"
+    -c "log_line_prefix = '%m %n %u %d %h %p %S %x %a %e'"
+    -c "timezone = 'PRC'"                          # gs_om 单机模板
+    -c "log_timezone = 'PRC'"                      # gs_om 单机模板
+    -c "track_activity_query_size = 40960"
+    -c "instr_unique_sql_count = 200000"
+    -c "system_view_version = 1"
+    -c "verify_log_buffers = 16MB"
+    -c "audit_resource_policy = off"
+    -c "audit_file_remain_time = 180"
+    -c "log_directory = '$GAUSSLOG/pg_log/dn_6001'"
+    -c "audit_directory = '$GAUSSLOG/pg_audit/dn_6001'"
+    -c "asp_log_directory = '$GAUSSLOG/asp_data/dn_6001'"
+    -c "perf_directory = '$GAUSSLOG/pg_perf/dn_6001'"
+    -c "query_log_directory = '$GAUSSLOG/sql_monitor/dn_6001'"
+    # ---- 其他 ----
+    -c "max_files_per_process = 1024"
+    -c "max_stack_depth = 4MB"
+    -c "max_compile_functions = 100000"
+    -c "max_compile_packages = 2000"
+    -c "max_concurrent_autonomous_transactions = 1000"
+    -c "max_recursive_times = 1500"
+    -c "undo_retention_time = 900"
+    -c "enable_recyclebin = on"
+    -c "enable_mergejoin = off"
+    -c "enable_nestloop = off"
+    -c "vacuum_cost_delay = 1"
+    -c "vacuum_cost_limit = 1000"
+    -c "ai_watchdog_oom_other_used_memory_threshold = -1"
+    -c "enable_alarm = off"                        # 容器内无 snas 告警组件，关闭避免日志噪音
+    -c "ssl = off"                                 # 507 分支
+  )
+  # ARM(aarch64) 上按 TPOPS 建议开启 NUMA 分布（x86 不设）
+  if [ "$(uname -m)" = "aarch64" ]; then
+    cargs+=(-c "numa_distribute_mode = 'all'")
+  fi
+  if ! gs_guc set -D "$PGDATA" "${cargs[@]}" &gt;/tmp/gs_guc.log 2&gt;&amp;1; then
+    log "WARN: 批量设置参数失败，改为逐项设置"
+    local a
+    for a in "${cargs[@]}"; do
+      [ "$a" = "-c" ] &amp;&amp; continue
+      gs_guc set -D "$PGDATA" -c "$a" &gt;/dev/null 2&gt;&amp;1 || log "WARN: 参数设置失败: $a"
+    done
+  fi
+
+  # 放通外部连接(md5)。注意: Kernel 507 的认证文件是 gs_hba.conf，且 -h 不再需要 -Z hba
+  gs_guc set -D "$PGDATA" -h "host all all 0.0.0.0/0 md5" &gt;/dev/null 2&gt;&amp;1 \
+    || log "WARN: hba 配置失败"
+
+  log "启动数据库并创建管理员用户 ${GS_ADMIN_USER}"
+  gs_ctl start -D "$PGDATA" -Z single_node -w -t 180 &gt;/dev/null 2&gt;&amp;1 || true
+  local i
+  for i in $(seq 1 90); do
+    gsql -d postgres -p "$GS_PORT" -c "select 1" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; break
+    sleep 1
+  done
+  gsql -d postgres -p "$GS_PORT" -c \
+    "create user ${GS_ADMIN_USER} password '${GS_PASSWORD}' sysadmin monadmin;" &gt;/dev/null 2&gt;&amp;1 \
+    || log "WARN: 管理员用户创建失败(可能已存在)"
+  gs_ctl stop -D "$PGDATA" -Z single_node -m fast &gt;/dev/null 2&gt;&amp;1 || true
+  log "初始化完成"
+}
+
+# 目录可写性检查（bind mount 宿主机目录时最常见的坑）
+if [ ! -w "$GAUSSHOME" ]; then
+  echo "[entrypoint] ERROR: $GAUSSHOME 不可写。" &gt;&amp;2
+  echo "[entrypoint] 若用 -v 挂载了宿主机目录，请先 chown -R 1000:1000 &lt;宿主机目录&gt;" &gt;&amp;2
+  exit 1
+fi
+if [ -d "$PGDATA" ] &amp;&amp; [ ! -w "$PGDATA" ]; then
+  echo "[entrypoint] ERROR: 数据目录 $PGDATA 不可写（通常是 bind mount 宿主机目录属主为 root）。" &gt;&amp;2
+  echo "[entrypoint] 解决: chown -R 1000:1000 &lt;宿主机目录&gt;；或改用 docker volume 命名卷。" &gt;&amp;2
+  exit 1
+fi
+
+mkdir -p "$GAUSSHOME/log"/{pg_log,pg_audit,asp_data,pg_perf,sql_monitor}/dn_6001 2&gt;/dev/null || true
+
+if [ ! -s "$PGDATA/PG_VERSION" ]; then
+  init_database
+else
+  log "检测到已初始化数据目录，直接启动"
+fi
+
+log "启动 GaussDB (port=$GS_PORT, data=$PGDATA)"
+exec gaussdb -D "$PGDATA"
+ENTRYPOINT_EOF
+  chmod 755 "$R$GAUSSHOME/entrypoint.sh"
+
+  # ---- 权限（只在最后一层设置，避免镜像层体积翻倍）----
+  chown -R "${GS_UID}:${GS_GID}" "$R$GAUSSHOME" "$R/home/gaussdb"
+  chmod 1777 "$R/tmp"
+
+  du -sh "$ROOTFS"
+
+  # ---- 打包导入为单层镜像 ----
+  c_ylw "打包 rootfs 并导入为 $IMAGE_NAME:$IMAGE_TAG ..."
+  tar -C "$ROOTFS" --numeric-owner -cf - . \
+    | docker import \
+        --change 'ENV LANG=en_US.UTF-8' \
+        --change 'ENV LC_ALL=en_US.UTF-8' \
+        --change 'ENV TZ=Asia/Shanghai' \
+        --change 'ENV PAGER=less' \
+        --change 'ENV LESS=FRX' \
+        --change "ENV GAUSSHOME=$GAUSSHOME" \
+        --change "ENV PGDATA=$GAUSSHOME/data" \
+        --change "ENV GAUSSLOG=$GAUSSHOME/log" \
+        --change 'ENV PGDATABASE=postgres' \
+        --change "ENV LD_LIBRARY_PATH=$GAUSSHOME/lib" \
+        --change "ENV PATH=$GAUSSHOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        --change 'EXPOSE 5432' \
+        --change "USER ${GS_UID}:${GS_GID}" \
+        --change 'WORKDIR /home/gaussdb' \
+        --change "ENTRYPOINT [\"$GAUSSHOME/entrypoint.sh\"]" \
+        - "$IMAGE_NAME:$IMAGE_TAG" | tail -1
+
+  # 冒烟自检：确认内核能在该镜像内执行（架构错配或缺系统库会在这里暴露）
+  c_ylw "冒烟自检：镜像内执行 gaussdb --version ..."
+  if docker run --rm --entrypoint /bin/bash "$IMAGE_NAME:$IMAGE_TAG" -c 'gaussdb --version' &gt;/tmp/gs_smoke.log 2&gt;&amp;1; then
+    c_grn "冒烟自检通过: $(tr -d '\n' &lt; /tmp/gs_smoke.log)"
+  else
+    c_red "冒烟自检失败（内核查不到或缺少系统库），请检查："
+    sed 's/^/    /' /tmp/gs_smoke.log | head -20
+  fi
+
+  # 分页器自检：$PAGER 必须能解析到可执行文件，否则 gsql 输出超一屏会报
+  # "sh: more: command not found"
+  local pager_in_img
+  pager_in_img=$(docker run --rm --entrypoint /bin/bash "$IMAGE_NAME:$IMAGE_TAG" \
+                   -c 'printf "%s-&gt;%s" "${PAGER:-unset}" "$(command -v "${PAGER:-more}" || echo MISSING)"' 2&gt;/dev/null)
+  if printf '%s' "$pager_in_img" | grep -q 'MISSING'; then
+    c_red "分页器缺失：镜像内 PAGER=$pager_in_img，gsql 长输出会报 command not found"
+  else
+    c_grn "分页器就绪: PAGER=$pager_in_img"
+  fi
+
+  c_grn "\n镜像构建完成:"
+  docker images "$IMAGE_NAME:$IMAGE_TAG"
+}
+
+clean_all() {
+  c_ylw "清理中间产物: $WORK/{rootfs,extract,ktmp,kernel,pkg_unzip,pkg.zip}"
+  rm -rf "$WORK/rootfs" "$WORK/extract" "$WORK/ktmp" "$WORK/kernel" "$WORK/pkg_unzip" "$WORK/pkg.zip"
+}
+
+usage() {
+  sed -n '2,15p' "$0"
+  exit 0
+}
+
+main() {
+  local action="${1:-all}"
+  need_root
+  command -v docker &gt;/dev/null || die "缺少 docker"
+  command -v dnf    &gt;/dev/null || die "缺少 dnf"
+
+  c_grn "架构: $ARCH   工作目录: $WORK"
+  c_grn "镜像: $IMAGE_NAME:$IMAGE_TAG"
+  c_grn "安装包: $PKG_URL"
+
+  case "$action" in
+    all)    prepare_kernel; build_rootfs; prune_rootfs; install_gaussdb; pack_image ;;
+    base)   build_rootfs; prune_rootfs ;;
+    kernel) prepare_kernel ;;
+    image)  install_gaussdb; pack_image ;;
+    clean)  clean_all ;;
+    -h|--help|help) usage ;;
+    *) die "未知参数: $action" ;;
+  esac
+}
+
+main "$@"
+
+</code></pre>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/docker/">docker</a>
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-supplementary-explanation-after-20261105-live/">&larr; 【GaussDB】关于2026年11月5号直播演示的一些补充</a>
+    
+    
+    <a href="../panweidb-sublink-pullup-coredump-case/">【openGauss】排查一起panweidb2.0子链接提升的coredump案例 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

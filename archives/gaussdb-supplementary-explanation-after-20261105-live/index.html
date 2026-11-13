@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】关于2026年11月5号直播演示的一些补充 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】关于2026年11月5号直播演示的一些补充 在上次直播中，我演示了使用智能体+skill来诊断coredump问题以及使用plan trace做执行计划的规划路径分析，还有一个调用非公开知识库的案例。直播精华可以参考这篇文章： 《Bethune X 公开实战 GaussDB AI ">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】关于2026年11月5号直播演示的一些补充</h1>
+    <div class="meta">
+        
+        <span>2026-11-13</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="gaussdb关于2026年11月5号直播演示的一些补充">【GaussDB】关于2026年11月5号直播演示的一些补充</h1>
+<p>在上次直播中，我演示了使用智能体+skill来诊断coredump问题以及使用plan trace做执行计划的规划路径分析，还有一个调用非公开知识库的案例。直播精华可以参考这篇文章：<br/>
+<a href="https://mp.weixin.qq.com/s/0HOQthrB7DDsRLbk135zRg">《Bethune X 公开实战 GaussDB AI 运维！coredump + SQL 分析信手拈来》</a></p>
+<p>里面用到的两个skill，我已经上传了到白求恩X社区<a href="https://bethunex.enmotech.com/skills/authors/92fb729f2914e3178752ff26bf74f22e">https://bethunex.enmotech.com/skills/authors/92fb729f2914e3178752ff26bf74f22e</a></p>
+<p>本文补充一些我想分享，但直播的形式不方便分享的内容。</p>
+<h2 id="一关于gaussdb符号表的获取方式">一、关于GaussDB符号表的获取方式</h2>
+<p>在直播中，我有提到，在我写的skill中，有自动获取符号表的方式，而且还有备选路径。</p>
+<p>写这个skill的时候，我是这么和AI说的：</p>
+<pre><code>我打算做一个GaussDB的coredump 深入诊断skill，下面这些你可以参考一下
+一、获取GaussDB 符号表的方式：
+1. GaussDB主机，数据库安装用户下的tmp目录，比如/home/Ruby/tmp ,但是这里只会存最后一次从tpops下载的文件，所以第一次安装后，里面就会有GaussDB的安装包，解压后可以找到带Symbol名称的压缩包。不过一旦使用tpops安装过补丁，里面就只剩补丁了。
+2. 从tpops主机的docker sftp服务中获取 ,sftp密码获取方式：
+在tpops主机上执行 
+
+# 容器名可能会变
+docker exec tpops_sftp_x86_64_8.8 bash -c \
+  'echo "$sftp_pwd" | /usr/local/seccomponent/bin/CryptoAPI \
+     -f /opt/sftp/tools/seccomponent/scc/scc.conf -d' |awk -F ':' '{print $2}'
+
+sftp 用户名 sftpservice
+sftp 端口 10022
+
+进到目录 /sftpservice/package/dbs ，根据版本号进入对应的目录，比如 "25.1.30.10"  ，注意这个版本号不是数据库内核版本号
+再找到对应cpu平台、操作系统、集中式或分布式的安装包 v9.0.0.SPC0100-GaussDBV5-install-kylin-ha-x86_64*.tar.gz
+解压，进入解压后的目录，找名字里带Symbol的压缩包就是
+
+3.如果以上自动的方式无法拿到符号表，指引用户在tpops上获取相关文件再传到GaussDB主机上，或者让用户直接从本地上传
+
+4.从内核507版本开始，符号表不随安装包分发，需手动提供，若用户没有，需要找华为云工程师提供
+
+二、奔溃日志路径
+su - Ruby ,source gauss_env_file ,cd \$GAUSSLOG\ffic_log
+
+三、coredump文件路径
+coredump文件一般默认在数据目录下，可用 ps -ef |grep gaussdb 找到-D参数 ，或者用 cm_ctl query -Cvd 找到该节点对应的数据目录
+
+四、禁止未经用户许可直接gdb挂起运行中的进程，若用户期望用gdb调试运行中的进程，需告知用户风险，让用户确认
+
+五、环境中如果没有gdb程序，经用户同意后可以安装
+
+你可以在ssh root@192.168.1.8 , su - Ruby ,source gauss_env_file ，这个机器上进行实验
+
+这个文章里的信息可以参考一下 https://www.darkathena.top/archives/gaussdb-507-kernel-setup-package-changes
+
+$GAUSSLOG/gs_log 里有内核日志，也可以搜下在发生coredump之前，有没有相关性的日志
+
+</code></pre>
+<p>也就是说，如果想手动取符号表，可以用上面的方案1或方案2，当然只要没打过热补丁，直接从用户的tmp目录取是最方便的。打过补丁的话，就只能sftp连到tpops上取了。顺带一提，这个获取密码的方式也是我用AI分析出来的。另外，从507版本开始，安装包不带符号表了，这两种方法也就都没用了，只能找华为工程师获得后，再手动上传。不过507版本刚出几个月，主流应该还是505，所以目前还是能自行获取符号表的。</p>
+<h2 id="二关于演示的coredump">二、关于演示的coredump</h2>
+<p>这个案例在我之前的文章里有提过，详见以下两篇文章,本篇就不多说了，需要注意的是，507.0版本该场景表现和506版本不一样，但是仍然会coredump<br/>
+<a href="https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies">【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</a><br/>
+<a href="https://www.darkathena.top/archives/gaussdb-507-feature-view-invaild-recompile">【GaussDB】507内核版本新特性-视图失效重编译</a></p>
+<h2 id="三关于plan-trace的案例">三、关于PLAN TRACE的案例</h2>
+<ol>
+<li>数据构造脚本</li>
+</ol>
+<pre><code class="language-sql">\timing on
+DROP SCHEMA IF EXISTS ptdemo_dp2 CASCADE;
+CREATE SCHEMA ptdemo_dp2;
+SET search_path = ptdemo_dp2, public;
+
+CREATE TABLE seg_dim  (seg_id  int PRIMARY KEY, seg_name  varchar(4) NOT NULL);
+CREATE TABLE reg_dim  (reg_id  int PRIMARY KEY, reg_name  varchar(4) NOT NULL);
+CREATE TABLE cls_dim  (cls_id  int PRIMARY KEY, cls_name  varchar(4) NOT NULL);
+CREATE TABLE brd_dim  (brd_id  int PRIMARY KEY, brd_name  varchar(4) NOT NULL);
+CREATE TABLE cal_dim  (cal_id  int PRIMARY KEY, cal_year  int NOT NULL);
+
+CREATE TABLE cust_dim (
+  cust_id     int PRIMARY KEY,
+  seg_id      int NOT NULL,
+  reg_id      int NOT NULL,
+  src_seg_id  int NOT NULL,
+  src_reg_id  int NOT NULL
+);
+CREATE TABLE prod_dim (
+  prod_id     int PRIMARY KEY,
+  cls_id      int NOT NULL,
+  brd_id      int NOT NULL,
+  src_cls_id  int NOT NULL,
+  src_brd_id  int NOT NULL
+);
+CREATE TABLE trade_fact (
+  trade_id bigint,
+  cust_id  int NOT NULL,
+  prod_id  int NOT NULL,
+  cal_id   int NOT NULL,
+  flag     char(1) NOT NULL,
+  amt      numeric(10,2)
+);
+
+INSERT INTO seg_dim SELECT i, 'S'  || i FROM generate_series(0, 9) i;
+INSERT INTO reg_dim SELECT i, 'R'  || i FROM generate_series(0, 9) i;
+INSERT INTO cls_dim SELECT i, 'CL' || i FROM generate_series(0, 9) i;
+INSERT INTO brd_dim SELECT i, 'B'  || i FROM generate_series(0, 9) i;
+INSERT INTO cal_dim SELECT i, 2020 + (i % 7) FROM generate_series(1, 2000) i;
+
+-- The master copy and the source-system copy of each code always agree.
+-- Every row satisfies src_* = *, so the consistency predicates never filter.
+INSERT INTO cust_dim
+SELECT i, i % 10, i % 10, i % 10, i % 10 FROM generate_series(1, 1000000) i;
+INSERT INTO prod_dim
+SELECT i, i % 10, i % 10, i % 10, i % 10 FROM generate_series(1, 1000000) i;
+
+-- trade_fact: two batches of 1000000 rows each.
+INSERT INTO trade_fact
+SELECT i, v, v, ((i - 1) % 2000) + 1,
+       CASE WHEN v % 10 = 7 THEN 'Y' ELSE 'N' END,
+       100.00
+FROM (SELECT i, ((i - 1) % 1000000) + 1 AS v FROM generate_series(1, 1000000) i) g;
+
+INSERT INTO trade_fact
+SELECT i, v, v, ((i - 1) % 2000) + 1,
+       CASE WHEN v % 10 = 7 THEN 'Y' ELSE 'N' END,
+       100.00
+FROM (SELECT i, ((i - 1) % 1000000) + 1 AS v FROM generate_series(1000001, 2000000) i) g;
+
+CREATE INDEX idx_tf_cust ON trade_fact(cust_id);
+CREATE INDEX idx_tf_prod ON trade_fact(prod_id);
+
+ANALYZE seg_dim;
+ANALYZE reg_dim;
+ANALYZE cls_dim;
+ANALYZE brd_dim;
+ANALYZE cal_dim;
+ANALYZE cust_dim;
+ANALYZE prod_dim;
+ANALYZE trade_fact;
+
+</code></pre>
+<ol start="2">
+<li>慢SQL</li>
+</ol>
+<pre><code class="language-sql">SET search_path = ptdemo_dp2, public;
+\pset pager off
+\timing on
+
+EXPLAIN (ANALYZE, COSTS ON)
+SELECT count(*), sum(t.amt)
+FROM trade_fact t
+JOIN cust_dim c  ON c.cust_id = t.cust_id
+JOIN prod_dim p  ON p.prod_id = t.prod_id
+JOIN seg_dim  s  ON s.seg_id  = c.seg_id
+JOIN reg_dim  r  ON r.reg_id  = c.reg_id
+JOIN cls_dim  cl ON cl.cls_id = p.cls_id
+JOIN brd_dim  b  ON b.brd_id  = p.brd_id
+JOIN cal_dim  cd ON cd.cal_id = t.cal_id
+WHERE c.seg_id = c.src_seg_id AND c.reg_id = c.src_reg_id
+  AND p.cls_id = p.src_cls_id AND p.brd_id = p.src_brd_id
+  AND cd.cal_year = 2021 AND t.flag = 'Y';
+</code></pre>
+<ol start="3">
+<li>执行计划</li>
+</ol>
+<pre><code>QUERY PLAN                                                                                                                                                                                 |
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+Aggregate  (cost=19982.78..19982.79 rows=1 width=45) (actual time=7836.022..7836.023 rows=1 loops=1)                                                                                       |
+  -&gt;  Nested Loop  (cost=0.00..19982.76 rows=4 width=5) (actual time=0.919..7800.330 rows=28000 loops=1)                                                                                   |
+        -&gt;  Nested Loop  (cost=0.00..19981.32 rows=4 width=13) (actual time=0.847..7760.469 rows=28000 loops=1)                                                                            |
+              -&gt;  Nested Loop  (cost=0.00..19979.88 rows=4 width=21) (actual time=0.802..7718.148 rows=28000 loops=1)                                                                      |
+                    -&gt;  Nested Loop  (cost=0.00..19978.44 rows=4 width=29) (actual time=0.756..7651.054 rows=28000 loops=1)                                                                |
+                          -&gt;  Nested Loop  (cost=0.00..19975.72 rows=4 width=17) (actual time=0.670..7265.749 rows=28000 loops=1)                                                          |
+                                -&gt;  Nested Loop  (cost=0.00..19968.38 rows=26 width=21) (actual time=0.263..6717.181 rows=200000 loops=1)                                                  |
+                                      -&gt;  Nested Loop  (cost=0.00..19911.00 rows=25 width=12) (actual time=0.117..1991.516 rows=1000000 loops=1)                                           |
+                                            -&gt;  Seq Scan on cust_dim c  (cost=0.00..19902.00 rows=25 width=20) (actual time=0.061..649.243 rows=1000000 loops=1)                           |
+                                                  Filter: ((reg_id = src_reg_id) AND (seg_id = src_seg_id)), (Expression Flatten Optimized)                                                |
+                                            -&gt;  Index Only Scan using seg_dim_pkey on seg_dim s  (cost=0.00..0.35 rows=1 width=4) (actual time=669.413..669.413 rows=1000000 loops=1000000)|
+                                                  Index Cond: (seg_id = c.seg_id)                                                                                                          |
+                                                  Heap Fetches: 0                                                                                                                          |
+                                      -&gt;  Index Scan using idx_tf_cust on trade_fact t  (cost=0.00..2.28 rows=1 width=17) (actual time=4115.715..4247.234 rows=200000 loops=1000000)       |
+                                            Index Cond: (cust_id = c.cust_id)                                                                                                              |
+                                            Filter: (flag = 'Y'::bpchar)                                                                                                                   |
+                                            Rows Removed by Filter: 1800000                                                                                                                |
+                                -&gt;  Index Scan using cal_dim_pkey on cal_dim cd  (cost=0.00..0.27 rows=1 width=4) (actual time=445.119..445.119 rows=28000 loops=200000)                   |
+                                      Index Cond: (cal_id = t.cal_id)                                                                                                                      |
+                                      Filter: (cal_year = 2021)                                                                                                                            |
+                                      Rows Removed by Filter: 172000                                                                                                                       |
+                          -&gt;  Index Scan using prod_dim_pkey on prod_dim p  (cost=0.00..0.67 rows=1 width=20) (actual time=351.686..351.686 rows=28000 loops=28000)                        |
+                                Index Cond: (prod_id = t.prod_id)                                                                                                                          |
+                                Filter: ((brd_id = src_brd_id) AND (cls_id = src_cls_id))                                                                                                  |
+                    -&gt;  Index Only Scan using reg_dim_pkey on reg_dim r  (cost=0.00..0.35 rows=1 width=4) (actual time=34.034..34.034 rows=28000 loops=28000)                              |
+                          Index Cond: (reg_id = c.reg_id)                                                                                                                                  |
+                          Heap Fetches: 0                                                                                                                                                  |
+              -&gt;  Index Only Scan using cls_dim_pkey on cls_dim cl  (cost=0.00..0.35 rows=1 width=4) (actual time=18.471..18.471 rows=28000 loops=28000)                                   |
+                    Index Cond: (cls_id = p.cls_id)                                                                                                                                        |
+                    Heap Fetches: 0                                                                                                                                                        |
+        -&gt;  Index Only Scan using brd_dim_pkey on brd_dim b  (cost=0.00..0.35 rows=1 width=4) (actual time=16.807..16.807 rows=28000 loops=28000)                                          |
+              Index Cond: (brd_id = p.brd_id)                                                                                                                                              |
+              Heap Fetches: 0                                                                                                                                                              |
+Total runtime: 7840.187 ms                                                                                                                                                                 |
+</code></pre>
+<p>其实有经验的一眼就能看到下面这个计划的不对劲，预估25行实际100万行。</p>
+<pre><code>-&gt;  Seq Scan on cust_dim c  (cost=0.00..19902.00 rows=25 width=20) (actual time=0.061..649.243 rows=1000000 loops=1)                           |
+                                                  Filter: ((reg_id = src_reg_id) AND (seg_id = src_seg_id)), (Expression Flatten Optimized)                                                |                                         
+</code></pre>
+<p>然而这个25行是怎么来的，以及凭什么是这个表先扫，凭什么是这个表先和seg_dim关联？通过plan trace就能解释，因为plan trace里会清楚描述SQL是怎么生成这个计划的，有没有改写，每种路径成本多少，哪些路径被淘汰，哪些路径被保留，都是有的。只不过人看起来比较费劲，所以用AI来分析plan trace的内容，是一种非常高效的手段。</p>
+<p><img alt="plan_path_selection.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/plan_path_selection.png" srcset="../../upload/plan_path_selection.png?width=1600 1600w, ../../upload/plan_path_selection.png?width=800 800w, ../../upload/plan_path_selection.png?width=1200 1200w, ../../upload/plan_path_selection.png?width=400 400w"/><br/>
+通过plan trace里的相关指标，AI可以得出一个比较正确的hint</p>
+<pre><code>/*+ leading((((t cd) c) p)) hashjoin(t cd) nestloop(t c) nestloop(t p) */
+</code></pre>
+<h2 id="四关于知识库">四、关于知识库</h2>
+<p>做国产数据库的深入诊断，尤其是那些非开源的，真正的护城河就是实战的经验、以及来自厂商的故障报告、故障预警里的知识，而这些内容，往往都不公开。</p>
+<p>将真实案例放到智能体的知识库里，绝对是有故障诊断有帮助的。</p>
+<p>在直播演示中，我模拟了一个由于索引跳扫导致查询数据结果集不正确的问题，智能体成功定位到了数据库已知BUG，并且关联上了官方发的预警编号，获取到了预警里的规避方案以及修复版本号，这可以说是一个BUG定位最理想的结果。</p>
+<p>我曾深度参与了一个重要金融客户的GaussDB支持，积累了很多案例，其中有一些我写成了文章公开了出来。</p>
+<p>我知道这种文章到头来都会被白嫖，我期望的是，以后LLM训练的时候，能用到我的知识，或者agent搜索相关问题的时候能搜到我的文章，这样知识能真正被公开分享。</p>
+<p>却不曾想，有些卖带自带知识库的agent厂家，在未经我授权的情况下，把我文章都扒走了，而且没有标注信息来源，甚至拒绝提供信息来源。这违反了我文章标注的许可协议(CC BY-NC-SA 4.0)</p>
+<p>如下图，这个知识就来自于我的这篇文章 <a href="https://www.darkathena.top/archives/gaussdb-row_number-rewrite-performance-optimization">https://www.darkathena.top/archives/gaussdb-row_number-rewrite-performance-optimization</a> ，里面的SQL片段和执行耗时的数字是完全一样的</p>
+<p><img alt="image-iTEM.png" sizes="(max-width: 640px) 94vw, (max-width: 768px) 92vw, (max-width: 1024px) 88vw, min(800px, 85vw)" src="../../upload/image-iTEM.png" srcset="../../upload/image-iTEM.png?width=1600 1600w, ../../upload/image-iTEM.png?width=800 800w, ../../upload/image-iTEM.png?width=1200 1200w, ../../upload/image-iTEM.png?width=400 400w"/></p>
+<p>注意，该产品主打就是不联网搜索，相关知识都从本地知识库或者直接拉起数据库进行实验来获取，作者信息均已被屏蔽。</p>
+<p>我还试了其他仅在我文章里出现过的知识，在他们这个平台里都能检索到。我已经确认了这个爬取不是一次性的，而是持续的。我在该产品负责人的公众号文章里有过留言质询，然而没有得到回复。</p>
+<p>知识共享本来是一种好事，但未经许可，把别人的知识打包起来卖算什么？而且还可能会和我当前所在的公司提供的同类产品参与同一个采购竞标。诶，这事我管不了了，毕竟行业里专门搞数据库运维的，有几个没去ORACLE的MOS里下载过文章的？</p>
+<p>不过如果要诉侵权，大概率我是可以打赢的，本来想着做个固证，一看要交钱，后续也得花不少时间，就又不打算弄了。而且都是同一个圈子里的人，抬头不见低头见，闹僵了也不好。暂且观察一下他们的后续动向吧。技术文章我还是会继续写的，而且开放度可能会越来越大，各种国产数据库的BUG及优化案例，以后都可能会出现在我的文章里。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-developer-edit-build-mini-docker-image/">【GaussDB】把GaussDB开发者版本做成88MB的docker镜像 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

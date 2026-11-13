@@ -6,6 +6,19 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】关于2026年11月5号直播演示的一些补充</title>
+      <link>https://www.darkathena.top/archives/gaussdb-supplementary-explanation-after-20261105-live</link>
+      <description>【GaussDB】关于2026年11月5号直播演示的一些补充 在上次直播中，我演示了使用智能体+skill来诊断coredump问题以及使用plan trace做执行计划的规划路径分析，还有一个调用非公开知识库的案例。直播精华可以参考这篇文章： 《Bethune X 公开实战 GaussDB AI </description>
+      <pubDate>Fri, 13 Nov 2026 15:15:49 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】把GaussDB开发者版本做成88MB的docker镜像</title>
+      <link>https://www.darkathena.top/archives/gaussdb-developer-edit-build-mini-docker-image</link>
+      <description>【GaussDB】把华为云公开下载的GaussDB开发者版本做成88MB的docker镜像 背景 2026年9月中旬，华为云总算是把GaussDB的安装介质提供了公开下载，不过需要注意的是，这次提供的安装包并非企业版，而是开发者版本： 版本号为：GaussDB_V2.0-10.0.0_trial 内</description>
+      <pubDate>Mon, 02 Nov 2026 14:21:15 +0000</pubDate>
+      <category>docker</category>
+    </item>
+    <item>
       <title>【openGauss】排查一起panweidb2.0子链接提升的coredump案例</title>
       <link>https://www.darkathena.top/archives/panweidb-sublink-pullup-coredump-case</link>
       <description>【openGauss】排查一起panweidb2.0子链接提升的coredump案例 背景 最近同事收到panweidb2.0一起故障请求，说是有在B库里，一个7张表关联的查询SQL，大概六十几行，只要只执行，数据库就coredump了，同事就把建表语句和SQL发我，让我来分析一下。 另外，同事提醒</description>
@@ -310,18 +323,6 @@
       <link>https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies</link>
       <description>【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑 先看一个比较有意思的问题：在 GaussDB 里，如果一个视图依赖了一个包里的函数，我把这个包删了，然后原样重建回来，视图还能正常查询吗？ 在 Oracle 里，删掉被依赖的对象，视图会变成 INVALID，后续需要重新编译才能恢</description>
       <pubDate>Tue, 05 May 2026 14:56:08 +0000</pubDate>
-    </item>
-    <item>
-      <title>美式期权二叉树算法 — 七语言实现与交叉验证报告</title>
-      <link>https://www.darkathena.top/archives/binomial-option-pricing-7-languages-program-report</link>
-      <description>背景：最近帮忙给客户优化了一个算法，经过了解，是期货行业的一个标准算法，叫“美式期权二叉树算法”，由于是标准算法，因此本文并不提供客户的原始实现和在其基础上的优化版本，而是完全由AI自主进行分析、测试、编写报告、推送到github。 本次使用的工具为运行在macos上的WPS灵犀CLAW，仅通过飞书</description>
-      <pubDate>Mon, 04 May 2026 13:03:04 +0000</pubDate>
-    </item>
-    <item>
-      <title>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库</title>
-      <link>https://www.darkathena.top/archives/halo-for-yashandb</link>
-      <description>【YaShanDB】应用适配实战-Halo博客系统适配崖山数据库 【YaShanDB】给YaShanDB开发R2DBC驱动 上一篇用AI把关键的崖山数据库R2DBC驱动给开发出来了，这篇就来适配Halo博客系统了 AI Coding 这次我连编辑器都懒得打开了，直接github上找agent开干，中</description>
-      <pubDate>Sat, 28 Mar 2026 09:53:49 +0000</pubDate>
     </item>
   </channel>
 </rss>
