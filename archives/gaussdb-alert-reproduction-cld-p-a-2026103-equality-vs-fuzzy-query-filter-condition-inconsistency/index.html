@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警 - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警 背景 之前收到了华为发的预警CLD-P-A-2026103，说是有些场景下，where主键使用=查询只有一条数据，使用like匹配有两条，数据不一致。这种数据不一致的BUG是客户最怕的。但是我挑">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警</h1>
+    <div class="meta">
+        
+        <span>2026-11-15</span>
+        
+        <span>2 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警</p>
+<h1 id="背景">背景</h1>
+<p>之前收到了华为发的预警CLD-P-A-2026103，说是有些场景下，where主键使用=查询只有一条数据，使用like匹配有两条，数据不一致。这种数据不一致的BUG是客户最怕的。但是我挑了预警文档中的几种简单的复现方式手动去复现，没有复现出来，因此尝试让AI去把问题场景给测出来。</p>
+<pre><code>【触发因素】
+因素一： GaussDB实例的内核版本为： 仅GaussDB Kernel 506.0.0.SPC0100。
+因素二：集中式、分布式
+因素三：开启参数batch_insert_index_types='rcr_ubtree';（默认是rcr_ubtree）
+因素四：在同一个session里面执行完批量插入之后，又执行了非批量插入，接着插入数据会导致插入重复数据。
+批量插入索引的场景：
+- 场景1：使用JDBC连接数据库，通过java的批量插入数据接口executeBatch进行批量插入索引；
+- 场景2：执行语句insert into t1 select * from t2，其中t1和t2表schema相同，t1表包含索引，此语句支持在t1表上批量插入索引。
+- 场景3：执行语句copy t1 from 'file.csv' delimiter ','csv header，其中t1和file.csv文件中的schema相同，t1表包含索引，此语句支持在t1表上批量插入索引。
+- 场景4：使用gs_loader、gs_restore等导入导出工具进行批量导入。
+注：以上因素全满足才会涉及该问题
+</code></pre>
+<h1 id="ai分析">AI分析</h1>
+<blockquote>
+<p>到 118环境复现一下这个问题 "【CLD-P-A-2026103】华为云Stack&amp;轻量化部署形态 GaussDB 过滤条件等值查询与模糊查询结果不一致问题预警" ，给我一个最简单最容易执行的复现用例</p>
+</blockquote>
+<p>复现成功，并且和预警截图的症象一字不差。用例包在 <a>repro103/</a>，已在 119 上端到端跑通（primary 因为 <code>s17</code> 崩溃从 118 漂到了 119，同一集群同一内核，不影响结论）。</p>
+<hr/>
+<h2 id="复现序列同一-session四步">复现序列（同一 session，四步）</h2>
+<table><thead><tr><th>步</th><th>动作</th><th>客户端看到</th></tr></thead><tbody><tr><td>0</td><td>单行插入主键 <code>Z0000001</code></td><td><code>INSERT 0 1</code></td></tr><tr><td>1</td><td><code>PQexecPreparedBatch</code> 批量插入 2000 行</td><td><code>cmdTuples=2000</code></td></tr><tr><td>2</td><td>一条唯一键冲突的单行插入，错误被 <code>exception when others then null</code> 吞掉</td><td>无异常</td></tr><tr><td>3</td><td>再插一次 <code>Z0000001</code></td><td><strong><code>INSERT 0 1</code> 成功</strong>，但索引里没有这条</td></tr></tbody></table>
+<p>结果：<code>where id = 'Z0000001'</code> 返回 <strong>1</strong> 行，<code>where id like '%Z0000001%'</code> 返回 <strong>2</strong> 行（ctid <code>(0,1)</code> first-good、<code>(8,42)</code> second-orphan）；<code>reindex index repro103_pkey</code> 报 <code>Failed to create a unique index</code> —— 索引确实建不回去。<strong>5/5 复现</strong>，批量行数 10 / 100 / 500 / 1000 / 2000 都行（s14 变体 10/10）。</p>
+<h2 id="两个预警里没写但必须知道的点">两个预警里没写、但必须知道的点</h2>
+<ul>
+<li><strong>纯 SQL 造不出来。</strong> 场景2 <code>insert into t1 select * from t2</code>、场景3 <code>\copy</code>、多值 VALUES、事务内、savepoint 回滚、批内重复、upsert —— 全部保持索引/表一致（s1~s13）。只有 batch-bind（JDBC <code>executeBatch</code> 的协议等价物）能触发。<code>gsql</code> 发不出 batch-bind，libpq_ce 的 <code>PQsendQueryPrepared</code> 也不允许多个在途，所以必须用 <code>PQexecPreparedBatch</code>。</li>
+<li><strong>"应用吞掉错误"是必要条件。</strong> 中间态 <code>invalid tuplesort state</code> 只要批量后紧跟非批量就会报（8 个变体全命中），但错误不被捕获时语句正常回滚、索引项不丢（s16 干净）。</li>
+</ul>
+<p>分支结局：被吞后插新键 → 静默丢索引项（客户端仍报成功）；同一新键插两次 → <strong>DN SIGSEGV</strong>，栈是 <code>exec_insert_indextuples → batch_insert_index_callback+0x1c3 → tuplesort_begin_index_btree</code>，<code>RDI=0xbabababa00000818</code>（poison 值），即非批量插入拿着已释放的 <code>BTBatchInsertState</code> 去新建 tuplesort。规避参数 <code>set batch_insert_index_types=''</code> 在 session 级就能挡住。</p>
+<hr/>
+<blockquote>
+<p>jdbc驱动在这里，再写个JAVA的用例吧。另外你说的s17是执行的什么，我如果想复现，要怎么做？</p>
+</blockquote>
+<hr/>
+<p>Java 用例跑通了，也顺手把 s17 讲清楚。</p>
+<h2 id="1-jdbc-用例已实测118-主节点repro103_java-表">1. JDBC 用例（已实测，118 主节点，<code>repro103_java</code> 表）</h2>
+<p>用的就是你给的 <code>gaussdbjdbc.jar</code>（1,695,517B / 2025-04-27，和 SPC0100 同一天构建；驱动类 <code>com.huawei.gaussdb.jdbc.Driver</code>，URL 前缀 <code>jdbc:gaussdb:</code>）。主机上只有 JRE（openjdk 1.8.0_312 Bisheng，没 javac），所以我在 Windows 侧 <code>javac -source 8 -target 8</code> 编好 <code>.class</code> 再拷过去。</p>
+<pre><code>bash /tmp/repro103/run103_java.sh pl 2000 repro103_java
+</code></pre>
+<pre><code>step1 executeBatch added=2000 updateCounts=len=2000 rows-affected=1 ... in 126 ms
+step2 conflict K0001000 swallowed by the PL handler -&gt; statement returned OK
+step3 re-insert Z0000001 -&gt; 1 row(s) ACCEPTED
+== detector, fresh session
+  seeded key Z0000001 index -&gt; 1   heap -&gt; 2
+        heap row ctid=(0,1) note=first-good
+        heap row ctid=(8,42) note=second-orphan
+  where id like '%Z0000001%'  -&gt; 2 row(s)
+VERDICT: INDEX/HEAP SPLIT REPRODUCED
+</code></pre>
+<p>四个 mode 的对照（<code>J103.java</code> 里 <code>mode = pl|save|raw|wg|dup</code>，<code>phase = write|check|both|fix</code>）：</p>
+<table><thead><tr><th>mode</th><th>结果</th></tr></thead><tbody><tr><td><code>pl</code>（PL 块吞掉冲突）</td><td>分裂复现，pl 跑了 4 次全中</td></tr><tr><td><code>save</code>（JDBC <code>Savepoint</code>+<code>rollback</code>）</td><td>也分裂；而且冲突插入 <code>executeUpdate</code> 返回 1、<strong>一个错误都不报</strong>——唯一性检查本身已经瞎了</td></tr><tr><td><code>raw</code>（错误抛给客户端）</td><td>干净：step2 服务端回 <code>invalid tuplesort state</code>，step3 正确报 <code>Duplicate key value violates unique constraint</code></td></tr><tr><td><code>wg</code>（先 <code>set batch_insert_index_types=''</code>）</td><td>干净，规避参数在 Java 侧同样有效</td></tr></tbody></table>
+<p><code>raw</code> 这条最值钱：Java 收到的中间态错误和 libpq_ce <code>PQexecPreparedBatch</code> 一字不差，说明驱动的 <code>executeBatch</code> 确实走服务端 batch-bind，不是被改写成多值 INSERT 绕过去了。</p>
+<p>两个坑：</p>
+<ul>
+<li><strong>判读必须换连接</strong>。第一版我把 detector 写在同一个 session 里，后端扫到分裂索引当场 SIGSEGV（今天 17:39，119，ffic <code>plsqlffic_gaussdb-2026-10-29_173951.log</code>），客户端只剩 <code>socket is not closed ... EOF</code>，证据全丢。</li>
+<li><code>updateCounts</code> 的口径别当结论用：<code>len=2000</code> 只有 1 个 <code>&gt;0</code>、1999 个是 <code>0</code>、无 <code>EXECUTE_FAILED</code>，整批按一条命令计数。</li>
+</ul>
+<p>顺带把预警【快速恢复方法】在 Java 上验了一遍（<code>phase=fix</code>）：<code>reindex index repro103_java_pkey -&gt; FAILED: Failed to create a unique index ... Key (id)=(Z0000001) is duplicated</code>。所以不是"重建索引就好"，得先按 ctid 删掉 <code>second-orphan</code> 那行。</p>
+<h2 id="2-s17-执行的是什么">2. s17 执行的是什么</h2>
+<p>s17 就是 C 用例里的 <code>case 17</code>（<a>batch103.c:351</a>），四步：</p>
+<ol>
+<li><code>PQexecPreparedBatch</code> 批量插 2000 行 <code>K0000001..K0002000</code></li>
+<li>一条 <code>insert K0001000</code>（和批量里的键撞）被 <code>begin ... exception when others then null; end;</code> 吞掉 → 批量遗留的 <code>BTBatchInsertState</code> 变成脏状态</li>
+<li>插一个<strong>全新</strong>的键 <code>Z0000001</code>，成功</li>
+<li><strong>同一个 <code>Z0000001</code> 再插一次</strong> → 这一步 DN SIGSEGV，主节点掉，漂到另一台</li>
+</ol>
+<p>它和 s20 只差一步：s20 的 <code>Z0000001</code> 在批量之前已正常入过索引，第二次插入只是"唯一检查看不见 → 多出一行没有索引项的孤儿"（=你要的症象）；s17 这个键此前从没进过索引，第二次插入时非批量路径走进了 <code>batch_insert_index_callback</code>，拿着一块被 poison 填掉的 <code>BTBatchInsertState</code> 去 <code>tuplesort_begin_index_btree</code>（<code>RDI=0xbabababa00000818</code>），直接踩空崩。同一个缺陷，一个是"数据不一致"分支，一个是"core"分支。</p>
+<h2 id="3-你要复现怎么做">3. 你要复现怎么做</h2>
+<p>先确认谁是主节点（<code>bash /tmp/repro103/role.sh</code>，逐端口看 <code>pg_is_in_recovery()</code>，现在 118 是主）：</p>
+<ul>
+<li>拿症象（安全，推荐）：<code>bash /tmp/repro103/run103_java.sh pl 2000 repro103_java</code>，或 C 侧 <code>/tmp/batch103 127.0.0.1 8000 root '密码' postgres 2000 repro103 s20</code></li>
+<li>拿 core（会打掉主节点，只在演示集群跑）：<code>/tmp/batch103 127.0.0.1 8000 root '密码' postgres 2000 b17_demo s17</code>，Java 侧对应 <code>... J103 127.0.0.1 8000 postgres root 密码 b17j 2000 dup write</code>（崩在 write 阶段的 step4，连接会断，这是预期）。生产主节点不要跑。</li>
+<li>跑完拿栈：按 coredump 那套只读流程看 ffic / bbox，别动 core、ffic、box 文件本身。</li>
+</ul>
+<h1 id="结论">结论</h1>
+<p>其实就是批量插入和单行插入的交替使用，并结合插入数据冲突后的内核处理不完整，导致数据弄乱的情况。这个BUG会导致两个场景，数据查询结果不对，或者coredump，和官方预警里描述是一致的，而且AI把这两个场景的复现代码也分别写出来了。不过AI没有复现出官方预警里的其他3个场景的问题，当然这并不代表就真的没问题，只是复现条件可能更加苛刻，官方文档没有详细描述。</p>
+<p>下面给出可复现程序：</p>
+<h2 id="数据不一致">数据不一致</h2>
+<p>代码</p>
+<pre><code class="language-java">import java.sql.*;
+/*
+curl -O https://repo1.maven.org/maven2/com/huaweicloud/gaussdb/gaussdbjdbc/506.0.0.b058/gaussdbjdbc-506.0.0.b058.jar
+mv gaussdbjdbc-506.0.0.b058.jar gaussdbjdbc.jar
+yum install java-1.8.0-openjdk-devel -y
+javac -cp .:gaussdbjdbc.jar J103min.java
+java -cp .:gaussdbjdbc.jar J103min 127.0.0.1 8000 postgres :username :password
+
+*/ 
+public class J103min {
+    static int ins(Connection c, String k, String v) throws SQLException {
+        PreparedStatement p = c.prepareStatement("insert into t103min values(?,?)");
+        p.setString(1, k);
+        p.setString(2, v);
+        int n = p.executeUpdate();
+        p.close();
+        return n;
+    }
+
+    public static void main(String[] a) throws Exception {
+        String url = "jdbc:gaussdb://" + a[0] + ":" + a[1] + "/" + a[2];
+        Class.forName("com.huawei.gaussdb.jdbc.Driver");
+        Connection c = DriverManager.getConnection(url, a[3], a[4]);
+        Statement s = c.createStatement();
+        s.execute("drop table if exists t103min cascade");
+        s.execute("create table t103min(id varchar(20) primary key, note varchar(50))");
+        System.out.println("1. create table t103min(id varchar(20) primary key, note varchar(50))");
+        ins(c, "Z0000001", "first");
+        System.out.println("2. first insert id = Z0000001" );
+
+        PreparedStatement p = c.prepareStatement("insert into t103min values(?,?)");
+        for (int i = 1; i &lt;= 2000; i++) {
+            p.setString(1, String.format("K%07d", i));
+            p.setString(2, "batch");
+            p.addBatch();
+        }
+        p.executeBatch();
+        p.close();
+        System.out.println("3. batch insert K0000001 ~ k0002000");
+        s.execute("begin\n insert into t103min values('K0001000','dup');\nexception\n when others then null;\nend;");
+        System.out.println("4. plsql subtransaction insert :\nbegin\n insert into t103min values('K0001000','dup');\nexception\n when others then null;\nend; ");
+        System.out.println("5. re-insert Z0000001 -&gt; " + ins(c, "Z0000001", "orphan") + " row(s)" +" ,why success?");
+        c.close();
+
+        c = DriverManager.getConnection(url, a[3], a[4]);
+        s = c.createStatement();
+        System.out.println("6. select count(*) from t103min where id = 'Z0000001'");
+        ResultSet r = s.executeQuery("select count(*) from t103min where id = 'Z0000001'");
+        r.next();
+        System.out.println("id = [Z0000001]  -&gt; " + r.getInt(1));
+        System.out.println("7. select id,count(*) from t103min where id like '%Z0000001%' group by id" );
+        r = s.executeQuery("select id,count(*) from t103min where id like '%Z0000001%' group by id" );
+        r.next();
+        System.out.println(" id  like  ["+r.getString(1)+"] -&gt; " + r.getInt(2));
+        c.close();
+    }
+}
+</code></pre>
+<p>执行效果</p>
+<pre><code>1. create table t103min(id varchar(20) primary key, note varchar(50))
+2. first insert id = Z0000001
+3. batch insert K0000001 ~ k0002000
+4. plsql subtransaction insert :
+begin
+ insert into t103min values('K0001000','dup');
+exception
+ when others then null;
+end;
+5. re-insert Z0000001 -&gt; 1 row(s) ,why success?
+6. select count(*) from t103min where id = 'Z0000001'
+id = [Z0000001]  -&gt; 1
+7. select id,count(*) from t103min where id like '%Z0000001%' group by id
+ id  like  [Z0000001] -&gt; 2
+</code></pre>
+<p>看输出的序号6和7，可以发现这两个查询出来的结果不一致，即主键扫描得到一行Z0000001,而全表扫描得到两行Z0000001。</p>
+<p>发现了么，突破了主键唯一性的限制！</p>
+<h2 id="coredump">coredump</h2>
+<p>代码</p>
+<pre><code class="language-java">import java.sql.*;
+/*
+curl -O https://repo1.maven.org/maven2/com/huaweicloud/gaussdb/gaussdbjdbc/506.0.0.b058/gaussdbjdbc-506.0.0.b058.jar
+mv gaussdbjdbc-506.0.0.b058.jar gaussdbjdbc.jar
+yum install java-1.8.0-openjdk-devel
+javac  -cp .:gaussdbjdbc.jar  J103s17.java
+java   -cp .:gaussdbjdbc.jar  J103s17   hostname portno  databasename  username  password
+
+*/
+public class J103s17 {
+    static void say(String m) { System.out.println(m); }
+
+    static int ins(Connection c, String k, String v) throws SQLException {
+        PreparedStatement p = c.prepareStatement("insert into t103s17 values(?,?)");
+        p.setString(1, k);
+        p.setString(2, v);
+        int n = p.executeUpdate();
+        p.close();
+        return n;
+    }
+
+    public static void main(String[] a) throws Exception {
+        String url = "jdbc:gaussdb://" + a[0] + ":" + a[1] + "/" + a[2];
+        Class.forName("com.huawei.gaussdb.jdbc.Driver");
+        Connection c = DriverManager.getConnection(url, a[3], a[4]);
+        Statement s = c.createStatement();
+
+        say("[0] connected to " + url + " as " + a[3]);
+        s.execute("drop table if exists t103s17 cascade");
+        s.execute("create table t103s17(id varchar(20) primary key, note varchar(50))");
+        say("[1] create table t103s17(id varchar(20) primary key, note varchar(50))");
+
+        PreparedStatement p = c.prepareStatement("insert into t103s17 values(?,?)");
+        for (int i = 1; i &lt;= 2000; i++) {
+            p.setString(1, String.format("K%07d", i));
+            p.setString(2, "batch");
+            p.addBatch();
+        }
+        p.executeBatch();
+        p.close();
+        say("[2] addBatch 2000 rows K0000001..K0002000 + executeBatch + close -&gt; batch index state left behind");
+
+        s.execute("begin\n insert into t103s17 values('K0001000','dup');\nexception\n when others then null;\nend;");
+        say("[3] PL block inserts the batch key K0001000, conflict swallowed by 'when others then null' -&gt; block OK");
+
+        say("[4] insert a brand new key N0000001, first time ...");
+        say("    -&gt; accepted, " + ins(c, "N0000001", "first") + " row(s)");
+
+        say("[5] insert the SAME key N0000001 again (the unique check should reject it) ...");
+        boolean died = false;
+        try {
+            say("    -&gt; accepted, " + ins(c, "N0000001", "second") + " row(s)");
+        } catch (SQLException e) {
+            String m = e.getMessage() == null ? "(null)" : e.getMessage().replace('\n', ' ');
+            say("    -&gt; connection broke here: " + m.trim());
+            say("    -&gt; if it says EOF / socket is not closed, the backend crashed on this statement;");
+            say("       read the newest ffic log on that host and re-run role.sh to find the new primary");
+        }
+        if (died) {
+            say("[6] this session is unusable now; the DN that served it has gone");
+            return;
+        }
+        c.close();
+        say("[6] no crash on this run: both rows accepted, read them from a new session");
+    }
+}
+</code></pre>
+<p>执行效果</p>
+<pre><code>[0] connected to jdbc:gaussdb://127.0.0.1:8000/postgres as root
+[1] create table t103s17(id varchar(20) primary key, note varchar(50))
+[2] addBatch 2000 rows K0000001..K0002000 + executeBatch + close -&gt; batch index state left behind
+[3] PL block inserts the batch key K0001000, conflict swallowed by 'when others then null' -&gt; block OK
+[4] insert a brand new key N0000001, first time ...
+Exception in thread "main" com.huawei.gaussdb.jdbc.util.PSQLException: [127.0.0.1:36664/127.0.0.1:8000] socket is not closed; Urgent packet sent to backend successfully; An I/O error occurred while sending to the backend.detail:EOF Exception;
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.handleIoException(QueryExecutorImpl.java:5046)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:1354)
+        at com.huawei.gaussdb.jdbc.core.v3.TracedQueryExecutorImpl.execute(TracedQueryExecutorImpl.java:92)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.runQueryExecutor(PgStatement.java:737)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.executeInternal(PgStatement.java:690)
+        at com.huawei.gaussdb.jdbc.jdbc.PgStatement.execute(PgStatement.java:497)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:209)
+        at com.huawei.gaussdb.jdbc.jdbc.PgPreparedStatement.executeUpdate(PgPreparedStatement.java:165)
+        at J103s17.ins(J103s17.java:10)
+        at J103s17.main(J103s17.java:40)
+Caused by: java.io.EOFException: EOF Exception
+        at com.huawei.gaussdb.jdbc.core.PGStream.receiveChar(PGStream.java:409)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:4151)
+        at com.huawei.gaussdb.jdbc.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:1322)
+        ... 8 more
+</code></pre>
+<p>执行这个java代码，数据库就coredump了，而且没有产生coredump文件，只产生了ffic_log：</p>
+<pre><code>si_signo = 11 (SIGSEGV), si_code = 128, si_addr = (nil)
+ gaussdb + 0x1a63ff2  tuplesort_begin_common + 0x62
+ gaussdb + 0x1a692ca  tuplesort_begin_index_btree + 0x3a
+ gaussdb + 0x3379923  batch_insert_index_callback + 0x1c3
+ gaussdb + 0x18c35a2  exec_insert_indextuples + 0x952
+[postgres_cxt] debug_query_string: insert into t103s17 values($1,$2)
+batch_insert_index_types = rcr_ubtree
+</code></pre>
+<h1 id="解决方案">解决方案</h1>
+<ul>
+<li>解决版本：GaussDB Kernel 506.0.0.SPC0500</li>
+<li>数据修复方案：失效索引，找到重复数据的ctid，选择其中一行，使用ctid作为条件删除，再重建索引</li>
+<li>临时规避方案：修改参数 batch_insert_index_types='';</li>
+</ul>
+<p>详细请联系华为云客服获取预警文档CLD-P-A-2026103</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <a href="../gaussdb-alert-reproduction-cld-p-a-202563-to-char-to-timestamp-function-causes-database-coredump/">&larr; 【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump</a>
+    
+    
+    <a href="../gaussdb-supplementary-explanation-after-20261105-live/">【GaussDB】关于2026年11月5号直播演示的一些补充 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump - DA-技术分享-静态站</title>
+    <meta name="description" content="【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump 背景 有次收集了某客户所有测试环境GaussDB的ffic日志，发现里面大量的coredump都发生在to_char函数，联想到之前华为有发过相关预警，但是我当时">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump</h1>
+    <div class="meta">
+        
+        <span>2026-11-15</span>
+        
+        <span>2 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<p>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump</p>
+<h1 id="背景">背景</h1>
+<p>有次收集了某客户所有测试环境GaussDB的ffic日志，发现里面大量的coredump都发生在to_char函数，联想到之前华为有发过相关预警，但是我当时并没有去实验验证，所以这次来尝试复现一下。</p>
+<blockquote>
+<p>【问题描述】<br/>
+O兼容性数据库使用to_char或to_timestamp函数报错后，修改a_format_dev_version参数（set a_format_dev_version ='';），再次执行to_char或to_timestamp函数导致数据库发生coredump。</p>
+</blockquote>
+<blockquote>
+<p>【触发因素】<br/>
+因素一：GaussDB内核版本为：GaussDB Kernel 503.0（包含）~ GaussDB Kernel 505.2.1.SPC0800（不包含）、506.0.0 SPC0100<br/>
+因素二：GaussDB数据库兼容性为O，集中式、分布式均涉及。。<br/>
+因素三：设置set a_format_version='10c'，set a_format_dev_version='sx'(sx表示s1、s2、s3、s4、s5、s6，后续举例使用s6)，已经使用17种及以上不同的timestamp时间格式。调用 to_char(timestamp, 'yyyy年mm月dd日')或者to_timestamp('2025年01月01日', 'xxxx年xx月xx日') 等使用带中文时间格式时，出现格式错误的报错，此时设置set a_format_dev_version ='';，再次调用to_char(timestamp, 'yyyy年mm月dd日')或者to_timestamp('2025年01月01日', 'xxxx年xx月xx日')。</p>
+</blockquote>
+<pre><code>--使用17种timestamp时间格式
+select to_char(current_date, 'YYYYMMDD');
+select to_char(current_date, 'YYYYMM-DD');
+select to_char(current_date, 'YYYY-MMDD');
+select to_char(current_date, 'YYYYDD');
+select to_char(current_date, 'YYYYDD AD');
+select to_char(current_date, 'YYYYDD--AD');
+select to_char(current_date, 'YYYY--DDAD');
+select to_char(current_date, 'YYYYDDmonth');
+select to_char(current_date, 'YYYYDDpm');
+select to_char(current_date, 'YYYYDDRR');
+select to_char(current_date, 'DDYYYYRR');
+select to_char(current_date, 'mmDDYYYY');
+select to_char(current_date, 'mmYYYYDD');
+select to_char(current_date, 'mm-YYYYDD');
+select to_char(current_date, 'mmYYYY-DD');
+select to_char(current_date, 'mmYYYY--DD');
+select to_char(current_date, 'DD--mmYYYY');
+--设置参数
+set a_format_version='10c';
+set a_format_dev_version='s6';
+--使用中文时间格式报错
+select to_char(current_date, 'YYYY年MM月DD日');
+--重新设置参数
+set a_format_dev_version='';
+--再次使用如下任意中文时间格式
+select to_char(current_date, 'YYYY年MM月DD日'); --发生core
+select to_timestamp('2025年10月10日', 'YYYY年MM月DD日'); --发生core
+</code></pre>
+<blockquote>
+<p>【问题根因】<br/>
+对于timestamp/timestamptz类型的数据，可以根据format格式输出数据，数据库内部会缓存format格式解析结果，缓存上限是17种format格式。达到缓存上限后，会从缓存中获取一块使用频率最低的缓存继续使用，此时缓存中的解析信息仍然存在，不会清理。当设置a_format_version='10c'和a_format_dev_version='s6'时，如果format格式有中文产生报错，会导致缓存块处于异常状态。此时设置a_format_dev_version=''，再次执行相同带有中文format格式的SQL语句时，会复用到该异常缓存块，使数据库发生coredump。</p>
+</blockquote>
+<h1 id="复现">复现</h1>
+<p>我当前版本是506.0.0 SPC0100 ，直接使用预警文档里的复现用例，是复现不出来的，仔细看了下，是因为这个版本默认开启了<code>mapping_date_to_datea=on</code>,这个参数相关介绍可以参考我之前写的一篇文章 <a href="https://www.darkathena.top/archives/gaussdb-506-date-type-oracle">https://www.darkathena.top/archives/gaussdb-506-date-type-oracle</a><br/>
+,简单来说，这个其实就是把执行sql中的date类型语义映射成datea类型。而预警说的是timestamp类型，所以预警里的用例需要关闭这个参数才能复现，或者说，要更老的版本才可以复现。开了mapping_date_to_datea后，不接受中文格式，直接就拦住了，进不去有问题的逻辑。</p>
+<p>所以这次我先关了这个参数。</p>
+<p>我当前参数是这样的：</p>
+<pre><code class="language-sql">gaussdb=# show mapping_date_to_datea;
+ mapping_date_to_datea
+-----------------------
+ off
+(1 row)
+
+gaussdb=# show a_format_version;
+ a_format_version
+------------------
+ 10c
+(1 row)
+
+gaussdb=# show a_format_dev_version;
+ a_format_dev_version
+----------------------
+ s6
+(1 row)
+</code></pre>
+<p>使用预警文档里的用例执行一次</p>
+<pre><code class="language-sql">[Ruby@gaussdb-dn2 ~]$ gsql -r -d postgres -p 8000
+gsql ((GaussDB Kernel 506.0.0.SPC0100 build e324981f) compiled at 2025-04-27 14:27:52 last mr 23420 release)
+Non-SSL connection (SSL connection is recommended when requiring high-security)
+Type "help" for help.
+
+gaussdb=# \i to_char.sql
+ to_char
+----------
+ 20261115
+(1 row)
+
+  to_char
+-----------
+ 202611-15
+(1 row)
+
+  to_char
+-----------
+ 2026-1115
+(1 row)
+
+ to_char
+---------
+ 202615
+(1 row)
+
+  to_char
+-----------
+ 202615 AD
+(1 row)
+
+  to_char
+------------
+ 202615--AD
+(1 row)
+
+  to_char
+------------
+ 2026--15AD
+(1 row)
+
+     to_char
+-----------------
+ 202615november
+(1 row)
+
+ to_char
+----------
+ 202615pm
+(1 row)
+
+ to_char
+----------
+ 20261526
+(1 row)
+
+ to_char
+----------
+ 15202626
+(1 row)
+
+ to_char
+----------
+ 11152026
+(1 row)
+
+ to_char
+----------
+ 11202615
+(1 row)
+
+  to_char
+-----------
+ 11-202615
+(1 row)
+
+  to_char
+-----------
+ 112026-15
+(1 row)
+
+  to_char
+------------
+ 112026--15
+(1 row)
+
+  to_char
+------------
+ 15--112026
+(1 row)
+
+SET
+SET
+gsql:to_char.sql:23: ERROR:  invalid data for match in format string
+CONTEXT:  referenced column: to_char
+SET
+    to_char
+----------------
+ 2026年11月15日
+(1 row)
+
+    to_timestamp
+---------------------
+ 2025-10-10 00:00:00
+(1 row)
+
+</code></pre>
+<p>并没有出现预期中的coredump。然而当我在这个会话中再重复执行一次整个用例时，果然发生了coredump。<br/>
+前面没复现的原因可能是执行前的参数有差异，所以我重复执行一次，再次模拟了参数变化，从而复现了这个coredump。</p>
+<pre><code class="language-c">#0  BBOX_CreateCoredump (file_name=0x0)
+    at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/framework/database/bbox/bbox_create.cpp:393
+#1  0x00005645c770da45 in bbox_handler (sig=11, si=0x7fed648494f0, uc=0x7fed648493c0)
+    at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/framework/database/bbox/gs_bbox.cpp:125
+#2  &lt;signal handler called&gt;
+#3  DCH_to_char (collid=100, buflen=205, out=0x7fed528a00b8 "2026", in=&lt;optimized out&gt;, is_interval=&lt;optimized out&gt;,
+    node=&lt;optimized out&gt;) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/formatting.cpp:7090
+#4  datetime_to_char_body (tmtc=0x7fed64849a20, fmt=0x7fed56ca31d8, is_interval=false, collid=100)
+    at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/formatting.cpp:8800
+#5  0x00005645c6d54fb7 in timestamptz_to_char (fcinfo=0x7fed528a2d38)
+    at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adt/formatting.cpp:8939
+</code></pre>
+<p>直接让deespseek-flash连到环境里分析一下:</p>
+<pre><code>结论
+
+今天这台机（gaussdb-dn2，dn_6001）下午 只有 1 次 coredump，时间为 2026-11-15 15:17:52 CST，之前的 core 按你的要求没有看。
+
+崩溃类别：空指针解引用（SIGSEGV），发生在 to_char 格式化函数内部。
+
+┌──────────┬───────────────────────────────────────────────────────────────────────────┐
+│ 项       │ 内容                                                                      │
+├──────────┼───────────────────────────────────────────────────────────────────────────┤
+│ 信号     │ si_signo=11 (SIGSEGV), si_code=1, si_addr=0xc                             │
+├──────────┼───────────────────────────────────────────────────────────────────────────┤
+│ 出错指令 │ mov 0xc(%rax),%edx，此时 RAX=0 → 读 NULL+0xc                              │
+├──────────┼───────────────────────────────────────────────────────────────────────────┤
+│ 出错函数 │ DCH_to_char @ formatting.cpp:7090（被内联进 datetime_to_char_body）       │
+├──────────┼───────────────────────────────────────────────────────────────────────────┤
+│ 触发 SQL │ select to_char(current_date, 'YYYY年MM月DD日');                           │
+└──────────┴───────────────────────────────────────────────────────────────────────────┘
+
+调用链（core + ffic 一致）： DCH_to_char:7090 ← datetime_to_char_body:8800 ← timestamptz_to_char:8939 ← exec_eval_func_expr_strict ← exec_project_byflt ← ResultOperator::get_next ←
+exec_simple_query ← PostgresMain
+
+根因证据链
+
+ 1. 崩溃前同一语句连续报错 4 次（全天仅 4 次，都在
+  2.5 分钟内）：
+ 15:15:28 / 15:17:28 / 15:17:47 / 15:17:52  ERROR: invalid data for match in format string，STATEMENT: select to_char(current_date, 'YYYY年MM月DD日')，session 48，用户 
+rdsAdmin，application_name=gsql。
+ 2. core 里出错处正在遍历一个 24 字节步长的格式项数组（add $0x18,%r13），当前元素 R13=0x7fed5d882648 的布局是 {kind=2, ptr=NULL}，即"标记为关键字节点、但节点指针为空"。
+ 3. 同一数组里正常元素的指针都指向 .data.rel.ro 的 DCH_keywords_Aformat 表，与本实例 sql_compatibility=A 
+一致；说明该格式串在处理中文多字节字符（年月日）时被切分/查表失败，产出了一个残缺项。
+ 4. YYYY 已正常输出（out=0x7fed528a00b8 "2026"），崩溃发生在处理第 2 个元素（即紧跟 YYYY 的 年）时。
+
+推断（未证实）：格式解析失败时留下了半初始化的解析结果（很可能是 to_char 的格式缓存项），后续复用该残缺项导致解引用 NULL。这能解释"先报几次 invalid data for match、再崩溃"的顺序。
+
+环境
+
+ - GaussDB Kernel 506.0.0.SPC0100 build e324981f（2025-04-27），Kylin V10，x86_64
+ - sql_compatibility=A，lc_ctype=C，enable_codegen=on
+ - 15:18:08 自动恢复：database system was interrupted; last known up at 2026-11-15 15:17:25，15:18:19 blackbox flush 启动；gs_log 里没有 FATAL/PANIC 行（符合 blackbox 
+崩溃特征），实例现已起来
+ - Symbol：gaussdb0.symbol 已存在于 $GAUSSHOME/bin（debuglink 匹配），因此拿到了 file:line
+
+临时缓解
+
+把中文用双引号包成字面量，走标准 to_char 字面量路径（尚未验证）：
+
+ select to_char(current_date, 'YYYY"年"MM"月"DD"日"');
+
+或改为 to_char(current_date,'YYYY-MM-DD') 之后在应用层格式化，避开多字节格式串。这个畸形格式串很可能是 506 内核缺陷，建议带 core + ffic 日志提华为 case。
+</code></pre>
+<p>直接让AI自行复现分析：</p>
+<pre><code>结论：今天这台机有 2 次 coredump，同一个缺陷
+
+┌───┬─────────────────────────┬──────────────────┬─────────┐
+│   │ 时间                    │ 来源             │ 结果    │
+├───┼─────────────────────────┼──────────────────┼─────────┤
+│ 1 │ 2026-11-15 15:17:52     │ 业务实际发生     │ SIGSEGV │
+├───┼─────────────────────────┼──────────────────┼─────────┤
+│ 2 │ 2026-11-15 15:44:42     │ 我复现验证时触发 │ SIGSEGV │
+└───┴─────────────────────────┴──────────────────┴─────────┘
+
+两次崩溃的 fault offset 完全一致：datetime_to_char_body + 0x1b0，si_code=1, si_addr=0xc（空指针 + 0xc 偏移）。按 fault line 判定为同一个 bug。
+
+根因
+
+to_char 的格式串解析结果被跨格式复用/污染，导致 DCH_to_char 遍历到 key == NULL 的格式节点后解引用崩溃。
+
+崩溃指令（RIP=0x…79d0）：
+
+ mov 0xc(%rax),%edx     ; rax = 0 → 读 key-&gt;id (offset 12)
+ cmp $0xbc,%edx         ; → 188 项跳转表（DCH 关键字分派）
+ movslq (%r15,%rax,4),%rax ; r15 = 跳转表基址
+
+即 node-&gt;key 为 NULL，仍无条件读 key-&gt;id。
+
+从 core 里把 FormatNode 数组打出来（ptype FormatNode = {int type; const KeyWord *key; char character; int suffix;}，stride 24）：
+
+ [0] {type=0, key=0x0,                    ...}
+ [1] {type=2, key=DCH_keywords_Aformat+2832}
+ [2] {type=2, key=0x0, character='-'}   ← 崩溃点在这里
+ [3] {type=2, key=DCH_keywords_before+384, character='-'}
+ [4] {type=1, key=DCH_keywords_Aformat+504}
+
+一个"已标记为关键字、但 key 为空"的半成品节点，前后还残留着 - 这类属于另一个格式串的节点 —— 说明这个节点数组不是当前语句解析出来的。
+
+复现（在干净进程上做的对照实验，已跑通）
+
+重启后进程内格式缓存为空：
+
+ - select to_char(current_date,'YYYY年MM月DD日') → ERROR: invalid data for match in format string（每次都报）
+
+同一进程内先用别的格式，再跑同一条语句：
+
+ 1. 'YYYY-MM-DD'      → 2026-11-15     ✓
+ 2. 'YYYY年MM月DD日'  → ERROR: invalid data for match in format string
+ 3. 'YYYY年MM月DD日'  → 2026-11-15     ✗ 错！用的是上一条语句的格式
+ 4. 'YYYY-MM-DD'      → 2026-11-15     ✓
+
+第 3 行说明：一次失败的解析污染了缓存，后续相同语句会拿到别的格式的节点数组；某些缓存状态下拿到的节点数组里 key 为 NULL，就变成 SIGSEGV。
+
+触发条件（已观测）
+
+ - 语句：select to_char(current_date,'YYYY年MM月DD日')，sql_compatibility=A、lc_ctype=C
+ - 格式串含中文多字节字符（年/月/日）→ 解析器在第一个非 ASCII 字节处匹配失败
+ - 同一进程内之前执行过其他 to_char 格式串（生产环境就是被健康检查/其他 SQL 预热了缓存）
+ - 崩溃前 gs_log 连续出现同一语句的 ERROR: invalid data for match in format string（15:15:28、15:17:28、15:17:47、15:17:52，全天仅这 4 次，且都是本语句），随后同一条语句下次执行即崩溃 
+—— 这与"先报错、再复用坏缓存、再崩"的链条吻合
+
+崩溃栈（core 与 ffic 日志两路互相印证）：
+
+ DCH_to_char (formatting.cpp:7090)
+ datetime_to_char_body (formatting.cpp:8769/8800)
+ timestamptz_to_char / timestamp_to_char
+ exec_project_byflt ← ResultOperator::get_next ← PortalRunSelect ← exec_simple_query ← PostgresMain
+</code></pre>
+<h1 id="解决方案">解决方案</h1>
+<ul>
+<li>修复版本： GaussDB Kernel 506.0.0.spc0500</li>
+<li>规避方案：修改业务语句，在使用to_char/to_timestamp函数时，将第二个入参的中文字符用""包含起来，如替换为select to_char(current_date, 'YYYY"年"MM"月"DD"日"');</li>
+</ul>
+<h1 id="后续问题">后续问题</h1>
+<p>其实当时在测试环境收集ffic日志时，我有发现在506.0.0.spc0100和506.0.0.spc0500都有to_char引起的coredump，但是堆栈不一样。使用复现用例在spc0100上产生的coredump堆栈，在spc0500上没有出现。</p>
+<p>spc0500上的这个堆栈我当时没有复现出来，后面华为研发会议解释了原因：<br/>
+这个问题有个前提条件，特定时机内存不足。</p>
+<p>上面有说到，to_char里的格式，其实是有缓存的，而这个缓存结构，分为头和体，GaussDB在收到一种新格式时，会把这个格式写进缓存，先写头，然后再写体，假设写体的时候，申请内存不足了，体就会写入失败，但这个时候不会报错，而且没有把已写入的头还原（即没有保证原子性操作），客户端会话保持正常。再次调用到这个格式时，发现头有，就以为体也有，访问过去，其实是一块坏的内存，就coredump了。</p>
+<pre><code class="language-c">#7  0x0000ffffd597c7650 in ?? () from /lib64/libc.so.6
+#8  0x0000aaab4fd6310c in strcpy_s ()
+#9  0x0000aaab4db27654 in cache_getnew (str=0xffff440212050 "yyyyMMdd hh24:mi:ss", cache=0xc2b) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adft/formatting.c
+#10 0x0000aaab4da95a20 in nls_date_fmt_cache_getnew (str=0xffff440212050 "yyyyMMdd hh24:mi:ss")
+    at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adft/check_nls_date_format.cpp:408
+#11 get_nls_date_format (fmt_str=0xffff440212050 "yyyyMMdd hh24:mi:ss", fmt_len=19, in_cache=0xfffec7cc933af)
+    at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adft/check_nls_date_format.cpp:722
+#12 0x0000aaab4dacda0 in datea_to_char_body (tmtc=0xfffec7cc9338, fmt=0xffff4428e5850, collid=100)
+    at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adft/datea_formatting.cpp:79
+#13 0x0000aaab4dabe4bc in datea_to_text_with_nls (fcinfo=0xffff446102b50) at /usr1/GaussDBKernel/server/opengauss/src/auxiliary/share/adft/date_a.cpp:345
+#14 0x0000aaab4de4d290 in exec_eval_func_expr_strict (op=0xffff4610368b0) at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_interp_external.c
+#15 0x0000aaab4de45834 in exec_interp_expr (state=0xffff4461027d0, econtext=0xffff43656fd90, isnull=0xfffec7cc936af, is_done=&lt;optimized out&gt;)
+    at /usr1/GaussDBKernel/server/opengauss/src/compatibility/sql_adaptor/utils/exec_expr_interp.cpp:279
+#16 0x0000aaab4e14b0a0 in gsplsql_exec_eval_simple_expr (estate=0xfffeaec56ab90, expr=0xffff44023a270, result=0xfffec7cc936c0, is_null=0xfffe66970d2a0, rettype=0xfffec7cc936b0, rettypmod=0xfffec7cc936b4) at /usr1/GaussDBKernel/server/opengauss/src/gausskernel/pl/plsql/pl_exec/pl_eval_expr.cpp:649
+</code></pre>
+<p>我顺便也让AI参考这个堆栈去复现一下</p>
+<pre><code>这个栈我读出来了 —— 是 datea 格式缓存的半初始化问题，不是之前那个"字符串匹配污染"
+
+我用 119 上的 SPC0500 容器和 /root/gaussdb506symbol 对上了符号（Build ID dffbdcaf04d6dce3f725ae830d4e5ba2 二进制与符号表一致，gaussdb 506.0.0.SPC0500 build d474632c）。
+
+栈翻译成这个二进制里的地址
+
+┌───────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ 你的帧                                                            │ SPC0500 (x86) 对应                                                                                      │
+├───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ #10 nls_date_fmt_cache_getnew check_nls_date_format.cpp:408       │ 被内联进 get_nls_date_format，地址 0x1498d40..0x1498d57                                                 │
+├───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ #11 get_nls_date_format :722                                      │ 调用点 0x1498d52: callq cache_getnew                                                                    │
+├───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ #12 datea_to_char_body datea_formatting.cpp:79                    │ 0x14d274d: callq get_nls_date_format（+92，和你栈里的 +0x5c 同一条逻辑）                                │
+├───────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ #9 cache_getnew                                                   │ 0x15331d0，内部调 fill_DCH_cache_str(0x152c350) → strncpy_s（你的 ARM 构建里显示成 strcpy_s）           │
+└───────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+cache_getnew 的关键代码（0x15331d0）：
+
+ cmp $0x10,%eax          ; n = cache-&gt;n
+ jle 0x15332a5           ; n&lt;=16 → ent = cache-&gt;entries + n*0xca0
+ 0x15332b2: lea 0xc18(%rbx),%rdi     ; dest = ent-&gt;str   ← 你的崩溃就在这次拷贝
+ 0x15332b9: callq fill_DCH_cache_str ; → strncpy_s(dest,129,src,128)
+
+0xca0=3232 是缓存项大小，0xc18 是项内 str 字段偏移，数组一共 17 项（0xd6a0）。
+
+找到了真正的缺陷：缓存上下文先挂到 TLS、后分配节点数组
+
+nls_date_fmt_cache_search 的惰性初始化（同一函数，0x14969b0）：
+
+ 0x1496aca  mov  %fs:(%r12),%r15              ; 保存当前内存控制器
+ 0x1496ad4  call alloc_zero(.., 0x10, ..)     ; 分配 DCHCacheContext(16B)
+ 0x1496af2  mov  %rax,%fs:0x36c0(%rbx)        ; ★ TLS 先发布 —— 源码 line 418
+ 0x1496afa  call alloc_zero(.., 0xd6a0, ..)   ; ★ 再分配 17 项节点数组 —— line 420
+ 0x1496aff  mov  %rax,(%r14)                  ; cache-&gt;entries = 数组 —— line 419
+
+line 418 在 line 420 之前。所以只要第二个 54944 字节的分配抛错/返回空（内存不足、max_process_memory 到顶、内存控制器异常），TLS 里就留下一个 entries == NULL 
+的"半成品缓存"，而且成功的那一半已经把 n=0、counter=0 写好了。
+
+下一次任何 to_char(datea, 非热格式)：
+
+ 1. nls_date_fmt_cache_search：cache 非空、n==0 → 直接返回 NULL（不碰 entries，所以不崩）
+ 2. get_nls_date_format → cache_getnew：n=0 ≤ 16 → ent = NULL + 0 = NULL
+ 3. dest = NULL + 0xc18 = 0xc18 → strncpy_s(0xc18, 129, "...", 128) → 在 libc 里写 0xc18 崩掉
+
+这与你给的栈完全吻合：cache_getnew → strcpy_s → libc，且崩溃地址会是 0xc18 附近（和你 119 上那几次 si_addr = 0xc 是同一类"空基址+小偏移"）。gdb 里 cache=0xc2b 
+那种值是优化后参数回显不准，可忽略；决定性证据是 faulting 地址。
+
+顺带说明 SPC0500 里日期类格式化共有 3 份缓存，都在 t_thrd.format_cxt：
+
+ - fs:0x36b0 — timestamp/DCH 缓存（knl_thread_init 里主动建好）
+ - fs:0x36b8 — 第二份（同上，entry 尺寸 0x6f90）
+ - fs:0x36c0 — datea 缓存，knl_thread_init 只把它置 0（thread.cpp:166），真正的内容靠上面那段惰性初始化
+
+只有 datea 这一份是"懒创建"的，所以只有它会踩到这个半初始化窗口。
+
+复现尝试（都在这个容器里做了，均未崩）
+
+容器 gaussdb506.0_spc0500 本来就是 mapping_date_to_datea=on + a_format_version=10c，pg_typeof(current_date)=datea：
+
+┌─────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────┬──────┐
+│ 尝试                                                                        │ 规模                                    │ 结果 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ 单条 to_char(current_date,'yyyyMMdd hh24:mi:ss')                            │ —                                       │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ PL/SQL 里同一条（对应你栈底的 gsplsql_exec_eval_simple_expr）               │ 5000 次循环 + generate_series 3000 行   │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ 200 个不同格式 × 30 轮（强制 cache_getnew/淘汰）                            │ 6000 次                                 │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ 39 个格式依次 39 个独立 PL/SQL 块                                           │ —                                       │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ set nls_date_format='yyyyMMdd hh24:mi:ss' 后 1 参 to_char(current_date)     │ 及前后带空格变体                        │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ to_date() / '...'::datea 输入路径 × 9 种 NLS 格式 × 7 种取值                │ 约 260 条                               │ 正常 │
+├─────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────┼──────┤
+│ 200 条并发连接反复新建/断开（线程池复用）                                   │ 5 轮                                    │ 正常 │
+└─────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────────────┴──────┘
+
+也就是说：正常路径不会崩，必须让那次 54944 字节的分配失败才会进入坏状态。
+
+顺便发现一个真异常：格式串长度正好 128 字节时（如 'YYYY'*32）报 formatting.cpp : 8543 : The destination buffer or format is a NULL pointer... 而 121 字节、132 
+字节都正常——DCH_CACHE_SIZE 边界（&gt;0x80 走非缓存路径，==0x80 走缓存路径）上有
+off-by-one，可一并提给华为。
+</code></pre>
+<p>AI也发现了，正常无法复现，必须要卡时机内存不足才行。</p>
+<p>相较于SPC0100上的to_char问题，SPC0500的这个to_char影响还小点，因为只要内存足够大，就不会遇到。当然SPC0100上的其实也没那么容易遇到，因为一个会话里弄17种不同的日期时间格式，还有写错的格式，那也是神人开发的应用了。</p>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/gaussdb/">gaussdb</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-alert-reproduction-cld-p-a-2026103-equality-vs-fuzzy-query-filter-condition-inconsistency/">【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警 &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>

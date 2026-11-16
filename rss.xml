@@ -6,6 +6,18 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump</title>
+      <link>https://www.darkathena.top/archives/gaussdb-alert-reproduction-cld-p-a-202563-to-char-to-timestamp-function-causes-database-coredump</link>
+      <description>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump 背景 有次收集了某客户所有测试环境GaussDB的ffic日志，发现里面大量的coredump都发生在to_char函数，联想到之前华为有发过相关预警，但是我当时</description>
+      <pubDate>Sun, 15 Nov 2026 10:20:36 +0000</pubDate>
+    </item>
+    <item>
+      <title>【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警</title>
+      <link>https://www.darkathena.top/archives/gaussdb-alert-reproduction-cld-p-a-2026103-equality-vs-fuzzy-query-filter-condition-inconsistency</link>
+      <description>【GaussDB】预警复现：CLD-P-A-2026103 过滤条件等值查询与模糊查询结果不一致问题预警 背景 之前收到了华为发的预警CLD-P-A-2026103，说是有些场景下，where主键使用=查询只有一条数据，使用like匹配有两条，数据不一致。这种数据不一致的BUG是客户最怕的。但是我挑</description>
+      <pubDate>Sun, 15 Nov 2026 10:20:34 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】关于2026年11月5号直播演示的一些补充</title>
       <link>https://www.darkathena.top/archives/gaussdb-supplementary-explanation-after-20261105-live</link>
       <description>【GaussDB】关于2026年11月5号直播演示的一些补充 在上次直播中，我演示了使用智能体+skill来诊断coredump问题以及使用plan trace做执行计划的规划路径分析，还有一个调用非公开知识库的案例。直播精华可以参考这篇文章： 《Bethune X 公开实战 GaussDB AI </description>
@@ -311,18 +323,6 @@
       <description>Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录 环境信息 Claude Code: v2.1.114 (macos) LLM 后端: LM Studio (v0.4.12) / llama.cpp (8853) 模型: Qwen3-Coder-Next-Q4_</description>
       <pubDate>Tue, 05 May 2026 17:00:37 +0000</pubDate>
       <category>AI</category>
-    </item>
-    <item>
-      <title>【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估</title>
-      <link>https://www.darkathena.top/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation</link>
-      <description>【GaussDB】 存储过程中使用自治事务记录日志的性能优化方案测试及评估 背景 在ORACLE数据库里进行业务逻辑开发时，使用自治事务来记录日志是一种非常常见的用法，但这种用法原样迁移到GaussDB时，性能会下降得非常严重，尤其是在循环次数非常多的情况下使用，这个时间差会变得非常大，需要考虑有没</description>
-      <pubDate>Tue, 05 May 2026 14:57:10 +0000</pubDate>
-    </item>
-    <item>
-      <title>【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑</title>
-      <link>https://www.darkathena.top/archives/GaussDB-On-a-Handling-Logic-of-View-Dependencies</link>
-      <description>【GaussDB】浅浅说下GaussDB中视图依赖关系的一个处理逻辑 先看一个比较有意思的问题：在 GaussDB 里，如果一个视图依赖了一个包里的函数，我把这个包删了，然后原样重建回来，视图还能正常查询吗？ 在 Oracle 里，删掉被依赖的对象，视图会变成 INVALID，后续需要重新编译才能恢</description>
-      <pubDate>Tue, 05 May 2026 14:56:08 +0000</pubDate>
     </item>
   </channel>
 </rss>
