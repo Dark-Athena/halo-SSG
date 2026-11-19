@@ -5,6 +5,11 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://www.darkathena.top/archives/yashandb-oracle-autonomous-transaction-commit-flush</loc>
+    <lastmod>2026-11-17</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.darkathena.top/archives/gaussdb-alert-reproduction-cld-p-a-202563-to-char-to-timestamp-function-causes-database-coredump</loc>
     <lastmod>2026-11-15</lastmod>
     <priority>0.8</priority>

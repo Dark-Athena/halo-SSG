@@ -6,6 +6,12 @@
     <description/>
     <language>zh-CN</language>
     <item>
+      <title>【YashanDB】自治事务比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机</title>
+      <link>https://www.darkathena.top/archives/yashandb-oracle-autonomous-transaction-commit-flush</link>
+      <description>【YashanDB】自治事务存储过程比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机 前言 做ORACLE向国产库迁移的适配评估，自治事务(autonomous transaction)是个绕不开的东西,ORACLE里写日志的经典套路就是游标循环里调一个带pragma autonom</description>
+      <pubDate>Tue, 17 Nov 2026 12:48:23 +0000</pubDate>
+    </item>
+    <item>
       <title>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump</title>
       <link>https://www.darkathena.top/archives/gaussdb-alert-reproduction-cld-p-a-202563-to-char-to-timestamp-function-causes-database-coredump</link>
       <description>【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump 背景 有次收集了某客户所有测试环境GaussDB的ffic日志，发现里面大量的coredump都发生在to_char函数，联想到之前华为有发过相关预警，但是我当时</description>
@@ -315,13 +321,6 @@
       <link>https://www.darkathena.top/archives/claude-code-local-model-cc-connect-feishu-guide</link>
       <description>将 无官方订阅的Claude Code 接入飞书：cc-connect 配置踩坑全记录 背景 Claude Code 是 Anthropic 推出的终端 AI 编程助手，能力很强，但只能通过本地终端使用（Remote Control和Channels都需要订阅）。cc-connect 是一个开源工具</description>
       <pubDate>Tue, 05 May 2026 17:00:51 +0000</pubDate>
-      <category>AI</category>
-    </item>
-    <item>
-      <title>Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录</title>
-      <link>https://www.darkathena.top/archives/claude-code-kv-cache-reuse-failure-debug</link>
-      <description>Claude Code + 本地 LLM 的 KV Cache 复用失效问题排查全记录 环境信息 Claude Code: v2.1.114 (macos) LLM 后端: LM Studio (v0.4.12) / llama.cpp (8853) 模型: Qwen3-Coder-Next-Q4_</description>
-      <pubDate>Tue, 05 May 2026 17:00:37 +0000</pubDate>
       <category>AI</category>
     </item>
   </channel>

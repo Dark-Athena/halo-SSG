@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【YashanDB】自治事务比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机 - DA-技术分享-静态站</title>
+    <meta name="description" content="【YashanDB】自治事务存储过程比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机 前言 做ORACLE向国产库迁移的适配评估，自治事务(autonomous transaction)是个绕不开的东西,ORACLE里写日志的经典套路就是游标循环里调一个带pragma autonom">
+    <link rel="alternate" type="application/rss+xml" title="DA-技术分享-静态站 RSS" href="../../rss.xml">
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #1a1a2e;
+            --text-secondary: #666;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --border: #e5e7eb;
+            --code-bg: #f6f8fa;
+            --header-bg: #f8f9fa;
+            --max-width: 900px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a2e;
+                --text: #e0e0e0;
+                --text-secondary: #aaa;
+                --accent: #4da6ff;
+                --accent-hover: #80bfff;
+                --border: #333;
+                --code-bg: #2a2a3e;
+                --header-bg: #16213e;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+        .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+        header {
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        header .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .site-title { font-size: 1.3em; font-weight: 700; color: var(--text); }
+        .site-title:hover { text-decoration: none; color: var(--text); }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        nav a {
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        nav a:hover { background: var(--border); color: var(--text); text-decoration: none; }
+        main { padding: 30px 0; min-height: 60vh; }
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 0;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+        footer a { color: var(--text-secondary); }
+        h1 { font-size: 1.8em; margin-bottom: 0.5em; line-height: 1.3; }
+        h2 { font-size: 1.4em; margin: 1.5em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; margin: 1.2em 0 0.4em; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--header-bg); font-weight: 600; }
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 8px 16px;
+            margin: 1em 0;
+            color: var(--text-secondary);
+            background: var(--header-bg);
+        }
+        .tag { display: inline-block; background: var(--code-bg); border: 1px solid var(--border); padding: 2px 10px; border-radius: 12px; font-size: 0.85em; margin: 2px; }
+        .tag:hover { background: var(--border); text-decoration: none; }
+        .meta { color: var(--text-secondary); font-size: 0.9em; margin-bottom: 1em; }
+        .meta span { margin-right: 16px; }
+        .post-list { list-style: none; }
+        .post-list li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .post-list .date { color: var(--text-secondary); font-size: 0.85em; min-width: 100px; display: inline-block; }
+        .post-list .title { font-size: 1.05em; }
+        .excerpt { color: var(--text-secondary); font-size: 0.9em; margin-top: 4px; }
+        .category-header { margin: 2em 0 0.5em; font-weight: 600; }
+        .page-header { margin-bottom: 1.5em; }
+        .page-header p { color: var(--text-secondary); margin-top: 0.3em; }
+        .back-link { display: inline-block; margin-bottom: 1em; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            header .container { flex-direction: column; align-items: flex-start; }
+            nav { gap: 4px; }
+            nav a { padding: 3px 6px; font-size: 0.82em; }
+            h1 { font-size: 1.5em; }
+            .post-list .date { display: block; margin-bottom: 2px; }
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a class="site-title" href="../../">DA-技术分享-静态站</a>
+            <nav>
+                <a href="../../">首页</a>
+                <a href="../">文章归档</a>
+                <a href="../../tags/">标签</a>
+                <a href="../../moments/">记事本</a>
+                <a href="../../online-tools/">在线工具</a>
+                <a href="../../CV/">关于我</a>
+            </nav>
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            
+<a class="back-link" href="../">&larr; 返回文章列表</a>
+<article>
+    <h1>【YashanDB】自治事务比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机</h1>
+    <div class="meta">
+        
+        <span>2026-11-17</span>
+        
+        <span>0 阅读</span>
+        
+    </div>
+    <div class="post-body">
+        <article class="joe_detail__article animated fadeIn center-img line-numbers">
+<div id="post-inner">
+
+<h1 id="yashandb自治事务存储过程比oracle慢几百倍查下来锅不在at在commit刷盘时机">【YashanDB】自治事务存储过程比ORACLE慢几百倍？查下来锅不在AT,在commit刷盘时机</h1>
+<h2 id="前言">前言</h2>
+<p>做ORACLE向国产库迁移的适配评估，自治事务(autonomous transaction)是个绕不开的东西,ORACLE里写日志的经典套路就是游标循环里调一个带pragma autonomous_transaction的存储过程，逐条insert逐条commit,主事务该回滚回滚，日志照样留下来。这个模式在ORACLE上跑了几十年了，没人觉得它有什么性能问题，但是迁到YashanDB上会怎样呢？</p>
+<p>我手上有台麒麟V10 SP3的虚拟机，里面docker跑着ORACLE 19c,外面装着YashanDB 23.4.7,同一台机器同一块盘，正好拿来做个对照。我本来只想测个性能，顺便看看sql%rowcount、sqlerrm、dbms_utility.format_error_backtrace这些在自治事务里的传递行为一不一致，结果我在性能这块测出来一个两百多倍的差距，然后顺着挖下去发现根因还挺有意思的，不是自治事务本身的锅，是commit刷盘时机的设计差异(<strong>这里藏着个ORACLE会丢失commit数据的问题</strong>)。行为那边也挖出两个迁移必改的真差异。</p>
+<p>本文所有数字都是这台机器上实测的，脚本都贴出来了，有兴趣的同学可以自己复现，欢迎拍砖。</p>
+<blockquote>
+<p>本文中出现的 "AT" 为 "autonomous_transaction"的缩写</p>
+</blockquote>
+<h2 id="先说结论">先说结论</h2>
+<ul>
+<li>游标循环里调存储过程做insert+commit,ORACLE 31µs/次,YashanDB 7080µs/次，差228倍;换成自治事务过程更是差到593倍</li>
+<li>自治事务机制本身不贵，空AT过程调用ORACLE只比普通调用多0.24µs,YashanDB多4µs,都是微秒级</li>
+<li>根因:YashanDB的commit没写在循环控制语句里时(经典写法的commit在过程体里,AT也一样)每次同步fsync,而ORACLE把log file sync推迟到最外层PL/SQL块结束再等，一个20000次commit的块只产生1次刷盘等待。<strong>这是ORACLE从v6就有的commit point optimization，代价是块执行中途crash会丢部分已提交事务</strong>,后面kill实例实测丢过108个已经返回成功的commit</li>
+<li>本机wslc容器复测(fsync均值2.2ms):差距缩到35倍上下,根因第二环境复现;远端AT/嵌套的附加代价没复现，那截推断收回</li>
+<li>行为语义基本一致:事务独立性、异常传播、sql%rowcount共享、OUT参数异常路径丢失，两边都一样</li>
+<li>两个真差异:format_error_backtrace的帧序相反;raise_application_error的错误号体系完全不兼容,ORACLE的-20000..-20999在YashanDB上全部非法</li>
+</ul>
+<h2 id="测试环境">测试环境</h2>
+<table><thead><tr><th>项</th><th>ORACLE</th><th>YashanDB</th></tr></thead><tbody><tr><td>版本</td><td>19c EE,docker容器ol8_19_13_con,PDB1</td><td>23.4.7.113 EE,单机</td></tr><tr><td>用户</td><td>split_test</td><td>SYS</td></tr><tr><td>PL编译</td><td>INTERPRETED,optimize_level=2</td><td>默认</td></tr><tr><td>提交参数</td><td>commit_wait/commit_logging默认</td><td>COMMIT_WAIT=WAIT,COMMIT_LOGGING=IMMEDIATE,REDOFILE_IO_MODE=DSYNC</td></tr><tr><td>存储</td><td>容器overlay,无独立挂载</td><td>/home/yas2347/yasdb_data</td></tr></tbody></table>
+<p>两边数据都在同一块盘上，我用df和lsblk确认过，都是sda上的klas-root,不存在"ORACLE的redo落在快盘上"这种干扰因素。机器8个vCPU,盘是虚拟盘，后面会看到这块盘的fsync延迟相当感人。</p>
+<p>计时用dbms_utility.get_time(),这玩意一个tick是10ms不是1ns,别搞错了。每个场景预热一次然后测3轮取中位数，含insert的场景每轮前truncate,单会话，两库先后跑不并行。有个口径我要先交代:两边的迭代次数N不一样,ORACLE游标场景N=20000、嵌套N=50000,YashanDB游标和嵌套只有N=2000,为什么？因为YashanDB太慢了,按ORACLE的量跑要跑几个小时。。。us_per_call是归一化后的每次调用耗时，可以直接比，每轮计时都大于13个tick,量化误差控制在个位数百分比。</p>
+<h2 id="用例构造">用例构造</h2>
+<p>源表2000行，日志表一张，存储过程一组，两边脚本完全同构:</p>
+<pre><code class="language-sql">drop table at_log;
+drop table at_src;
+create table at_log(id number, pad varchar2(64));
+create table at_src(id number, pad varchar2(64));
+begin
+  for i in 1..2000 loop
+    insert into at_src values (i, 'src');
+  end loop;
+  commit;
+end;
+/
+create or replace procedure p_plain(p_id number) as
+begin
+  insert into at_log values (p_id, 'plain');
+  commit;
+end;
+/
+create or replace procedure p_at(p_id number) as
+pragma autonomous_transaction;
+begin
+  insert into at_log values (p_id, 'at');
+  commit;
+end;
+/
+create or replace procedure p_l1(p_id number) as
+begin
+  insert into at_log values (p_id, 'l1');
+  commit;
+end;
+/
+create or replace procedure p_l2(p_id number) as
+begin
+  p_l1(p_id);
+end;
+/
+create or replace procedure p_l3(p_id number) as
+begin
+  p_l2(p_id);
+end;
+/
+create or replace procedure p_l1_at(p_id number) as
+pragma autonomous_transaction;
+begin
+  insert into at_log values (p_id, 'l1at');
+  commit;
+end;
+/
+create or replace procedure p_l2_at(p_id number) as
+begin
+  p_l1_at(p_id);
+end;
+/
+create or replace procedure p_l3_at(p_id number) as
+begin
+  p_l2_at(p_id);
+end;
+/
+create or replace procedure p_at_empty(p_id number) as
+pragma autonomous_transaction;
+begin
+  null;
+end;
+/
+create or replace procedure p_empty(p_id number) as
+begin
+  null;
+end;
+/
+</code></pre>
+<p>场景7个:S1游标FOR循环调p_plain,S2游标FOR循环调p_at,S3数值循环调空AT,S4数值循环调空普通过程,S5三层嵌套p_l3→p_l2→p_l1叶子commit,S6三层嵌套叶子是AT,S7顶层AT包两层普通嵌套。游标场景的核心块长这样(YashanDB版,ORACLE版把循环套10遍):</p>
+<pre><code class="language-sql">declare
+  t0 number; t1 number; n number;
+  cursor c is select id from at_src;
+begin
+  for r in c loop p_at(r.id); end loop;
+  for run in 1..3 loop
+    execute immediate 'truncate table at_log';
+    t0 := dbms_utility.get_time;
+    for r in c loop p_at(r.id); end loop;
+    t1 := dbms_utility.get_time;
+    select count(*) into n from at_log;
+    dbms_output.put_line('S2 run' || run || ' ticks=' || (t1-t0) || ' us_per_call=' || round((t1-t0)*10000/2000,2) || ' rows=' || n);
+  end loop;
+end;
+/
+</code></pre>
+<h2 id="性能实测数据">性能实测数据</h2>
+<h3 id="oracle-19c-执行耗时">ORACLE 19c 执行耗时</h3>
+<pre><code>S1 run1 ticks=62 us_per_call=31 rows=20000
+S1 run2 ticks=61 us_per_call=30.5 rows=20000
+S1 run3 ticks=72 us_per_call=36 rows=20000
+S2 run1 ticks=63 us_per_call=31.5 rows=20000
+S2 run2 ticks=63 us_per_call=31.5 rows=20000
+S2 run3 ticks=63 us_per_call=31.5 rows=20000
+S3 run1 ticks=20 us_per_call=.4
+S3 run2 ticks=19 us_per_call=.38
+S3 run3 ticks=19 us_per_call=.38
+S4 run1 ticks=28 us_per_call=.14
+S4 run2 ticks=27 us_per_call=.135
+S4 run3 ticks=28 us_per_call=.14
+S5 run1 ticks=158 us_per_call=31.6 rows=50000
+S5 run2 ticks=421 us_per_call=84.2 rows=50000
+S5 run3 ticks=149 us_per_call=29.8 rows=50000
+S6 run1 ticks=176 us_per_call=35.2 rows=50000
+S6 run2 ticks=425 us_per_call=85 rows=50000
+S6 run3 ticks=153 us_per_call=30.6 rows=50000
+S7 run1 ticks=168 us_per_call=33.6 rows=50000
+S7 run2 ticks=160 us_per_call=32 rows=50000
+S7 run3 ticks=173 us_per_call=34.6 rows=50000
+</code></pre>
+<h3 id="yashandb-2347-执行耗时">YashanDB 23.4.7 执行耗时</h3>
+<pre><code>S1 run1 ticks=1397 us_per_call=6985 rows=2000
+S1 run2 ticks=1416 us_per_call=7080 rows=2000
+S1 run3 ticks=1429 us_per_call=7145 rows=2000
+S2 run1 ticks=4089 us_per_call=20445 rows=2000
+S2 run2 ticks=3736 us_per_call=18680 rows=2000
+S2 run3 ticks=3594 us_per_call=17970 rows=2000
+S3 run1 ticks=47 us_per_call=4.7
+S3 run2 ticks=48 us_per_call=4.8
+S3 run3 ticks=47 us_per_call=4.7
+S4 run1 ticks=13 us_per_call=.65
+S4 run2 ticks=14 us_per_call=.7
+S4 run3 ticks=13 us_per_call=.65
+S5 run1 ticks=2983 us_per_call=14915 rows=2000
+S5 run2 ticks=3133 us_per_call=15665 rows=2000
+S5 run3 ticks=3172 us_per_call=15860 rows=2000
+S6 run1 ticks=3219 us_per_call=16095 rows=2000
+S6 run2 ticks=3232 us_per_call=16160 rows=2000
+S6 run3 ticks=3287 us_per_call=16435 rows=2000
+S7 run1 ticks=3326 us_per_call=16630 rows=2000
+S7 run2 ticks=3170 us_per_call=15850 rows=2000
+S7 run3 ticks=3540 us_per_call=17700 rows=2000
+</code></pre>
+<p>可以看到ORACLE那边S5/S6第二轮有个84µs的离群值，疑似撞上检查点，取中位数就排掉了。汇总成一张表(中位数,µs/次):</p>
+<table><thead><tr><th>场景</th><th align="right">ORACLE</th><th align="right">YashanDB</th><th align="right">倍数</th></tr></thead><tbody><tr><td>S1 游标循环调普通过程insert+commit</td><td align="right">31</td><td align="right">7080</td><td align="right">228</td></tr><tr><td>S2 游标循环调AT过程</td><td align="right">31.5</td><td align="right">18680</td><td align="right">593</td></tr><tr><td>S3 空AT调用</td><td align="right">0.38</td><td align="right">4.7</td><td align="right">12</td></tr><tr><td>S4 空普通调用</td><td align="right">0.14</td><td align="right">0.65</td><td align="right">4.6</td></tr><tr><td>S5 三层嵌套叶子commit</td><td align="right">31.6</td><td align="right">15665</td><td align="right">496</td></tr><tr><td>S6 三层嵌套叶子AT</td><td align="right">35.2</td><td align="right">16160</td><td align="right">459</td></tr><tr><td>S7 顶层AT包两层嵌套</td><td align="right">33.6</td><td align="right">16630</td><td align="right">495</td></tr></tbody></table>
+<p>好家伙。<br/>
+游标循环调过程commit这种最常见的日志型负载，差了两个数量级。但是注意S3和S4,空AT调用两边都是微秒级,YashanDB的AT进出开销也就比ORACLE多4µs,所以自治事务这个机制本身不是瓶颈。再看S2-S1,YashanDB上游标里调AT比调普通过程每次多花11.6ms,差不多是2.6倍;S5-S1,三层嵌套比直调多8.6ms,2.2倍。ORACLE上这两个差值都约等于0。<br/>
+直觉告诉我，慢的不是调用，不是AT,是commit本身，而且和调用深度有关。</p>
+<h2 id="慢在哪排查过程">慢在哪？排查过程</h2>
+<h3 id="第一次跑崩了">第一次跑崩了</h3>
+<p>其实一开始两边用的是同一份脚本同样的N,然后YashanDB跑了11分钟还没跑完S1的第一轮，我查了下at_log的行数才19912行，折合每次insert+commit要30ms。ORACLE那边同样的逻辑30µs就跑完了。这肯定不对劲，我直接把进程kill了重新设计探针。</p>
+<h3 id="拆分探针">拆分探针</h3>
+<p>把insert、commit、过程调用、游标这几个因素拆开，我各跑了2000次:</p>
+<pre><code class="language-sql">declare
+  t0 number; t1 number;
+  cursor c is select id from at_src;
+begin
+  t0 := dbms_utility.get_time;
+  for r in c loop p_plain(r.id); end loop;
+  t1 := dbms_utility.get_time;
+  dbms_output.put_line('Q1 cursor_loop_2000_p_plain ticks=' || (t1-t0));
+  t0 := dbms_utility.get_time;
+  for i in 1..2000 loop p_plain(i); end loop;
+  t1 := dbms_utility.get_time;
+  dbms_output.put_line('Q4 numeric_loop_2000_p_plain ticks=' || (t1-t0));
+  t0 := dbms_utility.get_time;
+  for i in 1..2000 loop insert into at_log values (i, 'x'); commit; end loop;
+  t1 := dbms_utility.get_time;
+  dbms_output.put_line('Q5 numeric_loop_2000_inline_ins_commit ticks=' || (t1-t0));
+end;
+/
+</code></pre>
+<p>输出:</p>
+<pre><code>Q1 cursor_loop_2000_p_plain ticks=1629
+Q4 numeric_loop_2000_p_plain ticks=1703
+Q5 numeric_loop_2000_inline_ins_commit ticks=7
+</code></pre>
+<p>也就是说游标不是问题，数值循环一样慢，但是inline写insert+commit只要70ms跑完2000次,35µs一次，和ORACLE一个量级。差异锁定在commit语句的写法位置上:写在循环体里，还是写在任何循环之外的过程体里。我再补一组探针确认:</p>
+<pre><code>Q6 2000_proc_insert_no_commit_plus_1 ticks=20
+Q7 2000_inline_insert_proc_commit ticks=1419
+Q8 2000_numeric_loop_p_at ticks=1338
+</code></pre>
+<p>Q6是调过程insert但不commit,2000次加末尾1次commit,200ms,正常;Q7是inline insert然后调一个只有commit的过程,14.2秒,7.1ms一次;Q8是数值循环调AT过程,13.4秒。<br/>
+简单来说就是:<strong>YashanDB里commit走不走同步刷盘,看它写没写在循环控制语句里，而不是看它在不在被调用的过程里</strong>。经典写法的commit在过程体里、不在任何循环中，所以每次吃默认同步路径;顶层inline commit恰好写在循环体里,走批量。AT也一样道理:看commit写在哪，不看单元是不是自治。这条规则的官方文档出处和实测边界，下一小节说。</p>
+<h3 id="官方文档怎么说">官方文档怎么说</h3>
+<p>后来我去翻了YashanDB官方文档,23.4.7的<a href="https://doc.yashandb.com/yashandb/23.4.7/zh/SQL-Guide/PL-Statements/DCL-Statement.html">PL语句页</a>里有独立一句:"在PL循环控制语句中COMMIT等同于COMMIT WRITE BATCH NOWAIT。"<a href="https://doc.yashandb.com/yashandb/23.4.7/zh/SQL-Guide/SQL-Statements/COMMIT.html">COMMIT语法页</a>补语义:单独COMMIT默认WRITE WAIT IMMEDIATE,就是等刷盘;NOWAIT直接返回,"此时不保证redo日志成功写入磁盘";BATCH是攒redo一起刷。所以批量路径是官方承认的，条件写的是"在循环控制语句中"。</p>
+<p>但是我实测的边界比文档字面窄，在本机(fsync 2.2ms环境)补了几个探针:</p>
+<table><thead><tr><th>探针</th><th>形态</th><th>折合每次</th><th>路径</th></tr></thead><tbody><tr><td>L2</td><td>过程内2000次循环insert+commit,调1次</td><td>20µs</td><td>batch</td></tr><tr><td>L3</td><td>顶层循环内嵌套块里commit ×2000</td><td>45µs</td><td>batch</td></tr><tr><td>L5</td><td>过程包for 1..1循环commit,调2000次</td><td>1385µs</td><td>sync</td></tr><tr><td>L7</td><td>过程内for 1..2循环commit,调1000次</td><td>1290µs/调用</td><td>1 sync+1 batch</td></tr><tr><td>L9</td><td>外循环1000 ×内循环1..1 commit</td><td>1270µs</td><td>sync</td></tr></tbody></table>
+<p>规则是:<strong>每轮循环执行的第一个commit仍走同步刷盘，第2次迭代起才BATCH NOWAIT</strong>,与调用层级无关(L2在被调过程里照样快),与块嵌套无关(L3);单迭代循环永远不触发,外层循环的回跳救不了内层首迭代(L9)。拿远端Q5的70ms交叉验证:1次同步(约8ms)加1999×31µs,对得上。文档把等价关系写成无条件一句,没提首迭代这个边界;实现是不是在回跳边才置循环标记，没做源码级证实。</p>
+<h3 id="盘到底有多慢">盘到底有多慢</h3>
+<p>7.1ms这个数字很像fsync延迟，我用自带的fio量了一下(4k write,fsync=1,8秒):</p>
+<pre><code>fsync mean_us= 8426.932381454 p50= 6127.616 p99= 52166.656
+write mean_us= 8.70689989500000001
+</code></pre>
+<p>纯write只要8.7µs,一加fsync就是8.4ms,p99更是52ms。虚拟盘嘛，正常。7.1ms和8.4ms同量级，对上了,YashanDB过程内commit就是被这块盘的fsync钉死的。</p>
+<h3 id="oracle凭什么这么快">ORACLE凭什么这么快</h3>
+<p>同一块盘,ORACLE的commit也要刷redo啊，凭什么31µs？我查了下v$system_event:</p>
+<pre><code>EVENT                   TOTAL_WAITS    SEC    US_PER_WAIT
+log file sync           34             .71    20880.6
+</code></pre>
+<p>容器刚起不久，前面已经跑了十几万次commit了,log file sync居然只 waits了34次，单次均值20.9ms——和盘的fsync延迟又是一个量级。所以ORACLE不是每次commit都等刷盘。我做了个对照实验，一个匿名块里游标循环调过程commit两万次，前后各查一次等待计数:</p>
+<pre><code class="language-sql">alter session set container=pdb1;
+select total_waits as before_waits from v$system_event where event='log file sync';
+declare
+  cursor c is select id from split_test.at_src;
+begin
+  for pass in 1..10 loop
+    for r in c loop split_test.p_plain(r.id); end loop;
+  end loop;
+end;
+/
+select total_waits as after_waits from v$system_event where event='log file sync';
+</code></pre>
+<pre><code>BEFORE_WAITS
+	  34
+AFTER_WAITS
+	 35
+</code></pre>
+<p>20000次commit,1次log file sync。实锤了:<strong>ORACLE把commit的redo刷盘等待推迟到最外层PL/SQL块结束</strong>,而且这个推迟穿透过程调用边界，也穿透AT边界(S2的数据可以佐证)。块内随便commit,反正redo先攒着,块退出时一把等完。</p>
+<p>这玩意有个官方名字,叫<strong>commit point optimization</strong>，ORACLE从version 6就有了。</p>
+<p>《Oracle Database Transactions and Locking Revealed》2nd ed. (Apress, 2021)，Ch.5 Transactions，小节 "COMMITS in a Nondistributed PL/SQL Block"（纸页 p.130 起），第一句就是：</p>
+<blockquote>
+<p>"Since PL/SQL was first introduced in version 6 of Oracle, it has been transparently using an asynchronous commit."</p>
+</blockquote>
+<p>AskTom上Connor McDonald答过两个专问AT日志场景的帖子(<a href="https://asktom.oracle.com/ords/asktom.search?tag=autonomous-transactions-and-commits">一个</a>,<a href="https://asktom.oracle.com/ords/asktom.search?tag=autonomous-transactions-and-commit-point-optimization">另一个</a>),一个帖子里他当场跑了50万次AT调用,每个块log file sync只+1;另一个说得更直白:"In PLSQL (autonomous transaction or otherwise) we can 'cheat' a little because the only time you get control back is at the conclusion of the call",演示末尾还专门补了句"You'll see the same result if you comment in the pragma above"——把AT的pragma注释打开结果一样，AT没有特殊化。<a href="http://web.archive.org/web/20090224175309/http://asktom.oracle.com:80/pls/asktom/f?p=100:11:0::::P11_QUESTION_ID:16470446503580">Tom Kyte早在2009年的说法</a>是"every time you commit, you wait for log file sync (outside of plsql anyway)"。他和Darl Kuhn合著的<a href="https://link.springer.com/chapter/10.1007/978-1-4842-7499-6_8">Oracle Database Transactions and Locking Revealed</a>里"COMMITS in a Nondistributed PL/SQL Block"一节讲了理由:PL/SQL被当成批处理程序，调用方在整个块跑完之前不知道结果,所以块内commit等价于commit write NOWAIT,只在返回客户端前等一次redo落盘。注意书里把这种情况和COMMIT WRITE NOWAIT一起列在Durability一节,明说committed不等于持久化了，块跑到一半实例crash的话,redo还没被LGWR写盘的那部分已提交事务会丢，这是写在明面上的取舍,不是bug。Jonathan Lewis的Oracle Core第6章有个小节标题就叫"ACID Anomaly",<a href="https://flashdba.com/2013/05/20/slob-plsql-commit-optimization/">flashdba2013年用SLOB量过</a>:6400次user commits,redo synch writes只有97次。</p>
+<p>我回头又补了几组对照,这回不看等待事件,看redo synch writes计数器(它统计同步刷盘请求,比log file sync稳,因为19c的_use_adaptive_log_file_sync默认TRUE,走polling模式时不记等待事件):</p>
+<pre><code>W0_baseline                            user_commits=0     redo_synch_writes=0     lfs_waits=0
+W1_after_20000_proc_commits            user_commits=20000 redo_synch_writes=0     lfs_waits=0
+W2_after_20000_AT_commits              user_commits=40000 redo_synch_writes=0     lfs_waits=0
+W3_after_2000_inline_commit_write_wait user_commits=42000 redo_synch_writes=2000  lfs_waits=2000
+W4_after_2000_inline_plain_commit      user_commits=44000 redo_synch_writes=2000  lfs_waits=2000
+</code></pre>
+<p>四个负载在同一个匿名块里跑。20000次过程commit和20000次AT commit都是零同步刷盘,和Connor的演示对上。换成显式的commit write immediate wait立马就是2000次同步,redo synch time 925个厘秒,折合每次等待4.6ms,又被我们这块盘钉回去了,所以这个优化用显式WAIT就能破，只是正常没人这么写。顶层对照也有意思:同一会话2000条顶层autocommit的insert,redo synch writes也是2000,一比一,说明推迟只在PL/SQL块内生效。块退出那一次推迟的sync也抓到了,新会话里20000次commit,redo synch writes=1,log file sync=1。</p>
+<p>还有个例外,块里要是走了dblink(分布式事务),优化就失效,退回逐次commit等待,因为两个库都指着这个commit的持久性,没法偷懒,书里是这么解释的,flashdba也实测过(加loopback dblink后redo synch writes从97涨到6564)。</p>
+<p>所以换个角度看,YashanDB这种循环外commit的逐次fsync其实是"老实"写法，每次commit都真持久化了，只是这个老实在慢盘上太贵;它循环内的批量路径官方同样是NOWAIT,不保证逐次持久化，见前面文档那节。ORACLE的快是有前提的,前提就是牺牲块中持久性,迁移的时候别光顾着骂YashanDB慢。</p>
+<p>所以根因就清楚了，不是YashanDB的AT实现得烂，是两家的commit刷盘策略不同:ORACLE是plsql块级延迟，过程内commit被摊薄到31µs;YashanDB过程内commit逐次fsync,被盘延迟钉在7ms。盘越慢差距越大，这是个结构性差异。没准换块fsync一百微秒的NVMe差距能缩到几倍~十几倍，但只要这个策略差异在，游标循环逐条commit的写法在YashanDB上就永远比ORACLE吃亏。</p>
+<p>至于远端YashanDB为什么嵌套三层(S5)比直调(S1)贵一倍、AT(S2)比普通过程贵2.6倍，当时我推断是每多穿一层调用边界/AT边界就多一次刷盘，7ms的整数倍。这个推断后来没站住，火焰图负载和本机复测两套数据都没复现附加代价，复测那节细说，抬高成因未定论。</p>
+<h3 id="块跑到一半把实例kill了会怎样">块跑到一半把实例kill了会怎样</h3>
+<p>前面说ORACLE拿块中持久性换速度，书里也明说了，但是"会丢部分已提交事务"这句话到底有多真，我决定直接试:一个匿名块里循环insert+commit一百万次，跑到第20秒的时候pkill -9把ORACLE所有进程连LGWR一起干掉，等价实例crash,然后重启走crash recovery，数还剩多少行。杀之前commit到哪了得有个不走redo的证据，我让过程每次commit返回后用UTL_FILE往OS文件写一行id，容器死了宿主OS还活着，这文件就是"kill前已commit成功"的铁证。A臂用默认commit,B臂把commit换成commit write immediate wait(就是前面W3那个破优化的写法)，同样杀法同样时机。</p>
+<table><thead><tr><th>臂</th><th>实测速度</th><th>杀前最后commit的id</th><th>恢复后幸存</th><th>丢失</th></tr></thead><tbody><tr><td>A 默认</td><td>73µs/次</td><td>274969</td><td>274861</td><td>≥108</td></tr><tr><td>B 显式WAIT</td><td>3.5ms/次</td><td>5739</td><td>5740</td><td>0</td></tr></tbody></table>
+<p>A臂那108行，commit调用在kill前已经成功返回了，恢复之后查不到，因为commit record杀的时候还在log buffer里没落盘,recovery把它们当未提交事务处理了。丢的也只是尾巴:最多一个LGWR刷盘周期内的commit，我poll了v$sysstat的redo writes,大概104次一秒，折合周期9.6ms，108个commit按14.5k/s算就是7.4ms，对得上，前面二十多万行都活得好好的。只杀会话的server进程不算数,LGWR还活着，秒级就把log buffer刷下去了,丢的场景是实例crash或者掉电这一类。</p>
+<p>B臂零丢，但是3.5ms一次，比A臂慢48倍,这就是每次等盘的价钱。所以ORACLE默认那个选择翻译过来就是:拿极端场景下几百行的尾巴，换48倍吞吐。YashanDB那边我没做同款测试，不推断它丢不丢，但是它循环外commit每次真落盘这点，前面7ms和fio的8.4ms已经对上了;循环内路径官方是NOWAIT,丢不丢同样没测。</p>
+<h2 id="换台机器再测差距跟着fsync走">换台机器再测,差距跟着fsync走</h2>
+<p>前面所有数字都出自那台麒麟VM,慢盘是差距的放大器，这个说法靠不靠谱得换套环境验证。我本机Windows的wslc里跑着两个容器，Oracle还是19c那个镜像，YashanDB是23.4.7.100，远端是.113，小版本不一样先记着;提交参数和PL编译选项核对过，和远端一致。同一套脚本同样的N原样搬过来，串行跑。我本来以为本机NVMe盘fsync怎么也得百微秒级，结果fio一量不是那么回事:纯write确实快，27.8µs,但是4k write加fsync=1均值2.19ms,p50 2.15ms，p99 3.0ms。WSL2的容器盘是vhdx套NTFS再套NVMe，flush一次还是要两毫秒，比远端8.4ms好4倍，离裸盘还差一个数量级。所以"换快盘差距就消失"这个预期一开始就不成立，能验证的只是差距跟不跟着fsync延迟走。<br/>
+汇总成表(中位数，µs/次，倍数列是YAS/ORA):</p>
+<table><thead><tr><th>场景</th><th align="right">ORACLE</th><th align="right">YashanDB</th><th align="right">倍数</th><th align="right">远端倍数</th></tr></thead><tbody><tr><td>S1 游标调普通过程</td><td align="right">37.5</td><td align="right">1315</td><td align="right">35</td><td align="right">228</td></tr><tr><td>S2 游标调AT过程</td><td align="right">25</td><td align="right">1350</td><td align="right">54</td><td align="right">593</td></tr><tr><td>S3 空AT调用</td><td align="right">0.28</td><td align="right">5.9</td><td align="right">21</td><td align="right">12</td></tr><tr><td>S4 空普通调用</td><td align="right">0.11</td><td align="right">0.65</td><td align="right">5.9</td><td align="right">4.6</td></tr><tr><td>S5 三层嵌套叶子commit</td><td align="right">42.2</td><td align="right">1300</td><td align="right">31</td><td align="right">496</td></tr><tr><td>S6 三层嵌套叶子AT</td><td align="right">38</td><td align="right">1335</td><td align="right">35</td><td align="right">459</td></tr><tr><td>S7 顶层AT包两层嵌套</td><td align="right">39.6</td><td align="right">1340</td><td align="right">34</td><td align="right">495</td></tr></tbody></table>
+<p>先交代口径:本机Oracle三轮抖动比远端大，S1三轮25/37.5/49.5µs，WSL2调度加上宿主是我日常用的机器，不是静默实验室，中位数能看单轮别信;S2那个54倍是Oracle中位数偏低(25µs)抬出来的,看S1/S5/S6/S7的31~35倍更稳。</p>
+<p>然后看机制复现没有。YashanDB过程内commit 1.3ms，贴着fio的2.2ms;拆分探针也复现:顶层块inline insert+commit 2000次40ms,折合20µs一次，同样的insert+commit写进被调过程就是1340µs一次，同库内差67倍。Oracle那边20000次过程内commit，redo synch writes和log file sync都只+1，块级延迟刷盘换个环境照样在。根因不是那台VM的偶然现象，是两家commit路径的结构性差异，第二环境复现了。</p>
+<p>差距幅度也对上了:fsync从8.4ms到2.2ms快约4倍，S1倍数从228到35缩约6.5倍，YashanDB绝对值7080µs到1315µs缩5.4倍，Oracle基本不动(31µs到37.5µs，在抖动范围内)。YashanDB的成本跟着刷盘延迟走，Oracle的成本近似常数，两边数据都支持这条曲线。照这个趋势外推，真换fsync百微秒的裸NVMe差距应该进个位数~十几倍，这个是外推不是实测，先记在这。</p>
+<p>但是有个意外。远端S2比S1贵2.6倍、S5比S1贵2.2倍，我前面推断是每穿一层调用边界/AT边界多一次刷盘。本机这套数据里S2/S1=1.03,S5/S1=0.99,凡是有commit的场景全在1.3ms上下，AT和嵌套一点附加代价都没有。加上远端火焰图那轮p_at负载实测7.4ms≈S1而不是S2，这个推断已经有两个独立反证,我收回。远端那个抬高到底是.113和.100的版本差异还是当时盘的状态，没隔离验证，不下结论，有兴趣的同学可以继续挖。</p>
+<h2 id="行为一致性对比">行为一致性对比</h2>
+<p>性能之外我把传递行为也测了一遍，用例和两边输出挑重点贴。</p>
+<h3 id="sqlrowcount是会话级共享的">sql%rowcount是会话级共享的</h3>
+<p>外层update 5行，然后调AT过程(里面insert+commit),前后各读一次sql%rowcount;再测AT内部第一条DML之前读到的rowcount:</p>
+<pre><code class="language-sql">declare
+  rc1 number; rc2 number;
+begin
+  update at_src set pad = 'x' where id &lt;= 5;
+  rc1 := sql%rowcount;
+  p_at(9201);
+  rc2 := sql%rowcount;
+  dbms_output.put_line('[B3] rc_before_at=' || rc1 || ' rc_after_at=' || rc2);
+  rollback;
+end;
+/
+</code></pre>
+<p>ORACLE输出<code>[B3] rc_before_at=5 rc_after_at=0</code>,YashanDB一模一样。AT内部读到的也是外层的7(B4用例，外层update 7行后调AT,AT里先读rowcount再insert),两边都是7。</p>
+<p>可以发现sql%rowcount在两边都是会话级共享的,AT能继承外层的值,AT里的SQL也会覆盖外层的值。B3/B5里那个0不是"AT把rowcount清零了",是AT末尾那条commit把rowcount变成0了，这个细节迁移的时候容易误判。游标循环里也一样，调完AT后sql%rowcount=0,cursor%rowcount正常递增1..5,两边一致。</p>
+<h3 id="事务独立性和异常传播">事务独立性和异常传播</h3>
+<p>外层insert不commit,调AT insert+commit,然后外层rollback,数行数:两边都剩1行,AT提交的留下来了。AT里insert之后raise,外层捕获,AT里那条insert自动回滚，两边可见行数都是1(只剩外层自己的未提交insert)。AT看不见外层未提交的行，两边都是0。这些核心语义完全一致，没得挑。</p>
+<h3 id="at异常退出时out参数会丢">AT异常退出时OUT参数会丢</h3>
+<p>这个两边也一致,但是是个容易踩的坑:</p>
+<pre><code class="language-sql">create or replace procedure p_at_capture(out_msg out varchar2, out_bt out varchar2) as
+pragma autonomous_transaction;
+begin
+  insert into at_log values (9401, 'cap');
+  raise_application_error(-20003, 'CAP_BOOM');
+exception when others then
+  out_msg := sqlerrm;
+  out_bt := dbms_utility.format_error_backtrace;
+  raise;
+end;
+/
+</code></pre>
+<p>想着在AT的handler里把sqlerrm和backtrace塞进OUT参数带出来，然后raise给外层，结果外层收到的两个OUT参数都是空的,ORACLE和YashanDB都空。AT正常返回时OUT参数正常带回(B10对照用例验证过)。也就是说异常路径下OUT参数不回传，想从AT里带诊断信息出来不能走这条路。</p>
+<h2 id="两个真差异">两个真差异</h2>
+<h3 id="raise_application_error的错误号体系不兼容">raise_application_error的错误号体系不兼容</h3>
+<p>上面那个-20003在ORACLE上是标准用法,-20000..-20999是ORACLE留给用户的自定义错误号区间。但是在YashanDB上跑,sqlerrm出来的是这个:</p>
+<pre><code>YAS-06805 error number argument to raise_application_error of -20003 is out of range
+</code></pre>
+<p>官方文档有说范围为 30000~99999 。<br/>
+<a href="https://doc.yashandb.com/yashandb/23.5/zh/All-Manuals/Development-Guide/PL-Reference-Manual/Built-in-Advanced-PL-Packages/DBMS_STANDARD.html">https://doc.yashandb.com/yashandb/23.5/zh/All-Manuals/Development-Guide/PL-Reference-Manual/Built-in-Advanced-PL-Packages/DBMS_STANDARD.html</a></p>
+<p>其实之前我就有文章说过这个问题。</p>
+<p>YashanDB只收正数，映射成YAS-n,负数全军覆没,ORACLE那套-20xxx的惯例在这边一个都用不了。这意味着迁移的时候所有raise_application_error都要改号，更要命的是捕获端按错误号关联的自定义异常(exception e_custom; pragma exception_init(e_custom, -20001))和按sqlcode分支的逻辑全部失效。本次行为测试第一轮在YashanDB上实际传播的就是这个YAS-06805本身，换成50001/50002/50003重测之后，异常传播、自动回滚的语义和ORACLE是一致的。</p>
+<h3 id="backtrace帧序相反">backtrace帧序相反</h3>
+<p>两层嵌套raise,外层捕获后打format_error_backtrace,帧内容和行号两边完全一致(脚本同构所以行号也对得上),就是前缀不同,ORACLE是ORA-06512,YashanDB是YAS-04015,匿名块属主ORACLE不显示名字,YashanDB显示个空引号""。这些是外观差异，无所谓。</p>
+<p>但是B8那个AT里handler重抛的场景，帧序反了。ORACLE:</p>
+<pre><code>ORA-06512: at "SPLIT_TEST.P_AT_CAPTURE", line 9
+ORA-06512: at "SPLIT_TEST.P_AT_CAPTURE", line 5
+ORA-06512: at line 4
+</code></pre>
+<p>YashanDB:</p>
+<pre><code>YAS-04015 at "SYS.P_AT_CAPTURE", line 5
+YAS-04015 at "SYS.P_AT_CAPTURE", line 9
+YAS-04015 at "", line 4
+</code></pre>
+<p>line 5是原始raise_application_error,line 9是handler里的raise。ORACLE最近的帧在前(栈顶往下),YashanDB原始raise在前。普通调用链(B6/B7)两边都是从叶子往外层排，看不出区别，只有重抛这种同一过程出现两帧的场景才暴露。解析backtrace做错误归因的迁移代码要注意这个，别按帧序取"第一帧"当出错点。</p>
+<h2 id="总结">总结</h2>
+<ul>
+<li>自治事务本身两边都便宜，迁移不用怕AT这个机制;怕的是"游标循环/深层嵌套里调过程逐条commit"这个ORACLE经典写法，在YashanDB上会被循环外commit的同步fsync钉死，本次慢盘环境实测228~593倍</li>
+<li>远端AT/嵌套的附加代价(2.2~2.6倍)在火焰图负载和本机.100复测里都没复现，成因未定论，迁移评估别拿它当依据</li>
+<li>缓解方向:把commit挪进顶层多迭代循环里(官方BATCH NOWAIT,但逐次不再保证持久化),或者攒多行一次commit减少次数，或者换低fsync延迟的盘。给过程体包一层1..1循环没用，实测照样同步;包成2迭代循环每次调用也仍付1次同步。有没有参数能让循环外commit走批量路径，我翻了下COMMIT_WAIT/COMMIT_LOGGING已经是WAIT/IMMEDIATE默认了，没找到别的开关，这个就抛给感兴趣的人去试试了。另外，GaussDB的自治事务也由于commit刷盘时机对性能有很大影响，所以之前我有篇文章介绍一些改造手段来提效，在YashanDB中也可参考（<a href="https://www.darkathena.top/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation">https://www.darkathena.top/archives/Optimizing-Autonomous-Transaction-Logging-in-GaussDB-Stored-Procedures-A-Comprehensive-Test-and-Evaluation</a>）</li>
+<li>行为语义(事务独立、异常传播回滚、sql%rowcount共享、OUT参数异常丢失)两边一致，迁移风险集中在两处:raise_application_error错误号必须重映射,backtrace帧序解析逻辑要改</li>
+<li>口径提醒:单会话、慢盘VM、ORACLE是INTERPRETED编译，倍数不是绝对值，换硬件会收窄，但commit刷盘策略的结构性差异还在;本机wslc复测实测35倍上下，收窄幅度和fsync延迟对上了，裸NVMe个位数倍是外推没实测</li>
+<li>别只看快慢:ORACLE块内commit是异步的，块跑完之前crash会丢部分"已提交"事务(官方书里明说的ACID取舍,kill实例实测丢的是最后一个LGWR刷盘周期里的尾巴,本次108个已返回成功的commit);YashanDB循环外commit逐次fsync慢但每次真落盘，可它循环内inline路径官方也是BATCH NOWAIT,同样不保证逐次持久化,crash丢不丢没测。对日志可靠性要求极高的场景，先看清自己的commit写在哪条路径上，再反过来评估这个差异</li>
+</ul>
+<blockquote>
+<p>注:本文的测试执行和初稿整理是交给AI(Qoder)干的，所有数字均为上述环境实测，脚本可复现，其中如有疏漏，请联系本人改正。完整的7场景脚本、9个行为用例和原始输出都在at_bench目录，篇幅有限就不全部贴出来了，欢迎大家来讨论或拍砖。</p>
+</blockquote>
+
+</div>
+</article>
+    </div>
+    
+    <div style="margin-top: 2em;">
+        
+        <a class="tag" href="../../tags/yashandb/">yashandb</a>
+        
+        <a class="tag" href="../../tags/oracle/">oracle</a>
+        
+    </div>
+    
+</article>
+<div style="margin-top: 3em; display: flex; justify-content: space-between;">
+    
+    <span></span>
+    
+    
+    <a href="../gaussdb-alert-reproduction-cld-p-a-202563-to-char-to-timestamp-function-causes-database-coredump/">【GaussDB】预警复现：CLD-P-A-202563 执行to_char或to_timestamp函数导致数据库发生coredump &rarr;</a>
+    
+</div>
+
+        </div>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2021-2026 DA-技术分享-静态站 &middot; Powered by <a href="https://halo.run" target="_blank">Halo</a> &middot; Static Mirror</p>
+            <p>湘ICP备2021015376号</p>
+        </div>
+    </footer>
+</body>
+</html>
